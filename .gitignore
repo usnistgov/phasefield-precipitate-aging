@@ -1,0 +1,10 @@
+*~
+*.a
+*.bak
+*.dat
+*.vti
+*.o
+*.out
+alloy718
+data
+mmsp2vti

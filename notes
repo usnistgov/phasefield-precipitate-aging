@@ -1,0 +1,8 @@
+This directory contains MMSP code for phase field simulation of solid state transformation in Ni alloy 718.
+
+Send questions or comments to trevor.keller@nist.gov (Trevor Keller)
+
+References:
+
+1. N Zhou, DC Lv, HL Zhang, D McAllister, F Zhang, MJ Mills, Y Wang. "Computer simulation of phase transformation and plastic deformation in IN718 superalloy:
+   Microstructural evolution during precipitation," Acta Materialia 65;270-286 (2014). DOI: 10.1016/j.actamat.2013.10.069
