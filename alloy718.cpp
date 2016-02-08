@@ -37,11 +37,13 @@ const double Dbeta = gamma/pow(delta,2);
 const double kappa = 2.0;
 
 
+// Define equilibrium phase compositions at global scope
 //                     gamma   delta   gamma'
 const double xAl[3] = {0.0161, 0.0007, 0.1870};
 const double xNb[3] = {0.0072, 0.0196, 0.0157};
-const double xNbdep = xNb[0]/2; // leftover Nb in depleted gamma phase near delta particle
+const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near delta particle
 
+// Define st.dev. of Gaussians for alloying element segregation
 //                     Al      Nb
 const double sig[2] = {0.0625, 0.025};
 
@@ -163,7 +165,8 @@ void generate(int dim, const char* filename)
 					initGrid(n)[i] = 0.01*real_gen(mt_rand);
 
 				if (r<rDeplt) { // point falls within the depletion region
-					double deltaxNb = xNb[0]-xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
+					//double deltaxNb = xNb[0]-xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
+					double deltaxNb = xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
 					initGrid(n)[1] -= deltaxNb;
 				}
 			} else {
@@ -277,6 +280,11 @@ void generate(int dim, const char* filename)
 template <int dim, typename T>
 void update(grid<dim,vector<T> >& oldGrid, int steps)
 {
+	int rank=0;
+	#ifdef MPI_VERSION
+	rank = MPI::COMM_WORLD.Get_rank();
+	#endif
+
 	grid<dim,vector<T> > newGrid(oldGrid);
 	grid<dim,T> wspace(oldGrid,1);
 
@@ -321,6 +329,34 @@ void update(grid<dim,vector<T> >& oldGrid, int steps)
 		}
 		swap(oldGrid,newGrid);
 		ghostswap(oldGrid);
+	}
+
+	vector<double> totals(7,0.0);
+	for (int n=0; n<nodes(oldGrid); n++) {
+		for (int i=0; i<2; i++)
+			totals[i] += oldGrid(n)[i];
+		for (int i=2; i<7; i++)
+			totals[i] += std::fabs(oldGrid(n)[i]);
+	}
+
+	double dV = 1.0;
+	for (int d=0; d<dim; d++)
+		dV /= (g1(oldGrid,d)-g0(oldGrid,d));
+	for (int i=0; i<7; i++)
+		totals[i] *= dV;
+
+	#ifdef MPI_VERSION
+	vector<double> myTot(totals);
+	for (int i=0; i<7; i++) {
+		MPI::COMM_WORLD.Reduce(&myTot[i], &totals[i], 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Barrier();
+	}
+	#endif
+	if (rank==0) {
+		std::cout<<"x_Ni      x_Al      x_Nb\n";
+		printf("%.6f  %1.2e  %1.2e\n", 1.0-totals[0]-totals[1], totals[0], totals[1]);
+		std::cout<<"p_g       p_g'      p_g''     p_g''     p_g''     p_d\n";
+		printf("%.6f  %1.2e  %1.2e  %1.2e  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3]-totals[4]-totals[5]-totals[6], totals[2], totals[3], totals[4], totals[5], totals[6]);
 	}
 }
 
