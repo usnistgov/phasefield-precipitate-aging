@@ -1,15 +1,19 @@
-// KKS.cpp
+// alloy625.cpp
 // Algorithms for 2D and 3D isotropic binary alloy solidification
 // using RWTH database for Cu-Ni system, CuNi_RWTH.tdb,
 // extracted from the COST507 Light Alloys Database.
 // Questions/comments to trevor.keller@nist.gov (Trevor Keller)
 
 // This implementation depends on the GNU Scientific Library
-// for multivariate root finding and interpolation algorithms
+// for multivariate root finding algorithms, and
+// The Mesoscale Microstructure Simulation Project for
+// high-performance grid operations in parallel. Use of these
+// software packages does not constitute endorsement by the
+// National Institute of Standards and Technology.
 
 
-#ifndef KKS_UPDATE
-#define KKS_UPDATE
+#ifndef ALLOY625_UPDATE
+#define ALLOY625_UPDATE
 #include<cmath>
 #include<gsl/gsl_blas.h>
 #include<gsl/gsl_vector.h>
@@ -18,20 +22,13 @@
 #include<gsl/gsl_spline2d.h>
 
 #include"MMSP.hpp"
-#include"KKS.hpp"
+#include"alloy625.hpp"
 
-// Note: KKS.hpp contains important declarations and comments. Have a look.
+// Note: alloy625.hpp contains important declarations and comments. Have a look.
 
-// 10-th order polynomial fitting coefficients from CALPHAD
-double calCs[11] = { 6.19383857e+03,-3.09926825e+04, 6.69261368e+04,-8.16668934e+04,
-                     6.19902973e+04,-3.04134700e+04, 9.74968659e+03,-2.04529002e+03,
-                     2.95622845e+02,-3.70962613e+01,-6.12900561e+01};
-double calCl[11] = { 6.18692878e+03,-3.09579439e+04, 6.68516329e+04,-8.15779791e+04,
-                     6.19257214e+04,-3.03841489e+04, 9.74145735e+03,-2.04379606e+03,
-                     2.94796431e+02,-3.39127135e+01,-6.26373908e+01};
-
-// Solidus and Liquidus compositions from CALPHAD
-const double Cse = 0.5413,  Cle = 0.3940;
+// Equilibrium compositions from CALPHAD: gamma, gamma-prime, gamma-double-prime, delta
+const double cAlEq[6] = {0.5413, 0.3940, 0.0, 0.0, 0.0, 0.0};
+const double cNbEq[6] = {0.5413, 0.3940, 0.0, 0.0, 0.0, 0.0};
 
 // Numerical stability (Courant-Friedrich-Lewy) parameters
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
@@ -53,23 +50,12 @@ const double dt_plimit = CFL*meshres/eps_sq;          // speed limit based on nu
 const double dt_climit = CFL*pow(meshres,2.0)/eps_sq; // speed limit based on diffusion timescale
 const double dt = std::min(dt_plimit, dt_climit);
 const double ps0 = 1.0, pl0 = 0.0; // initial phase fractions
-const double cBs = Cle + 0.50*(Cse-Cle); // initial solid concentration
-const double cBl = Cle + 0.50*(Cse-Cle); // initial solid concentration
-
-// Resolution of the constant chem. pot. composition lookup table
-const int LUTnc = 1000;        // number of points along c-axis
-const int LUTnp = 1000;        // number of points along p-axis
-const int LUTmargin = 1; // number of points below zero and above one
-const double LUTdp = 1.0/LUTnp;
-const double LUTdc = 1.0/LUTnc;
-const double LUTpmin = -LUTdp*LUTmargin;
-const double LUTpmax =  LUTdp*(LUTnp+LUTmargin);
-const double LUTcmin = -LUTdc*LUTmargin;
-const double LUTcmax =  LUTdc*(LUTnc+LUTmargin);
+const double cAl[6] = {Cle + 0.50*(Cse-Cle)}; // initial Al concentration
+const double cNb[6] = {Cle + 0.50*(Cse-Cle)}; // initial Nb concentration
 
 
 /* =============================================== *
- * Implement MMSP kernels, generate() and update() *
+ * Implement MMSP kernels: generate() and update() *
  * =============================================== */
 
 namespace MMSP{
@@ -78,326 +64,219 @@ void generate(int dim, const char* filename)
 {
 	int rank=0;
 	#ifdef MPI_VERSION
-	rank=MPI::COMM_WORLD.Get_rank();
+	rank = MPI::COMM_WORLD.Get_rank();
 	#endif
-	srand(time(NULL)+rank);
-
-	/* ======================================================================== *
-	 * Construct look-up table for fast enforcement of equal chemical potential *
-	 * ======================================================================== */
-
-	// Consider generating a free energy plot and lookup table.
-	bool nrg_not_found=true; // set False to disable energy plot, which may save a few minutes of work
-	bool lut_not_found=true; // LUT must exist -- do not disable!
-	if (rank==0) {
-		if (1) {
-			std::ifstream fnrg("energy.csv");
-			if (fnrg) {
-				nrg_not_found=false;
-				fnrg.close();
-			}
-			std::ifstream flut("consistentC.lut");
-			if (flut) {
-				lut_not_found=false;
-				flut.close();
-			}
-		}
-	}
-
-	#ifdef MPI_VERSION
-	MPI::COMM_WORLD.Bcast(&nrg_not_found,1,MPI_BOOL,0);
-	MPI::COMM_WORLD.Bcast(&lut_not_found,1,MPI_BOOL,0);
-	MPI::COMM_WORLD.Barrier();
-	#endif
-
-	// Construct solver for LUT generation
-	rootsolver LUTsolver;
-
-	if (nrg_not_found) {
-		// Print out the free energy for phi in [-0.01,1.01] with slices of c in [-0.01,1.01] for inspection.
-		if (rank==0)
-			std::cout<<"Sampling free energy landscape, exporting to energy.csv."<<std::endl;
-
-		#ifdef MPI_VERSION
-		MPI::COMM_WORLD.Barrier();
-		#endif
-		if (rank==0) export_energy(LUTsolver);
-		#ifdef MPI_VERSION
-		MPI::COMM_WORLD.Barrier();
-		#endif
-	}
-
-	if (lut_not_found) {
-		/* Generate Cs,Cl look-up table (LUT) using Newton-Raphson method, as
-		 * outlined in Provatas' Appendix C3 but using libgsl for speed and accuracy
-		 * Store results in pureconc, which contains two fields:
-		 * 0. Cs, fictitious composition of pure liquid
-		 * 1. Cl, fictitious composition of pure solid
-		 *
-		 * The grid is discretized over phi (axis 0) and c (axis 1).
-		*/
-		if (rank==0)
-			std::cout<<"Writing look-up table of Cs, Cl to consistentC.lut. Please be patient..."<<std::endl;
-		LUTGRID pureconc(3, -LUTmargin,LUTnp+LUTmargin+1, -LUTmargin,LUTnc+LUTmargin+1);
-		dx(pureconc,0) = LUTdp; // different resolution in phi
-		dx(pureconc,1) = LUTdc; // and c is not unreasonable
-
-		#ifndef MPI_VERSION
-		#pragma omp parallel for schedule(dynamic) private(LUTsolver)
-		#endif
-		for (int n=0; n<nodes(pureconc); n++) {
-			simple_progress(n,nodes(pureconc));
-			vector<int> x = position(pureconc,n);
-			pureconc(n)[0] = 0.5; // guess Cs
-			pureconc(n)[1] = 0.5; // guess Cl
-			pureconc(n)[2] = LUTsolver.solve(LUTdp*x[0], LUTdc*x[1], pureconc(n)[0], pureconc(n)[1]);
-		}
-
-		output(pureconc,"consistentC.lut");
-	}
-
-	// Read concentration look-up table from disk, in its entirety, even in parallel. Should be relatively small.
-	#ifndef MPI_VERSION
-	const int ghost=0;
-	LUTGRID pureconc("consistentC.lut",ghost);
-	#else
-	MPI::COMM_WORLD.Barrier();
-	LUTGRID pureconc(3, -LUTmargin,LUTnp+LUTmargin+1, -LUTmargin,LUTnc+LUTmargin+1);
-	const bool serial=true; // Please do not change this :-)
-	const int ghost=1;
-	pureconc.input("consistentC.lut",ghost,serial);
-	#endif
-
-	/* ====================================================================== *
-	 * Generate initial conditions using phase diagram and freshly minted LUT *
-	 * ====================================================================== */
-
-	/* Grid contains four fields:
-	   0. phi, phase fraction solid. Phi=1 means Solid.
-	   1. c, concentration of component A
-	   2. Cs, fictitious composition of solid
-	   3. Cl, fictitious composition of liquid
-	   4. deviation from equilibrium (chemical potential difference)
-	 */
-	vector<double> solidValue(4, 0.0);
-	solidValue[0] = ps0;
-	solidValue[1] = cBs;
-	solidValue[2] = 0.5;
-	solidValue[3] = 0.5;
-	LUTsolver.solve(solidValue[0], solidValue[1], solidValue[2], solidValue[3]);
-
-	vector<double> liquidValue(4, 0.0);
-	liquidValue[0] = pl0;
-	liquidValue[1] = cBl;
-	liquidValue[2] = 0.5;
-	liquidValue[3] = 0.5;
-	LUTsolver.solve(liquidValue[0], liquidValue[1], liquidValue[2], liquidValue[3]);
+	// Utilize Mersenne Twister from C++11 standard
+	std::mt19937_64 mt_rand(time(NULL)+rank);
+    std::uniform_real_distribution<double> real_gen(-1,1);
 
 	if (dim==1) {
-		int L=512;
-		GRID1D initGrid(4,0,L);
-		for (int d=0; d<dim; d++) {
-			dx(initGrid,d) = meshres;
-			if (useNeumann && x0(initGrid,d)==g0(initGrid,d))
-				b0(initGrid,d) = Neumann;
-			else if (useNeumann && x1(initGrid,d)==g1(initGrid,d))
-				b1(initGrid,d) = Neumann;
-		}
+		const int edge = 128;
+		GRID1D initGrid(7,0,edge);
+		vector<int> origin(1,edge/2);
+		for (int d=0; d<dim; d++)
+			dx(initGrid,d)=0.5;
 
-		double ctot = 0.0, ftot = 0.0;
-		double radius=(g1(initGrid,0)-g0(initGrid,0))/4;
-		#ifndef MPI_VERSION
-		#pragma omp parallel for
-		#endif
+		const double rDelta = 6.5*dx(initGrid,0);
+		const double rDeplt = rDelta*(1.0+2.0*xNb[1]/xNbdep); // radius of annular depletion region
+		if (rDeplt > edge/2)
+			std::cerr<<"Warning: domain too small to accommodate particle. Push beyond "<<rDeplt<<".\n"<<std::endl;
+
 		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> x = position(initGrid,n);
-			double r = std::abs(x[0] - (g1(initGrid,0)-g0(initGrid,0))/2);
-			if (r < radius)
-				initGrid(n).copy(solidValue);
-			else
-				initGrid(n).copy(liquidValue);
-			ctot += initGrid(n)[1]*dx(initGrid);
-			ftot += f(initGrid(n)[0], initGrid(n)[1], initGrid(n)[2], initGrid(n)[3])*dx(initGrid);
-		}
-		// Add gradient to ftot
-		ghostswap(initGrid);
-		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> s = position(initGrid,n);
-			double gradPsq = 0.0;
-			for (int d=0; d<1; d++) {
-				// Get low value
-				s[d]--;
-				double pl = initGrid(s)[0];
-				// Get high value
-				s[d]+=2;
-				double ph = initGrid(s)[0];
-				// Back to the middle
-				s[d]--;
+			vector<int> x = position(initGrid, n);
+			const double r = radius(origin, x, dx(initGrid,0));
+			if (r > rDelta) {
+				// Gamma matrix
+				initGrid(n)[0] = xAl[0]*(1.0 + noise_amp*real_gen(mt_rand))
+				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[0]*dx(initGrid,0)*edge)
+				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[0]*dx(initGrid,0)*edge)
+				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[0]*dx(initGrid,0)*edge);
+				initGrid(n)[1] = xNb[0]*(1.0 + noise_amp*real_gen(mt_rand))
+				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[1]*dx(initGrid,0)*edge)
+				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[1]*dx(initGrid,0)*edge)
+				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[1]*dx(initGrid,0)*edge);
+				for (int i=2; i<7; i++)
+					initGrid(n)[i] = 0.01*real_gen(mt_rand);
 
-				// Put 'em together
-				double weight = 1.0/(2.0*dx(initGrid,d));
-				gradPsq += pow(weight*(ph - pl),2.0);
-			}
-			ftot += gradPsq*dx(initGrid);
-		}
-
-		print_values(initGrid, rank);
-
-		output(initGrid,filename);
-
-		#ifdef MPI_VERSION
-		double myct(ctot);
-		double myft(ftot);
-		MPI::COMM_WORLD.Allreduce(&myct, &ctot, 1, MPI_DOUBLE, MPI_SUM);
-		MPI::COMM_WORLD.Allreduce(&myft, &ftot, 1, MPI_DOUBLE, MPI_SUM);
-		#endif
-		if (rank==0) {
-			std::ofstream cfile("c.log");
-			cfile<<ctot<<'\t'<<ftot<<'\t'<<CFL<<'\t'<<1.0<<std::endl;
-			cfile.close();
-		}
-
-	} else if (dim==2) {
-		int L = planarTest ? 1000 : 256;
-		int Ly = 32;
-		GRID2D initGrid(4,0,L,0,Ly);
-		for (int d=0; d<dim; d++) {
-			dx(initGrid,d) = meshres;
-			if (useNeumann && x0(initGrid,d)==g0(initGrid,d))
-				b0(initGrid,d) = Neumann;
-			else if (useNeumann && x1(initGrid,d)==g1(initGrid,d))
-				b1(initGrid,d) = Neumann;
-		}
-
-		double ctot = 0.0, ftot = 0.0;
-		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> x = position(initGrid,n);
-			if (planarTest) {
-				// Planar interface
-				if (x[0] < L/2)
-					initGrid(n).copy(solidValue);
-				else
-					initGrid(n).copy(liquidValue);
+				if (r<rDeplt) { // point falls within the depletion region
+					double deltaxNb = xNb[0]-xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
+					initGrid(n)[1] -= deltaxNb;
+				}
 			} else {
-				double ra = 15.0, rb = 8.0, rc = 8.0;
-				double offset = 64.0;
-				// Circular interfaces
-				if ( (pow(x[0] - (ra+1   ),2) + pow(x[1] - (offset/2-ra-1  ),2) < ra*ra) ||
-				     (pow(x[0] - 0.625*(offset),2) + pow(x[1] - (offset/2-rb-1  ),2) < rb*rb) ||
-				     (pow(x[0] - (offset-rc-1 ),2) + pow(x[1] - (rc+1),2) < rc*rc)
-				)
-					initGrid(n).copy(solidValue);
-				else
-					initGrid(n).copy(liquidValue);
+				// Delta particle
+				initGrid(n)[0] = xAl[1]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[1] = xNb[1]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[6] = 1.0;
+				for (int i=2; i<6; i++)
+					initGrid(n)[i] = 0.0;
 			}
-			ctot += initGrid(n)[1]*dx(initGrid)*dy(initGrid);
-			ftot += f(initGrid(n)[0], initGrid(n)[1], initGrid(n)[2], initGrid(n)[3])*dx(initGrid)*dy(initGrid);
 		}
-		// Add gradient to ftot
-		ghostswap(initGrid);
+
+		vector<double> totals(7,0.0);
 		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> s = position(initGrid,n);
-			double gradPsq = 0.0;
-			for (int d=0; d<2; d++) {
-				// Get low value
-				s[d]--;
-				double pl = initGrid(s)[0];
-				// Get high value
-				s[d]+=2;
-				double ph = initGrid(s)[0];
-				// Back to the middle
-				s[d]--;
-
-				// Put 'em together
-				double weight = 1.0/(2.0*dx(initGrid,d));
-				gradPsq += pow(weight*(ph - pl),2.0);
-			}
-			ftot += gradPsq*dx(initGrid);
+			for (int i=0; i<2; i++)
+				totals[i] += initGrid(n)[i];
+			for (int i=2; i<7; i++)
+				totals[i] += std::fabs(initGrid(n)[i]);
 		}
 
-		print_values(initGrid, rank);
-
-		output(initGrid,filename);
-
+		for (int i=0; i<7; i++)
+			totals[i] /= 1.0*edge;
 		#ifdef MPI_VERSION
-		double myct(ctot);
-		double myft(ftot);
-		MPI::COMM_WORLD.Allreduce(&myct, &ctot, 1, MPI_DOUBLE, MPI_SUM);
-		MPI::COMM_WORLD.Allreduce(&myft, &ftot, 1, MPI_DOUBLE, MPI_SUM);
+		vector<double> myTot = totals;
+		for (int i=0; i<7; i++)
+			MPI::COMM_WORLD.Reduce(&myTot[i], &totals[i], 1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
 		if (rank==0) {
-			std::ofstream cfile("c.log");
-			cfile<<ctot<<'\t'<<ftot<<'\t'<<CFL<<'\t'<<1.0<<std::endl;
-			cfile.close();
+			std::cout<<"x_Ni      x_Al      x_Nb\n";
+			printf("%.6f  %1.2e  %1.2e\n\n", 1.0-totals[0]-totals[1], totals[0], totals[1]);
+			std::cout<<"p_g       p_g'      p_g''     p_g''     p_g''     p_d\n";
+			printf("%.6f  %1.2e  %1.2e  %1.2e  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3]-totals[4]-totals[5]-totals[6], totals[2], totals[3], totals[4], totals[5], totals[6]);
 		}
-	} else if (dim==3) {
-		int L=64;
-		double radius=10.0;
-		GRID3D initGrid(4,0,L,0,L,0,L);
-		for (int d=0; d<dim; d++) {
-			dx(initGrid,d) = meshres;
-			if (useNeumann && x0(initGrid,d)==g0(initGrid,d))
-				b0(initGrid,d) = Neumann;
-			else if (useNeumann && x1(initGrid,d)==g1(initGrid,d))
-				b1(initGrid,d) = Neumann;
-		}
-
-		double ctot = 0.0, ftot = 0.0;
-		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> x = position(initGrid,n);
-			double r = sqrt(pow(radius-x[0]%64,2)+pow(radius-x[1]%64,2));
-			if (r<radius)
-				initGrid(n).copy(solidValue);
-			else
-				initGrid(n).copy(liquidValue);
-			ctot += initGrid(n)[1]*dx(initGrid)*dy(initGrid)*dz(initGrid);
-			ftot += f(initGrid(n)[0], initGrid(n)[1], initGrid(n)[2], initGrid(n)[3])*dx(initGrid)*dy(initGrid)*dz(initGrid);
-		}
-		// Add gradient to ftot
-		ghostswap(initGrid);
-		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> s = position(initGrid,n);
-			double gradPsq = 0.0;
-			for (int d=0; d<3; d++) {
-				// Get low value
-				s[d]--;
-				double pl = initGrid(s)[0];
-				// Get high value
-				s[d]+=2;
-				double ph = initGrid(s)[0];
-				// Back to the middle
-				s[d]--;
-
-				// Put 'em together
-				double weight = 1.0/(2.0*dx(initGrid,d));
-				gradPsq += pow(weight*(ph - pl),2.0);
-			}
-			ftot += gradPsq*dx(initGrid);
-		}
-
-		print_values(initGrid, rank);
 
 		output(initGrid,filename);
-
-		#ifdef MPI_VERSION
-		double myct(ctot);
-		double myft(ftot);
-		MPI::COMM_WORLD.Allreduce(&myct, &ctot, 1, MPI_DOUBLE, MPI_SUM);
-		MPI::COMM_WORLD.Allreduce(&myft, &ftot, 1, MPI_DOUBLE, MPI_SUM);
-		#endif
-		if (rank==0) {
-			std::ofstream cfile("c.log");
-			cfile<<ctot<<'\t'<<ftot<<'\t'<<CFL<<'\t'<<1.0<<std::endl;
-			cfile.close();
-		}
-	} else {
-		std::cerr<<"ERROR: "<<dim<<"-dimensional domains not supported."<<std::endl;
-		exit(-1);
 	}
 
-	if (rank==0)
-		printf("\nEquilibrium Cs=%.2f, Cl=%.2f. Timestep dt=%.2e\n", Cse, Cle, dt);
+	if (dim==2) {
+		const int edge = 128;
+		GRID2D initGrid(7,0,edge,0,edge);
+		vector<int> origin(2,edge/2);
+		for (int d=0; d<dim; d++)
+			dx(initGrid,d)=0.5;
 
+		const double rDelta = 6.5*dx(initGrid,0);
+		const double rDeplt = rDelta*std::sqrt(1.0+2.0*xNb[1]/xNbdep); // radius of annular depletion region
+		if (rDeplt > edge/2)
+			std::cerr<<"Warning: domain too small to accommodate particle. Push beyond "<<rDeplt<<".\n"<<std::endl;
+
+		double delta_mass=0.0;
+		for (int n=0; n<nodes(initGrid); n++) {
+			vector<int> x = position(initGrid, n);
+			const double r = radius(origin, x, dx(initGrid,0));
+			if (r > rDelta) {
+				// Gamma matrix
+				initGrid(n)[0] = xAl[0]*(1.0 + noise_amp*real_gen(mt_rand))
+				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[0]*dx(initGrid,0)*edge)
+				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[0]*dx(initGrid,0)*edge)
+				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[0]*dx(initGrid,0)*edge);
+				initGrid(n)[1] = xNb[0]*(1.0 + noise_amp*real_gen(mt_rand))
+				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[1]*dx(initGrid,0)*edge)
+				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[1]*dx(initGrid,0)*edge)
+				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[1]*dx(initGrid,0)*edge);
+				for (int i=2; i<7; i++)
+					initGrid(n)[i] = 0.01*real_gen(mt_rand);
+
+				if (r<rDeplt) { // point falls within the depletion region
+					//double deltaxNb = xNb[0]-xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
+					double deltaxNb = xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
+					initGrid(n)[1] -= deltaxNb;
+				}
+			} else {
+				// Delta particle
+				delta_mass+=1.0;
+				initGrid(n)[0] = xAl[1]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[1] = xNb[1]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[6] = 1.0;
+				for (int i=2; i<6; i++)
+					initGrid(n)[i] = 0.0;
+			}
+		}
+
+		vector<double> totals(7,0.0);
+		for (int n=0; n<nodes(initGrid); n++) {
+			for (int i=0; i<2; i++)
+				totals[i] += initGrid(n)[i];
+			for (int i=2; i<7; i++)
+				totals[i] += std::fabs(initGrid(n)[i]);
+		}
+
+		for (int i=0; i<7; i++)
+			totals[i] /= 1.0*edge*edge;
+		#ifdef MPI_VERSION
+		vector<double> myTot(totals);
+		for (int i=0; i<7; i++) {
+			MPI::COMM_WORLD.Reduce(&myTot[i], &totals[i], 1, MPI_DOUBLE, MPI_SUM, 0);
+			MPI::COMM_WORLD.Barrier();
+		}
+		#endif
+		if (rank==0) {
+			std::cout<<"x_Ni      x_Al      x_Nb\n";
+			printf("%.6f  %1.2e  %1.2e\n\n", 1.0-totals[0]-totals[1], totals[0], totals[1]);
+			std::cout<<"p_g       p_g'      p_g''     p_g''     p_g''     p_d\n";
+			printf("%.6f  %1.2e  %1.2e  %1.2e  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3]-totals[4]-totals[5]-totals[6], totals[2], totals[3], totals[4], totals[5], totals[6]);
+		}
+
+		output(initGrid,filename);
+	}
+
+	if (dim==3) {
+		const int edge = 64;
+		GRID3D initGrid(7,0,edge,0,edge,0,edge);
+		vector<int> origin(3,edge/2);
+		for (int d=0; d<dim; d++)
+			dx(initGrid,d)=0.5;
+
+		const double rDelta = 6.5*dx(initGrid,0);
+		const double rDeplt = rDelta*std::pow(1.0+2.0*xNb[1]/xNbdep,1.0/3); // radius of annular depletion region
+		if (rDeplt > edge/2)
+			std::cerr<<"Warning: domain too small to accommodate particle. Push beyond "<<rDeplt<<".\n"<<std::endl;
+
+		for (int n=0; n<nodes(initGrid); n++) {
+			vector<int> x = position(initGrid, n);
+			const double r = radius(origin, x, dx(initGrid,0));
+			if (r > rDelta) {
+				// Gamma matrix
+				initGrid(n)[0] = xAl[0]*(1.0 + noise_amp*real_gen(mt_rand))
+				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[0]*dx(initGrid,0)*edge)
+				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[0]*dx(initGrid,0)*edge)
+				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[0]*dx(initGrid,0)*edge);
+				initGrid(n)[1] = xNb[0]*(1.0 + noise_amp*real_gen(mt_rand))
+				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[1]*dx(initGrid,0)*edge)
+				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[1]*dx(initGrid,0)*edge)
+				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[1]*dx(initGrid,0)*edge);
+				for (int i=2; i<7; i++)
+					initGrid(n)[i] = 0.01*real_gen(mt_rand);
+
+				if (r<rDeplt) { // point falls within the depletion region
+					double deltaxNb = xNb[0]-xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
+					initGrid(n)[1] -= deltaxNb;
+				}
+			} else {
+				// Delta particle
+				initGrid(n)[0] = xAl[1]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[1] = xNb[1]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[6] = 1.0;
+				for (int i=2; i<6; i++)
+					initGrid(n)[i] = 0.0;
+			}
+		}
+
+		vector<double> totals(7,0.0);
+		for (int n=0; n<nodes(initGrid); n++) {
+			for (int i=0; i<2; i++)
+				totals[i] += initGrid(n)[i];
+			for (int i=2; i<7; i++)
+				totals[i] += std::fabs(initGrid(n)[i]);
+		}
+
+		for (int i=0; i<7; i++)
+			totals[i] /= 1.0*edge*edge*edge;
+		#ifdef MPI_VERSION
+		vector<double> myTot(totals);
+		for (int i=0; i<7; i++) {
+			MPI::COMM_WORLD.Reduce(&myTot[i], &totals[i], 1, MPI_DOUBLE, MPI_SUM, 0);
+			MPI::COMM_WORLD.Barrier();
+		}
+		#endif
+		if (rank==0) {
+			std::cout<<"x_Ni      x_Al      x_Nb\n";
+			printf("%.6f  %1.2e  %1.2e\n", 1.0-totals[0]-totals[1], totals[0], totals[1]);
+			std::cout<<"p_g       p_g'      p_g''     p_g''     p_g''     p_d\n";
+			printf("%.6f  %1.2e  %1.2e  %1.2e  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3]-totals[4]-totals[5]-totals[6], totals[2], totals[3], totals[4], totals[5], totals[6]);
+		}
+
+		output(initGrid,filename);
+	}
 }
 
 template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int steps)
@@ -418,9 +297,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	pureconc.input("consistentC.lut",ghost,serial);
 	#endif
 
-	// Construct the LUT solver and interpolator
-	rootsolver LUTsolver;
-	interpolator LUTinterp(pureconc);
+	// Construct the common tangent solver
+	rootsolver CommonTangentSolver;
 
 	ghostswap(oldGrid);
    	grid<dim,vector<T> > newGrid(oldGrid);
@@ -933,7 +811,7 @@ int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matr
 
 
 rootsolver::rootsolver() :
-	n(2), // two equations
+	n(4), // four equations
 	maxiter(5000),
 	tolerance(1.0e-12)
 {
@@ -946,16 +824,25 @@ rootsolver::rootsolver() :
 	mrf = {&commonTangent_f, &commonTangent_df, &commonTangent_fdf, n, &par};
 }
 
-template <typename T> double rootsolver::solve(const T& p, const T& c, T& Cs, T& Cl)
+template <typename T> double
+rootsolver::solve(const T& c,
+      const T& p_gp1, const T& p_gp2, const T& p_gp3, const T& p_gdp, const T& p_del,
+      T& C_gam, T& C_gpr, T& C_gdp, t& C_del)
 {
 	int status;
 	size_t iter = 0;
 
 	// initial guesses
-	par.p = p;
 	par.c = c;
-	gsl_vector_set(x, 0, Cs);
-	gsl_vector_set(x, 1, Cl);
+	par.p_gp1 = p_gp1;
+	par.p_gp2 = p_gp2;
+	par.p_gp3 = p_gp3;
+	par.p_gdp = p_gdp;
+	par.p_del = p_del;
+	gsl_vector_set(x, 0, C_gam);
+	gsl_vector_set(x, 1, C_gpr);
+	gsl_vector_set(x, 2, C_gdp);
+	gsl_vector_set(x, 3, C_del);
 
 	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
 
@@ -967,8 +854,10 @@ template <typename T> double rootsolver::solve(const T& p, const T& c, T& Cs, T&
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status==GSL_CONTINUE && iter<maxiter);
 
-	Cs = static_cast<T>(gsl_vector_get(solver->x, 0));
-	Cl = static_cast<T>(gsl_vector_get(solver->x, 1));
+	C_gam = static_cast<T>(gsl_vector_get(solver->x, 0));
+	C_gpr = static_cast<T>(gsl_vector_get(solver->x, 1));
+	C_gdp = static_cast<T>(gsl_vector_get(solver->x, 2));
+	C_del = static_cast<T>(gsl_vector_get(solver->x, 3));
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
