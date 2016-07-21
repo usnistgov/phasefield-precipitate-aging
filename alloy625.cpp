@@ -27,8 +27,8 @@
 // Note: alloy625.hpp contains important declarations and comments. Have a look.
 
 // Equilibrium compositions from CALPHAD: gamma, gamma-prime, gamma-double-prime, delta
-const double cAlEq[6] = {0.5413, 0.3940, 0.0, 0.0, 0.0, 0.0};
-const double cNbEq[6] = {0.5413, 0.3940, 0.0, 0.0, 0.0, 0.0};
+const double cAlEq[4] = {0.5413, 0.0, 0.0, 0.3940};
+const double cNbEq[4] = {0.5413, 0.0, 0.0, 0.3940};
 
 // Numerical stability (Courant-Friedrich-Lewy) parameters
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
@@ -58,7 +58,57 @@ const double cNb[6] = {Cle + 0.50*(Cse-Cle)}; // initial Nb concentration
  * Implement MMSP kernels: generate() and update() *
  * =============================================== */
 
-namespace MMSP{
+namespace MMSP
+{
+
+/* Representation includes five field variables:
+ *
+ * X0.  molar fraction of Al, Cr, Mo
+ * X1.  molar fraction of Nb, Fe
+ * bal. molar fraction of Ni
+ *
+ * P2.  phase fraction of gamma'
+ * P3.  phase fraction of gamma''
+ * P4.  phase fraction of delta
+ * bal. phase fraction of gamma
+ */
+
+const double noise_amp = 0.00625;
+const double Calpha = 0.05;
+const double Cbeta = 0.95;
+const double Cmatrix = 0.5*(Calpha+Cbeta);
+const double A = 2.0;
+const double B = A/pow(Cbeta-Cmatrix,2);
+const double gamma = 2.0/pow(Cbeta-Calpha,2);
+const double delta = 1.0;
+const double epsilon = 3.0;
+const double Dalpha = gamma/pow(delta,2);
+const double Dbeta = gamma/pow(delta,2);
+const double kappa = 2.0;
+
+
+// Define equilibrium phase compositions at global scope
+//                     gamma   gamma'  gamma'' delta
+const double xAl[3] = {0.0161, 0.0007, 0.1870, 0.0007};
+const double xNb[3] = {0.0072, 0.0196, 0.0157, 0.0196};
+const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near delta particle
+
+// Define st.dev. of Gaussians for alloying element segregation
+//                     Al      Nb
+const double bell[2] = {0.0625, 0.025};
+
+double radius(const vector<int>& a, const vector<int>& b, const double& dx)
+{
+	double r = 0.0;
+	for (int i=0; i<length(a) && i<length(b); i++)
+		r += std::pow(a[i]-b[i],2.0);
+	return dx*std::sqrt(r);
+}
+
+double bellCurve(double x, double m, double s)
+{
+	return std::exp( -std::pow(x-m,2.0)/(2.0*s*s) );
+}
 
 void generate(int dim, const char* filename)
 {
@@ -68,78 +118,11 @@ void generate(int dim, const char* filename)
 	#endif
 	// Utilize Mersenne Twister from C++11 standard
 	std::mt19937_64 mt_rand(time(NULL)+rank);
-    std::uniform_real_distribution<double> real_gen(-1,1);
-
-	if (dim==1) {
-		const int edge = 128;
-		GRID1D initGrid(7,0,edge);
-		vector<int> origin(1,edge/2);
-		for (int d=0; d<dim; d++)
-			dx(initGrid,d)=0.5;
-
-		const double rDelta = 6.5*dx(initGrid,0);
-		const double rDeplt = rDelta*(1.0+2.0*xNb[1]/xNbdep); // radius of annular depletion region
-		if (rDeplt > edge/2)
-			std::cerr<<"Warning: domain too small to accommodate particle. Push beyond "<<rDeplt<<".\n"<<std::endl;
-
-		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> x = position(initGrid, n);
-			const double r = radius(origin, x, dx(initGrid,0));
-			if (r > rDelta) {
-				// Gamma matrix
-				initGrid(n)[0] = xAl[0]*(1.0 + noise_amp*real_gen(mt_rand))
-				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[0]*dx(initGrid,0)*edge)
-				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[0]*dx(initGrid,0)*edge)
-				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[0]*dx(initGrid,0)*edge);
-				initGrid(n)[1] = xNb[0]*(1.0 + noise_amp*real_gen(mt_rand))
-				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[1]*dx(initGrid,0)*edge)
-				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[1]*dx(initGrid,0)*edge)
-				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[1]*dx(initGrid,0)*edge);
-				for (int i=2; i<7; i++)
-					initGrid(n)[i] = 0.01*real_gen(mt_rand);
-
-				if (r<rDeplt) { // point falls within the depletion region
-					double deltaxNb = xNb[0]-xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
-					initGrid(n)[1] -= deltaxNb;
-				}
-			} else {
-				// Delta particle
-				initGrid(n)[0] = xAl[1]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[1] = xNb[1]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[6] = 1.0;
-				for (int i=2; i<6; i++)
-					initGrid(n)[i] = 0.0;
-			}
-		}
-
-		vector<double> totals(7,0.0);
-		for (int n=0; n<nodes(initGrid); n++) {
-			for (int i=0; i<2; i++)
-				totals[i] += initGrid(n)[i];
-			for (int i=2; i<7; i++)
-				totals[i] += std::fabs(initGrid(n)[i]);
-		}
-
-		for (int i=0; i<7; i++)
-			totals[i] /= 1.0*edge;
-		#ifdef MPI_VERSION
-		vector<double> myTot = totals;
-		for (int i=0; i<7; i++)
-			MPI::COMM_WORLD.Reduce(&myTot[i], &totals[i], 1, MPI_DOUBLE, MPI_SUM, 0);
-		#endif
-		if (rank==0) {
-			std::cout<<"x_Ni      x_Al      x_Nb\n";
-			printf("%.6f  %1.2e  %1.2e\n\n", 1.0-totals[0]-totals[1], totals[0], totals[1]);
-			std::cout<<"p_g       p_g'      p_g''     p_g''     p_g''     p_d\n";
-			printf("%.6f  %1.2e  %1.2e  %1.2e  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3]-totals[4]-totals[5]-totals[6], totals[2], totals[3], totals[4], totals[5], totals[6]);
-		}
-
-		output(initGrid,filename);
-	}
+	std::uniform_real_distribution<double> real_gen(-1,1);
 
 	if (dim==2) {
 		const int edge = 128;
-		GRID2D initGrid(7,0,edge,0,edge);
+		GRID2D initGrid(5,0,edge,0,edge);
 		vector<int> origin(2,edge/2);
 		for (int d=0; d<dim; d++)
 			dx(initGrid,d)=0.5;
@@ -156,14 +139,14 @@ void generate(int dim, const char* filename)
 			if (r > rDelta) {
 				// Gamma matrix
 				initGrid(n)[0] = xAl[0]*(1.0 + noise_amp*real_gen(mt_rand))
-				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[0]*dx(initGrid,0)*edge)
-				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[0]*dx(initGrid,0)*edge)
-				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[0]*dx(initGrid,0)*edge);
+				                 + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     bell[0]*dx(initGrid,0)*edge)
+				                 + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, bell[0]*dx(initGrid,0)*edge)
+				                 + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   bell[0]*dx(initGrid,0)*edge);
 				initGrid(n)[1] = xNb[0]*(1.0 + noise_amp*real_gen(mt_rand))
-				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[1]*dx(initGrid,0)*edge)
-				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[1]*dx(initGrid,0)*edge)
-				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[1]*dx(initGrid,0)*edge);
-				for (int i=2; i<7; i++)
+				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     bell[1]*dx(initGrid,0)*edge)
+				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, bell[1]*dx(initGrid,0)*edge)
+				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   bell[1]*dx(initGrid,0)*edge);
+				for (int i=2; i<fields(initGrid); i++)
 					initGrid(n)[i] = 0.01*real_gen(mt_rand);
 
 				if (r<rDeplt) { // point falls within the depletion region
@@ -174,27 +157,27 @@ void generate(int dim, const char* filename)
 			} else {
 				// Delta particle
 				delta_mass+=1.0;
-				initGrid(n)[0] = xAl[1]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[1] = xNb[1]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[6] = 1.0;
-				for (int i=2; i<6; i++)
+				initGrid(n)[0] = xAl[3]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[1] = xNb[3]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[4] = 1.0;
+				for (int i=2; i<4; i++)
 					initGrid(n)[i] = 0.0;
 			}
 		}
 
-		vector<double> totals(7,0.0);
+		vector<double> totals(fields(initGrid),0.0);
 		for (int n=0; n<nodes(initGrid); n++) {
 			for (int i=0; i<2; i++)
 				totals[i] += initGrid(n)[i];
-			for (int i=2; i<7; i++)
+			for (int i=2; i<fields(initGrid); i++)
 				totals[i] += std::fabs(initGrid(n)[i]);
 		}
 
-		for (int i=0; i<7; i++)
-			totals[i] /= 1.0*edge*edge;
+		for (int i=0; i<fields(initGrid); i++)
+			totals[i] /= double(edge*edge);
 		#ifdef MPI_VERSION
 		vector<double> myTot(totals);
-		for (int i=0; i<7; i++) {
+		for (int i=0; i<fields(initGrid); i++) {
 			MPI::COMM_WORLD.Reduce(&myTot[i], &totals[i], 1, MPI_DOUBLE, MPI_SUM, 0);
 			MPI::COMM_WORLD.Barrier();
 		}
@@ -202,106 +185,27 @@ void generate(int dim, const char* filename)
 		if (rank==0) {
 			std::cout<<"x_Ni      x_Al      x_Nb\n";
 			printf("%.6f  %1.2e  %1.2e\n\n", 1.0-totals[0]-totals[1], totals[0], totals[1]);
-			std::cout<<"p_g       p_g'      p_g''     p_g''     p_g''     p_d\n";
-			printf("%.6f  %1.2e  %1.2e  %1.2e  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3]-totals[4]-totals[5]-totals[6], totals[2], totals[3], totals[4], totals[5], totals[6]);
+			std::cout<<"p_g       p_g'      p_g''     p_d\n";
+			printf("%.6f  %1.2e  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3]-totals[4], totals[2], totals[3], totals[4]);
 		}
 
 		output(initGrid,filename);
 	}
 
-	if (dim==3) {
-		const int edge = 64;
-		GRID3D initGrid(7,0,edge,0,edge,0,edge);
-		vector<int> origin(3,edge/2);
-		for (int d=0; d<dim; d++)
-			dx(initGrid,d)=0.5;
-
-		const double rDelta = 6.5*dx(initGrid,0);
-		const double rDeplt = rDelta*std::pow(1.0+2.0*xNb[1]/xNbdep,1.0/3); // radius of annular depletion region
-		if (rDeplt > edge/2)
-			std::cerr<<"Warning: domain too small to accommodate particle. Push beyond "<<rDeplt<<".\n"<<std::endl;
-
-		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> x = position(initGrid, n);
-			const double r = radius(origin, x, dx(initGrid,0));
-			if (r > rDelta) {
-				// Gamma matrix
-				initGrid(n)[0] = xAl[0]*(1.0 + noise_amp*real_gen(mt_rand))
-				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[0]*dx(initGrid,0)*edge)
-				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[0]*dx(initGrid,0)*edge)
-				               + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[0]*dx(initGrid,0)*edge);
-				initGrid(n)[1] = xNb[0]*(1.0 + noise_amp*real_gen(mt_rand))
-				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     sig[1]*dx(initGrid,0)*edge)
-				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, sig[1]*dx(initGrid,0)*edge)
-				               + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   sig[1]*dx(initGrid,0)*edge);
-				for (int i=2; i<7; i++)
-					initGrid(n)[i] = 0.01*real_gen(mt_rand);
-
-				if (r<rDeplt) { // point falls within the depletion region
-					double deltaxNb = xNb[0]-xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
-					initGrid(n)[1] -= deltaxNb;
-				}
-			} else {
-				// Delta particle
-				initGrid(n)[0] = xAl[1]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[1] = xNb[1]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[6] = 1.0;
-				for (int i=2; i<6; i++)
-					initGrid(n)[i] = 0.0;
-			}
-		}
-
-		vector<double> totals(7,0.0);
-		for (int n=0; n<nodes(initGrid); n++) {
-			for (int i=0; i<2; i++)
-				totals[i] += initGrid(n)[i];
-			for (int i=2; i<7; i++)
-				totals[i] += std::fabs(initGrid(n)[i]);
-		}
-
-		for (int i=0; i<7; i++)
-			totals[i] /= 1.0*edge*edge*edge;
-		#ifdef MPI_VERSION
-		vector<double> myTot(totals);
-		for (int i=0; i<7; i++) {
-			MPI::COMM_WORLD.Reduce(&myTot[i], &totals[i], 1, MPI_DOUBLE, MPI_SUM, 0);
-			MPI::COMM_WORLD.Barrier();
-		}
-		#endif
-		if (rank==0) {
-			std::cout<<"x_Ni      x_Al      x_Nb\n";
-			printf("%.6f  %1.2e  %1.2e\n", 1.0-totals[0]-totals[1], totals[0], totals[1]);
-			std::cout<<"p_g       p_g'      p_g''     p_g''     p_g''     p_d\n";
-			printf("%.6f  %1.2e  %1.2e  %1.2e  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3]-totals[4]-totals[5]-totals[6], totals[2], totals[3], totals[4], totals[5], totals[6]);
-		}
-
-		output(initGrid,filename);
-	}
 }
 
 template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int steps)
 {
 	int rank=0;
-    #ifdef MPI_VERSION
-    rank = MPI::COMM_WORLD.Get_rank();
-    #endif
-
-	// Read concentration look-up table from disk, in its entirety, even in parallel. Should be relatively small.
-	#ifndef MPI_VERSION
-	const int ghost=0;
-	LUTGRID pureconc("consistentC.lut",ghost);
-	#else
-	LUTGRID pureconc(3, -LUTmargin,LUTnp+LUTmargin+1, -LUTmargin,LUTnc+LUTmargin+1);
-	const bool serial=true; // Please do not change this :-)
-	const int ghost=1;
-	pureconc.input("consistentC.lut",ghost,serial);
+	#ifdef MPI_VERSION
+	rank = MPI::COMM_WORLD.Get_rank();
 	#endif
 
 	// Construct the common tangent solver
 	rootsolver CommonTangentSolver;
 
 	ghostswap(oldGrid);
-   	grid<dim,vector<T> > newGrid(oldGrid);
+	grid<dim,vector<T> > newGrid(oldGrid);
 	double dV=1.0;
 	for (int d=0; d<dim; d++) {
 		dx(oldGrid,d) = meshres;
@@ -356,8 +260,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 				if (x[d] == x0(oldGrid,d) &&
 				    x0(oldGrid,d) == g0(oldGrid,d) &&
-				    useNeumann)
-				{
+				    useNeumann) {
 					// Central second-order difference at lower boundary:
 					// Flux_lo = grad(phi)_(i-1/2) is defined to be 0
 					// Get high values
@@ -383,8 +286,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 					lapPhi   += weight*(ph-pc);
 				} else if (x[d] == x1(oldGrid,d)-1 &&
 				           x1(oldGrid,d) == g1(oldGrid,d) &&
-				           useNeumann)
-				{
+				           useNeumann) {
 					// Central second-order difference at upper boundary:
 					// Flux_hi = grad(phi)_(i+1/2) is defined to be 0
 					// Get low values
@@ -458,11 +360,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			newGrid(n)[1] = c_old + dt*(divGradC + divGradP);
 
 
-			/* ================================================== *
-			 * Interpolate consistent Cs and Cl from lookup table *
-			 * ================================================== */
+			/* ============================== *
+			 * Solve for common tangent plane *
+			 * ============================== */
 
-			LUTinterp.interpolate(newGrid(n)[0], newGrid(n)[1], newGrid(n)[2], newGrid(n)[3]);
+			CommonTangentSolver.solve(newGrid(n)[0], newGrid(n)[1], newGrid(n)[2], newGrid(n)[3]);
 
 
 			/* ====================================================================== *
@@ -491,13 +393,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			#pragma omp critical
 			{
 			#endif
-			vmax = std::max(vmax,myv); // maximum velocity
-			ctot += myc;               // total mass
-			ftot += myf;               // total free energy
-			utot += myu*myu;           // deviation from equilibrium
-			#ifndef MPI_VERSION
+				vmax = std::max(vmax,myv); // maximum velocity
+				ctot += myc;               // total mass
+				ftot += myf;               // total free energy
+				utot += myu*myu;           // deviation from equilibrium
+				#ifndef MPI_VERSION
 			}
-			#endif
+				#endif
 
 			/* ======= *
 			 * ~ fin ~ *
@@ -534,7 +436,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 } // namespace MMSP
 
 template<int dim, typename T>
-void print_values(const MMSP::grid<dim,MMSP::vector<T> >& oldGrid, const int rank) {
+void print_values(const MMSP::grid<dim,MMSP::vector<T> >& oldGrid, const int rank)
+{
 	double pTot=0.0;
 	double cTot=0.0;
 	unsigned int nTot = nodes(oldGrid);
@@ -581,138 +484,24 @@ double gprime(const double p)
 	return 2.0*p * (1.0-p)*(1.0-2.0*p);
 }
 
-double k()
+double gibbs(const vector<double>& v)
 {
-	// Partition coefficient, from equilibrium phase diagram
-	return Cse / Cle;
-}
+	double g  = f_gam(v[0],v[1]) * (1.0 - (h(abs(v[2])) + h(abs(v[3])) + h(abs(v[4]))));
+	       g += f_gpr(v[0],v[1]) * h(abs(v[2]));
+	       g += f_gdp(v[0],v[1]) * h(abs(v[3]));
+	       g += f_del(v[0],v[1]) * h(abs(v[4]));
+	       g += w_gpr * v[2]*v[2] * (1.0 - abs(v[2])*(1.0 - abs(v[2]);
+	       g += w_gdp * v[3]*v[3] * (1.0 - abs(v[3])*(1.0 - abs(v[3]);
+	       g += w_del * v[4]*v[4] * (1.0 - abs(v[4])*(1.0 - abs(v[4]);
+	for (int i=2; i<v.length(); i++)
+		for (int j=i+1; j<v.length(); j++)
+			g += 2.0 * alpha * v[i]*v[i] * v[j]*v[j];
 
-double Q(const double p, const double Cs, const double Cl)
-{
-	const double Qmin = 0.01;
-    return Qmin + (1.0 - Qmin) * (1.0-p)/(1.0 + k() - (1.0-k())*p);
-}
-
-double fl(const double c)
-{
-	// 10-th order polynomial fit to S. an Mey Cu-Ni CALPHAD database
-	return  calCl[0]*pow(c,10)
-	       +calCl[1]*pow(c,9)
-	       +calCl[2]*pow(c,8)
-	       +calCl[3]*pow(c,7)
-	       +calCl[4]*pow(c,6)
-	       +calCl[5]*pow(c,5)
-	       +calCl[6]*pow(c,4)
-	       +calCl[7]*pow(c,3)
-	       +calCl[8]*pow(c,2)
-	       +calCl[9]*c
-	       +calCl[10];
-}
-
-double fs(const double c)
-{
-	// 10-th order polynomial fit to S. an Mey Cu-Ni CALPHAD database
-	return  calCs[0]*pow(c,10)
-	       +calCs[1]*pow(c,9)
-	       +calCs[2]*pow(c,8)
-	       +calCs[3]*pow(c,7)
-	       +calCs[4]*pow(c,6)
-	       +calCs[5]*pow(c,5)
-	       +calCs[6]*pow(c,4)
-	       +calCs[7]*pow(c,3)
-	       +calCs[8]*pow(c,2)
-	       +calCs[9]*c
-	       +calCs[10];
-}
-
-
-double dfl_dc(const double c)
-{
-	return  10.0*calCl[0]*pow(c,9)
-	       +9.0*calCl[1]*pow(c,8)
-	       +8.0*calCl[2]*pow(c,7)
-	       +7.0*calCl[3]*pow(c,6)
-	       +6.0*calCl[4]*pow(c,5)
-	       +5.0*calCl[5]*pow(c,4)
-	       +4.0*calCl[6]*pow(c,3)
-	       +3.0*calCl[7]*pow(c,2)
-	       +2.0*calCl[8]*c
-	       +calCl[9];
-}
-
-double dfs_dc(const double c)
-{
-	return  10.0*calCs[0]*pow(c,9)
-	       +9.0*calCs[1]*pow(c,8)
-	       +8.0*calCs[2]*pow(c,7)
-	       +7.0*calCs[3]*pow(c,6)
-	       +6.0*calCs[4]*pow(c,5)
-	       +5.0*calCs[5]*pow(c,4)
-	       +4.0*calCs[6]*pow(c,3)
-	       +3.0*calCs[7]*pow(c,2)
-	       +2.0*calCs[8]*c
-	       +calCs[9];
-}
-
-double d2fl_dc2(const double c)
-{
-	return  90.0*calCl[0]*pow(c,8)
-	       +72.0*calCl[1]*pow(c,7)
-	       +56.0*calCl[2]*pow(c,6)
-	       +42.0*calCl[3]*pow(c,5)
-	       +30.0*calCl[4]*pow(c,4)
-	       +20.0*calCl[5]*pow(c,3)
-	       +12.0*calCl[6]*pow(c,2)
-	       +6.0*calCl[7]*c
-	       +2.0*calCl[8];
-}
-
-double d2fs_dc2(const double c)
-{
-	return  90.0*calCs[0]*pow(c,8)
-	       +72.0*calCs[1]*pow(c,7)
-	       +56.0*calCs[2]*pow(c,6)
-	       +42.0*calCs[3]*pow(c,5)
-	       +30.0*calCs[4]*pow(c,4)
-	       +20.0*calCs[5]*pow(c,3)
-	       +12.0*calCs[6]*pow(c,2)
-	       +6.0*calCs[7]*c
-	       +2.0*calCs[8];
-}
-
-double R(const double p, const double Cs, const double Cl)
-{
-	// denominator for dCs, dCl, df
-	return h(p)*d2fl_dc2(Cl) + (1.0-h(p))*d2fs_dc2(Cs);
-}
-
-double dCl_dc(const double p, const double Cs, const double Cl)
-{
-	double invR = R(p, Cs, Cl);
-	if (fabs(invR)>epsilon) invR = 1.0/invR;
-	return d2fl_dc2(Cl)*invR;
-}
-
-double dCs_dc(const double p, const double Cs, const double Cl)
-{
-	double invR = R(p, Cs, Cl);
-	if (fabs(invR)>epsilon) invR = 1.0/invR;
-	return d2fs_dc2(Cs)*invR;
-}
-
-double f(const double p, const double c, const double Cs, const double Cl)
-{
 	return omega*g(p) + h(p)*fs(Cs) + (1.0-h(p))*fl(Cl);
 }
 
-double d2f_dc2(const double p, const double c, const double Cs, const double Cl)
+void simple_progress(int step, int steps)
 {
-	double invR = R(p, Cs, Cl);
-	if (fabs(invR)>epsilon) invR = 1.0/invR;
-	return d2fl_dc2(Cl)*d2fs_dc2(Cs)*invR;
-}
-
-void simple_progress(int step, int steps) {
 	if (step==0)
 		std::cout<<" ["<<std::flush;
 	else if (step==steps-1)
@@ -721,41 +510,12 @@ void simple_progress(int step, int steps) {
 		std::cout<<"• "<<std::flush;
 }
 
-void export_energy(rootsolver& NRGsolver)
-{
-	const int np=100;
-	const int nc=100;
-	const double dp = 1.0/np;
-	const double dc = 1.0/nc;
-	const double pmin=-dp, pmax=1.0+dp;
-	const double cmin=-dc, cmax=1.0+dc;
-
-	std::ofstream ef("energy.csv");
-	ef<<"p";
-	for (int i=0; i<nc+1; i++) {
-		double c = cmin+(cmax-cmin)*dc*i;
-		ef<<",f(c="<<c<<')';
-	}
-	ef<<'\n';
-	for (int i=0; i<np+1; i++) {
-		simple_progress(i, np+1);
-		double p = pmin+(pmax-pmin)*dp*i;
-		ef << p;
-		for (int j=0; j<nc+1; j++) {
-			double c = cmin+(cmax-cmin)*dc*j;
-			double cs(0.5), cl(0.5);
-			double res=NRGsolver.solve(p,c,cs,cl);
-			ef << ',' << f(p, c, cs, cl);
-		}
-		ef << '\n';
-	}
-	ef.close();
-}
 
 
-/* ================================= *
- * Invoke GSL to solve for Cs and Cl *
- * ================================= */
+
+/* ====================================== *
+ * Invoke GSL to solve for common tangent *
+ * ====================================== */
 
 /* Given const phase fraction (p) and concentration (c), iteratively determine
  * the solid (Cs) and liquid (Cl) fictitious concentrations that satisfy the
@@ -763,13 +523,40 @@ void export_energy(rootsolver& NRGsolver)
  * Cs and Cl by non-const reference to update in place. This allows use of this
  * single function to both populate the LUT and interpolate values based thereupon.
  */
+
+struct rparams {
+	// Composition fields
+	double x_Al;
+	double x_Nb;
+
+	// Structure fields
+	double p_gpr_Al;
+	double p_gdp_Al;
+	double p_del_Al;
+
+	double p_gpr_Nb;
+	double p_gdp_Nb;
+	double p_del_Nb;
+};
+
+
 int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 {
-	const double p = ((struct rparams *) params)->p;
-	const double c = ((struct rparams *) params)->c;
+	const double x_Al = ((struct rparams*) params)->x_Al;
+	const double x_Nb = ((struct rparams*) params)->x_Nb;
+	const double p_gpr = ((struct rparams*) params)->p_gpr;
+	const double p_gdp = ((struct rparams*) params)->p_gdp;
+	const double p_del = ((struct rparams*) params)->p_del;
 
-	const double Cs = gsl_vector_get(x, 0);
-	const double Cl = gsl_vector_get(x, 1);
+	const double C_gam_Al = gsl_vector_get(x, 0);
+	const double C_gpr_Al = gsl_vector_get(x, 1);
+	const double C_gdp_Al = gsl_vector_get(x, 2);
+	const double C_del_Al = gsl_vector_get(x, 3);
+
+	const double C_gam_Nb = gsl_vector_get(x, 4);
+	const double C_gpr_Nb = gsl_vector_get(x, 5);
+	const double C_gdp_Nb = gsl_vector_get(x, 6);
+	const double C_del_Nb = gsl_vector_get(x, 7);
 
 	const double f1 = h(p)*Cs + (1.0-h(p))*Cl - c;
 	const double f2 = dfs_dc(Cs) - dfl_dc(Cl);
@@ -780,26 +567,81 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	return GSL_SUCCESS;
 }
 
+
 int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 {
-	const double p = ((struct rparams *) params)->p;
+	const double x_Al = ((struct rparams*) params)->x_Al;
+	const double x_Nb = ((struct rparams*) params)->x_Nb;
+	const double p_gpr = ((struct rparams*) params)->p_gpr;
+	const double p_gdp = ((struct rparams*) params)->p_gdp;
+	const double p_del = ((struct rparams*) params)->p_del;
 
-	const double Cs = gsl_vector_get(x, 0);
-	const double Cl = gsl_vector_get(x, 1);
+	const double C_gam_Al = gsl_vector_get(x, 0);
+	const double C_gpr_Al = gsl_vector_get(x, 1);
+	const double C_gdp_Al = gsl_vector_get(x, 2);
+	const double C_del_Al = gsl_vector_get(x, 3);
+
+	const double C_gam_Nb = gsl_vector_get(x, 4);
+	const double C_gpr_Nb = gsl_vector_get(x, 5);
+	const double C_gdp_Nb = gsl_vector_get(x, 6);
+	const double C_del_Nb = gsl_vector_get(x, 7);
 
 	// Jacobian matrix
-	const double df11 = h(p);
-	const double df12 = 1.0-h(p);
-	const double df21 =  d2fs_dc2(Cs);
-	const double df22 = -d2fl_dc2(Cl);
+	const double sum = h(abs(p_gpr)) + h(abs(p_gdp)) + h(abs(p_del)) ;
 
-	gsl_matrix_set(J, 0, 0, df11);
-	gsl_matrix_set(J, 0, 1, df12);
-	gsl_matrix_set(J, 1, 0, df21);
-	gsl_matrix_set(J, 1, 1, df22);
+	// Need to know the functional form of the chemical potentials to proceed
+
+	gsl_matrix_set(J, 0, 0, 1.0-sum);
+	gsl_matrix_set(J, 0, 1, h(abs(p_gpr)));
+	gsl_matrix_set(J, 0, 2, h(abs(p_gdp)));
+	gsl_matrix_set(J, 0, 3, h(abs(p_del)));
+
+	gsl_matrix_set(J, 1, 0,  d2f_gam_dxAl2(C_gam_Al, x_Nb)));
+	gsl_matrix_set(J, 1, 1, -d2f_gpr_dxAl2(C_gpr_Al, x_Nb)));
+	gsl_matrix_set(J, 1, 2, 0.0);
+	gsl_matrix_set(J, 1, 3, 0.0);
+
+	gsl_matrix_set(J, 2, 0, 0.0);
+	gsl_matrix_set(J, 2, 1,  d2f_gpr_dxAl2(C_gpr_Al, x_Nb)));
+	gsl_matrix_set(J, 2, 2, -d2f_gdp_dxAl2(C_gdp_Al, x_Nb)));
+	gsl_matrix_set(J, 2, 3, 0.0);
+
+	gsl_matrix_set(J, 3, 0, 0.0);
+	gsl_matrix_set(J, 3, 1, 0.0);
+	gsl_matrix_set(J, 3, 2,  d2f_gdp_dxAl2(C_gdp_Al, x_Nb)));
+	gsl_matrix_set(J, 3, 3, -d2f_del_dxAl2(C_del_Al, x_Nb)));
+
+	for (int i=0; i<4; i++)
+		for (for j=4; j<8; j++)
+			gsl_matrix_set(J, i, j, 0.0);
+
+	gsl_matrix_set(J, 4, 4, 1.0-sum);
+	gsl_matrix_set(J, 4, 5, h(abs(p_gpr)));
+	gsl_matrix_set(J, 4, 6, h(abs(p_gdp)));
+	gsl_matrix_set(J, 4, 7, h(abs(p_del)));
+
+	gsl_matrix_set(J, 5, 4,  d2f_gam_dxAl2(x_Al, C_gam_Nb)));
+	gsl_matrix_set(J, 5, 5, -d2f_gpr_dxAl2(x_Al, C_gpr_Nb)));
+	gsl_matrix_set(J, 5, 6, 0.0);
+	gsl_matrix_set(J, 5, 7, 0.0);
+
+	gsl_matrix_set(J, 6, 4, 0.0);
+	gsl_matrix_set(J, 6, 5,  d2f_gpr_dxAl2(x_Al, C_gpr_Nb)));
+	gsl_matrix_set(J, 6, 6, -d2f_gdp_dxAl2(x_Al, C_gdp_Nb)));
+	gsl_matrix_set(J, 6, 7, 0.0);
+
+	gsl_matrix_set(J, 7, 4, 0.0);
+	gsl_matrix_set(J, 7, 5, 0.0);
+	gsl_matrix_set(J, 7, 6,  d2f_gdp_dxAl2(x_Al, C_gdp_Nb)));
+	gsl_matrix_set(J, 7, 7, -d2f_del_dxAl2(x_Al, C_del_Nb)));
+
+	for (int i=4; i<8; i++)
+		for (int j=0; j<4; j++)
+			gsl_matrix_set(J, i, j, 0.0);
 
 	return GSL_SUCCESS;
 }
+
 
 int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix* J)
 {
@@ -811,7 +653,7 @@ int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matr
 
 
 rootsolver::rootsolver() :
-	n(4), // four equations
+	n(8), // eight equations
 	maxiter(5000),
 	tolerance(1.0e-12)
 {
@@ -825,24 +667,28 @@ rootsolver::rootsolver() :
 }
 
 template <typename T> double
-rootsolver::solve(const T& c,
-      const T& p_gp1, const T& p_gp2, const T& p_gp3, const T& p_gdp, const T& p_del,
-      T& C_gam, T& C_gpr, T& C_gdp, t& C_del)
+rootsolver::solve(const T& x_Al, const T& x_Nb, const T& p_gpr, const T& p_gdp, const T& p_del,
+                  T& C_gam_Al, T& C_gpr_Al, T& C_gdp_Al, t& C_del_Al, T& C_gam_Nb, T& C_gpr_Nb, T& C_gdp_Nb, t& C_del_Nb)
 {
 	int status;
 	size_t iter = 0;
 
 	// initial guesses
-	par.c = c;
-	par.p_gp1 = p_gp1;
-	par.p_gp2 = p_gp2;
-	par.p_gp3 = p_gp3;
+	par.x_Al = x_Al;
+	par.x_Nb = x_Nb;
+	par.p_gpr = p_gpr;
 	par.p_gdp = p_gdp;
 	par.p_del = p_del;
-	gsl_vector_set(x, 0, C_gam);
-	gsl_vector_set(x, 1, C_gpr);
-	gsl_vector_set(x, 2, C_gdp);
-	gsl_vector_set(x, 3, C_del);
+
+	gsl_vector_set(x, 0, C_gam_Al);
+	gsl_vector_set(x, 1, C_gpr_Al);
+	gsl_vector_set(x, 2, C_gdp_Al);
+	gsl_vector_set(x, 3, C_del_Al);
+
+	gsl_vector_set(x, 4, C_gam_Nb);
+	gsl_vector_set(x, 5, C_gpr_Nb);
+	gsl_vector_set(x, 6, C_gdp_Nb);
+	gsl_vector_set(x, 7, C_del_Nb);
 
 	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
 
@@ -854,10 +700,15 @@ rootsolver::solve(const T& c,
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status==GSL_CONTINUE && iter<maxiter);
 
-	C_gam = static_cast<T>(gsl_vector_get(solver->x, 0));
-	C_gpr = static_cast<T>(gsl_vector_get(solver->x, 1));
-	C_gdp = static_cast<T>(gsl_vector_get(solver->x, 2));
-	C_del = static_cast<T>(gsl_vector_get(solver->x, 3));
+	C_gam_Al = static_cast<T>(gsl_vector_get(solver->x, 0));
+	C_gpr_Al = static_cast<T>(gsl_vector_get(solver->x, 1));
+	C_gdp_Al = static_cast<T>(gsl_vector_get(solver->x, 2));
+	C_del_Al = static_cast<T>(gsl_vector_get(solver->x, 3));
+
+	C_gam_Nb = static_cast<T>(gsl_vector_get(solver->x, 4));
+	C_gpr_Nb = static_cast<T>(gsl_vector_get(solver->x, 5));
+	C_gdp_Nb = static_cast<T>(gsl_vector_get(solver->x, 6));
+	C_del_Nb = static_cast<T>(gsl_vector_get(solver->x, 7));
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
@@ -868,90 +719,6 @@ rootsolver::~rootsolver()
 {
 	gsl_multiroot_fdfsolver_free(solver);
 	gsl_vector_free(x);
-}
-
-
-
-interpolator::interpolator(const LUTGRID& lut)
-{
-	// System size
-	const int x0 = MMSP::g0(lut, 0);
-	const int y0 = MMSP::g0(lut, 1);
-	nx = MMSP::g1(lut,0) - x0;
-	ny = MMSP::g1(lut,1) - y0;
-	const double dx = MMSP::dx(lut,0);
-	const double dy = MMSP::dx(lut,1);
-
-	// Data arrays
-	xa = new double[nx];
-	ya = new double[ny];
-	CSa = new double[nx*ny];
-	CLa = new double[nx*ny];
-	Ra = new double[nx*ny];
-
-	for (int i=0; i<nx; i++)
-		xa[i] = dx*(i+x0);
-	for (int j=0; j<ny; j++)
-		ya[j] = dy*(j+y0);
-
-	// GSL interpolation function
-	algorithm = gsl_interp2d_bicubic; // options: gsl_interp2d_bilinear or gsl_interp2d_bicubic
-
-	CSspline = gsl_spline2d_alloc(algorithm, nx, ny);
-	CLspline = gsl_spline2d_alloc(algorithm, nx, ny);
-	Rspline = gsl_spline2d_alloc(algorithm, nx, ny);
-
-	xacc1 = gsl_interp_accel_alloc();
-	xacc2 = gsl_interp_accel_alloc();
-	xacc3 = gsl_interp_accel_alloc();
-
-	yacc1 = gsl_interp_accel_alloc();
-	yacc2 = gsl_interp_accel_alloc();
-	yacc3 = gsl_interp_accel_alloc();
-
-	// Initialize interpolator
-	for (int n=0; n<MMSP::nodes(lut); n++) {
-		MMSP::vector<int> x = MMSP::position(lut, n);
-		gsl_spline2d_set(CSspline, CSa, x[0]-x0, x[1]-y0, lut(n)[0]);
-		gsl_spline2d_set(CLspline, CLa, x[0]-x0, x[1]-y0, lut(n)[1]);
-		gsl_spline2d_set(Rspline,  Ra,  x[0]-x0, x[1]-y0, lut(n)[2]);
-	}
-	gsl_spline2d_init(CSspline, xa, ya, CSa, nx, ny);
-	gsl_spline2d_init(CLspline, xa, ya, CLa, nx, ny);
-	gsl_spline2d_init(Rspline,  xa, ya, Ra,  nx, ny);
-}
-
-interpolator::~interpolator()
-{
-	gsl_spline2d_free(CSspline);
-	gsl_spline2d_free(CLspline);
-	gsl_spline2d_free(Rspline);
-
-	gsl_interp_accel_free(xacc1);
-	gsl_interp_accel_free(xacc2);
-	gsl_interp_accel_free(xacc3);
-
-	gsl_interp_accel_free(yacc1);
-	gsl_interp_accel_free(yacc2);
-	gsl_interp_accel_free(yacc3);
-
-	delete [] xa; xa=NULL;
-	delete [] ya; ya=NULL;
-	delete [] CSa; CSa=NULL;
-	delete [] CLa; CLa=NULL;
-	delete [] Ra; Ra=NULL;
-}
-
-template <typename T> void interpolator::interpolate(const T& p, const T& c, T& Cs, T& Cl)
-{
-	if (p<LUTpmin || c<LUTcmin ||
-	    p>LUTpmax || c>LUTcmax)
-	{
-		printf("GSL interp2d error: phi=%.4f, c=%.4f\n", p, c);
-		std::exit(-1);
-	}
-	Cs = static_cast<T>(gsl_spline2d_eval(CSspline, p, c, xacc1, yacc1));
-	Cl = static_cast<T>(gsl_spline2d_eval(CLspline, p, c, xacc2, yacc2));
 }
 
 

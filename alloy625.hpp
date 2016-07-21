@@ -10,8 +10,6 @@ typedef MMSP::grid<1,MMSP::vector<double> > GRID1D;
 typedef MMSP::grid<2,MMSP::vector<double> > GRID2D;
 typedef MMSP::grid<3,MMSP::vector<double> > GRID3D;
 
-
-
 // Interface interpolation function
 double h(const double p);
 double hprime(const double p);
@@ -20,32 +18,36 @@ double hprime(const double p);
 double g(const double p);
 double gprime(const double p);
 
-double k(); // equilibrium partition coefficient for solidification
+// pure phase free energy densities
+double f_gam(const double x_Al, const double x_Nb);
+double f_gpr(const double x_Al, const double x_Nb);
+double f_gdp(const double x_Al, const double x_Nb);
+double f_del(const double x_Al, const double x_Nb);
 
-// phase-field diffusivity
-double Q(const double p, const double Cs, const double Cl);
+// first derivatives of pure phase free energy densities
+double df_gam_dx_Al(const double x_Al, const double x_Nb);
+double df_gpr_dx_Al(const double x_Al, const double x_Nb);
+double df_gdp_dx_Al(const double x_Al, const double x_Nb);
+double df_del_dx_Al(const double x_Al, const double x_Nb);
 
-double fl(const double c);       // liquid free energy density
+double df_gam_dx_Nb(const double x_Al, const double x_Nb);
+double df_gpr_dx_Nb(const double x_Al, const double x_Nb);
+double df_gdp_dx_Nb(const double x_Al, const double x_Nb);
+double df_del_dx_Nb(const double x_Al, const double x_Nb);
 
-double fs(const double c);       // solid free energy density
+// chemical potentials of pure phases
+double d2f_gam_dx2_Al(const double x_Al, const double x_Nb);
+double d2f_gpr_dx2_Al(const double x_Al, const double x_Nb);
+double d2f_gdp_dx2_Al(const double x_Al, const double x_Nb);
+double d2f_del_dx2_Al(const double x_Al, const double x_Nb);
 
-double dfl_dc(const double c);   // first derivative of fl w.r.t. c
+double d2f_gam_dx2_Nb(const double x_Al, const double x_Nb);
+double d2f_gpr_dx2_Nb(const double x_Al, const double x_Nb);
+double d2f_gdp_dx2_Nb(const double x_Al, const double x_Nb);
+double d2f_del_dx2_Nb(const double x_Al, const double x_Nb);
 
-double dfs_dc(const double c);   // first derivative of fs w.r.t. c
-
-double d2fl_dc2(const double c); // second derivative of fl w.r.t. c
-
-double d2fs_dc2(const double c); // second derivative of fs w.r.t. c
-
-double R(const double p, const double Cs, const double Cl); // denominator for dCs, dCl, df
-
-double dCl_dc(const double p, const double Cs, const double Cl); // first derivative of Cl w.r.t. c
-
-double dCs_dc(const double p, const double Cs, const double Cl); // first derivative of Cs w.r.t. c
-
-double f(const double p, const double c, const double Cs, const double Cl); // free energy density
-
-double d2f_dc2(const double p, const double c, const double Cs, const double Cl); // second derivative of f w.r.t. c
+// Gibbs free energy density
+double gibbs(const MMSP::vector<double>& v);
 
 void simple_progress(int step, int steps); // thread-compatible pared-down version of print_progress
 
@@ -55,27 +57,13 @@ template<int dim, typename T> void print_values(const MMSP::grid<dim,MMSP::vecto
 /* Given const phase fractions (in gamma prime variants 1,2,3; gamma double-prime; and delta)
  * and concentration, iteratively determine the fictitious concentrations in each phase that
  * satisfy the equal chemical potential constraint.
- * Pass p[2-6] and x by const value, C[0-4] by non-const reference to update in place.
+ * Pass p and x by const value, C by non-const reference to update in place.
  * This allows use of this single function to solve for both components, Al and Nb, in each phase.
  */
 
 int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f);
 int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J);
 int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix* J);
-
-
-struct rparams {
-	// Composition fields
-	double x;
-
-	// Structure fields
-	double p_gp1;
-	double p_gp2;
-	double p_gp3;
-	double p_gdp;
-	double p_del;
-};
-
 
 class rootsolver
 {
@@ -85,9 +73,8 @@ public:
 	// destructor
 	~rootsolver();
 	// accessor
-	template <typename T> double solve(const T& c,
-	                                   const T& p_gp1, const T& p_gp2, const T& p_gp3, const T& p_gdp, const T& p_del,
-	                                   T& C_gam, T& C_gpr, T& C_gdp, t& C_del);
+	template <typename T> double solve(const T& x_Al, const T& x_Nb, const T& p_gpr, const T& p_gdp, const T& p_del,
+	                                   T& C_gam_Al, T& C_gpr_Al, T& C_gdp_Al, t& C_del_Al, T& C_gam_Nb, T& C_gpr_Nb, T& C_gdp_Nb, t& C_del_Nb);
 
 private:
 	const size_t n;
@@ -98,8 +85,4 @@ private:
 	const gsl_multiroot_fdfsolver_type* algorithm;
 	gsl_multiroot_fdfsolver* solver;
 	gsl_multiroot_function_fdf mrf;
-
 };
-
-
-void export_energy(rootsolver& NRGsolver); // exports free energy curves to energy.csv
