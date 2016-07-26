@@ -1,7 +1,5 @@
 // alloy625.cpp
-// Algorithms for 2D and 3D isotropic binary alloy solidification
-// using RWTH database for Cu-Ni system, CuNi_RWTH.tdb,
-// extracted from the COST507 Light Alloys Database.
+// Algorithms for 2D and 3D isotropic Mo-Nb-Ni alloy phase transformations
 // Questions/comments to trevor.keller@nist.gov (Trevor Keller)
 
 // This implementation depends on the GNU Scientific Library
@@ -26,9 +24,9 @@
 
 // Note: alloy625.hpp contains important declarations and comments. Have a look.
 
-// Equilibrium compositions from CALPHAD: gamma, gamma-prime, gamma-double-prime, delta
-const double cAlEq[4] = {0.5413, 0.0, 0.0, 0.3940};
-const double cNbEq[4] = {0.5413, 0.0, 0.0, 0.3940};
+// Equilibrium compositions from CALPHAD: gamma, mu, delta
+const double cMoEq[4] = {0.5413, 0.0, 0.3940};
+const double cNbEq[4] = {0.5413, 0.0, 0.3940};
 
 // Numerical stability (Courant-Friedrich-Lewy) parameters
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
@@ -50,7 +48,7 @@ const double dt_plimit = CFL*meshres/eps_sq;          // speed limit based on nu
 const double dt_climit = CFL*pow(meshres,2.0)/eps_sq; // speed limit based on diffusion timescale
 const double dt = std::min(dt_plimit, dt_climit);
 const double ps0 = 1.0, pl0 = 0.0; // initial phase fractions
-const double cAl[6] = {Cle + 0.50*(Cse-Cle)}; // initial Al concentration
+const double cMo[6] = {Cle + 0.50*(Cse-Cle)}; // initial Mo concentration
 const double cNb[6] = {Cle + 0.50*(Cse-Cle)}; // initial Nb concentration
 
 
@@ -88,13 +86,13 @@ const double kappa = 2.0;
 
 
 // Define equilibrium phase compositions at global scope
-//                     gamma   gamma'  gamma'' delta
-const double xAl[3] = {0.0161, 0.0007, 0.1870, 0.0007};
-const double xNb[3] = {0.0072, 0.0196, 0.0157, 0.0196};
+//                     gamma   mu      delta
+const double xMo[3] = {0.0161, 0.0007, 0.0007};
+const double xNb[3] = {0.0072, 0.0196, 0.0196};
 const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near delta particle
 
 // Define st.dev. of Gaussians for alloying element segregation
-//                     Al      Nb
+//                     Mo      Nb
 const double bell[2] = {0.0625, 0.025};
 
 double radius(const vector<int>& a, const vector<int>& b, const double& dx)
@@ -122,7 +120,7 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		const int edge = 128;
-		GRID2D initGrid(5,0,edge,0,edge);
+		GRID2D initGrid(4,0,edge,0,edge);
 		vector<int> origin(2,edge/2);
 		for (int d=0; d<dim; d++)
 			dx(initGrid,d)=0.5;
@@ -138,10 +136,10 @@ void generate(int dim, const char* filename)
 			const double r = radius(origin, x, dx(initGrid,0));
 			if (r > rDelta) {
 				// Gamma matrix
-				initGrid(n)[0] = xAl[0]*(1.0 + noise_amp*real_gen(mt_rand))
-				                 + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     bell[0]*dx(initGrid,0)*edge)
-				                 + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, bell[0]*dx(initGrid,0)*edge)
-				                 + 0.25*xAl[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   bell[0]*dx(initGrid,0)*edge);
+				initGrid(n)[0] = xMo[0]*(1.0 + noise_amp*real_gen(mt_rand))
+				                 + 0.25*xMo[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     bell[0]*dx(initGrid,0)*edge)
+				                 + 0.25*xMo[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, bell[0]*dx(initGrid,0)*edge)
+				                 + 0.25*xMo[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   bell[0]*dx(initGrid,0)*edge);
 				initGrid(n)[1] = xNb[0]*(1.0 + noise_amp*real_gen(mt_rand))
 				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     bell[1]*dx(initGrid,0)*edge)
 				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, bell[1]*dx(initGrid,0)*edge)
@@ -156,11 +154,11 @@ void generate(int dim, const char* filename)
 				}
 			} else {
 				// Delta particle
-				delta_mass+=1.0;
-				initGrid(n)[0] = xAl[3]*(1.0 + noise_amp*real_gen(mt_rand));
+				delta_mass += 1.0;
+				initGrid(n)[0] = xMo[3]*(1.0 + noise_amp*real_gen(mt_rand));
 				initGrid(n)[1] = xNb[3]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[4] = 1.0;
-				for (int i=2; i<4; i++)
+				initGrid(n)[fields(initGrid)-1] = 1.0;
+				for (int i=2; i<fields(initGrid); i++)
 					initGrid(n)[i] = 0.0;
 			}
 		}
@@ -183,13 +181,15 @@ void generate(int dim, const char* filename)
 		}
 		#endif
 		if (rank==0) {
-			std::cout<<"x_Ni      x_Al      x_Nb\n";
+			std::cout<<"x_Ni      x_Mo      x_Nb\n";
 			printf("%.6f  %1.2e  %1.2e\n\n", 1.0-totals[0]-totals[1], totals[0], totals[1]);
-			std::cout<<"p_g       p_g'      p_g''     p_d\n";
-			printf("%.6f  %1.2e  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3]-totals[4], totals[2], totals[3], totals[4]);
+			std::cout<<"p_g       p_m      p_d\n";
+			printf("%.6f  %1.2e  %1.2e\n", 1.0-totals[2]-totals[3], totals[2], totals[3]);
 		}
 
 		output(initGrid,filename);
+	} else {
+		std::cerr<<"Error: "<<dim<<"-dimensional grids unsupported."<<std::endl;
 	}
 
 }
@@ -487,17 +487,15 @@ double gprime(const double p)
 double gibbs(const vector<double>& v)
 {
 	double g  = f_gam(v[0],v[1]) * (1.0 - (h(abs(v[2])) + h(abs(v[3])) + h(abs(v[4]))));
-	       g += f_gpr(v[0],v[1]) * h(abs(v[2]));
-	       g += f_gdp(v[0],v[1]) * h(abs(v[3]));
-	       g += f_del(v[0],v[1]) * h(abs(v[4]));
-	       g += w_gpr * v[2]*v[2] * (1.0 - abs(v[2])*(1.0 - abs(v[2]);
-	       g += w_gdp * v[3]*v[3] * (1.0 - abs(v[3])*(1.0 - abs(v[3]);
-	       g += w_del * v[4]*v[4] * (1.0 - abs(v[4])*(1.0 - abs(v[4]);
+	       g += f_mu(v[0],v[1]) * h(abs(v[2]));
+	       g += f_del(v[0],v[1]) * h(abs(v[3]));
+	       g += w_mu * v[2]*v[2] * (1.0 - abs(v[2])*(1.0 - abs(v[2]);
+	       g += w_del * v[3]*v[3] * (1.0 - abs(v[3])*(1.0 - abs(v[3]);
 	for (int i=2; i<v.length(); i++)
 		for (int j=i+1; j<v.length(); j++)
 			g += 2.0 * alpha * v[i]*v[i] * v[j]*v[j];
 
-	return omega*g(p) + h(p)*fs(Cs) + (1.0-h(p))*fl(Cl);
+	return g;
 }
 
 void simple_progress(int step, int steps)
@@ -526,43 +524,54 @@ void simple_progress(int step, int steps)
 
 struct rparams {
 	// Composition fields
-	double x_Al;
+	double x_Mo;
 	double x_Nb;
 
 	// Structure fields
-	double p_gpr_Al;
-	double p_gdp_Al;
-	double p_del_Al;
+	double p_mu_Mo;
+	double p_del_Mo;
 
-	double p_gpr_Nb;
-	double p_gdp_Nb;
+	double p_mu_Nb;
 	double p_del_Nb;
 };
 
 
 int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 {
-	const double x_Al = ((struct rparams*) params)->x_Al;
+	const double x_Mo = ((struct rparams*) params)->x_Mo;
 	const double x_Nb = ((struct rparams*) params)->x_Nb;
-	const double p_gpr = ((struct rparams*) params)->p_gpr;
-	const double p_gdp = ((struct rparams*) params)->p_gdp;
+	const double p_mu = ((struct rparams*) params)->p_mu;
 	const double p_del = ((struct rparams*) params)->p_del;
 
-	const double C_gam_Al = gsl_vector_get(x, 0);
-	const double C_gpr_Al = gsl_vector_get(x, 1);
-	const double C_gdp_Al = gsl_vector_get(x, 2);
-	const double C_del_Al = gsl_vector_get(x, 3);
+	const double C_gam_Mo = gsl_vector_get(x, 0);
+	const double C_mu_Mo = gsl_vector_get(x, 2);
+	const double C_del_Mo = gsl_vector_get(x, 3);
 
 	const double C_gam_Nb = gsl_vector_get(x, 4);
-	const double C_gpr_Nb = gsl_vector_get(x, 5);
-	const double C_gdp_Nb = gsl_vector_get(x, 6);
+	const double C_mu_Nb = gsl_vector_get(x, 6);
 	const double C_del_Nb = gsl_vector_get(x, 7);
 
-	const double f1 = h(p)*Cs + (1.0-h(p))*Cl - c;
-	const double f2 = dfs_dc(Cs) - dfl_dc(Cl);
+	const double f1 = (1.0 - h(fabs(p_mu)) - h(fabs(p_del)))*C_gam_Mo
+	                + h(fabs(p_mu))*C_mu_Mo
+	                + h(fabs(p_del))*C_del_Mo
+	                - x_Mo;
+	const double f2 = df_gam_dxMo(C_gam_Mo) - df_mu_dxMo(C_mu_Mo);
+	const double f3 = df_mu_dxMo(C_mu_Mo) - df_del_dxMo(C_del_Mo);
+
+	const double f4 = (1.0 - h(fabs(p_mu)) - h(fabs(p_del)))*C_gam_Nb
+	                + h(fabs(p_mu))*C_mu_Nb
+	                + h(fabs(p_del))*C_del_Nb
+	                - x_Nb;
+	const double f5 = df_gam_dxNb(C_gam_Nb) - df_mu_dxNb(C_mu_Nb);
+	const double f6 = df_mu_dxNb(C_mu_Nb) - df_del_dxNb(C_del_Nb);
 
 	gsl_vector_set(f, 0, f1);
 	gsl_vector_set(f, 1, f2);
+	gsl_vector_set(f, 2, f3);
+
+	gsl_vector_set(f, 3, f4);
+	gsl_vector_set(f, 4, f5);
+	gsl_vector_set(f, 5, f6);
 
 	return GSL_SUCCESS;
 }
@@ -570,73 +579,55 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 {
-	const double x_Al = ((struct rparams*) params)->x_Al;
+	const double x_Mo = ((struct rparams*) params)->x_Mo;
 	const double x_Nb = ((struct rparams*) params)->x_Nb;
-	const double p_gpr = ((struct rparams*) params)->p_gpr;
-	const double p_gdp = ((struct rparams*) params)->p_gdp;
+	const double p_mu = ((struct rparams*) params)->p_mu;
 	const double p_del = ((struct rparams*) params)->p_del;
 
-	const double C_gam_Al = gsl_vector_get(x, 0);
-	const double C_gpr_Al = gsl_vector_get(x, 1);
-	const double C_gdp_Al = gsl_vector_get(x, 2);
-	const double C_del_Al = gsl_vector_get(x, 3);
+	const double C_gam_Mo = gsl_vector_get(x, 0);
+	const double C_mu_Mo = gsl_vector_get(x, 2);
+	const double C_del_Mo = gsl_vector_get(x, 3);
 
 	const double C_gam_Nb = gsl_vector_get(x, 4);
-	const double C_gpr_Nb = gsl_vector_get(x, 5);
-	const double C_gdp_Nb = gsl_vector_get(x, 6);
+	const double C_mu_Nb = gsl_vector_get(x, 6);
 	const double C_del_Nb = gsl_vector_get(x, 7);
 
 	// Jacobian matrix
-	const double sum = h(abs(p_gpr)) + h(abs(p_gdp)) + h(abs(p_del)) ;
+	const double sum = h(abs(p_mu)) + h(abs(p_del)) ;
 
 	// Need to know the functional form of the chemical potentials to proceed
 
 	gsl_matrix_set(J, 0, 0, 1.0-sum);
-	gsl_matrix_set(J, 0, 1, h(abs(p_gpr)));
-	gsl_matrix_set(J, 0, 2, h(abs(p_gdp)));
-	gsl_matrix_set(J, 0, 3, h(abs(p_del)));
+	gsl_matrix_set(J, 0, 1, h(abs(p_mu)));
+	gsl_matrix_set(J, 0, 2, h(abs(p_del)));
 
-	gsl_matrix_set(J, 1, 0,  d2f_gam_dxAl2(C_gam_Al, x_Nb)));
-	gsl_matrix_set(J, 1, 1, -d2f_gpr_dxAl2(C_gpr_Al, x_Nb)));
+	gsl_matrix_set(J, 1, 0,  d2f_gam_dxMo2(C_gam_Mo, x_Nb)));
+	gsl_matrix_set(J, 1, 1, -d2f_mu_dxMo2(C_mu_Mo, x_Nb)));
 	gsl_matrix_set(J, 1, 2, 0.0);
-	gsl_matrix_set(J, 1, 3, 0.0);
 
 	gsl_matrix_set(J, 2, 0, 0.0);
-	gsl_matrix_set(J, 2, 1,  d2f_gpr_dxAl2(C_gpr_Al, x_Nb)));
-	gsl_matrix_set(J, 2, 2, -d2f_gdp_dxAl2(C_gdp_Al, x_Nb)));
-	gsl_matrix_set(J, 2, 3, 0.0);
+	gsl_matrix_set(J, 2, 1,  d2f_mu_dxMo2(C_mu_Mo, x_Nb)));
+	gsl_matrix_set(J, 2, 2, -d2f_del_dxMo2(C_del_Mo, x_Nb)));
 
-	gsl_matrix_set(J, 3, 0, 0.0);
-	gsl_matrix_set(J, 3, 1, 0.0);
-	gsl_matrix_set(J, 3, 2,  d2f_gdp_dxAl2(C_gdp_Al, x_Nb)));
-	gsl_matrix_set(J, 3, 3, -d2f_del_dxAl2(C_del_Al, x_Nb)));
 
-	for (int i=0; i<4; i++)
-		for (for j=4; j<8; j++)
+	for (int i=0; i<3; i++)
+		for (for j=3; j<6; j++)
 			gsl_matrix_set(J, i, j, 0.0);
 
-	gsl_matrix_set(J, 4, 4, 1.0-sum);
-	gsl_matrix_set(J, 4, 5, h(abs(p_gpr)));
-	gsl_matrix_set(J, 4, 6, h(abs(p_gdp)));
-	gsl_matrix_set(J, 4, 7, h(abs(p_del)));
+	gsl_matrix_set(J, 3, 3, 1.0-sum);
+	gsl_matrix_set(J, 3, 4, h(abs(p_mu)));
+	gsl_matrix_set(J, 3, 5, h(abs(p_del)));
 
-	gsl_matrix_set(J, 5, 4,  d2f_gam_dxAl2(x_Al, C_gam_Nb)));
-	gsl_matrix_set(J, 5, 5, -d2f_gpr_dxAl2(x_Al, C_gpr_Nb)));
-	gsl_matrix_set(J, 5, 6, 0.0);
-	gsl_matrix_set(J, 5, 7, 0.0);
+	gsl_matrix_set(J, 4, 3,  d2f_gam_dxMo2(x_Mo, C_gam_Nb)));
+	gsl_matrix_set(J, 4, 4, -d2f_mu_dxMo2(x_Mo, C_mu_Nb)));
+	gsl_matrix_set(J, 4, 5, 0.0);
 
-	gsl_matrix_set(J, 6, 4, 0.0);
-	gsl_matrix_set(J, 6, 5,  d2f_gpr_dxAl2(x_Al, C_gpr_Nb)));
-	gsl_matrix_set(J, 6, 6, -d2f_gdp_dxAl2(x_Al, C_gdp_Nb)));
-	gsl_matrix_set(J, 6, 7, 0.0);
+	gsl_matrix_set(J, 5, 3, 0.0);
+	gsl_matrix_set(J, 5, 4,  d2f_mu_dxMo2(x_Mo, C_mu_Nb)));
+	gsl_matrix_set(J, 5, 5, -d2f_del_dxMo2(x_Mo, C_del_Nb)));
 
-	gsl_matrix_set(J, 7, 4, 0.0);
-	gsl_matrix_set(J, 7, 5, 0.0);
-	gsl_matrix_set(J, 7, 6,  d2f_gdp_dxAl2(x_Al, C_gdp_Nb)));
-	gsl_matrix_set(J, 7, 7, -d2f_del_dxAl2(x_Al, C_del_Nb)));
-
-	for (int i=4; i<8; i++)
-		for (int j=0; j<4; j++)
+	for (int i=3; i<6; i++)
+		for (int j=0; j<3; j++)
 			gsl_matrix_set(J, i, j, 0.0);
 
 	return GSL_SUCCESS;
@@ -667,28 +658,25 @@ rootsolver::rootsolver() :
 }
 
 template <typename T> double
-rootsolver::solve(const T& x_Al, const T& x_Nb, const T& p_gpr, const T& p_gdp, const T& p_del,
-                  T& C_gam_Al, T& C_gpr_Al, T& C_gdp_Al, t& C_del_Al, T& C_gam_Nb, T& C_gpr_Nb, T& C_gdp_Nb, t& C_del_Nb)
+rootsolver::solve(const T& x_Mo, const T& x_Nb, const T& p_mu, const T& p_del,
+                  T& C_gam_Mo, T& C_mu_Mo, t& C_del_Mo, T& C_gam_Nb, T& C_mu_Nb, t& C_del_Nb)
 {
 	int status;
 	size_t iter = 0;
 
 	// initial guesses
-	par.x_Al = x_Al;
+	par.x_Mo = x_Mo;
 	par.x_Nb = x_Nb;
-	par.p_gpr = p_gpr;
-	par.p_gdp = p_gdp;
+	par.p_mu = p_mu;
 	par.p_del = p_del;
 
-	gsl_vector_set(x, 0, C_gam_Al);
-	gsl_vector_set(x, 1, C_gpr_Al);
-	gsl_vector_set(x, 2, C_gdp_Al);
-	gsl_vector_set(x, 3, C_del_Al);
+	gsl_vector_set(x, 0, C_gam_Mo);
+	gsl_vector_set(x, 1, C_mu_Mo);
+	gsl_vector_set(x, 2, C_del_Mo);
 
-	gsl_vector_set(x, 4, C_gam_Nb);
-	gsl_vector_set(x, 5, C_gpr_Nb);
-	gsl_vector_set(x, 6, C_gdp_Nb);
-	gsl_vector_set(x, 7, C_del_Nb);
+	gsl_vector_set(x, 3, C_gam_Nb);
+	gsl_vector_set(x, 4, C_mu_Nb);
+	gsl_vector_set(x, 5, C_del_Nb);
 
 	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
 
@@ -700,15 +688,13 @@ rootsolver::solve(const T& x_Al, const T& x_Nb, const T& p_gpr, const T& p_gdp, 
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status==GSL_CONTINUE && iter<maxiter);
 
-	C_gam_Al = static_cast<T>(gsl_vector_get(solver->x, 0));
-	C_gpr_Al = static_cast<T>(gsl_vector_get(solver->x, 1));
-	C_gdp_Al = static_cast<T>(gsl_vector_get(solver->x, 2));
-	C_del_Al = static_cast<T>(gsl_vector_get(solver->x, 3));
+	C_gam_Mo = static_cast<T>(gsl_vector_get(solver->x, 0));
+	C_mu_Mo  = static_cast<T>(gsl_vector_get(solver->x, 1));
+	C_del_Mo = static_cast<T>(gsl_vector_get(solver->x, 2));
 
-	C_gam_Nb = static_cast<T>(gsl_vector_get(solver->x, 4));
-	C_gpr_Nb = static_cast<T>(gsl_vector_get(solver->x, 5));
-	C_gdp_Nb = static_cast<T>(gsl_vector_get(solver->x, 6));
-	C_del_Nb = static_cast<T>(gsl_vector_get(solver->x, 7));
+	C_gam_Nb = static_cast<T>(gsl_vector_get(solver->x, 3));
+	C_mu_Nb  = static_cast<T>(gsl_vector_get(solver->x, 4));
+	C_del_Nb = static_cast<T>(gsl_vector_get(solver->x, 5));
 
 	double residual = gsl_blas_dnrm2(solver->f);
 

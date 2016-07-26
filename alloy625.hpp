@@ -1,10 +1,10 @@
 /* alloy625.hpp
- * Declarations for 2D and 3D isotropic binary alloy solidification
+ * Declarations for 2D and 3D isotropic Mo-Nb-Ni alloy phase transformations
  * Questions/comments to trevor.keller@nist.gov (Trevor Keller)
  */
 
 std::string PROGRAM = "alloy625";
-std::string MESSAGE = "Isotropic phase field solidification example code";
+std::string MESSAGE = "Isotropic Mo-Nb-Ni alloy phase transformation code";
 
 typedef MMSP::grid<1,MMSP::vector<double> > GRID1D;
 typedef MMSP::grid<2,MMSP::vector<double> > GRID2D;
@@ -19,32 +19,27 @@ double g(const double p);
 double gprime(const double p);
 
 // pure phase free energy densities
-double f_gam(const double x_Al, const double x_Nb);
-double f_gpr(const double x_Al, const double x_Nb);
-double f_gdp(const double x_Al, const double x_Nb);
-double f_del(const double x_Al, const double x_Nb);
+double f_gam(const double x_Mo, const double x_Nb);
+double f_mu(const double x_Mo, const double x_Nb);
+double f_del(const double x_Mo, const double x_Nb);
 
 // first derivatives of pure phase free energy densities
-double df_gam_dx_Al(const double x_Al, const double x_Nb);
-double df_gpr_dx_Al(const double x_Al, const double x_Nb);
-double df_gdp_dx_Al(const double x_Al, const double x_Nb);
-double df_del_dx_Al(const double x_Al, const double x_Nb);
+double df_gam_dx_Mo(const double x_Mo, const double x_Nb);
+double df_mu_dx_Mo(const double x_Mo, const double x_Nb);
+double df_del_dx_Mo(const double x_Mo, const double x_Nb);
 
-double df_gam_dx_Nb(const double x_Al, const double x_Nb);
-double df_gpr_dx_Nb(const double x_Al, const double x_Nb);
-double df_gdp_dx_Nb(const double x_Al, const double x_Nb);
-double df_del_dx_Nb(const double x_Al, const double x_Nb);
+double df_gam_dx_Nb(const double x_Mo, const double x_Nb);
+double df_mu_dx_Nb(const double x_Mo, const double x_Nb);
+double df_del_dx_Nb(const double x_Mo, const double x_Nb);
 
 // chemical potentials of pure phases
-double d2f_gam_dx2_Al(const double x_Al, const double x_Nb);
-double d2f_gpr_dx2_Al(const double x_Al, const double x_Nb);
-double d2f_gdp_dx2_Al(const double x_Al, const double x_Nb);
-double d2f_del_dx2_Al(const double x_Al, const double x_Nb);
+double d2f_gam_dx2_Mo(const double x_Mo, const double x_Nb);
+double d2f_mu_dx2_Mo(const double x_Mo, const double x_Nb);
+double d2f_del_dx2_Mo(const double x_Mo, const double x_Nb);
 
-double d2f_gam_dx2_Nb(const double x_Al, const double x_Nb);
-double d2f_gpr_dx2_Nb(const double x_Al, const double x_Nb);
-double d2f_gdp_dx2_Nb(const double x_Al, const double x_Nb);
-double d2f_del_dx2_Nb(const double x_Al, const double x_Nb);
+double d2f_gam_dx2_Nb(const double x_Mo, const double x_Nb);
+double d2f_mu_dx2_Nb(const double x_Mo, const double x_Nb);
+double d2f_del_dx2_Nb(const double x_Mo, const double x_Nb);
 
 // Gibbs free energy density
 double gibbs(const MMSP::vector<double>& v);
@@ -58,7 +53,7 @@ template<int dim, typename T> void print_values(const MMSP::grid<dim,MMSP::vecto
  * and concentration, iteratively determine the fictitious concentrations in each phase that
  * satisfy the equal chemical potential constraint.
  * Pass p and x by const value, C by non-const reference to update in place.
- * This allows use of this single function to solve for both components, Al and Nb, in each phase.
+ * This allows use of this single function to solve for both components, Mo and Nb, in each phase.
  */
 
 int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f);
@@ -73,8 +68,8 @@ public:
 	// destructor
 	~rootsolver();
 	// accessor
-	template <typename T> double solve(const T& x_Al, const T& x_Nb, const T& p_gpr, const T& p_gdp, const T& p_del,
-	                                   T& C_gam_Al, T& C_gpr_Al, T& C_gdp_Al, t& C_del_Al, T& C_gam_Nb, T& C_gpr_Nb, T& C_gdp_Nb, t& C_del_Nb);
+	template <typename T> double solve(const T& x_Mo, const T& x_Nb, const T& p_mu, const T& p_del,
+	                                   T& C_gam_Mo, T& C_mu_Mo, t& C_del_Mo, T& C_gam_Nb, T& C_mu_Nb, t& C_del_Nb);
 
 private:
 	const size_t n;
