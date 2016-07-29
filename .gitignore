@@ -5,6 +5,7 @@
 *.vti
 *.o
 *.out
+.ipynb_checkpoints
 alloy718
 data
 mmsp2vti

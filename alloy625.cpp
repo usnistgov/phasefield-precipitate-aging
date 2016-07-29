@@ -21,8 +21,10 @@
 
 #include"MMSP.hpp"
 #include"alloy625.hpp"
+#include"energy625.c"
 
 // Note: alloy625.hpp contains important declarations and comments. Have a look.
+//       energy625.c is generated from CALPHAD using pycalphad and SymPy, in CALPHAD_extraction.ipynb.
 
 // Equilibrium compositions from CALPHAD: gamma, mu, delta
 const double cMoEq[4] = {0.5413, 0.0, 0.3940};
@@ -482,6 +484,44 @@ double g(const double p)
 double gprime(const double p)
 {
 	return 2.0*p * (1.0-p)*(1.0-2.0*p);
+}
+
+double f_gam(const double x_Mo, const double x_Nb, const double& T)
+{
+	// Two sub-lattices, but #2 contains vacancies only
+	const double a1 = 1.0;
+	const double y_Mo = x_Mo / a1;
+	const double y_Nb = x_Nb / a1;
+	const double y_Ni = 1.0 - y_Mo - y_Nb;
+	const double y_Va = 1.0;
+	return f_gam(y_Mo, y_Nb, y_Ni, y_Va, T);
+}
+
+double f_mu(const double x_Mo, const double x_Nb, const double& T)
+{
+	// Three sub-lattices, but #1 contains Ni only
+	// Since #2 contains Mo and Nb, direct mapping from x_Mo, x_Nb
+	// to {y} is not possible, unless #2 changes only slightly in
+	// composition at the temperatures of interest. Otherwise, solve
+	// for internal equilibrium iteratively.
+	const double a1 = 1.0;
+	const double a2 = 0.307692307692308;
+	const double a3 = 0.230769230769231;
+	
+	return f_mu(y1_Ni, y2_Mo, y2_Nb, y3_Mo, y3_Nb, y3_Ni, T);
+}
+
+double f_del(const double x_Mo, const double x_Nb, const double& T)
+{
+	// Three sub-lattices, but #3 contains Ni only
+	const double a1 = 0.75;
+	const double a2 = 0.25;
+	const double y1_Ni = x_Ni / a1; // Warning: y1_Ni > 1 when x_Ni > 0.75. Probably not good.
+	const double y1_Nb = 1.0 - y1_Ni;
+	const double y2_Mo = x_Mo / a2; // Warning: y2_Mo > 1 when x_Mo > 0.25. Probably not good.
+	const double y2_Nb = (x_Nb - a1*y1_Nb) / a2;
+	const double y3_Ni = 1.0;
+	return f_del(y1_Nb, y1_Ni, y2_Mo, y2_Nb, y2_Ni, T);
 }
 
 double gibbs(const vector<double>& v)
