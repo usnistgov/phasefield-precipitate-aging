@@ -34,11 +34,7 @@ const double cNbEq[4] = {0.5413, 0.0, 0.3940};
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
 const double CFL = 0.2; // controls timestep
 
-
-const bool useNeumann = true;
-
-const bool planarTest = false;
-
+const bool useNeumann = true; // apply zero-flux boundaries (Neumann type)
 
 // Kinetic and model parameters
 const double meshres = 0.075; // dx=dy
@@ -49,9 +45,6 @@ const double omega = 2.0*eps_sq*pow(a_int/halfwidth,2.0);
 const double dt_plimit = CFL*meshres/eps_sq;          // speed limit based on numerical viscosity
 const double dt_climit = CFL*pow(meshres,2.0)/eps_sq; // speed limit based on diffusion timescale
 const double dt = std::min(dt_plimit, dt_climit);
-const double ps0 = 1.0, pl0 = 0.0; // initial phase fractions
-const double cMo[6] = {Cle + 0.50*(Cse-Cle)}; // initial Mo concentration
-const double cNb[6] = {Cle + 0.50*(Cse-Cle)}; // initial Nb concentration
 
 
 /* =============================================== *
@@ -61,7 +54,7 @@ const double cNb[6] = {Cle + 0.50*(Cse-Cle)}; // initial Nb concentration
 namespace MMSP
 {
 
-/* Representation includes five field variables:
+/* Representation includes thirteen field variables:
  *
  * X0.  molar fraction of Al, Cr, Mo
  * X1.  molar fraction of Nb, Fe
@@ -70,27 +63,28 @@ namespace MMSP
  * P2.  phase fraction of mu
  * P3.  phase fraction of delta
  * bal. phase fraction of gamma
+ *
+ * C4. fictitious Mo concentration in gamma
+ * C5. fictitious Nb concentration in gamma
+ * C6. fictitious Ni concentration in gamma
+ *
+ * C7. fictitious Mo concentration in mu
+ * C8. fictitious Nb concentration in mu
+ * C9. fictitious Ni concentration in mu
+ *
+ * C10. fictitious Mo concentration in delta
+ * C11. fictitious Nb concentration in delta
+ * C12. fictitious Ni concentration in delta
  */
 
 const double noise_amp = 0.00625;
-const double Calpha = 0.05;
-const double Cbeta = 0.95;
-const double Cmatrix = 0.5*(Calpha+Cbeta);
-const double A = 2.0;
-const double B = A/pow(Cbeta-Cmatrix,2);
-const double gamma = 2.0/pow(Cbeta-Calpha,2);
-const double delta = 1.0;
-const double epsilon = 3.0;
-const double Dalpha = gamma/pow(delta,2);
-const double Dbeta = gamma/pow(delta,2);
-const double kappa = 2.0;
 
 
 // Define equilibrium phase compositions at global scope
 //                     gamma   mu      delta
 const double xMo[3] = {0.0161, 0.0007, 0.0007};
 const double xNb[3] = {0.0072, 0.0196, 0.0196};
-const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near delta particle
+const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                     Mo      Nb
@@ -109,6 +103,27 @@ double bellCurve(double x, double m, double s)
 	return std::exp( -std::pow(x-m,2.0)/(2.0*s*s) );
 }
 
+// Initial guesses for gamma, mu, and delta equilibrium compositions
+void guessGamma(const double& xmo, const double& xnb, double& cmo, double& cnb, double& cni)
+{
+	cmo = xmo/(xmo+xnb+0.9);
+	cnb = xnb/(xmo+xnb+0.9);
+	cni = 0.9;
+}
+void guessDelta(const double& xmo, const double& xnb, double& cmo, double& cnb, double& cni)
+{
+	cmo = xmo/(xmo+xnb+0.75);
+	cnb = xnb/(xmo+xnb+0.75);
+	cni = 0.75;
+}
+void guessMu(const double& xmo, const double& xnb, double& cmo, double& cnb, double& cni)
+{
+	cmo = 0.025;
+	cnb = 0.4875;
+	cni = 0.4875;
+}
+
+
 void generate(int dim, const char* filename)
 {
 	int rank=0;
@@ -121,30 +136,41 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		const int edge = 128;
-		GRID2D initGrid(4,0,edge,0,edge);
-		vector<int> origin(2,edge/2);
+		GRID2D initGrid(13,0,edge,0,edge);
 		for (int d=0; d<dim; d++)
-			dx(initGrid,d)=0.5;
+			dx(initGrid,d)=meshres;
 
-		const double rDelta = 6.5*dx(initGrid,0);
-		const double rDeplt = rDelta*std::sqrt(1.0+2.0*xNb[1]/xNbdep); // radius of annular depletion region
+		vector<int> originMu(2,edge/2);
+		originMu[1] = 0.25*edge;
+		vector<int> originDelta(2,edge/2);
+		originMu[1] = 0.75*edge;
+
+		const double rPrecipMu = 3.5*dx(initGrid,0);
+		const double rDepltMu = rPrecipMu*std::sqrt(1.0+2.0*xNb[1]/xNbdep); // radius of annular depletion region
+		const double rPrecipDelta = 6.5*dx(initGrid,0);
+		const double rDepltDelta = rPrecipDelta*std::sqrt(1.0+2.0*xNb[1]/xNbdep); // radius of annular depletion region
 		if (rDeplt > edge/2)
 			std::cerr<<"Warning: domain too small to accommodate particle. Push beyond "<<rDeplt<<".\n"<<std::endl;
 
 		double delta_mass=0.0;
+		double mu_mass=0.0;
 		for (int n=0; n<nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
-			const double r = radius(origin, x, dx(initGrid,0));
-			if (r > rDelta) {
-				// Gamma matrix
+			const double rmu = radius(originMu, x, dx(initGrid,0));
+			const double rdel = radius(originDelta, x, dx(initGrid,0));
+			if (rdel > rDelta && rmu > rMu) {
+				// Gamma matrix:
+				// x_Mo
 				initGrid(n)[0] = xMo[0]*(1.0 + noise_amp*real_gen(mt_rand))
 				                 + 0.25*xMo[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     bell[0]*dx(initGrid,0)*edge)
 				                 + 0.25*xMo[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, bell[0]*dx(initGrid,0)*edge)
 				                 + 0.25*xMo[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   bell[0]*dx(initGrid,0)*edge);
+				// x_Nb
 				initGrid(n)[1] = xNb[0]*(1.0 + noise_amp*real_gen(mt_rand))
 				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     bell[1]*dx(initGrid,0)*edge)
 				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, bell[1]*dx(initGrid,0)*edge)
 				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   bell[1]*dx(initGrid,0)*edge);
+				// phi, C
 				for (int i=2; i<fields(initGrid); i++)
 					initGrid(n)[i] = 0.01*real_gen(mt_rand);
 
@@ -153,30 +179,44 @@ void generate(int dim, const char* filename)
 					double deltaxNb = xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
 					initGrid(n)[1] -= deltaxNb;
 				}
+			} else if (rmu <= rMu) {
+				// Mu particle
+				mu_mass += 1.0;
+				initGrid(n)[0] = xMo[3]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[1] = xNb[3]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(n)[2] = 1.0;
+				for (int i=3; i<fields(initGrid); i++)
+					initGrid(n)[i] = 0.0;
 			} else {
 				// Delta particle
 				delta_mass += 1.0;
 				initGrid(n)[0] = xMo[3]*(1.0 + noise_amp*real_gen(mt_rand));
 				initGrid(n)[1] = xNb[3]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[fields(initGrid)-1] = 1.0;
-				for (int i=2; i<fields(initGrid); i++)
+				initGrid(n)[0] = 0.0;
+				initGrid(n)[3] = 1.0;
+				for (int i=4; i<fields(initGrid); i++)
 					initGrid(n)[i] = 0.0;
 			}
 		}
 
-		vector<double> totals(fields(initGrid),0.0);
+		// Initialize fictitious compositions
+		guessGamma(initGrid(n)[0], initGrid(n)[1], initGrid(n)[4], initGrid(n)[5], initGrid(n)[6]);
+		guessMu(   initGrid(n)[0], initGrid(n)[1], initGrid(n)[7], initGrid(n)[8], initGrid(n)[9]);
+		guessDelta(initGrid(n)[0], initGrid(n)[1], initGrid(n)[10], initGrid(n)[11], initGrid(n)[12]);
+
+		vector<double> totals(4, 0.0);
 		for (int n=0; n<nodes(initGrid); n++) {
 			for (int i=0; i<2; i++)
 				totals[i] += initGrid(n)[i];
-			for (int i=2; i<fields(initGrid); i++)
+			for (int i=2; i<4; i++)
 				totals[i] += std::fabs(initGrid(n)[i]);
 		}
 
-		for (int i=0; i<fields(initGrid); i++)
+		for (int i=0; i<4; i++)
 			totals[i] /= double(edge*edge);
 		#ifdef MPI_VERSION
 		vector<double> myTot(totals);
-		for (int i=0; i<fields(initGrid); i++) {
+		for (int i=0; i<4; i++) {
 			MPI::COMM_WORLD.Reduce(&myTot[i], &totals[i], 1, MPI_DOUBLE, MPI_SUM, 0);
 			MPI::COMM_WORLD.Barrier();
 		}
@@ -207,17 +247,21 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	ghostswap(oldGrid);
 	grid<dim,vector<T> > newGrid(oldGrid);
+	grid<dim,vector<T> > chemGrid(oldGrid, 2); // storage for chemical potentials
 	double dV=1.0;
 	for (int d=0; d<dim; d++) {
 		dx(oldGrid,d) = meshres;
 		dx(newGrid,d) = meshres;
+		dx(chemGrid,d) = meshres;
 		dV *= dx(oldGrid,d);
 		if (useNeumann && x0(oldGrid,d) == g0(oldGrid,d)) {
 			b0(oldGrid,d) = Neumann;
 			b0(newGrid,d) = Neumann;
+			b0(chemGrid,d) = Neumann;
 		} else if (useNeumann && x1(oldGrid,d) == g1(oldGrid,d)) {
 			b1(oldGrid,d) = Neumann;
 			b1(newGrid,d) = Neumann;
+			b1(chemGrid,d) = Neumann;
 		}
 	}
 
@@ -228,6 +272,22 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	for (int step=0; step<steps; step++) {
 		if (rank==0)
 			print_progress(step, steps);
+
+		#ifndef MPI_VERSION
+		#pragma omp parallel for
+		#endif
+		for (int n=0; n<nodes(oldGrid); n++) {
+			vector<int> x = position(oldGrid,n);
+
+			const T& C_gam_Mo  = oldGrid(n)[4];
+			const T& C_gam_Nb  = oldGrid(n)[5];
+			const T& C_gam_Ni  = oldGrid(n)[6];
+
+			chemGrid(x)[0] = dg_gam_dxMo(C_gam_Mo, C_gam_Nb, C_gam_Ni);
+			chemGrid(x)[1] = dg_gam_dxNb(C_gam_Mo, C_gam_Nb, C_gam_Ni);
+		}
+
+		ghostswap(chemGrid);
 
 		double ctot=0.0, ftot=0.0, utot=0.0, vmax=0.0;
 		#ifndef MPI_VERSION
@@ -240,132 +300,100 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			vector<int> x = position(oldGrid,n);
 
+			/* Representation includes thirteen field variables:
+		 	 *
+	 		 * X0.  molar fraction of Al, Cr, Mo
+		 	 * X1.  molar fraction of Nb, Fe
+		 	 * bal. molar fraction of Ni
+		 	 *
+ 			 * P2.  phase fraction of mu
+ 			 * P3.  phase fraction of delta
+ 			 * bal. phase fraction of gamma
+			 *
+			 * C4. fictitious Mo concentration in gamma
+			 * C5. fictitious Nb concentration in gamma
+			 * C6. fictitious Ni concentration in gamma
+			 *
+			 * C7. fictitious Mo concentration in mu
+			 * C8. fictitious Nb concentration in mu
+			 * C9. fictitious Ni concentration in mu
+			 *
+			 * C10. fictitious Mo concentration in delta
+			 * C11. fictitious Nb concentration in delta
+			 * C12. fictitious Ni concentration in delta
+			 */
+
 			// Cache some frequently-used reference values
-			const T& phi_old = oldGrid(n)[0];
-			const T& c_old   = oldGrid(n)[1];
-			const T& Cs_old  = oldGrid(n)[2];
-			const T& Cl_old  = oldGrid(n)[3];
+			const T& phi_mu = oldGrid(n)[2];
+			const T& phi_del = oldGrid(n)[3];
+
+			const T& x_Mo   = oldGrid(n)[0];
+			const T& x_Nb   = oldGrid(n)[1];
+
+			const T& C_gam_Mo  = oldGrid(n)[4];
+			const T& C_gam_Nb  = oldGrid(n)[5];
+			const T& C_gam_Ni  = oldGrid(n)[6];
+
+			const T& C_mu_Mo  = oldGrid(n)[7];
+			const T& C_mu_Nb  = oldGrid(n)[8];
+			const T& C_mu_Ni  = oldGrid(n)[9];
+
+			const T& C_del_Mo  = oldGrid(n)[10];
+			const T& C_del_Nb  = oldGrid(n)[11];
+			const T& C_del_Ni  = oldGrid(n)[12];
 
 
-			/* ======================================= *
-			 * Compute Second-Order Finite Differences *
-			 * ======================================= */
+			/* ============================================= *
+			 * Solve the Equation of Motion for Compositions *
+			 * ============================================= */
 
-			double divGradP = 0.0;
-			double divGradC = 0.0;
-			double lapPhi = 0.0;
-			double gradPsq = 0.0;
-			vector<int> s(x);
-			for (int d=0; d<dim; d++) {
-				double weight = 1.0/pow(dx(oldGrid,d), 2.0);
+			double gradSqPot_Mo = laplacian(chemGrid, x, 0);
+			newGrid(n)[0] = x_Mo + dt * VmSq * M_Mo * gradSqPot_Mo;
 
-				if (x[d] == x0(oldGrid,d) &&
-				    x0(oldGrid,d) == g0(oldGrid,d) &&
-				    useNeumann) {
-					// Central second-order difference at lower boundary:
-					// Flux_lo = grad(phi)_(i-1/2) is defined to be 0
-					// Get high values
-					s[d] += 1;
-					const T& ph = oldGrid(s)[0];
-					const T& ch = oldGrid(s)[1];
-					const T& Sh = oldGrid(s)[2];
-					const T& Lh = oldGrid(s)[3];
-					const T Mph = Q(ph,Sh,Lh)*hprime(ph)*(Lh-Sh);
-					const T Mch = Q(ph,Sh,Lh);
-					// Get central values
-					s[d] -= 1;
-					const T& pc = oldGrid(s)[0];
-					const T& cc = oldGrid(s)[1];
-					const T& Sc = oldGrid(s)[2];
-					const T& Lc = oldGrid(s)[3];
-					const T Mpc = Q(pc,Sc,Lc)*hprime(pc)*(Lc-Sc);
-					const T Mcc = Q(pc,Sc,Lc);
-
-					// Put 'em all together
-					divGradP += 0.5*weight*( (Mph+Mpc)*(ph-pc) );
-					divGradC += 0.5*weight*( (Mch+Mcc)*(ch-cc) );
-					lapPhi   += weight*(ph-pc);
-				} else if (x[d] == x1(oldGrid,d)-1 &&
-				           x1(oldGrid,d) == g1(oldGrid,d) &&
-				           useNeumann) {
-					// Central second-order difference at upper boundary:
-					// Flux_hi = grad(phi)_(i+1/2) is defined to be 0
-					// Get low values
-					s[d] -= 1;
-					const T& pl = oldGrid(s)[0];
-					const T& cl = oldGrid(s)[1];
-					const T& Sl = oldGrid(s)[2];
-					const T& Ll = oldGrid(s)[3];
-					const T Mpl = Q(pl,Sl,Ll)*hprime(pl)*(Ll-Sl);
-					const T Mcl = Q(pl,Sl,Ll);
-					// Get central values
-					s[d] += 1;
-					const T& pc = oldGrid(s)[0];
-					const T& cc = oldGrid(s)[1];
-					const T& Sc = oldGrid(s)[2];
-					const T& Lc = oldGrid(s)[3];
-					const T Mpc = Q(pc,Sc,Lc)*hprime(pc)*(Lc-Sc);
-					const T Mcc = Q(pc,Sc,Lc);
-
-					// Put 'em all together
-					divGradP += 0.5*weight*( (Mpc+Mpl)*(pl-pc) );
-					divGradC += 0.5*weight*( (Mcc+Mcl)*(cl-cc) );
-					lapPhi   += weight*(pl-pc);
-				} else {
-					// Central second-order difference
-					// Get low values
-					s[d] -= 1;
-					const T& pl = oldGrid(s)[0];
-					const T& cl = oldGrid(s)[1];
-					const T& Sl = oldGrid(s)[2];
-					const T& Ll = oldGrid(s)[3];
-					const T Mpl = Q(pl,Sl,Ll)*hprime(pl)*(Ll-Sl);
-					const T Mcl = Q(pl,Sl,Ll);
-					// Get high values
-					s[d] += 2;
-					const T& ph = oldGrid(s)[0];
-					const T& ch = oldGrid(s)[1];
-					const T& Sh = oldGrid(s)[2];
-					const T& Lh = oldGrid(s)[3];
-					const T Mph = Q(ph,Sh,Lh)*hprime(ph)*(Lh-Sh);
-					const T Mch = Q(ph,Sh,Lh);
-					// Get central values
-					s[d] -= 1;
-					const T& pc = oldGrid(s)[0];
-					const T& cc = oldGrid(s)[1];
-					const T& Sc = oldGrid(s)[2];
-					const T& Lc = oldGrid(s)[3];
-					const T Mpc = Q(pc,Sc,Lc)*hprime(pc)*(Lc-Sc);
-					const T Mcc = Q(pc,Sc,Lc);
-
-					// Put 'em all together
-					divGradP += 0.5*weight*( (Mph+Mpc)*(ph-pc) - (Mpc+Mpl)*(pc-pl) );
-					divGradC += 0.5*weight*( (Mch+Mcc)*(ch-cc) - (Mcc+Mcl)*(cc-cl) );
-					lapPhi   += weight*( (ph-pc) - (pc-pl) );
-					gradPsq  += weight * pow(0.5*(ph-pl), 2.0);
-				}
-			}
-
-			/* ==================================================================== *
-			 * Solve the Equation of Motion for phi: Kim, Kim, & Suzuki Equation 31 *
-			 * ==================================================================== */
-
-			newGrid(n)[0] = phi_old + dt*( eps_sq*lapPhi - omega*gprime(phi_old)
-			                               + hprime(phi_old)*( fl(Cl_old)-fs(Cs_old)-(Cl_old-Cs_old)*dfl_dc(Cl_old) ));
+			double gradSqPot_Nb = laplacian(chemGrid, x, 1);
+			newGrid(n)[1] = x_Nb + dt * VmSq * M_Nb * gradSqPot_Nb;
 
 
-			/* ================================================================== *
-			 * Solve the Equation of Motion for c: Kim, Kim, & Suzuki Equation 33 *
-			 * ================================================================== */
+			/* ======================================== *
+			 * Solve the Equation of Motion for Phases  *
+			 * ======================================== */
 
-			newGrid(n)[1] = c_old + dt*(divGradC + divGradP);
+			double df_dphi_mu = sign(phi_mu) * (-hprime(fabs(phi_mu))*g_gam(C_gam_Mo, C_gam_Nb, C_gam_Ni)
+			                                    + hprime(fabs(phi_mu))*g_mu(C_mu_Mo, C_mu_Nb, C_mu_Ni)
+			                                    - 2.0*omega_mu*phi_mu*phi_mu*(1.0-fabs(phi_mu))
+			                                   )
+			                    + 2.0*omega_mu*phi_mu*pow(1.0-fabs(phi_mu),2)
+			                    + alpha*fabs(phi_mu)*phi_del*phi*del;
+
+			double gradSqPhi_mu = laplacian(oldGrid, x, 2);
+
+			newGrid(n)[2] = phi_mu + dt * L_mu * (eps_sq*gradSqPhi_mu - df_dphi_mu);
+
+			double df_dphi_del = sign(phi_del) * (-hprime(fabs(phi_del))*g_gam(C_gam_Mo, C_gam_Nb, C_gam_Ni)
+			                                    + hprime(fabs(phi_del))*g_del(C_del_Mo, C_del_Nb, C_del_Ni)
+			                                    - 2.0*omega_del*phi_del*phi_del*(1.0-fabs(phi_del))
+			                                   )
+			                    + 2.0*omega_del*phi_del*pow(1.0-fabs(phi_del),2)
+			                    + alpha*fabs(phi_del)*phi_mu*phi*mu;
+
+			double gradSqPhi_del = laplacian(oldGrid, x, 3);
+
+			newGrid(n)[3] = phi_del + dt * L_del * (eps_sq*gradSqPhi_del - df_dphi_del);
 
 
 			/* ============================== *
 			 * Solve for common tangent plane *
 			 * ============================== */
 
-			CommonTangentSolver.solve(newGrid(n)[0], newGrid(n)[1], newGrid(n)[2], newGrid(n)[3]);
+			guessGamma(newGrid(n)[0], newGrid(n)[1], newGrid(n)[4], newGrid(n)[5], newGrid(n)[6]);
+			guessMu(   newGrid(n)[0], newGrid(n)[1], newGrid(n)[7], newGrid(n)[8], newGrid(n)[9]);
+			guessDelta(newGrid(n)[0], newGrid(n)[1], newGrid(n)[10], newGrid(n)[11], newGrid(n)[12]);
+
+			CommonTangentSolver.solve(newGrid(n)[0], newGrid(n)[1],
+			                          newGrid(n)[2], newGrid(n)[3],
+			                          newGrid(n)[4], newGrid(n)[5], newGrid(n)[6],
+			                          newGrid(n)[7], newGrid(n)[8], newGrid(n)[9],
+			                          newGrid(n)[10], newGrid(n)[11], newGrid(n)[12]);
 
 
 			/* ====================================================================== *
@@ -546,9 +574,9 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	const double p_del = ((struct rparams*) params)->p_del;
 
 	const double x_Ni = 1.0 - x_Mo - x_Nb;
-	const double n_gam = 1.0 - h(fabs(p_mu)) - h(fabs(p_del);
+	const double n_gam = 1.0 - h(fabs(p_mu)) - h(fabs(p_del));
 	const double n_mu  = h(fabs(p_mu));
-	const double n_del = h(fabs(p_del);
+	const double n_del = h(fabs(p_del));
 
 	// Prepare variables
 	const double C_gam_Mo = gsl_vector_get(x, 0);

@@ -21,6 +21,14 @@ double gprime(const double p);
 // Gibbs free energy density
 double gibbs(const MMSP::vector<double>& v);
 
+// Initial guesses for gamma, mu, and delta equilibrium compositions
+void guessGamma(const double& xmo, const double& xnb, double& cmo, double& cnb, double& cni);
+void guessMu(const double& xmo, const double& xnb, double& cmo, double& cnb, double& cni);
+void guessDelta(const double& xmo, const double& xnb, double& cmo, double& cnb, double& cni);
+
+// Phi spans [-1,+1], need to know its sign without divide-by-zero errors
+double sign(double x) {return (x<0) ? -1.0 : 1.0;}
+
 void simple_progress(int step, int steps); // thread-compatible pared-down version of print_progress
 
 template<int dim, typename T> void print_values(const MMSP::grid<dim,MMSP::vector<T> >& oldGrid, const int rank);
