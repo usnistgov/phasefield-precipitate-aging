@@ -37,14 +37,16 @@ const double CFL = 0.2; // controls timestep
 const bool useNeumann = true; // apply zero-flux boundaries (Neumann type)
 
 // Kinetic and model parameters
-const double meshres = 0.075; // dx=dy
-const double eps_sq = 1.25;
-const double a_int = 2.5; // alpha, prefactor of interface width
-const double halfwidth = 5.0*meshres; // half the interface width
-const double omega = 2.0*eps_sq*pow(a_int/halfwidth,2.0);
-const double dt_plimit = CFL*meshres/eps_sq;          // speed limit based on numerical viscosity
-const double dt_climit = CFL*pow(meshres,2.0)/eps_sq; // speed limit based on diffusion timescale
-const double dt = std::min(dt_plimit, dt_climit);
+const double meshres = 5.0e-9;    // grid spacing (m)
+const double Vm = 1.0e-5;         // molar volume (m^3/mol)
+const double M_Mo = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
+const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
+const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
+const double kappa_mu = 1.24e-8;  // gradient energy coefficient (J/m^3)
+const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m^3)
+const double omega_mu = 1.49e9;   // multiwell height (m^2/Nsm^2)
+const double omega_del = 1.49e9;  // multiwell height (m^2/Nsm^2)
+const double dt = (meshres*meshres)/(40.0*kappa_del); // timestep (ca. 5.0e-10 seconds)
 
 
 /* =============================================== *
@@ -82,8 +84,8 @@ const double noise_amp = 0.00625;
 
 // Define equilibrium phase compositions at global scope
 //                     gamma   mu      delta
-const double xMo[3] = {0.0161, 0.0007, 0.0007};
-const double xNb[3] = {0.0072, 0.0196, 0.0196};
+const double xMo[3] = {0.058, 0.025, 0.025};
+const double xNb[3] = {0.024, 0.025, 0.225};
 const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
 // Define st.dev. of Gaussians for alloying element segregation
@@ -348,10 +350,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ============================================= */
 
 			double gradSqPot_Mo = laplacian(chemGrid, x, 0);
-			newGrid(n)[0] = x_Mo + dt * VmSq * M_Mo * gradSqPot_Mo;
+			newGrid(n)[0] = x_Mo + dt * Vm*Vm * M_Mo * gradSqPot_Mo;
 
 			double gradSqPot_Nb = laplacian(chemGrid, x, 1);
-			newGrid(n)[1] = x_Nb + dt * VmSq * M_Nb * gradSqPot_Nb;
+			newGrid(n)[1] = x_Nb + dt * Vm*Vm * M_Nb * gradSqPot_Nb;
 
 
 			/* ======================================== *
@@ -367,7 +369,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			double gradSqPhi_mu = laplacian(oldGrid, x, 2);
 
-			newGrid(n)[2] = phi_mu + dt * L_mu * (eps_sq*gradSqPhi_mu - df_dphi_mu);
+			newGrid(n)[2] = phi_mu + dt * L_mu * (kappa*gradSqPhi_mu - df_dphi_mu);
 
 			double df_dphi_del = sign(phi_del) * (-hprime(fabs(phi_del))*g_gam(C_gam_Mo, C_gam_Nb, C_gam_Ni)
 			                                    + hprime(fabs(phi_del))*g_del(C_del_Mo, C_del_Nb, C_del_Ni)
@@ -378,7 +380,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			double gradSqPhi_del = laplacian(oldGrid, x, 3);
 
-			newGrid(n)[3] = phi_del + dt * L_del * (eps_sq*gradSqPhi_del - df_dphi_del);
+			newGrid(n)[3] = phi_del + dt * L_del * (kappa*gradSqPhi_del - df_dphi_del);
 
 
 			/* ============================== *
@@ -401,7 +403,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ====================================================================== */
 
 			double myc = dV*newGrid(n)[1];
-			double myf = dV*(0.5*eps_sq*gradPsq + f(newGrid(n)[0], newGrid(n)[1], newGrid(n)[2], newGrid(n)[3]));
+			double myf = dV*(0.5*kappa*gradPsq + f(newGrid(n)[0], newGrid(n)[1], newGrid(n)[2], newGrid(n)[3]));
 			double myv = 0.0;
 			if (newGrid(n)[0]>0.3 && newGrid(n)[0]<0.7) {
 				gradPsq = 0.0;
