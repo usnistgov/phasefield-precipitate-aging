@@ -23,6 +23,10 @@
 #include"alloy625.hpp"
 #include"energy625.c"
 
+// Number of phases and components (for array allocation)
+#define NP = 4
+#define NC = 2
+
 // Note: alloy625.hpp contains important declarations and comments. Have a look.
 //       energy625.c is generated from CALPHAD using pycalphad and SymPy, in CALPHAD_extraction.ipynb.
 
@@ -61,16 +65,16 @@ namespace MMSP
  * bal. fictitious Ni molar fraction in Laves
  */
 
-
 // Define equilibrium phase compositions at global scope
 //                     gamma  delta  mu     laves
-const double xCr[3] = {0.058, 0.025, 0.025, 0.000};
-const double xNb[3] = {0.024, 0.025, 0.225, 0.000};
+const double xCr[NP] = {0.058, 0.025, 0.025, 0.000};
+const double xNb[NP] = {0.024, 0.025, 0.225, 0.000};
+const double xCrdep = 0.5*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
 const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
 // Define st.dev. of Gaussians for alloying element segregation
-//                     Cr      Nb
-const double bell[2] = {0.0625, 0.025};
+//                         Cr      Nb
+const double bell[NC] = {0.0625, 0.025};
 const double noise_amp = 0.00625;
 
 // Kinetic and model parameters
@@ -147,72 +151,113 @@ void generate(int dim, const char* filename)
 	std::uniform_real_distribution<double> real_gen(-1,1);
 
 	if (dim==2) {
-		const int edge = 128;
-		GRID2D initGrid(13, 0,edge, 0,edge);
-		for (int d=0; d<dim; d++)
+		// Construct grid
+		const int Nx = 256;
+		const int Ny = 128;
+		GRID2D initGrid(13, 0, Nx, 0, Ny);
+		for (int d=0; d<dim; d++) {
 			dx(initGrid,d)=meshres;
+			if (useNeumann) {
+				b0(initGrid, d) = Neumann;
+				b1(initGrid, d) = Neumann;
+			}
+		}
+
+		// Describe precipitates
+		vector<int> center(2, Ny/2); // prevent a segfault by providing an initial value
+		vector<vector<int> > origins(NP-1, center);
+
+		// Delta
+		origins[0][0] = Nx/2;
+		origins[0][1] = 0.75*Ny;
+
+		// Mu
+		origins[1][0] = Nx/2 + 2;
+		origins[1][1] = 0.25*Ny;
+
+		// Laves
+		origins[2][0] = Nx/2 - 2;
+		origins[2][1] = 0.75*Ny;
+
+
+		// precipitate radii:         delta               mu                  Laves
+		const double rPrecip[NP-1] = {9.5*dx(initGrid,0), 3.5*dx(initGrid,0), 9.5*dx(initGrid,0)};
+
+		// depletion region surrounding precipitates
+		double rDepltCr[NP-1] = {0.0};
+		double rDepltNb[NP-1] = {0.0};
+		for (int i=0; i<NP-1; i++) {
+			rDepltCr[i] = std::sqrt(1.0+2.0*xCr[i+1]/xCrdep) * rPrecip[i];
+			rDepltNb[i] = std::sqrt(1.0+2.0*xNb[i+1]/xNbdep) * rPrecip[i];
+		}
+
+
+		// Sanity check on system size and  particle spacing
+
+		for (int i=0; i<NP-1; i++) {
+			if (rDepltCr[i]/dx(initGrid,0) > Ny/2 || rDepltNb[i]/dx(initGrid,0) > Ny/2)
+				std::cerr<<"Warning: domain too small to accommodate phase "<<i+1<<", expand beyond "<<2.0*rDeplt/dx(initGrid,1)<<" pixels.\n"<<std::endl;
+			for (int j=i+1; j<NP-1; j++) {
+				double r = radius(origins[i], origins[j], dx(initGrid,0));
+				if (r < rDepltCr[i] || r<rDepltNb[i])
+					std::cerr<<"Warning: precipitate "<<j<<" closely approaches precipitate "<<i<<". Check your origins.\n"<<std::endl;
+			}
+		}
+
+		vector<int> x(2, 0);
+
+		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
+		for (x[0]=x0(initGrid); x[0]<x1(initGrid); x[0]++) {
+			double matrixCr = 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], 0,                   bell[0]*dx(initGrid,0)*Nx)
+			                + 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[0]*dx(initGrid,0)*Nx)
+			                + 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[0]*dx(initGrid,0)*Nx);
+			double matrixNb = xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                   bell[1]*dx(initGrid,0)*Nx)
+			                + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[1]*dx(initGrid,0)*Nx)
+			                + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[1]*dx(initGrid,0)*Nx);
+
+			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
+				initGrid(x)[0] = matrixCr + xCr[0]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(x)[1] = matrixNb + xNb[0]*(1.0 + noise_amp*real_gen(mt_rand));
+
+				for (int i=NC; i<fields(initGrid); i++)
+					initGrid(x)[i] = 0.0;
+			}
+		}
+
+		// Initialize precipitates from array (should be extensible to random seeding, mostly)
+		for (int j=0; j<NP-1; j++) {
+			for (x[0]=origins[j][0]-rDepltCr[j]; x[0]<origins[j][0]+rDepltCr[j]; x[0]++) {
+				if (x[0] < x0(initGrid) || x[0] >= x1(initGrid))
+					continue;
+				for (x[1]=origins[j][1]-rDepltCr[j]; x[1]<origins[j][1]+rDepltCr[j]; x[1]++) {
+					if (x[1] < y0(initGrid) || x[1] >= y1(initGrid))
+						continue;
+					// Initialize delta particle
+					const double r = radius(origins[j], x, dx(initGrid,0));
+					vector<int> y(x);
+					check_boundary(y, b0(initGrid,0),b1(initGrid,0), b0(initGrid,1),b1(initGrid,1));
+					if (r < rPrecip[j]) { // point falls within particle
+						initGrid(y)[0] = xCr[j+1];
+						initGrid(y)[2+j] = 1.0;
+					} else {
+						if (r<rDepltCr[j]) { // point falls within Cr depletion region
+							double dxCr = xCrdep - xCrdep*(r-rPrecip[j])/(rDepltNb[j]-rPrecip[j]);
+							initGrid(y)[0] -= dxCr;
+						}
+						if (r<rDepltNb[j]) { // point falls within Nb depletion region
+							double dxNb = xNbdep - xNbdep*(r-rPrecip[j])/(rDepltNb[j]-rPrecip[j]);
+							initGrid(y)[1] -= dxNb;
+						}
+					}
+				}
+			}
+		}
+
 
 		rootsolver CommonTangentSolver;
 
-		vector<int> originMu(2,edge/2);
-		originMu[1] = 0.25*edge;
-		vector<int> originDelta(2,edge/2);
-		originMu[1] = 0.75*edge;
-
-		const double rPrecipMu = 3.5*dx(initGrid,0);
-		const double rDepltMu = rPrecipMu*std::sqrt(1.0+2.0*xNb[1]/xNbdep); // radius of annular depletion region
-		const double rPrecipDelta = 6.5*dx(initGrid,0);
-		const double rDepltDelta = rPrecipDelta*std::sqrt(1.0+2.0*xNb[1]/xNbdep); // radius of annular depletion region
-		if (rDeplt > edge/2)
-			std::cerr<<"Warning: domain too small to accommodate particle. Push beyond "<<rDeplt<<".\n"<<std::endl;
-
-		double delta_mass=0.0;
-		double mu_mass=0.0;
 		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> x = position(initGrid, n);
-			const double rmu = radius(originMu, x, dx(initGrid,0));
-			const double rdel = radius(originDelta, x, dx(initGrid,0));
-			if (rdel > rDelta && rmu > rMu) {
-				// Gamma matrix:
-				// x_Cr
-				initGrid(n)[0] = xCr[0]*(1.0 + noise_amp*real_gen(mt_rand))
-				                 + 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     bell[0]*dx(initGrid,0)*edge)
-				                 + 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, bell[0]*dx(initGrid,0)*edge)
-				                 + 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   bell[0]*dx(initGrid,0)*edge);
-				// x_Nb
-				initGrid(n)[1] = xNb[0]*(1.0 + noise_amp*real_gen(mt_rand))
-				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                     bell[1]*dx(initGrid,0)*edge)
-				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge/2, bell[1]*dx(initGrid,0)*edge)
-				                 + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*edge,   bell[1]*dx(initGrid,0)*edge);
-				// phi, C
-				for (int i=2; i<fields(initGrid); i++)
-					initGrid(n)[i] = 0.01*real_gen(mt_rand);
-
-				if (r<rDeplt) { // point falls within the depletion region
-					//double deltaxNb = xNb[0]-xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
-					double deltaxNb = xNbdep - xNbdep*(r-rDelta)/(rDeplt-rDelta);
-					initGrid(n)[1] -= deltaxNb;
-				}
-			} else if (rmu <= rMu) {
-				// Mu particle
-				mu_mass += 1.0;
-				initGrid(n)[0] = xCr[3]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[1] = xNb[3]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[2] = 1.0;
-				for (int i=3; i<fields(initGrid); i++)
-					initGrid(n)[i] = 0.0;
-			} else {
-				// Delta particle
-				delta_mass += 1.0;
-				initGrid(n)[0] = xCr[3]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[1] = xNb[3]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(n)[0] = 0.0;
-				initGrid(n)[3] = 1.0;
-				for (int i=4; i<fields(initGrid); i++)
-					initGrid(n)[i] = 0.0;
-			}
-
-			// Initialize fictitious compositions
+			// Initialize fictitious compositions... Not well configured for vectorization
 			guessGamma(initGrid(n)[0], initGrid(n)[1], initGrid(n)[5],  initGrid(n)[6]);
 			guessDelta(initGrid(n)[0], initGrid(n)[1], initGrid(n)[7],  initGrid(n)[8]);
 			guessMu(   initGrid(n)[0], initGrid(n)[1], initGrid(n)[9],  initGrid(n)[10]);
@@ -226,17 +271,17 @@ void generate(int dim, const char* filename)
 
 		vector<double> totals(4, 0.0);
 		for (int n=0; n<nodes(initGrid); n++) {
-			for (int i=0; i<2; i++)
+			for (int i=0; i<NC; i++)
 				totals[i] += initGrid(n)[i];
-			for (int i=2; i<4; i++)
+			for (int i=NC; i<NC+NP-1; i++)
 				totals[i] += std::fabs(initGrid(n)[i]);
 		}
+		for (int i=0; i<NC+NP-1; i++)
+			totals[i] /= double(Nx*Nx);
 
-		for (int i=0; i<4; i++)
-			totals[i] /= double(edge*edge);
 		#ifdef MPI_VERSION
 		vector<double> myTot(totals);
-		for (int i=0; i<4; i++) {
+		for (int i=0; i<NC+NP-1; i++) {
 			MPI::COMM_WORLD.Reduce(&myTot[i], &totals[i], 1, MPI_DOUBLE, MPI_SUM, 0);
 			MPI::COMM_WORLD.Barrier();
 		}
@@ -267,7 +312,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	ghostswap(oldGrid);
 	grid<dim,vector<T> > newGrid(oldGrid);
-	grid<dim,vector<T> > chemGrid(oldGrid, 2); // storage for chemical potentials
+	grid<dim,vector<T> > chemGrid(oldGrid, NC); // storage for chemical potentials
 
 	double dV=1.0;
 	for (int d=0; d<dim; d++) {
@@ -302,7 +347,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_gam_Nb  = oldGrid(n)[6];
 
 			// Note: using n instead of x for faster access.
-			// Not guaranteed to be the same coordinate: beware of bug potential!
 			chemGrid(n)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb);
 			chemGrid(n)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb);
 		}
@@ -556,12 +600,14 @@ double gprime(const double p)
 double gibbs(const vector<double>& v)
 {
 	double g  = g_gam(v[0],v[1]) * (1.0 - (h(abs(v[2])) + h(abs(v[3])) + h(abs(v[4]))));
-	       g += g_mu(v[0],v[1]) * h(abs(v[2]));
-	       g += g_del(v[0],v[1]) * h(abs(v[3]));
-	       g += w_mu * v[2]*v[2] * (1.0 - abs(v[2])*(1.0 - abs(v[2]);
-	       g += w_del * v[3]*v[3] * (1.0 - abs(v[3])*(1.0 - abs(v[3]);
-	for (int i=2; i<v.length(); i++)
-		for (int j=i+1; j<v.length(); j++)
+	       g += g_del(v[0],v[1]) * h(abs(v[2]));
+	       g += g_mu( v[0],v[1]) * h(abs(v[3]));
+	       g += g_lav(v[0],v[1]) * h(abs(v[4]));
+	       g += w_del * v[2]*v[2] * (1.0 - abs(v[2])*(1.0 - abs(v[2]);
+	       g += w_mu  * v[3]*v[3] * (1.0 - abs(v[3])*(1.0 - abs(v[3]);
+	       g += w_lav * v[4]*v[4] * (1.0 - abs(v[4])*(1.0 - abs(v[4]);
+	for (int i=NC; i<NC+NP-1; i++)
+		for (int j=i+1; j<NC+NP-1; j++)
 			g += 2.0 * alpha * v[i]*v[i] * v[j]*v[j];
 
 	return g;
