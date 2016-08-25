@@ -1,10 +1,10 @@
 /* alloy625.hpp
- * Declarations for 2D and 3D isotropic Mo-Nb-Ni alloy phase transformations
+ * Declarations for 2D and 3D isotropic Cr-Nb-Ni alloy phase transformations
  * Questions/comments to trevor.keller@nist.gov (Trevor Keller)
  */
 
 std::string PROGRAM = "alloy625";
-std::string MESSAGE = "Isotropic Mo-Nb-Ni alloy phase transformation code";
+std::string MESSAGE = "Isotropic Cr-Nb-Ni alloy phase transformation code";
 
 typedef MMSP::grid<1,MMSP::vector<double> > GRID1D;
 typedef MMSP::grid<2,MMSP::vector<double> > GRID2D;
@@ -22,9 +22,10 @@ double gprime(const double p);
 double gibbs(const MMSP::vector<double>& v);
 
 // Initial guesses for gamma, mu, and delta equilibrium compositions
-void guessGamma(const double& xmo, const double& xnb, double& cmo, double& cnb, double& cni);
-void guessMu(const double& xmo, const double& xnb, double& cmo, double& cnb, double& cni);
-void guessDelta(const double& xmo, const double& xnb, double& cmo, double& cnb, double& cni);
+void guessGamma(const double& xcr, const double& xnb, double& ccr, double& cnb);
+void guessDelta(const double& xcr, const double& xnb, double& ccr, double& cnb);
+void guessMu(   const double& xcr, const double& xnb, double& ccr, double& cnb);
+void guessLaves(const double& xcr, const double& xnb, double& ccr, double& cnb);
 
 // Phi spans [-1,+1], need to know its sign without divide-by-zero errors
 double sign(double x) {return (x<0) ? -1.0 : 1.0;}
@@ -35,7 +36,7 @@ template<int dim, typename T> void print_values(const MMSP::grid<dim,MMSP::vecto
 
 
 /* Given const phase fractions (in gamma, mu, and delta)
- * and concentrations of Mo and Nb, iteratively determine the fictitious concentrations in each phase that
+ * and concentrations of Cr and Nb, iteratively determine the fictitious concentrations in each phase that
  * satisfy the constraints of equal chemical potential and conservation of mass.
  * Pass p and x by const value, C by non-const reference to update in place.
  */
@@ -52,10 +53,10 @@ public:
 	// destructor
 	~rootsolver();
 	// accessor
-	template <typename T> double solve(const T& x_Mo, const T& x_Nb, const T& p_mu, const T& p_del,
-	                                   T& C_gam_Mo, T& C_mu_Mo, T& C_del_Mo,
-	                                   T& C_gam_Nb, T& C_mu_Nb, T& C_del_Nb,
-	                                   T& C_gam_Ni, T& C_mu_Ni, T& C_del_Ni);
+	template <typename T> double solve(const T& x_Cr, const T& x_Nb,
+	                                   const T& p_del, const T& p_mu, const T& p_lav,
+	                                   T& C_gam_Cr, T& C_del_Cr, T& C_mu_Cr, T& C_lav_Cr,
+	                                   T& C_gam_Nb, T& C_del_Nb, T& C_mu_Nb, T& C_lav_Nb);
 
 private:
 	const size_t n;
