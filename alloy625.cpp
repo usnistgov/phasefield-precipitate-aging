@@ -26,29 +26,6 @@
 // Note: alloy625.hpp contains important declarations and comments. Have a look.
 //       energy625.c is generated from CALPHAD using pycalphad and SymPy, in CALPHAD_extraction.ipynb.
 
-// Equilibrium compositions from CALPHAD: gamma, mu, delta
-const double cMoEq[4] = {0.5413, 0.0, 0.3940};
-const double cNbEq[4] = {0.5413, 0.0, 0.3940};
-
-// Numerical stability (Courant-Friedrich-Lewy) parameters
-const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
-const double CFL = 0.2; // controls timestep
-
-const bool useNeumann = true; // apply zero-flux boundaries (Neumann type)
-
-// Kinetic and model parameters
-const double meshres = 5.0e-9;    // grid spacing (m)
-const double Vm = 1.0e-5;         // molar volume (m^3/mol)
-const double M_Mo = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
-const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
-const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
-const double kappa_mu = 1.24e-8;  // gradient energy coefficient (J/m^3)
-const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m^3)
-const double omega_mu = 1.49e9;   // multiwell height (m^2/Nsm^2)
-const double omega_del = 1.49e9;  // multiwell height (m^2/Nsm^2)
-const double dt = (meshres*meshres)/(40.0*kappa_del); // timestep (ca. 5.0e-10 seconds)
-
-
 /* =============================================== *
  * Implement MMSP kernels: generate() and update() *
  * =============================================== */
@@ -79,8 +56,6 @@ namespace MMSP
  * C12. fictitious Ni concentration in delta
  */
 
-const double noise_amp = 0.00625;
-
 
 // Define equilibrium phase compositions at global scope
 //                     gamma   mu      delta
@@ -91,6 +66,22 @@ const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near pr
 // Define st.dev. of Gaussians for alloying element segregation
 //                     Mo      Nb
 const double bell[2] = {0.0625, 0.025};
+const double noise_amp = 0.00625;
+
+// Kinetic and model parameters
+const bool useNeumann = true;     // apply zero-flux boundaries (Neumann type)
+const double meshres = 5.0e-9;    // grid spacing (m)
+const double Vm = 1.0e-5;         // molar volume (m^3/mol)
+const double M_Mo = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
+const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
+const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
+const double kappa_mu = 1.24e-8;  // gradient energy coefficient (J/m^3)
+const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m^3)
+const double omega_mu = 1.49e9;   // multiwell height (m^2/Nsm^2)
+const double omega_del = 1.49e9;  // multiwell height (m^2/Nsm^2)
+const double dt = (meshres*meshres)/(40.0*kappa_del); // timestep (ca. 5.0e-10 seconds)
+
+const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
 
 double radius(const vector<int>& a, const vector<int>& b, const double& dx)
 {
