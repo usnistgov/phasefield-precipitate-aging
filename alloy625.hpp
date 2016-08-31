@@ -26,6 +26,10 @@ void guessGamma(const double& xcr, const double& xnb, double& ccr, double& cnb);
 void guessDelta(const double& xcr, const double& xnb, double& ccr, double& cnb);
 void guessMu(   const double& xcr, const double& xnb, double& ccr, double& cnb);
 void guessLaves(const double& xcr, const double& xnb, double& ccr, double& cnb);
+template<typename T>
+void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& origin, const int pid,
+                const double rprcp, const double rdpltCr, const double rdeplNb,
+                const double& xCr, const double& xNb, const T phi);
 
 // Phi spans [-1,+1], need to know its sign without divide-by-zero errors
 double sign(double x) {return (x<0) ? -1.0 : 1.0;}

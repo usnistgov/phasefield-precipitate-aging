@@ -39,8 +39,8 @@ namespace MMSP
 
 /* Representation includes thirteen field variables:
  *
- * X0.  molar fraction of Al, Cr, Mo
- * X1.  molar fraction of Nb, Fe
+ * X0.  molar fraction of Cr + Mo
+ * X1.  molar fraction of Nb
  * bal. molar fraction of Ni
  *
  * P2.  phase fraction of delta
@@ -48,21 +48,21 @@ namespace MMSP
  * P4.  phase fraction of Laves
  * bal. phase fraction of gamma
  *
- * C5.  fictitious Cr molar fraction in gamma
- * C6.  fictitious Nb molar fraction in gamma
- * bal. fictitious Ni molar fraction in gamma
+ * C5.  Cr molar fraction in pure gamma
+ * C6.  Nb molar fraction in pure gamma
+ * bal. Ni molar fraction in pure gamma
  *
- * C7.  fictitious Cr molar fraction in delta
- * C8.  fictitious Nb molar fraction in delta
- * bal. fictitious Ni molar fraction in delta
+ * C7.  Cr molar fraction in pure delta
+ * C8.  Nb molar fraction in pure delta
+ * bal. Ni molar fraction in pure delta
  *
- * C9.  fictitious Cr molar fraction in mu
- * C10. fictitious Nb molar fraction in mu
- * bal. fictitious Ni molar fraction in mu
+ * C9.  Cr molar fraction in pure mu
+ * C10. Nb molar fraction in pure mu
+ * bal. Ni molar fraction in pure mu
  *
- * C11. fictitious Cr molar fraction in Laves
- * C12. fictitious Nb molar fraction in Laves
- * bal. fictitious Ni molar fraction in Laves
+ * C11. Cr molar fraction in pure Laves
+ * C12. Nb molar fraction in pure Laves
+ * bal. Ni molar fraction in pure Laves
  */
 
 /* Based on experiments (EDS) and simulations (DICTRA), additively manufactured IN625
@@ -71,7 +71,7 @@ namespace MMSP
  * Element  Nominal  Interdendritic (mol %)
  * Cr+Mo      30%      31%
  * Nb          2%      13%
- * Ni (etc)   68%      56%
+ * Ni         68%      56%
  */
 
 
@@ -95,6 +95,10 @@ const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 const double M_Cr = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
 const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
 
+const double L_del = 2.904e-11    // numerical mobility (m^2/Nsm^2)
+const double L_mu  = 2.904e-11    // numerical mobility (m^2/Nsm^2)
+const double L_lav = 2.904e-11    // numerical mobility (m^2/Nsm^2)
+
 const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m^3)
 const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m^3)
 const double kappa_lav = 1.24e-8; // gradient energy coefficient (J/m^3)
@@ -109,83 +113,6 @@ const double epsilon = 1.0e-10;   // what to consider zero to avoid log(c) explo
 const double dt = (meshres*meshres)/(40.0*kappa_del); // timestep (ca. 5.0e-10 seconds)
 
 
-double radius(const vector<int>& a, const vector<int>& b, const double& dx)
-{
-	double r = 0.0;
-	for (int i=0; i<length(a) && i<length(b); i++)
-		r += std::pow(a[i]-b[i],2.0);
-	return dx*std::sqrt(r);
-}
-
-double bellCurve(double x, double m, double s)
-{
-	return std::exp( -std::pow(x-m,2.0)/(2.0*s*s) );
-}
-
-// Initial guesses for gamma, mu, and delta equilibrium compositions
-void guessGamma(const double& xcr, const double& xnb, double& ccr, double& cnb)
-{
-	// if it's inside the gamma field, don't change it
-	bool below_upper = (xcr < -0.45*(xnb-0.075)/0.075);
-	bool nb_rich = (xnb > 0.075);
-	if (below_upper) {
-		ccr = xcr;
-		cnb = xnb;
-	} else if (nb_rich) {
-		ccr = xcr/(xcr+xnb+0.9);
-		cnb = xnb/(xcr+xnb+0.9);
-	} else {
-		ccr = -0.45*(xnb-0.075)/0.075;
-		cnb = xnb;
-	}
-}
-void guessDelta(const double& xcr, const double& xnb, double& ccr, double& cnb)
-{
-	ccr = xcr/(xcr+xnb+0.75);
-	cnb = xnb/(xcr+xnb+0.75);
-}
-void guessMu(const double& xcr, const double& xnb, double& ccr, double& cnb)
-{
-	// if it's inside the mu field, don't change it
-	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
-	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
-	bool ni_poor = (1.0-xcr-xnb < 0.5);
-	if (ni_poor && below_upper && above_lower) {
-		ccr = xcr;
-		cnb = xnb;
-	} else if (ni_poor && below_upper) {
-		ccr = -0.5375*(xnb-0.5625)/0.1;
-		cnb = xnb;
-	} else if (ni_poor && above_lower) {
-		ccr = 0.325*(xnb-0.475)/0.2;
-		cnb = xnb;
-	} else {
-		ccr = 0.02;
-		cnb = 0.5;
-	}
-}
-void guessLaves(const double& xcr, const double& xnb, double& ccr, double& cnb)
-{
-	// if it's inside the Laves field, don't change it
-	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
-	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
-	bool ni_poor = (1.0-xcr-xnb < 0.4);
-	if (ni_poor && below_upper && above_lower) {
-		ccr = xcr;
-		cnb = xnb;
-	} else if (ni_poor && below_upper) {
-		ccr = 0.66*(xnb-0.325)/0.015;
-		cnb = xnb;
-	} else if (ni_poor && above_lower) {
-		ccr = 0.68*(xnb-0.2)/0.12;
-		cnb = xnb;
-	} else {
-		ccr = 0.332;
-		cnb = 0.334;
-	}
-}
-
-
 void generate(int dim, const char* filename)
 {
 	int rank=0;
@@ -198,8 +125,8 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		// Construct grid
-		const int Nx = 256;
-		const int Ny = 128;
+		const int Nx = 288; // divisible by 12 and 32
+		const int Ny = 288;
 		GRID2D initGrid(13, 0, Nx, 0, Ny);
 		for (int d=0; d<dim; d++) {
 			dx(initGrid,d)=meshres;
@@ -209,25 +136,11 @@ void generate(int dim, const char* filename)
 			}
 		}
 
-		// Describe precipitates
-		vector<int> center(2, Ny/2); // prevent a segfault by providing an initial value
-		vector<vector<int> > origins(NP-1, center);
-
-		// Delta
-		origins[0][0] = Nx/2;
-		origins[0][1] = 0.75*Ny;
-
-		// Mu
-		origins[1][0] = Nx/2 + 2;
-		origins[1][1] = 0.25*Ny;
-
-		// Laves
-		origins[2][0] = Nx/2 - 2;
-		origins[2][1] = 0.75*Ny;
-
-
-		// precipitate radii:         delta               mu                  Laves
-		const double rPrecip[NP-1] = {9.5*dx(initGrid,0), 3.5*dx(initGrid,0), 9.5*dx(initGrid,0)};
+		// precipitate radii: minimum for stability is 7.5 nm, or 1.5*dx.
+		// Seed delta to dissolve deliberately.
+		// Mu should dissolve kinetically.
+		//                            delta               mu                  Laves
+		const double rPrecip[NP-1] = {1.2*dx(initGrid,0), 1.6*dx(initGrid,0), 1.6*dx(initGrid,0)};
 
 		// depletion region surrounding precipitates
 		double rDepltCr[NP-1] = {0.0};
@@ -240,15 +153,9 @@ void generate(int dim, const char* filename)
 
 		// Sanity check on system size and  particle spacing
 
-		for (int i=0; i<NP-1; i++) {
+		for (int i=0; i<NP-1; i++)
 			if (rDepltCr[i]/dx(initGrid,0) > Ny/2 || rDepltNb[i]/dx(initGrid,0) > Ny/2)
 				std::cerr<<"Warning: domain too small to accommodate phase "<<i+1<<", expand beyond "<<2.0*rDeplt/dx(initGrid,1)<<" pixels.\n"<<std::endl;
-			for (int j=i+1; j<NP-1; j++) {
-				double r = radius(origins[i], origins[j], dx(initGrid,0));
-				if (r < rDepltCr[i] || r<rDepltNb[i])
-					std::cerr<<"Warning: precipitate "<<j<<" closely approaches precipitate "<<i<<". Check your origins.\n"<<std::endl;
-			}
-		}
 
 		vector<int> x(2, 0);
 
@@ -270,40 +177,63 @@ void generate(int dim, const char* filename)
 			}
 		}
 
-		// Initialize precipitates from array (should be extensible to random seeding, mostly)
-		for (int j=0; j<NP-1; j++) {
-			for (x[0]=origins[j][0]-rDepltCr[j]; x[0]<origins[j][0]+rDepltCr[j]; x[0]++) {
-				if (x[0] < x0(initGrid) || x[0] >= x1(initGrid))
-					continue;
-				for (x[1]=origins[j][1]-rDepltCr[j]; x[1]<origins[j][1]+rDepltCr[j]; x[1]++) {
-					if (x[1] < y0(initGrid) || x[1] >= y1(initGrid))
-						continue;
-					// Initialize delta particle
-					const double r = radius(origins[j], x, dx(initGrid,0));
-					vector<int> y(x);
-					check_boundary(y, b0(initGrid,0),b1(initGrid,0), b0(initGrid,1),b1(initGrid,1));
-					if (r < rPrecip[j]) { // point falls within particle
-						initGrid(y)[0] = xCr[j+1];
-						initGrid(y)[2+j] = 1.0;
-					} else {
-						if (r<rDepltCr[j]) { // point falls within Cr depletion region
-							double dxCr = xCrdep - xCrdep*(r-rPrecip[j])/(rDepltNb[j]-rPrecip[j]);
-							initGrid(y)[0] -= dxCr;
-						}
-						if (r<rDepltNb[j]) { // point falls within Nb depletion region
-							double dxNb = xNbdep - xNbdep*(r-rPrecip[j])/(rDepltNb[j]-rPrecip[j]);
-							initGrid(y)[1] -= dxNb;
-						}
-					}
-				}
-			}
+
+		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
+		if (1) {
+			vector<int> origin(2, 0);
+			const int xoffset = 25;
+			const int yoffset = Ly/7;
+			// Initialize delta precipitates
+			j = 0;
+			origin[0] = Lx / 2;
+			origin[1] = Ly - yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1],  1.0);
+			origin[0] = Lx/2;
+			origin[1] = Ly - 3*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], -1.0);
+			origin[0] = Lx/2 + xoffset;
+			origin[1] = Ly - 5*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1],  1.0);
+			origin[0] = Lx/2 - xoffset;
+			origin[1] = Ly - 6*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], -1.0);
+
+			// Initialize mu precipitates
+			j = 1;
+			origin[0] = Lx / 2;
+			origin[1] = Ly - 2*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1],  1.0);
+			origin[0] = Lx/2 + xoffset;
+			origin[1] = Ly - 3*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], -1.0);
+			origin[0] = Lx/2 - xoffset;
+			origin[1] = Ly - 4*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1],  1.0);
+			origin[0] = Lx/2;
+			origin[1] = Ly - 5*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], -1.0);
+
+			// Initialize Laves precipitates
+			j = 2;
+			origin[0] = Lx/2 + xoffset;
+			origin[1] = Ly - yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1],  1.0);
+			origin[0] = Lx/2 - xoffset;
+			origin[1] = Ly - 2*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], -1.0);
+			origin[0] = Lx/2;
+			origin[1] = Ly - 4*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1],  1.0);
+			origin[0] = Lx/2;
+			origin[1] = Ly - 6*yoffset;
+			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], -1.0);
 		}
 
 
 		rootsolver CommonTangentSolver;
 
 		for (int n=0; n<nodes(initGrid); n++) {
-			// Initialize fictitious compositions... Not well configured for vectorization
+			// Initialize compositions... Not well configured for vectorization
 			guessGamma(initGrid(n)[0], initGrid(n)[1], initGrid(n)[5],  initGrid(n)[6]);
 			guessDelta(initGrid(n)[0], initGrid(n)[1], initGrid(n)[7],  initGrid(n)[8]);
 			guessMu(   initGrid(n)[0], initGrid(n)[1], initGrid(n)[9],  initGrid(n)[10]);
@@ -340,10 +270,9 @@ void generate(int dim, const char* filename)
 		}
 
 		output(initGrid,filename);
-	} else {
-		std::cerr<<"Error: "<<dim<<"-dimensional grids unsupported."<<std::endl;
-	}
 
+	} else
+		std::cerr<<"Error: "<<dim<<"-dimensional grids unsupported."<<std::endl;
 }
 
 template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int steps)
@@ -392,14 +321,16 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_gam_Cr  = oldGrid(n)[5];
 			const T& C_gam_Nb  = oldGrid(n)[6];
 
-			// Note: using n instead of x for faster access.
 			chemGrid(n)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb);
 			chemGrid(n)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb);
 		}
 
 		ghostswap(chemGrid);
 
-		double ctot=0.0, ftot=0.0, utot=0.0, vmax=0.0;
+		double totCr = 0.0;
+		double totNb = 0.0;
+		double totF  = 0.0;
+
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
 		#endif
@@ -410,58 +341,29 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			vector<int> x = position(oldGrid,n);
 
-			/* Representation includes thirteen field variables:
-			 *
-			 * X0.  molar fraction of Al, Cr, Mo
-			 * X1.  molar fraction of Nb, Fe
-			 * bal. molar fraction of Ni
-			 *
-			 * P2.  phase fraction of delta
-			 * P3.  phase fraction of mu
-			 * P4.  phase fraction of Laves
-			 * bal. phase fraction of gamma
-			 *
-			 * C5.  fictitious Cr molar fraction in gamma
-			 * C6.  fictitious Nb molar fraction in gamma
-			 * bal. fictitious Ni molar fraction in gamma
-			 *
-			 * C7.  fictitious Cr molar fraction in delta
-			 * C8.  fictitious Nb molar fraction in delta
-			 * bal. fictitious Ni molar fraction in delta
-			 *
-			 * C9.  fictitious Cr molar fraction in mu
-			 * C10. fictitious Nb molar fraction in mu
-			 * bal. fictitious Ni molar fraction in mu
-			 *
-			 * C11. fictitious Cr molar fraction in Laves
-			 * C12. fictitious Nb molar fraction in Laves
-			 * bal. fictitious Ni molar fraction in Laves
-			 */
-
 			// Cache some frequently-used reference values
-			const T& x_Cr     = oldGrid(n)[0];
-			const T& x_Nb     = oldGrid(n)[1];
+			const T& x_Cr     = oldGrid(n)[0]; // molar fraction of Cr + Mo
+			const T& x_Nb     = oldGrid(n)[1]; // molar fraction of Nb
 
-			const T& phi_del  = oldGrid(n)[2];
-			const T& phi_mu   = oldGrid(n)[3];
-			const T& phi_lav  = oldGrid(n)[4];
+			const T& phi_del  = oldGrid(n)[2]; // phase fraction of delta
+			const T& phi_mu   = oldGrid(n)[3]; // phase fraction of mu
+			const T& phi_lav  = oldGrid(n)[4]; // phase fraction of Laves
 
-			const T& C_gam_Cr = oldGrid(n)[5];
-			const T& C_gam_Nb = oldGrid(n)[6];
+			const T& C_gam_Cr = oldGrid(n)[5]; // Cr molar fraction in pure gamma
+			const T& C_gam_Nb = oldGrid(n)[6]; // Nb molar fraction in pure gamma
 			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
-			const T& C_del_Cr = oldGrid(n)[7];
-			const T& C_del_Nb = oldGrid(n)[8];
+			const T& C_del_Cr = oldGrid(n)[7]; // Cr molar fraction in pure delta
+			const T& C_del_Nb = oldGrid(n)[8]; // Nb molar fraction in pure delta
 			const T  C_del_Ni = 1.0 - C_del_Cr - C_del_Nb;
 
-			const T& C_mu_Cr  = oldGrid(n)[9];
-			const T& C_mu_Nb  = oldGrid(n)[10];
+			const T& C_mu_Cr  = oldGrid(n)[9];  // Cr molar fraction in pure mu
+			const T& C_mu_Nb  = oldGrid(n)[10]; // Nb molar fraction in pure mu
 			const T  C_mu_Ni  = 1.0 - C_mu_Cr - C_mu_Nb;
 
-			const T& C_lav_Cr = oldGrid(n)[11];
-			const T& C_lav_Nb = oldGrid(n)[12];
+			const T& C_lav_Cr = oldGrid(n)[11]; // Cr molar fraction in pure Laves
+			const T& C_lav_Nb = oldGrid(n)[12]; // Nb molar fraction in pure Laves
 			const T  C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
-
 
 
 			/* ============================================= *
@@ -514,7 +416,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve for common tangent plane *
 			 * ============================== */
 
-			//                                       Cr              Nb
+			//         xCr            xNb            cCr             cNb
 			guessGamma(newGrid(n)[0], newGrid(n)[1], newGrid(n)[5],  newGrid(n)[6]);
 			guessDelta(newGrid(n)[0], newGrid(n)[1], newGrid(n)[7],  newGrid(n)[8]);
 			guessMu(   newGrid(n)[0], newGrid(n)[1], newGrid(n)[9],  newGrid(n)[10]);
@@ -530,32 +432,23 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 			 * ====================================================================== */
 
-			double myc = dV*(1.0 - newGrid(n)[0] + newGrid(n)[1]);
-			double myf = dV*(0.5*kappa*gradPsq + f(newGrid(n)[0], newGrid(n)[1], newGrid(n)[2], newGrid(n)[3], newGrid(n)[4]));
-			double myv = 0.0;
-			if (newGrid(n)[0]>0.3 && newGrid(n)[0]<0.7) {
-				gradPsq = 0.0;
-				for (int d=0; d<dim; d++) {
-					double weight = 1.0/pow(dx(newGrid,d), 2.0);
-					s[d] -= 1;
-					const T& pl = newGrid(s)[0];
-					s[d] += 2;
-					const T& ph = newGrid(s)[0];
-					s[d] -= 1;
-					gradPsq  += weight * pow(0.5*(ph-pl), 2.0);
-				}
-				myv = (newGrid(n)[0] - phi_old) / (dt * std::sqrt(gradPsq));
-			}
-			double myu = (fl(newGrid(n)[3])-fs(newGrid(n)[2]))/(Cle - Cse);
+			vector<double> gradPhiSq_del = grad(newGrid, x, 2);
+			vector<double> gradPhiSq_mu  = grad(newGrid, x, 3);
+			vector<double> gradPhiSq_lav = grad(newGrid, x, 4);
+
+			double myCr = dV*newGrid(n)[0];
+			double myNb = dV*newGrid(n)[0];
+			double myf = dV*(gibbs(newGrid(n)) + kappa_del*(gradPhiSq_del*gradPhiSq_del)
+			                                   + kappa_mu*(gradPhiSq_mu*gradPhiSq_mu)
+			                                   + kappa_lav*(gradPhiSq_lav*gradPhiSq_lav));
 
 			#ifndef MPI_VERSION
 			#pragma omp critical
 			{
 			#endif
-				vmax = std::max(vmax,myv); // maximum velocity
-				ctot += myc;               // total mass
-				ftot += myf;               // total free energy
-				utot += myu*myu;           // deviation from equilibrium
+				totCr += myCr;             // total mass
+				totNb += myNb;             // total mass
+				totF += myf;               // total free energy
 				#ifndef MPI_VERSION
 			}
 				#endif
@@ -569,21 +462,15 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		double ntot(nodes(oldGrid));
 		#ifdef MPI_VERSION
-		double myvm(vmax);
-		double myct(ctot);
-		double myft(ftot);
-		double myut(utot);
-		double myn(ntot);
-		MPI::COMM_WORLD.Allreduce(&myct, &ctot, 1, MPI_DOUBLE, MPI_SUM);
-		MPI::COMM_WORLD.Allreduce(&myft, &ftot, 1, MPI_DOUBLE, MPI_SUM);
-		MPI::COMM_WORLD.Allreduce(&myvm, &vmax, 1, MPI_DOUBLE, MPI_MAX);
-		MPI::COMM_WORLD.Allreduce(&myut, &utot, 1, MPI_DOUBLE, MPI_SUM);
-		MPI::COMM_WORLD.Allreduce(&myn,  &ntot, 1, MPI_DOUBLE, MPI_SUM);
+		double myCr(totCr);
+		double myNb(totNb);
+		double myF(totF);
+		MPI::COMM_WORLD.Allreduce(&myCr, &totCr, 1, MPI_DOUBLE, MPI_SUM);
+		MPI::COMM_WORLD.Allreduce(&myNb, &totNb, 1, MPI_DOUBLE, MPI_SUM);
+		MPI::COMM_WORLD.Allreduce(&myF,  &totF,  1, MPI_DOUBLE, MPI_SUM);
 		#endif
-		double CFLmax = (vmax * dt) / meshres;
-		utot = std::sqrt(utot/ntot);
 		if (rank==0)
-			cfile<<ctot<<'\t'<<ftot<<'\t'<<CFLmax<<'\t'<<utot<<std::endl;
+			cfile<<totCr<<'\t'<<totNb<<'\t'<<totF<<std::endl;
 	}
 	if (rank==0)
 		cfile.close();
@@ -593,6 +480,118 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 
 } // namespace MMSP
+
+double radius(const vector<int>& a, const vector<int>& b, const double& dx)
+{
+	double r = 0.0;
+	for (int i=0; i<length(a) && i<length(b); i++)
+		r += std::pow(a[i]-b[i],2.0);
+	return dx*std::sqrt(r);
+}
+
+double bellCurve(double x, double m, double s)
+{
+	return std::exp( -std::pow(x-m,2.0)/(2.0*s*s) );
+}
+
+// Initial guesses for gamma, mu, and delta equilibrium compositions
+void guessGamma(const double& xcr, const double& xnb, double& ccr, double& cnb)
+{
+	// if it's inside the gamma field, don't change it
+	bool below_upper = (xcr < -0.45*(xnb-0.075)/0.075);
+	bool nb_rich = (xnb > 0.075);
+	if (below_upper) {
+		ccr = xcr;
+		cnb = xnb;
+	} else if (nb_rich) {
+		ccr = xcr/(xcr+xnb+0.9);
+		cnb = xnb/(xcr+xnb+0.9);
+	} else {
+		ccr = -0.45*(xnb-0.075)/0.075;
+		cnb = xnb;
+	}
+}
+
+void guessDelta(const double& xcr, const double& xnb, double& ccr, double& cnb)
+{
+	ccr = xcr/(xcr+xnb+0.75);
+	cnb = xnb/(xcr+xnb+0.75);
+}
+
+void guessMu(const double& xcr, const double& xnb, double& ccr, double& cnb)
+{
+	// if it's inside the mu field, don't change it
+	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
+	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
+	bool ni_poor = (1.0-xcr-xnb < 0.5);
+	if (ni_poor && below_upper && above_lower) {
+		ccr = xcr;
+		cnb = xnb;
+	} else if (ni_poor && below_upper) {
+		ccr = -0.5375*(xnb-0.5625)/0.1;
+		cnb = xnb;
+	} else if (ni_poor && above_lower) {
+		ccr = 0.325*(xnb-0.475)/0.2;
+		cnb = xnb;
+	} else {
+		ccr = 0.02;
+		cnb = 0.5;
+	}
+}
+
+void guessLaves(const double& xcr, const double& xnb, double& ccr, double& cnb)
+{
+	// if it's inside the Laves field, don't change it
+	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
+	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
+	bool ni_poor = (1.0-xcr-xnb < 0.4);
+	if (ni_poor && below_upper && above_lower) {
+		ccr = xcr;
+		cnb = xnb;
+	} else if (ni_poor && below_upper) {
+		ccr = 0.66*(xnb-0.325)/0.015;
+		cnb = xnb;
+	} else if (ni_poor && above_lower) {
+		ccr = 0.68*(xnb-0.2)/0.12;
+		cnb = xnb;
+	} else {
+		ccr = 0.332;
+		cnb = 0.334;
+	}
+}
+
+template<typename T>
+void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& origin, const int pid,
+                const double rprcp, const double rdpltCr, const double rdeplNb,
+                const double& xCr, const double& xNb, const T phi)
+{
+	MMSP::vector<int> x(origin);
+	for (x[0] = origin[0]-rdpltCr; x[0] < origin[0]+rdpltCr; x[0]++) {
+		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+			continue;
+		for (x[1] = origin[1]-rdpltCr; x[1] < origin[1]+rdpltCr; x[1]++) {
+			if (x[1] < y0(GRID) || x[1] >= y1(GRID))
+				continue;
+			const double r = radius(origin, x, dx(GRID,0));
+			vector<int> y(x);
+			check_boundary(y, b0(GRID,0), b1(GRID,0), b0(GRID,1), b1(GRID,1));
+			if (r < rprcp) { // point falls within particle
+				GRID(y)[0] = xCr;
+				GRID(y)[1] = xNb;
+				GRID(y)[pid] = phi;
+			} else {
+				if (r<rdpltCr) { // point falls within Cr depletion region
+					T dxCr = xCrdep - xCrdep*(r-rprcp)/(rdpltNb-rprcp);
+					GRID(y)[0] -= dxCr;
+				}
+				if (r<rdpltNb) { // point falls within Nb depletion region
+					T dxNb = xNbdep - xNbdep*(r-rprcp)/(rdpltNb-rprcp);
+					GRID(y)[1] -= dxNb;
+				}
+			}
+		}
+	}
+}
 
 template<int dim, typename T>
 void print_values(const MMSP::grid<dim,MMSP::vector<T> >& oldGrid, const int rank)
@@ -677,7 +676,7 @@ void simple_progress(int step, int steps)
  * ====================================== */
 
 /* Given const phase fraction (p) and molar fraction (c), iteratively determine the
- * fictitious molar fractions in each phase that satisfy equal chemical potential.
+ * molar fractions in each phase that satisfy equal chemical potential.
  */
 
 struct rparams {
