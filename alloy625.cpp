@@ -65,22 +65,30 @@ namespace MMSP
  * bal. fictitious Ni molar fraction in Laves
  */
 
+/* Based on experiments (EDS) and simulations (DICTRA), additively manufactured IN625
+ * has the following compositions:
+ *
+ * Element  Nominal  Interdendritic (mol %)
+ * Cr+Mo      30%      31%
+ * Nb          2%      13%
+ * Ni (etc)   68%      56%
+ */
+
+
 // Define equilibrium phase compositions at global scope
-//                     gamma  delta  mu     laves
-const double xCr[NP] = {0.058, 0.025, 0.025, 0.000};
-const double xNb[NP] = {0.024, 0.025, 0.225, 0.000};
-const double xCrdep = 0.5*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
+//                     gamma  delta    mu     laves
+const double xCr[NP] = {0.30, 0.00625, 0.025, 0.32};
+const double xNb[NP] = {0.02, 0.25,    0.525, 0.33};
+const double xCrdep = 0.9*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
 const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                         Cr      Nb
 const double bell[NC] = {0.0625, 0.025};
-const double noise_amp = 0.00625;
+const double noise_amp = 0.00125;
 
 // Kinetic and model parameters
-const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
 const double meshres = 5.0e-9;    // grid spacing (m)
-const double epsilon = 1.0e-10;   // what to consider zero to avoid log(c) explosions
 const double Vm = 1.0e-5;         // molar volume (m^3/mol)
 const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
@@ -95,6 +103,9 @@ const double omega_del = 1.49e9;  // multiwell height (m^2/Nsm^2)
 const double omega_mu  = 1.49e9;  // multiwell height (m^2/Nsm^2)
 const double omega_lav = 1.49e9;  // multiwell height (m^2/Nsm^2)
 
+// Numerical considerations
+const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
+const double epsilon = 1.0e-10;   // what to consider zero to avoid log(c) explosions
 const double dt = (meshres*meshres)/(40.0*kappa_del); // timestep (ca. 5.0e-10 seconds)
 
 
@@ -112,31 +123,66 @@ double bellCurve(double x, double m, double s)
 }
 
 // Initial guesses for gamma, mu, and delta equilibrium compositions
-void guessGamma(const double& xcr, const double& xnb, double& cmo, double& cnb)
+void guessGamma(const double& xcr, const double& xnb, double& ccr, double& cnb)
 {
-	cmo = xcr/(xcr+xnb+0.9);
-	cnb = xnb/(xcr+xnb+0.9);
-	//cni = 0.9;
+	// if it's inside the gamma field, don't change it
+	bool below_upper = (xcr < -0.45*(xnb-0.075)/0.075);
+	bool nb_rich = (xnb > 0.075);
+	if (below_upper) {
+		ccr = xcr;
+		cnb = xnb;
+	} else if (nb_rich) {
+		ccr = xcr/(xcr+xnb+0.9);
+		cnb = xnb/(xcr+xnb+0.9);
+	} else {
+		ccr = -0.45*(xnb-0.075)/0.075;
+		cnb = xnb;
+	}
 }
-void guessDelta(const double& xcr, const double& xnb, double& cmo, double& cnb)
+void guessDelta(const double& xcr, const double& xnb, double& ccr, double& cnb)
 {
-	cmo = xcr/(xcr+xnb+0.75);
+	ccr = xcr/(xcr+xnb+0.75);
 	cnb = xnb/(xcr+xnb+0.75);
-	//cni = 0.75;
 }
-void guessMu(const double& xcr, const double& xnb, double& cmo, double& cnb)
+void guessMu(const double& xcr, const double& xnb, double& ccr, double& cnb)
 {
-	// Choose a point. Maybe if it's inside the mu field, don't change it?
-	cmo = 0.025;
-	cnb = 0.4875;
-	//cni = 0.4875;
+	// if it's inside the mu field, don't change it
+	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
+	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
+	bool ni_poor = (1.0-xcr-xnb < 0.5);
+	if (ni_poor && below_upper && above_lower) {
+		ccr = xcr;
+		cnb = xnb;
+	} else if (ni_poor && below_upper) {
+		ccr = -0.5375*(xnb-0.5625)/0.1;
+		cnb = xnb;
+	} else if (ni_poor && above_lower) {
+		ccr = 0.325*(xnb-0.475)/0.2;
+		cnb = xnb;
+	} else {
+		ccr = 0.02;
+		cnb = 0.5;
+	}
 }
-void guessLaves(const double& xcr, const double& xnb, double& cmo, double& cnb)
+void guessLaves(const double& xcr, const double& xnb, double& ccr, double& cnb)
 {
-	// Choose a point. Maybe if it's inside the Laves field, don't change it?
-	cmo = 0.33;
-	cnb = 0.33;
-	//cni = 0.34;
+	// if it's inside the Laves field, don't change it
+	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
+	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
+	bool ni_poor = (1.0-xcr-xnb < 0.4);
+	if (ni_poor && below_upper && above_lower) {
+		ccr = xcr;
+		cnb = xnb;
+	} else if (ni_poor && below_upper) {
+		ccr = 0.66*(xnb-0.325)/0.015;
+		cnb = xnb;
+	} else if (ni_poor && above_lower) {
+		ccr = 0.68*(xnb-0.2)/0.12;
+		cnb = xnb;
+	} else {
+		ccr = 0.332;
+		cnb = 0.334;
+	}
 }
 
 
@@ -434,7 +480,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ======================================== */
 
 			double df_dphi_del = sign(phi_del) * (-hprime(fabs(phi_del))*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
-			                                      +hprime(fabs(phi_del))*g_del(C_del_Cr, C_del_Nb, C_del_Ni)
+			                                      +hprime(fabs(phi_del))*g_del(C_del_Cr, C_del_Nb)
 			                                      -2.0*omega_del*phi_del*phi_del*(1.0-fabs(phi_del))
 			                    ) + 2.0*omega_del*phi_del*pow(1.0-fabs(phi_del),2)
 			                    + alpha*fabs(phi_del)*(phi_mu*phi_mu + phi_lav*phi_lav);
@@ -447,8 +493,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			                    + alpha*fabs(phi_mu)*(phi_del*phi_del + phi_lav*phi_lav);
 
 
-			double df_dphi_lav = sign(phi_lav) * (-hprime(fabs(phi_lav))*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
-			                                     + hprime(fabs(phi_lav))*g_lav(C_lav_Cr, C_lav_Nb, C_lav_Ni)
+			double df_dphi_lav = sign(phi_lav) * (-hprime(fabs(phi_lav))*g_gam(C_gam_Nb, C_gam_Ni)
+			                                     + hprime(fabs(phi_lav))*g_lav(C_lav_Nb, C_lav_Ni)
 			                                     - 2.0*omega_lav*phi_lav*phi_lav*(1.0-fabs(phi_lav))
 			                    ) + 2.0*omega_lav*phi_lav*pow(1.0-fabs(phi_lav),2)
 			                    + alpha*fabs(phi_lav)*(phi_del*phi_del + phi_mu*phi_mu);
@@ -599,7 +645,7 @@ double gprime(const double p)
 
 double gibbs(const vector<double>& v)
 {
-	double g  = g_gam(v[0],v[1]) * (1.0 - (h(abs(v[2])) + h(abs(v[3])) + h(abs(v[4]))));
+	double g  = g_gam(v[0],v[1]) * (1.0 - h(abs(v[2])) - h(abs(v[3])) - h(abs(v[4])));
 	       g += g_del(v[0],v[1]) * h(abs(v[2]));
 	       g += g_mu( v[0],v[1]) * h(abs(v[3]));
 	       g += g_lav(v[0],v[1]) * h(abs(v[4]));
@@ -678,14 +724,14 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_mu*C_mu_Cr - n_del*C_del_Cr);
 	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_mu*C_mu_Nb - n_del*C_del_Nb;
 
-	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr) - dg_del_dxCr(C_del_Cr));
-	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Nb) - dg_del_dxNb(C_del_Nb));
+	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb));
+	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb));
 
-	gsl_vector_set(f, 4, dg_del_dxCr(C_del_Cr) - dg_mu_dxCr(C_mu_Cr));
-	gsl_vector_set(f, 5, dg_del_dxNb(C_del_Nb) - dg_mu_dxNb(C_mu_Nb));
+	gsl_vector_set(f, 4, dg_del_dxCr(C_del_Cr, C_del_N) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
+	gsl_vector_set(f, 5, dg_del_dxNb(C_del_Cr, C_del_N) - dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni));
 
-	gsl_vector_set(f, 6, dg_mu_dxCr(C_mu_Cr) - dg_lav_dxCr(C_lav_Cr));
-	gsl_vector_set(f, 7, dg_mu_dxNb(C_mu_Nb) - dg_lav_dxNb(C_lav_Nb));
+	gsl_vector_set(f, 6, dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxCr());
+	gsl_vector_set(f, 7, dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
 
 	return GSL_SUCCESS;
 }
@@ -745,17 +791,17 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential in gamma phase (Cr, Nb)
-	gsl_matrix_set(J, 2, 0,  d2f_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+	gsl_matrix_set(J, 2, 0,  d2f_gam_dxCrCr(C_gam_Cr, C_gam_Ni));
 	gsl_matrix_set(J, 2, 1,  d2f_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 	gsl_matrix_set(J, 3, 0,  d2f_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-	gsl_matrix_set(J, 3, 1,  d2f_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+	gsl_matrix_set(J, 3, 1,  d2f_gam_dxNbNb(C_gam_Nb, C_gam_Ni));
 
 
 	// Equal chemical potential in delta phase (Cr, Nb)
-	const double J22 = -d2f_del_dxCrCr(C_del_Cr, C_del_Nb, C_del_Ni));
-	const double J23 = -d2f_del_dxCrNb(C_del_Cr, C_del_Nb, C_del_Ni));
-	const double J32 = -d2f_del_dxNbCr(C_del_Cr, C_del_Nb, C_del_Ni));
-	const double J33 = -d2f_del_dxNbNb(C_del_Cr, C_del_Nb, C_del_Ni));
+	const double J22 = -d2f_del_dxCrCr(C_del_Cr, C_del_Nb));
+	const double J23 = -d2f_del_dxCrNb(C_del_Cr, C_del_Nb));
+	const double J32 = -d2f_del_dxNbCr(C_del_Cr, C_del_Nb));
+	const double J33 = -d2f_del_dxNbNb(C_del_Cr, C_del_Nb));
 
 	gsl_matrix_set(J, 2, 2,  J22);
 	gsl_matrix_set(J, 2, 3,  J23);
@@ -770,8 +816,8 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 	// Equal chemical potential in mu phase (Cr, Nb)
 	const double J44 = -d2f_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni);
-	const double J45 = -d2f_mu_dxCrNb(C_mu_Cr, C_mu_Nb, C_mu_Ni);
-	const double J54 = -d2f_mu_dxNbCr(C_mu_Cr, C_mu_Nb, C_mu_Ni);
+	const double J45 = -d2f_mu_dxCrNb();
+	const double J54 = -d2f_mu_dxNbCr();
 	const double J55 = -d2f_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni);
 	gsl_matrix_set(J, 4, 4,  J44);
 	gsl_matrix_set(J, 4, 5,  J45);
@@ -785,10 +831,10 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential in Laves phase (Cr, Nb)
-	gsl_matrix_set(J, 6, 6,  d2f_del_dxCrCr(C_del_Cr, C_del_Nb, C_del_Ni));
-	gsl_matrix_set(J, 6, 7,  d2f_del_dxCrNb(C_del_Cr, C_del_Nb, C_del_Ni));
-	gsl_matrix_set(J, 7, 6,  d2f_del_dxNbCr(C_del_Cr, C_del_Nb, C_del_Ni));
-	gsl_matrix_set(J, 7, 7,  d2f_del_dxNbNb(C_del_Cr, C_del_Nb, C_del_Ni));
+	gsl_matrix_set(J, 6, 6,  d2f_lav_dxCrCr());
+	gsl_matrix_set(J, 6, 7,  d2f_lav_dxCrNb());
+	gsl_matrix_set(J, 7, 6,  d2f_lav_dxNbCr());
+	gsl_matrix_set(J, 7, 7,  d2f_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
 
 	return GSL_SUCCESS;
 }
