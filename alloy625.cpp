@@ -125,8 +125,8 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		// Construct grid
-		const int Nx = 288; // divisible by 12 and 32
-		const int Ny = 288;
+		const int Nx = 2; // divisible by 12 and 32
+		const int Ny = 2;
 		GRID2D initGrid(13, 0, Nx, 0, Ny);
 		for (int d=0; d<dim; d++) {
 			dx(initGrid,d)=meshres;
@@ -140,7 +140,8 @@ void generate(int dim, const char* filename)
 		// Seed delta to dissolve deliberately.
 		// Mu should dissolve kinetically.
 		//                            delta               mu                  Laves
-		const double rPrecip[NP-1] = {1.2*dx(initGrid,0), 1.6*dx(initGrid,0), 1.6*dx(initGrid,0)};
+		//const double rPrecip[NP-1] = {1.2*dx(initGrid,0), 1.6*dx(initGrid,0), 1.6*dx(initGrid,0)};
+		const double rPrecip[NP-1] = {3*dx(initGrid,0), 4*dx(initGrid,0), 4*dx(initGrid,0)};
 
 		// depletion region surrounding precipitates
 		double rDepltCr[NP-1] = {0.0};
@@ -156,25 +157,28 @@ void generate(int dim, const char* filename)
 		for (int i=0; i<NP-1; i++) {
 			double rmax = std::max(rDepltCr[i]/dx(initGrid,0), rDepltNb[i]/dx(initGrid,0));
 			if (rmax > Ny/2)
-				std::cerr<<"Warning: domain too small to accommodate phase "<<i<<", expand beyond "<<2.0*rmax<<" pixels.\n"<<std::endl;
+				std::cerr<<"Warning: domain too small to accommodate phase "<<i<<", expand beyond "<<2.0*rmax<<" pixels."<<std::endl;
 		}
 
 		vector<int> x(2, 0);
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
 		for (x[0]=x0(initGrid); x[0]<x1(initGrid); x[0]++) {
-			double matrixCr = 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], 0,                   bell[0]*dx(initGrid,0)*Nx)
-			                + 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[0]*dx(initGrid,0)*Nx)
-			                + 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[0]*dx(initGrid,0)*Nx);
-			double matrixNb = xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                   bell[1]*dx(initGrid,0)*Nx)
-			                + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[1]*dx(initGrid,0)*Nx)
-			                + xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[1]*dx(initGrid,0)*Nx);
+			double matrixCr = //0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], 0,                   bell[0]*dx(initGrid,0)*Nx);
+			                0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[0]*dx(initGrid,0)*Nx);
+			                //+ 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[0]*dx(initGrid,0)*Nx);
+			double matrixNb = //xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                   bell[1]*dx(initGrid,0)*Nx);
+			                xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[1]*dx(initGrid,0)*Nx);
+			                //+ xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[1]*dx(initGrid,0)*Nx);
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-				initGrid(x)[0] = matrixCr + xCr[0]*(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(x)[1] = matrixNb + xNb[0]*(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(x)[0] = matrixCr + xCr[0];// *(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(x)[1] = matrixNb + xNb[0];// *(1.0 + noise_amp*real_gen(mt_rand));
 
-				for (int i=NC; i<fields(initGrid); i++)
+				// tiny bit of noise to avoid zeros
+				for (int i=NC; i<NC+NP-1; i++)
+					initGrid(x)[i] = 0.0; //noise_amp*real_gen(mt_rand);
+				for (int i=NC+NP-1; i<fields(initGrid); i++)
 					initGrid(x)[i] = 0.0;
 			}
 		}
@@ -183,68 +187,70 @@ void generate(int dim, const char* filename)
 		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
 		if (1) {
 			vector<int> origin(2, 0);
-			const int xoffset = 25;
+			const int xoffset = Nx/12;
 			const int yoffset = Ny/7;
 			// Initialize delta precipitates
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, 1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, 1.0);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 3*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 5*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 6*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
 
 			// Initialize mu precipitates
 			j = 1;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - 2*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 3*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 4*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 5*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
 
 			// Initialize Laves precipitates
 			j = 2;
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 2*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 4*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 6*yoffset;
-			embedParticle(initGrid, origin, j+1, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
 		}
-
 
 		rootsolver CommonTangentSolver;
 
 		for (int n=0; n<nodes(initGrid); n++) {
 			// Initialize compositions... Not well configured for vectorization
-			guessGamma(initGrid(n)[0], initGrid(n)[1], initGrid(n)[5],  initGrid(n)[6]);
-			guessDelta(initGrid(n)[0], initGrid(n)[1], initGrid(n)[7],  initGrid(n)[8]);
-			guessMu(   initGrid(n)[0], initGrid(n)[1], initGrid(n)[9],  initGrid(n)[10]);
-			guessLaves(initGrid(n)[0], initGrid(n)[1], initGrid(n)[11], initGrid(n)[12]);
+			guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+			guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+			guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+			guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
 
-			CommonTangentSolver.solve(initGrid(n)[0], initGrid(n)[1],
-		    	                      initGrid(n)[2], initGrid(n)[3], initGrid(n)[4],
-			                          initGrid(n)[5], initGrid(n)[7], initGrid(n)[9],  initGrid(n)[11],
-			                          initGrid(n)[6], initGrid(n)[8], initGrid(n)[10], initGrid(n)[12]);
+			vector<int> x = position(initGrid, n);
+			std::cout<<'('<<x[0]<<','<<x[1]<<')';
+			for (int i=0; i<fields(initGrid); i++)
+				std::cout<<'\t'<<initGrid(n)[i];
+			std::cout<<std::endl;
+			print_matrix(initGrid, n);
+			CommonTangentSolver.solve(initGrid, n);
 		}
 
 		vector<double> totals(NC+NP-1, 0.0);
@@ -284,12 +290,14 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	rank = MPI::COMM_WORLD.Get_rank();
 	#endif
 
-	// Construct the common tangent solver
-	rootsolver CommonTangentSolver;
-
 	ghostswap(oldGrid);
 	grid<dim,vector<T> > newGrid(oldGrid);
 	grid<dim,vector<T> > chemGrid(oldGrid, NC); // storage for chemical potentials
+
+	// Construct the common tangent solver
+	rootsolver CommonTangentSolver;
+	std::mt19937_64 mt_rand(time(NULL)+rank);
+	std::uniform_real_distribution<double> real_gen(-1,1);
 
 	double dV=1.0;
 	for (int d=0; d<dim; d++) {
@@ -418,16 +426,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve for common tangent plane *
 			 * ============================== */
 
-			//         xCr            xNb            cCr             cNb
-			guessGamma(newGrid(n)[0], newGrid(n)[1], newGrid(n)[5],  newGrid(n)[6]);
-			guessDelta(newGrid(n)[0], newGrid(n)[1], newGrid(n)[7],  newGrid(n)[8]);
-			guessMu(   newGrid(n)[0], newGrid(n)[1], newGrid(n)[9],  newGrid(n)[10]);
-			guessLaves(newGrid(n)[0], newGrid(n)[1], newGrid(n)[11], newGrid(n)[12]);
+			// Update initial guesses for fictitious compositions
+			guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
+			guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
+			guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
+			guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
 
-			CommonTangentSolver.solve(newGrid(n)[0], newGrid(n)[1],
-			                          newGrid(n)[2], newGrid(n)[3], newGrid(n)[4],
-			                          newGrid(n)[5], newGrid(n)[7], newGrid(n)[9],  newGrid(n)[11],
-			                          newGrid(n)[6], newGrid(n)[8], newGrid(n)[10], newGrid(n)[12]);
+			CommonTangentSolver.solve(newGrid, n);
 
 
 			/* ====================================================================== *
@@ -439,7 +444,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			vector<double> gradPhiSq_lav = gradient(newGrid, x, 4);
 
 			double myCr = dV*newGrid(n)[0];
-			double myNb = dV*newGrid(n)[0];
+			double myNb = dV*newGrid(n)[1];
 			double myf = dV*(gibbs(newGrid(n)) + kappa_del*(gradPhiSq_del*gradPhiSq_del)
 			                                   + kappa_mu*(gradPhiSq_mu*gradPhiSq_mu)
 			                                   + kappa_lav*(gradPhiSq_lav*gradPhiSq_lav));
@@ -496,100 +501,117 @@ double bellCurve(double x, double m, double s)
 }
 
 // Initial guesses for gamma, mu, and delta equilibrium compositions
-void guessGamma(const double& xcr, const double& xnb, double& ccr, double& cnb)
+template<int dim,typename T>
+void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
+//const T& xcr, const T& xnb, T& ccr, T& cnb)
 {
+	const T& xcr = GRID(n)[0];
+	const T& xnb = GRID(n)[1];
 	// if it's inside the gamma field, don't change it
 	bool below_upper = (xcr < -0.45*(xnb-0.075)/0.075);
 	bool nb_rich = (xnb > 0.075);
 	if (below_upper) {
-		ccr = xcr;
-		cnb = xnb;
+		GRID(n)[5] = xcr;
+		GRID(n)[6] = xnb;
 	} else if (nb_rich) {
-		ccr = xcr/(xcr+xnb+0.9);
-		cnb = xnb/(xcr+xnb+0.9);
+		GRID(n)[5] = xcr/(xcr+xnb+0.9);
+		GRID(n)[6] = xnb/(xcr+xnb+0.9);
 	} else {
-		ccr = -0.45*(xnb-0.075)/0.075;
-		cnb = xnb;
+		GRID(n)[5] = -0.45*(xnb-0.075)/0.075;
+		GRID(n)[6] = xnb;
 	}
+	GRID(n)[5] += amp*real_gen(mt_rand);
+	GRID(n)[6] += amp*real_gen(mt_rand);
 }
 
-void guessDelta(const double& xcr, const double& xnb, double& ccr, double& cnb)
+template<int dim,typename T>
+void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	ccr = xcr/(xcr+xnb+0.75);
-	cnb = xnb/(xcr+xnb+0.75);
+	const T& xcr = GRID(n)[0];
+	const T& xnb = GRID(n)[1];
+	GRID(n)[7] = xcr/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
+	GRID(n)[8] = xnb/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
 }
 
-void guessMu(const double& xcr, const double& xnb, double& ccr, double& cnb)
+template<int dim,typename T>
+void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
+	const T& xcr = GRID(n)[0];
+	const T& xnb = GRID(n)[1];
 	// if it's inside the mu field, don't change it
 	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
 	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
 	bool ni_poor = (1.0-xcr-xnb < 0.5);
 	if (ni_poor && below_upper && above_lower) {
-		ccr = xcr;
-		cnb = xnb;
+		GRID(n)[9] = xcr;
+		GRID(n)[10] = xnb;
 	} else if (ni_poor && below_upper) {
-		ccr = -0.5375*(xnb-0.5625)/0.1;
-		cnb = xnb;
+		GRID(n)[9] = -0.5375*(xnb-0.5625)/0.1;
+		GRID(n)[10] = xnb;
 	} else if (ni_poor && above_lower) {
-		ccr = 0.325*(xnb-0.475)/0.2;
-		cnb = xnb;
+		GRID(n)[9] = 0.325*(xnb-0.475)/0.2;
+		GRID(n)[10] = xnb;
 	} else {
-		ccr = 0.02;
-		cnb = 0.5;
+		GRID(n)[9] = 0.02;
+		GRID(n)[10] = 0.5;
 	}
+	GRID(n)[9] += amp*real_gen(mt_rand);
+	GRID(n)[10] += amp*real_gen(mt_rand);
 }
 
-void guessLaves(const double& xcr, const double& xnb, double& ccr, double& cnb)
+template<int dim,typename T>
+void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
+	const T& xcr = GRID(n)[0];
+	const T& xnb = GRID(n)[1];
 	// if it's inside the Laves field, don't change it
 	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
 	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
 	bool ni_poor = (1.0-xcr-xnb < 0.4);
 	if (ni_poor && below_upper && above_lower) {
-		ccr = xcr;
-		cnb = xnb;
+		GRID(n)[11] = xcr;
+		GRID(n)[12] = xnb;
 	} else if (ni_poor && below_upper) {
-		ccr = 0.66*(xnb-0.325)/0.015;
-		cnb = xnb;
+		GRID(n)[11] = 0.66*(xnb-0.325)/0.015;
+		GRID(n)[12] = xnb;
 	} else if (ni_poor && above_lower) {
-		ccr = 0.68*(xnb-0.2)/0.12;
-		cnb = xnb;
+		GRID(n)[11] = 0.68*(xnb-0.2)/0.12;
+		GRID(n)[12] = xnb;
 	} else {
-		ccr = 0.332;
-		cnb = 0.334;
+		GRID(n)[11] = 0.332;
+		GRID(n)[12] = 0.334;
 	}
+	GRID(n)[11] += amp*real_gen(mt_rand);
+	GRID(n)[12] += amp*real_gen(mt_rand);
 }
 
 template<typename T>
 void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& origin, const int pid,
                 const double rprcp, const double rdpltCr, const double rdpltNb,
-                const double& xCr, const double& xNb,
+                const T& xCr, const T& xNb,
                 const double& xCrdep, const double& xNbdep, const T phi)
 {
 	MMSP::vector<int> x(origin);
-	for (x[0] = origin[0]-rdpltCr; x[0] < origin[0]+rdpltCr; x[0]++) {
+	double rmax = std::max(rdpltCr, rdpltNb);
+	for (x[0] = origin[0]-rmax; x[0] <= origin[0]+rmax; x[0]++) {
 		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 			continue;
-		for (x[1] = origin[1]-rdpltCr; x[1] < origin[1]+rdpltCr; x[1]++) {
+		for (x[1] = origin[1]-rmax; x[1] <= origin[1]+rmax; x[1]++) {
 			if (x[1] < y0(GRID) || x[1] >= y1(GRID))
 				continue;
 			const double r = radius(origin, x, dx(GRID,0));
-			MMSP::vector<int> y(x);
-			for (int d=0; d<2; d++)
-				MMSP::check_boundary(y[d], b0(GRID,d), b1(GRID,d), b0(GRID,d), b1(GRID,d));
 			if (r < rprcp) { // point falls within particle
-				GRID(y)[0] = xCr;
-				GRID(y)[1] = xNb;
-				GRID(y)[pid] = phi;
+				GRID(x)[0] = xCr;
+				GRID(x)[1] = xNb;
+				GRID(x)[pid] = phi;
 			} else {
 				if (r<rdpltCr) { // point falls within Cr depletion region
-					T dxCr = xCrdep - xCrdep*(r-rprcp)/(rdpltNb-rprcp);
-					GRID(y)[0] -= dxCr;
+					T dxCr = xCrdep - xCrdep*(r-rprcp)/(rdpltCr-rprcp);
+					GRID(x)[0] -= dxCr;
 				}
 				if (r<rdpltNb) { // point falls within Nb depletion region
 					T dxNb = xNbdep - xNbdep*(r-rprcp)/(rdpltNb-rprcp);
-					GRID(y)[1] -= dxNb;
+					GRID(x)[1] -= dxNb;
 				}
 			}
 		}
@@ -721,8 +743,8 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	for (unsigned int i=0; i<f->size; i++)
 		gsl_vector_set(f, i, 0.0);
 
-	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_mu*C_mu_Cr - n_del*C_del_Cr);
-	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_mu*C_mu_Nb - n_del*C_del_Nb);
+	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
+	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
 
 	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb));
 	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb));
@@ -741,12 +763,12 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 {
 	// Prepare constants
 	const double p_del = ((struct rparams*) params)->p_del;
-	const double p_mu = ((struct rparams*) params)->p_mu;
+	const double p_mu  = ((struct rparams*) params)->p_mu;
 	const double p_lav = ((struct rparams*) params)->p_lav;
 
 	const double n_del = h(fabs(p_del));
 	const double n_mu  = h(fabs(p_mu));
-	const double n_lav  = h(fabs(p_lav));
+	const double n_lav = h(fabs(p_lav));
 	const double n_gam = 1.0 - n_del - n_mu - n_lav;
 
 	// Prepare variables
@@ -759,7 +781,7 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 	const double C_mu_Cr  = gsl_vector_get(x, 4);
 	const double C_mu_Nb  = gsl_vector_get(x, 5);
-	const double C_mu_Ni = 1.0 - C_mu_Cr - C_mu_Nb;
+	const double C_mu_Ni  = 1.0 - C_mu_Cr - C_mu_Nb;
 
 	const double C_lav_Cr = gsl_vector_get(x, 6);
 	const double C_lav_Nb = gsl_vector_get(x, 7);
@@ -838,7 +860,7 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix* J)
 {
-	commonTangent_f(x, params, f);
+	commonTangent_f(x,  params, f);
 	commonTangent_df(x, params, J);
 
 	return GSL_SUCCESS;
@@ -859,31 +881,28 @@ rootsolver::rootsolver() :
 	mrf = {&commonTangent_f, &commonTangent_df, &commonTangent_fdf, n, &par};
 }
 
-template <typename T> double
-rootsolver::solve(const T& x_Cr, const T& x_Nb,
-                  const T& p_del, const T& p_mu, const T& p_lav,
-                  T& C_gam_Cr, T& C_del_Cr, T& C_mu_Cr, T& C_lav_Cr,
-                  T& C_gam_Nb, T& C_del_Nb, T& C_mu_Nb, T& C_lav_Nb)
+template<int dim,typename T> double
+rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 {
 	int status;
 	size_t iter = 0;
 
 	// initial guesses
-	par.x_Cr = x_Cr;
-	par.x_Nb = x_Nb;
+	par.x_Cr = GRID(n)[0];
+	par.x_Nb = GRID(n)[1];
 
-	par.p_del = p_del;
-	par.p_mu = p_mu;
-	par.p_lav = p_lav;
+	par.p_del = GRID(n)[2];
+	par.p_mu =  GRID(n)[3];
+	par.p_lav = GRID(n)[4];
 
-	gsl_vector_set(x, 0, C_gam_Cr);
-	gsl_vector_set(x, 1, C_gam_Nb);
-	gsl_vector_set(x, 2, C_del_Cr);
-	gsl_vector_set(x, 3, C_del_Nb);
-	gsl_vector_set(x, 4, C_mu_Cr);
-	gsl_vector_set(x, 5, C_mu_Nb);
-	gsl_vector_set(x, 6, C_lav_Cr);
-	gsl_vector_set(x, 7, C_lav_Nb);
+	gsl_vector_set(x, 0, GRID(n)[5]);
+	gsl_vector_set(x, 1, GRID(n)[6]);
+	gsl_vector_set(x, 2, GRID(n)[7]);
+	gsl_vector_set(x, 3, GRID(n)[8]);
+	gsl_vector_set(x, 4, GRID(n)[9]);
+	gsl_vector_set(x, 5, GRID(n)[10]);
+	gsl_vector_set(x, 6, GRID(n)[11]);
+	gsl_vector_set(x, 7, GRID(n)[12]);
 
 	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
 
@@ -895,14 +914,14 @@ rootsolver::solve(const T& x_Cr, const T& x_Nb,
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status==GSL_CONTINUE && iter<maxiter);
 
-	C_gam_Cr = static_cast<T>(gsl_vector_get(solver->x, 0));
-	C_gam_Nb = static_cast<T>(gsl_vector_get(solver->x, 1));
-	C_del_Cr = static_cast<T>(gsl_vector_get(solver->x, 2));
-	C_del_Nb = static_cast<T>(gsl_vector_get(solver->x, 3));
-	C_mu_Cr  = static_cast<T>(gsl_vector_get(solver->x, 4));
-	C_mu_Nb  = static_cast<T>(gsl_vector_get(solver->x, 5));
-	C_lav_Cr = static_cast<T>(gsl_vector_get(solver->x, 6));
-	C_lav_Nb = static_cast<T>(gsl_vector_get(solver->x, 7));
+	GRID(n)[5]  = static_cast<T>(gsl_vector_get(solver->x, 0));
+	GRID(n)[6]  = static_cast<T>(gsl_vector_get(solver->x, 1));
+	GRID(n)[7]  = static_cast<T>(gsl_vector_get(solver->x, 2));
+	GRID(n)[8]  = static_cast<T>(gsl_vector_get(solver->x, 3));
+	GRID(n)[9]  = static_cast<T>(gsl_vector_get(solver->x, 4));
+	GRID(n)[10] = static_cast<T>(gsl_vector_get(solver->x, 5));
+	GRID(n)[11] = static_cast<T>(gsl_vector_get(solver->x, 6));
+	GRID(n)[12] = static_cast<T>(gsl_vector_get(solver->x, 7));
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
@@ -915,6 +934,55 @@ rootsolver::~rootsolver()
 	gsl_vector_free(x);
 }
 
+template<int dim,typename T>
+void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
+{
+	T xCr = GRID(n)[0];
+	T xNb = GRID(n)[1];
+
+	T n_del = h(fabs(GRID(n)[2]));
+	T n_mu =  h(fabs(GRID(n)[3]));
+	T n_lav = h(fabs(GRID(n)[4]));
+	T n_gam = 1.0 - n_del - n_mu - n_lav;
+
+	T C_gam_Cr = GRID(n)[5];
+	T C_gam_Nb = GRID(n)[6];
+	T C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
+
+	T C_del_Cr = GRID(n)[5];
+	T C_del_Nb = GRID(n)[6];
+
+	T C_mu_Cr = GRID(n)[5];
+	T C_mu_Nb = GRID(n)[6];
+	T C_mu_Ni = 1.0 - C_mu_Cr - C_mu_Nb;
+
+	T C_lav_Cr = GRID(n)[5];
+	T C_lav_Nb = GRID(n)[6];
+	T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
+
+	std::cout<<"\nEquations:\n";
+	std::cout<<"1. "<< xCr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr << '\n';
+	std::cout<<"2. "<< xNb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb << '\n';
+	std::cout<<"3. "<< dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb) << '\n';
+	std::cout<<"4. "<< dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb) << '\n';
+	std::cout<<"5. "<< dg_del_dxCr(C_del_Cr, C_del_Nb) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) << '\n';
+	std::cout<<"6. "<< dg_del_dxNb(C_del_Cr, C_del_Nb) - dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) << '\n';
+	std::cout<<"7. "<< dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxCr() << '\n';
+	std::cout<<"8. "<< dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni) << '\n';
+
+	std::cout<<"\nJacobian:\n";
+	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav, 0.0);
+	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav);
+
+	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Ni), d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxCrCr(C_del_Cr, C_del_Nb), -d2g_del_dxCrNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
+	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNbNb(C_gam_Nb, C_gam_Ni), -d2g_del_dxNbCr(C_del_Cr, C_del_Nb), -d2g_del_dxNbNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
+
+	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, d2g_del_dxCrCr(C_del_Cr, C_del_Nb), d2g_del_dxCrNb(C_del_Cr, C_del_Nb), -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_mu_dxCrNb(), 0.0, 0.0);
+	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, d2g_del_dxNbCr(C_del_Cr, C_del_Nb), d2g_del_dxNbNb(C_del_Cr, C_del_Nb), -d2g_mu_dxNbCr(), -d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni), 0.0, 0.0);
+
+	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), d2g_mu_dxCrNb(), -d2g_lav_dxCrCr(), -d2g_lav_dxCrNb());
+	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxNbCr(), d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_lav_dxNbCr(), -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
+}
 
 #endif
 

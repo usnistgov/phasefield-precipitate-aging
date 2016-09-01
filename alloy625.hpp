@@ -22,25 +22,41 @@ double gprime(const double p);
 double gibbs(const MMSP::vector<double>& v);
 
 // Initial ization and guesses for gamma, mu, and delta equilibrium compositions
+
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx);
+
 double bellCurve(double x, double m, double s);
+
 double sign(double x) {return (x<0) ? -1.0 : 1.0;}
-void guessGamma(const double& xcr, const double& xnb, double& ccr, double& cnb);
-void guessDelta(const double& xcr, const double& xnb, double& ccr, double& cnb);
-void guessMu(   const double& xcr, const double& xnb, double& ccr, double& cnb);
-void guessLaves(const double& xcr, const double& xnb, double& ccr, double& cnb);
+
+
+template<int dim,typename T>
+void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+
+template<int dim,typename T>
+void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+
+template<int dim,typename T>
+void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+
+template<int dim,typename T>
+void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+
 template<typename T>
 void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& origin, const int pid,
                 const double rprcp, const double rdpltCr, const double rdeplNb,
-                const double& xCr, const double& xNb,
+                const T& xCr, const T& xNb,
                 const double& xCrdep, const double& xNbdep, const T phi);
 
 // Phi spans [-1,+1], need to know its sign without divide-by-zero errors
 
 void simple_progress(int step, int steps); // thread-compatible pared-down version of print_progress
 
-template<int dim, typename T> void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID);
+template<int dim, typename T>
+void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID);
 
+template<int dim,typename T>
+void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n);
 
 /* Given const phase fractions (in gamma, mu, and delta)
  * and concentrations of Cr and Nb, iteratively determine the fictitious concentrations in each phase that
@@ -71,10 +87,9 @@ public:
 	// destructor
 	~rootsolver();
 	// accessor
-	template <typename T> double solve(const T& x_Cr, const T& x_Nb,
-	                                   const T& p_del, const T& p_mu, const T& p_lav,
-	                                   T& C_gam_Cr, T& C_del_Cr, T& C_mu_Cr, T& C_lav_Cr,
-	                                   T& C_gam_Nb, T& C_del_Nb, T& C_mu_Nb, T& C_lav_Nb);
+
+	template<int dim,typename T>
+	double solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n);
 
 private:
 	const size_t n;
