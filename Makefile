@@ -7,16 +7,16 @@ incdir = $(MMSP_PATH)/include
 
 # compilers/flags
 compiler = g++
-flags = -g -O2 -std=c++11 -I $(incdir)
+flags = -O3 -Wall -std=c++11 -I $(incdir)
 pcompiler = /usr/bin/mpic++.openmpi
 pflags = $(flags) -include mpi.h
 
 # the program
 alloy625: alloy625.cpp
-	$(compiler) $(flags) $< -o $@ -lz
+	$(compiler) $(flags) $< -o $@ -lz -lgsl -lgslcblas -fopenmp
 
 parallel: alloy625.cpp
-	$(pcompiler) $(pflags) $< -o $@ -lz
+	$(pcompiler) $(pflags) $< -o $@ -lz -lgsl -lgslcblas 
 
 clean:
 	rm -f alloy625 parallel

@@ -21,7 +21,10 @@ double gprime(const double p);
 // Gibbs free energy density
 double gibbs(const MMSP::vector<double>& v);
 
-// Initial guesses for gamma, mu, and delta equilibrium compositions
+// Initial ization and guesses for gamma, mu, and delta equilibrium compositions
+double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx);
+double bellCurve(double x, double m, double s);
+double sign(double x) {return (x<0) ? -1.0 : 1.0;}
 void guessGamma(const double& xcr, const double& xnb, double& ccr, double& cnb);
 void guessDelta(const double& xcr, const double& xnb, double& ccr, double& cnb);
 void guessMu(   const double& xcr, const double& xnb, double& ccr, double& cnb);
@@ -29,14 +32,14 @@ void guessLaves(const double& xcr, const double& xnb, double& ccr, double& cnb);
 template<typename T>
 void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& origin, const int pid,
                 const double rprcp, const double rdpltCr, const double rdeplNb,
-                const double& xCr, const double& xNb, const T phi);
+                const double& xCr, const double& xNb,
+                const double& xCrdep, const double& xNbdep, const T phi);
 
 // Phi spans [-1,+1], need to know its sign without divide-by-zero errors
-double sign(double x) {return (x<0) ? -1.0 : 1.0;}
 
 void simple_progress(int step, int steps); // thread-compatible pared-down version of print_progress
 
-template<int dim, typename T> void print_values(const MMSP::grid<dim,MMSP::vector<T> >& oldGrid, const int rank);
+template<int dim, typename T> void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID);
 
 
 /* Given const phase fractions (in gamma, mu, and delta)
@@ -44,6 +47,17 @@ template<int dim, typename T> void print_values(const MMSP::grid<dim,MMSP::vecto
  * satisfy the constraints of equal chemical potential and conservation of mass.
  * Pass p and x by const value, C by non-const reference to update in place.
  */
+
+struct rparams {
+	// Composition fields
+	double x_Cr;
+	double x_Nb;
+
+	// Structure fields
+	double p_del;
+	double p_mu;
+	double p_lav;
+};
 
 int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f);
 int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J);
