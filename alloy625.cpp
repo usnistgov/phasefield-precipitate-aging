@@ -108,7 +108,7 @@ const double omega_lav = 1.49e9;  // multiwell height (m^2/Nsm^2)
 // Numerical considerations
 const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
 const double epsilon = 1.0e-10;   // what to consider zero to avoid log(c) explosions
-const double dt = (meshres*meshres)/(40.0*kappa_del); // timestep (ca. 5.0e-10 seconds)
+const double dt = 0.125*(meshres*meshres)/(40.0*kappa_del); // timestep (ca. 5.0e-10 seconds)
 
 namespace MMSP
 {
@@ -125,8 +125,8 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		// Construct grid
-		const int Nx = 2; // divisible by 12 and 32
-		const int Ny = 2;
+		const int Nx = 288; // divisible by 12 and 32
+		const int Ny = 288;
 		GRID2D initGrid(13, 0, Nx, 0, Ny);
 		for (int d=0; d<dim; d++) {
 			dx(initGrid,d)=meshres;
@@ -187,7 +187,7 @@ void generate(int dim, const char* filename)
 		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
 		if (1) {
 			vector<int> origin(2, 0);
-			const int xoffset = Nx/12;
+			const int xoffset = 25;
 			const int yoffset = Ny/7;
 			// Initialize delta precipitates
 			int j = 0;
@@ -237,19 +237,24 @@ void generate(int dim, const char* filename)
 
 		rootsolver CommonTangentSolver;
 
+		#ifndef MPI_VERSION
+		#pragma omp parallel for
+		#endif
 		for (int n=0; n<nodes(initGrid); n++) {
 			// Initialize compositions... Not well configured for vectorization
-			guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
-			guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
-			guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
-			guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+			guessGamma(initGrid, n, mt_rand, real_gen, 0.0);
+			guessDelta(initGrid, n, mt_rand, real_gen, 0.0);
+			guessMu(   initGrid, n, mt_rand, real_gen, 0.0);
+			guessLaves(initGrid, n, mt_rand, real_gen, 0.0);
 
+			/*
 			vector<int> x = position(initGrid, n);
 			std::cout<<'('<<x[0]<<','<<x[1]<<')';
 			for (int i=0; i<fields(initGrid); i++)
 				std::cout<<'\t'<<initGrid(n)[i];
 			std::cout<<std::endl;
 			print_matrix(initGrid, n);
+			*/
 			CommonTangentSolver.solve(initGrid, n);
 		}
 
@@ -270,13 +275,8 @@ void generate(int dim, const char* filename)
 			MPI::COMM_WORLD.Barrier();
 		}
 		#endif
-		if (rank==0) {
-			std::cout<<"x_Cr      x_Nb      x_Ni\n";
-			printf("%1.2e  %1.2e  %1.2e\n\n", totals[0], totals[1], 1.0-totals[0]-totals[1]);
-			std::cout<<"p_g       p_d      p_m      p_l\n";
-			printf("%1.2e  %1.2e  %1.2e %1.2e\n", 1.0-totals[2]-totals[3]-totals[4], totals[2], totals[3], totals[4]);
-		}
 
+		print_values(initGrid);
 		output(initGrid,filename);
 
 	} else
@@ -427,10 +427,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ============================== */
 
 			// Update initial guesses for fictitious compositions
-			guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
-			guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
-			guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
-			guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
+			guessGamma(newGrid, n, mt_rand, real_gen, 0.0);
+			guessDelta(newGrid, n, mt_rand, real_gen, 0.0);
+			guessMu(   newGrid, n, mt_rand, real_gen, 0.0);
+			guessLaves(newGrid, n, mt_rand, real_gen, 0.0);
 
 			CommonTangentSolver.solve(newGrid, n);
 
@@ -645,10 +645,9 @@ void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	}
 	#endif
 	if (rank==0) {
-		std::cout<<"x_Cr      x_Nb      x_Ni\n";
-		printf("%1.2e  %1.2e  %1.2e\n\n", totals[0], totals[1], 1.0-totals[0]-totals[1]);
-		std::cout<<"p_g       p_d      p_m      p_l\n";
-		printf("%1.2e  %1.2e  %1.2e %1.2e\n", 1.0-totals[2]-totals[3]-totals[4], totals[2], totals[3], totals[4]);
+		std::cout<<"    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
+		printf("%10.4f %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f\n", totals[0], totals[1], 1.0-totals[0]-totals[1],
+		                                                             1.0-totals[2]-totals[3]-totals[4], totals[2], totals[3], totals[4]);
 	}
 }
 
@@ -875,10 +874,13 @@ rootsolver::rootsolver() :
 	x = gsl_vector_alloc(n);
 
 	// configure algorithm
-	algorithm = gsl_multiroot_fdfsolver_gnewton; // gnewton, hybridj, hybridsj, newton
-	solver = gsl_multiroot_fdfsolver_alloc(algorithm, n);
+	//algorithm = gsl_multiroot_fdfsolver_gnewton; // gnewton, hybridj, hybridsj, newton
+	algorithm = gsl_multiroot_fsolver_hybrids; // gnewton, hybridj, hybridsj, newton
+	//solver = gsl_multiroot_fdfsolver_alloc(algorithm, n);
+	solver = gsl_multiroot_fsolver_alloc(algorithm, n);
 
-	mrf = {&commonTangent_f, &commonTangent_df, &commonTangent_fdf, n, &par};
+	//mrf = {&commonTangent_f, &commonTangent_df, &commonTangent_fdf, n, &par};
+	mrf = {&commonTangent_f, n, &par};
 }
 
 template<int dim,typename T> double
@@ -904,11 +906,13 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	gsl_vector_set(x, 6, GRID(n)[11]);
 	gsl_vector_set(x, 7, GRID(n)[12]);
 
-	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
+	//gsl_multiroot_fdfsolver_set(solver, &mrf, x);
+	gsl_multiroot_fsolver_set(solver, &mrf, x);
 
 	do {
 		iter++;
-		status = gsl_multiroot_fdfsolver_iterate(solver);
+		//status = gsl_multiroot_fdfsolver_iterate(solver);
+		status = gsl_multiroot_fsolver_iterate(solver);
 		if (status) // extra points for finishing early!
 			break;
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
@@ -930,7 +934,8 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 
 rootsolver::~rootsolver()
 {
-	gsl_multiroot_fdfsolver_free(solver);
+	//gsl_multiroot_fdfsolver_free(solver);
+	gsl_multiroot_fsolver_free(solver);
 	gsl_vector_free(x);
 }
 
