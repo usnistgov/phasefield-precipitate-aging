@@ -82,12 +82,8 @@ int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matr
 class rootsolver
 {
 public:
-	// constructor
 	rootsolver();
-	// destructor
 	~rootsolver();
-	// accessor
-
 	template<int dim,typename T>
 	double solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n);
 
@@ -97,10 +93,13 @@ private:
 	const double tolerance;
 	gsl_vector* x;
 	struct rparams par;
-	//const gsl_multiroot_fdfsolver_type* algorithm;
+	#ifndef JACOBIAN
 	const gsl_multiroot_fsolver_type* algorithm;
-	//gsl_multiroot_fdfsolver* solver;
 	gsl_multiroot_fsolver* solver;
-	//gsl_multiroot_function_fdf mrf;
 	gsl_multiroot_function mrf;
+	#else
+	const gsl_multiroot_fdfsolver_type* algorithm;
+	gsl_multiroot_fdfsolver* solver;
+	gsl_multiroot_function_fdf mrf;
+	#endif
 };

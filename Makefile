@@ -7,7 +7,7 @@ incdir = $(MMSP_PATH)/include
 
 # compilers/flags
 compiler = icc
-flags = -O3 -Wall -std=c++11 -I $(incdir)
+flags = -O3 -Wall -std=c++11 -I $(incdir) -DJACOBIAN
 pcompiler = /usr/bin/mpic++.openmpi
 pflags = $(flags) -include mpi.h
 
