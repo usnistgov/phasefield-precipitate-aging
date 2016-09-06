@@ -83,7 +83,7 @@ const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near pr
 // Define st.dev. of Gaussians for alloying element segregation
 //                         Cr      Nb
 const double bell[NC] = {0.0625, 0.025};
-const double noise_amp = 0.00125;
+const double noise_amp = 1.25e-3;
 
 // Kinetic and model parameters
 const double meshres = 5.0e-9;    // grid spacing (m)
@@ -108,7 +108,9 @@ const double omega_lav = 1.49e9;  // multiwell height (m^2/Nsm^2)
 // Numerical considerations
 const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
 const double epsilon = 1.0e-10;   // what to consider zero to avoid log(c) explosions
-const double dt = 1.0e-2*(meshres*meshres)/(40.0*kappa_del); // timestep (ca. 5.0e-10 seconds)
+const double dtp = (meshres*meshres)/(5000.0*kappa_del); // transformation-limited timestep
+const double dtc = (meshres*meshres)/(5000.0*Vm*Vm*M_Cr); // diffusion-limited timestep
+const double dt = std::min(dtp, dtc);
 
 namespace MMSP
 {
@@ -151,7 +153,8 @@ void generate(int dim, const char* filename)
 		// Mu should dissolve kinetically.
 		//                            delta               mu                  Laves
 		//const double rPrecip[NP-1] = {1.2*dx(initGrid,0), 1.6*dx(initGrid,0), 1.6*dx(initGrid,0)};
-		const double rPrecip[NP-1] = {3*dx(initGrid,0), 4*dx(initGrid,0), 4*dx(initGrid,0)};
+		//const double rPrecip[NP-1] = {3*dx(initGrid,0), 4*dx(initGrid,0), 4*dx(initGrid,0)};
+		const double rPrecip[NP-1] = {6*dx(initGrid,0), 8*dx(initGrid,0), 8*dx(initGrid,0)};
 
 		// depletion region surrounding precipitates
 		double rDepltCr[NP-1] = {0.0};
@@ -163,6 +166,10 @@ void generate(int dim, const char* filename)
 
 
 		// Sanity check on system size and  particle spacing
+		if (rank==0 && dtp < dtc)
+			std::cout<<"Timestep (dt="<<dt<<") is transformation limited."<<std::endl;
+		else if (rank==0 && dtc < dtp)
+			std::cout<<"Timestep (dt="<<dt<<") is diffusion limited."<<std::endl;
 
 		for (int i=0; i<NP-1; i++) {
 			double rmax = std::max(rDepltCr[i]/dx(initGrid,0), rDepltNb[i]/dx(initGrid,0));
@@ -182,12 +189,12 @@ void generate(int dim, const char* filename)
 			                //+ xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[1]*dx(initGrid,0)*Nx);
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-				initGrid(x)[0] = matrixCr + xCr[0];// *(1.0 + noise_amp*real_gen(mt_rand));
-				initGrid(x)[1] = matrixNb + xNb[0];// *(1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(x)[0] = matrixCr; //+ xCr[0] * (1.0 + noise_amp*real_gen(mt_rand));
+				initGrid(x)[1] = matrixNb; //+ xNb[0] * (1.0 + noise_amp*real_gen(mt_rand));
 
 				// tiny bit of noise to avoid zeros
 				for (int i=NC; i<NC+NP-1; i++)
-					initGrid(x)[i] = 0.0; //noise_amp*real_gen(mt_rand);
+					initGrid(x)[i] = 0.0; // noise_amp*real_gen(mt_rand);
 				for (int i=NC+NP-1; i<fields(initGrid); i++)
 					initGrid(x)[i] = 0.0;
 			}
@@ -256,8 +263,6 @@ void generate(int dim, const char* filename)
 			guessLaves(initGrid, n, mt_rand, real_gen, 0.0);
 		}
 
-		print_matrix(initGrid, 0);
-
 		rootsolver CommonTangentSolver;
 
 		#ifndef MPI_VERSION
@@ -290,6 +295,9 @@ void generate(int dim, const char* filename)
 			}
 			#endif
 		}
+
+		//print_matrix(initGrid, nodes(initGrid)/2);
+		print_matrix(initGrid, 0);
 
 		#ifdef MPI_VERSION
 		double myCr(totCr);
@@ -325,7 +333,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	grid<dim,vector<T> > newGrid(oldGrid);
 	grid<dim,vector<T> > chemGrid(oldGrid, NC); // storage for chemical potentials
 
-	// Construct the common tangent solver
+	// Construct the parallel tangent solver
 	rootsolver CommonTangentSolver;
 	std::mt19937_64 mt_rand(time(NULL)+rank);
 	std::uniform_real_distribution<double> real_gen(-1,1);
@@ -372,6 +380,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		double totCr = 0.0;
 		double totNb = 0.0;
 		double totF  = 0.0;
+		double maxUp = 0.0;
+		double maxUc = 0.0;
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -448,36 +458,43 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double gradSqPhi_lav = laplacian(oldGrid, x, 4);
 
 
-			newGrid(n)[2] = phi_del + dt * L_del * (kappa_del*gradSqPhi_del - df_dphi_del);
-			newGrid(n)[3] = phi_mu  + dt * L_mu  * (kappa_mu *gradSqPhi_mu  - df_dphi_mu);
-			newGrid(n)[4] = phi_lav + dt * L_lav * (kappa_lav*gradSqPhi_lav - df_dphi_lav);
+			newGrid(n)[2] = phi_del - dt * L_del * (df_dphi_del - kappa_del*gradSqPhi_del);
+			newGrid(n)[3] = phi_mu  - dt * L_mu  * (df_dphi_mu  - kappa_mu *gradSqPhi_mu );
+			newGrid(n)[4] = phi_lav - dt * L_lav * (df_dphi_lav - kappa_lav*gradSqPhi_lav);
 
 
-			/* ============================== *
-			 * Solve for common tangent plane *
-			 * ============================== */
+			/* ====================================== *
+			 * Guess at parallel tangent compositions *
+			 * ====================================== */
 
-			// Update initial guesses for fictitious compositions
 			guessGamma(newGrid, n, mt_rand, real_gen, 0.0);
 			guessDelta(newGrid, n, mt_rand, real_gen, 0.0);
 			guessMu(   newGrid, n, mt_rand, real_gen, 0.0);
 			guessLaves(newGrid, n, mt_rand, real_gen, 0.0);
 
+
+			/* =========================== *
+			 * Solve for parallel tangents *
+			 * =========================== */
+
 			CommonTangentSolver.solve(newGrid, n);
+
 
 			/* ====================================================================== *
 			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 			 * ====================================================================== */
 
-			vector<double> gradPhiSq_del = gradient(newGrid, x, 2);
+			vector<double> gradPhiSq_del = gradient(newGrid, x, 2); // Note: gradPhiSq != gradSqPhi
 			vector<double> gradPhiSq_mu  = gradient(newGrid, x, 3);
 			vector<double> gradPhiSq_lav = gradient(newGrid, x, 4);
 
 			double myCr = dV*newGrid(n)[0];
 			double myNb = dV*newGrid(n)[1];
 			double myf = dV*(gibbs(newGrid(n)) + kappa_del*(gradPhiSq_del*gradPhiSq_del)
-			                                   + kappa_mu* (gradPhiSq_mu* gradPhiSq_mu)
+			                                   + kappa_mu *(gradPhiSq_mu* gradPhiSq_mu)
 			                                   + kappa_lav*(gradPhiSq_lav*gradPhiSq_lav));
+			//double myUp = std::max(newGrid(n)[0]-oldGrid(n)[0], newGrid(n)[1]-oldGrid(n)[1]) / meshres;
+			//double myUc = std::max(newGrid(n)[2]-oldGrid(n)[2], std::max(newGrid(n)[3]-oldGrid(n)[3], newGrid(n)[4]-oldGrid(n)[4])) / meshres;
 
 			#ifndef MPI_VERSION
 			#pragma omp critical
@@ -485,7 +502,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			#endif
 				totCr += myCr;             // total Cr mass
 				totNb += myNb;             // total Nb mass
-				totF += myf;               // total free energy
+				totF  += myf;               // total free energy
+				//maxUp = std::max(maxUp, myUp);
+				//maxUc = std::max(maxUc, myUc);
 			#ifndef MPI_VERSION
 			}
 			#endif
@@ -499,16 +518,29 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		#ifdef MPI_VERSION
 		double myF(totF);
+		//double myUp(maxUp);
+		//double myUc(maxUc);
 		MPI::COMM_WORLD.Reduce(&myCr, &totCr, 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myNb, &totNb, 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myF,  &totF,  1, MPI_DOUBLE, MPI_SUM, 0);
+		//MPI::COMM_WORLD.Allreduce(&myUp, &maxUp, 1, MPI_DOUBLE, MPI_MAX);
+		//MPI::COMM_WORLD.Allreduce(&myUc, &maxUc, 1, MPI_DOUBLE, MPI_MAX);
 		#endif
 		if (rank==0)
 			cfile<<totCr<<'\t'<<totNb<<'\t'<<totF<<std::endl;
+		/*
+		if (maxUp>1.0 || maxUc > 1.0) {// don't exceed the speed limit
+			if (rank==0) {
+				std::cerr<<"Error: speed limit exceeded (u_phi="<<maxUp<<", u_c="<<maxUc<<"). Aborting."<<std::endl;
+			}
+			MMSP::Abort(-1);
+		}
+		*/
 	}
 	if (rank==0)
 		cfile.close();
 
+	//print_matrix(oldGrid, nodes(oldGrid)/2);
 	print_matrix(oldGrid, 0);
 	print_values(oldGrid);
 }
@@ -533,8 +565,10 @@ double bellCurve(double x, double m, double s)
 template<int dim,typename T>
 void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T& xcr = GRID(n)[0];
-	const T& xnb = GRID(n)[1];
+	const T& xcr = fabs(GRID(n)[0]);
+	const T& xnb = fabs(GRID(n)[1]);
+	//GRID(n)[5] = -0.45*(xnb-0.075)/0.075;
+	//GRID(n)[6] = xnb;
 	// if it's inside the gamma field, don't change it
 	bool below_upper = (xcr < -0.45*(xnb-0.075)/0.075);
 	bool nb_rich = (xnb > 0.075);
@@ -557,15 +591,17 @@ void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 {
 	const T& xcr = GRID(n)[0];
 	const T& xnb = GRID(n)[1];
-	GRID(n)[7] = xcr/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
-	GRID(n)[8] = xnb/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
+	GRID(n)[7] = fabs(xcr/(xcr+xnb+0.75) + amp*real_gen(mt_rand));
+	GRID(n)[8] = fabs(xnb/(xcr+xnb+0.75) + amp*real_gen(mt_rand));
 }
 
 template<int dim,typename T>
 void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T& xcr = GRID(n)[0];
-	const T& xnb = GRID(n)[1];
+	//GRID(n)[9] = 0.02;
+	//GRID(n)[10] = 0.5;
+	const T& xcr = fabs(GRID(n)[0]);
+	const T& xnb = fabs(GRID(n)[1]);
 	// if it's inside the mu field, don't change it
 	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
 	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
@@ -590,8 +626,10 @@ void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_
 template<int dim,typename T>
 void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T& xcr = GRID(n)[0];
-	const T& xnb = GRID(n)[1];
+	//GRID(n)[11] = 0.332;
+	//GRID(n)[12] = 0.334;
+	const T& xcr = fabs(GRID(n)[0]);
+	const T& xnb = fabs(GRID(n)[1]);
 	// if it's inside the Laves field, don't change it
 	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
 	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
@@ -635,11 +673,11 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
 			} else {
 				if (r<rdpltCr) { // point falls within Cr depletion region
 					T dxCr = xCrdep - xCrdep*(r-rprcp)/(rdpltCr-rprcp);
-					GRID(x)[0] -= dxCr;
+					GRID(x)[0] = std::max(xCrdep, GRID(x)[0]-dxCr);
 				}
 				if (r<rdpltNb) { // point falls within Nb depletion region
 					T dxNb = xNbdep - xNbdep*(r-rprcp)/(rdpltNb-rprcp);
-					GRID(x)[1] -= dxNb;
+					GRID(x)[1] = std::max(xNbdep, GRID(x)[1]-dxNb);
 				}
 			}
 		}
@@ -662,8 +700,6 @@ void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 		for (int i=NC; i<NC+NP-1; i++)
 			totals[i] += std::fabs(GRID(n)[i]);
 	}
-	for (int i=0; i<NC+NP-1; i++)
-		totals[i] /= double(Nx*Ny);
 
 	#ifdef MPI_VERSION
 	MMSP::vector<double> myTot(totals);
@@ -672,9 +708,12 @@ void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 		MPI::COMM_WORLD.Barrier();
 	}
 	#endif
+
+	for (int i=0; i<NC+NP-1; i++)
+		totals[i] /= double(Nx*Ny);
 	if (rank==0) {
 		std::cout<<"    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
-		printf("%10.4f %10.4f %10.4f %10.4e %10.4e %10.4e %10.4e\n", totals[0], totals[1], 1.0-totals[0]-totals[1],
+		printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", totals[0], totals[1], 1.0-totals[0]-totals[1],
 		                                                             1.0-totals[2]-totals[3]-totals[4], totals[2], totals[3], totals[4]);
 	}
 }
@@ -729,9 +768,9 @@ void simple_progress(int step, int steps)
 
 
 
-/* ====================================== *
- * Invoke GSL to solve for common tangent *
- * ====================================== */
+/* ========================================= *
+ * Invoke GSL to solve for parallel tangents *
+ * ========================================= */
 
 /* Given const phase fraction (p) and molar fraction (c), iteratively determine the
  * molar fractions in each phase that satisfy equal chemical potential.
@@ -829,7 +868,7 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	// Zero it all
 	for (unsigned int i=0; i<J->size1; i++)
 		for (unsigned int j=0; j<J->size2; j++)
-			gsl_matrix_set(J, i, j, 0.0);
+			gsl_matrix_set(J, i, j, 0);
 
 	// Conservation of mass (Cr, Nb)
 	gsl_matrix_set(J, 0, 0, -n_gam);
@@ -1003,6 +1042,7 @@ rootsolver::~rootsolver()
 template<int dim,typename T>
 void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 {
+	MMSP::vector<int> x = MMSP::position(GRID, n);
 	T xCr = GRID(n)[0];
 	T xNb = GRID(n)[1];
 
@@ -1026,51 +1066,32 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	T C_lav_Nb = GRID(n)[6];
 	T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
-	std::cout<<"\nEquations:\n";
-	std::cout<<"1. "<< xCr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr << '\n';
-	std::cout<<"2. "<< xNb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb << '\n';
-	std::cout<<"3. "<< dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb) << '\n';
-	std::cout<<"4. "<< dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb) << '\n';
-	std::cout<<"5. "<< dg_del_dxCr(C_del_Cr, C_del_Nb) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) << '\n';
-	std::cout<<"6. "<< dg_del_dxNb(C_del_Cr, C_del_Nb) - dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) << '\n';
-	std::cout<<"7. "<< dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxCr() << '\n';
-	std::cout<<"8. "<< dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni) << '\n';
-	/*
-	std::cout<<"1. "<< xCr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr << '\n';
-	std::cout<<"2. "<< xNb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb << '\n';
-	std::cout<<"3. "<< dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb) << '\n';
-	std::cout<<"4. "<< dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb) << '\n';
-	std::cout<<"5. "<< dg_del_dxCr(C_del_Cr, C_del_Nb) - dg_mu_dxCr(C_mu_Cr, C_mu_Ni) << '\n';
-	std::cout<<"6. "<< dg_del_dxNb(C_del_Cr, C_del_Nb) - dg_mu_dxNb(C_mu_Nb, C_mu_Ni) << '\n';
-	std::cout<<"7. "<< dg_mu_dxCr(C_mu_Cr, C_mu_Ni) - dg_lav_dxCr() << '\n';
-	std::cout<<"8. "<< dg_mu_dxNb(C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni) << '\n';
-	*/
+	std::cout<<"\nValues at ("<<x[0]<<','<<x[1]<<"):\n";
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", xCr, xNb, n_del, n_mu, n_lav, C_gam_Cr, C_gam_Nb, C_del_Cr, C_del_Nb, C_mu_Cr, C_mu_Nb, C_lav_Cr, C_lav_Nb);
 
-	std::cout<<"\nJacobian:\n";
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav, 0.0);
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav);
+	std::cout<<"Equations at ("<<x[0]<<','<<x[1]<<"):\n";
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n",
+	xCr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr,
+	xNb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb,
+	dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb),
+	dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb),
+	dg_del_dxCr(C_del_Cr, C_del_Nb) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	dg_del_dxNb(C_del_Cr, C_del_Nb) - dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxCr(),
+	dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
 
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxCrCr(C_del_Cr, C_del_Nb), -d2g_del_dxCrNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxNbCr(C_del_Cr, C_del_Nb), -d2g_del_dxNbNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
+	std::cout<<"Jacobian at ("<<x[0]<<','<<x[1]<<"):\n";
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav);
 
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, d2g_del_dxCrCr(C_del_Cr, C_del_Nb), d2g_del_dxCrNb(C_del_Cr, C_del_Nb), -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_mu_dxCrNb(), 0.0, 0.0);
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, d2g_del_dxNbCr(C_del_Cr, C_del_Nb), d2g_del_dxNbNb(C_del_Cr, C_del_Nb), -d2g_mu_dxNbCr(), -d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni), 0.0, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxCrCr(C_del_Cr, C_del_Nb), -d2g_del_dxCrNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxNbCr(C_del_Cr, C_del_Nb), -d2g_del_dxNbNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
 
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), d2g_mu_dxCrNb(), -d2g_lav_dxCrCr(), -d2g_lav_dxCrNb());
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxNbCr(), d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_lav_dxNbCr(), -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
-	/*
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav, 0.0);
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, 0.0, d2g_del_dxCrCr(C_del_Cr, C_del_Nb), d2g_del_dxCrNb(C_del_Cr, C_del_Nb), -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_mu_dxCrNb(), 0.0, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, 0.0, d2g_del_dxNbCr(C_del_Cr, C_del_Nb), d2g_del_dxNbNb(C_del_Cr, C_del_Nb), -d2g_mu_dxNbCr(), -d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni), 0.0, 0.0);
 
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Ni), d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxCrCr(C_del_Cr), -d2g_del_dxCrNb(C_del_Nb), 0.0, 0.0, 0.0, 0.0);
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNbNb(C_gam_Nb, C_gam_Ni), -d2g_del_dxNbCr(C_del_Nb), -d2g_del_dxNbNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
-
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, d2g_del_dxCrCr(C_del_Cr), d2g_del_dxCrNb(C_del_Nb), -d2g_mu_dxCrCr(C_mu_Cr), -d2g_mu_dxCrNb(), 0.0, 0.0);
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, d2g_del_dxNbCr(C_del_Nb), d2g_del_dxNbNb(C_del_Cr, C_del_Nb), -d2g_mu_dxNbCr(), -d2g_mu_dxNbNb(C_mu_Nb, C_mu_Ni), 0.0, 0.0);
-
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxCrCr(C_mu_Cr), d2g_mu_dxCrNb(), -d2g_lav_dxCrCr(), -d2g_lav_dxCrNb());
-	printf("%11.3f %11.3f %11.3f %11.3f %11.3e %11.3e %11.3e %11.3e\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxNbCr(), d2g_mu_dxNbNb(C_mu_Nb, C_mu_Ni), -d2g_lav_dxNbCr(), -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
-	*/
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), d2g_mu_dxCrNb(), -d2g_lav_dxCrCr(), -d2g_lav_dxCrNb());
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxNbCr(), d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_lav_dxNbCr(), -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
 }
 
 #endif
