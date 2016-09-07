@@ -70,9 +70,9 @@ struct rparams {
 	double x_Nb;
 
 	// Structure fields
-	double p_del;
-	double p_mu;
-	double p_lav;
+	double n_del;
+	double n_mu;
+	double n_lav;
 };
 
 int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f);
