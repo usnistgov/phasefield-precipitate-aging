@@ -155,9 +155,9 @@ void generate(int dim, const char* filename)
 		// Seed delta to dissolve deliberately.
 		// Mu should dissolve kinetically.
 		//                            delta               mu                  Laves
-		//const double rPrecip[NP-1] = {1.2*dx(initGrid,0), 1.6*dx(initGrid,0), 1.6*dx(initGrid,0)};
-		//const double rPrecip[NP-1] = {3.0*dx(initGrid,0), 4.0*dx(initGrid,0), 4.0*dx(initGrid,0)};
-		const double rPrecip[NP-1] = {7.0*dx(initGrid,0), 9.0*dx(initGrid,0), 11.0*dx(initGrid,0)};
+		//const double rPrecip[NP-1] = {1.2*7.5e-9, 1.6*7.5e-9, 1.6*7.5e-9};
+		//const double rPrecip[NP-1] = {3.0*5e-9, 4.0*5e-9, 4.0*5e-9};
+		const double rPrecip[NP-1] = {1.0*7.5e-9, 1.5*7.5e-9, 2.0*7.5e-9};
 
 		// depletion region surrounding precipitates
 		double rDepltCr[NP-1] = {0.0};
@@ -682,11 +682,11 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
                 const double& xCrdep, const double& xNbdep, const T phi)
 {
 	MMSP::vector<int> x(origin);
-	double rmax = std::max(rdpltCr, rdpltNb);
-	for (x[0] = origin[0]-rmax; x[0] <= origin[0]+rmax; x[0]++) {
+	double Rmax = std::max(rdpltCr, rdpltNb) / dx(GRID, 0);
+	for (x[0] = origin[0]-Rmax; x[0] <= origin[0]+Rmax; x[0]++) {
 		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 			continue;
-		for (x[1] = origin[1]-rmax; x[1] <= origin[1]+rmax; x[1]++) {
+		for (x[1] = origin[1]-Rmax; x[1] <= origin[1]+Rmax; x[1]++) {
 			if (x[1] < y0(GRID) || x[1] >= y1(GRID))
 				continue;
 			const double r = radius(origin, x, dx(GRID,0));

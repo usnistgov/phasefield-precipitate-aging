@@ -14,7 +14,7 @@ pflags = $(flags) -include mpi.h
 
 # the program
 alloy625: alloy625.cpp
-	$(compiler) $(flags) $< -o $@ -lz -lgsl -lgslcblas -fopenmp
+	$(compiler) $(flags) $< -o $@ -lz -lgsl -lgslcblas -fopenmp -fp-model fast=1
 
 parallel: alloy625.cpp
 	$(pcompiler) $(pflags) $< -o $@ -lz -lgsl -lgslcblas 
