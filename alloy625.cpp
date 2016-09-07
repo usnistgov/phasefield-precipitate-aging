@@ -128,6 +128,9 @@ void generate(int dim, const char* filename)
 
 	double totCr = 0.0;
 	double totNb = 0.0;
+	double totDel = 0.0;
+	double totMu  = 0.0;
+	double totLav = 0.0;
 	double totF  = 0.0;
 
 	std::ofstream cfile;
@@ -286,6 +289,9 @@ void generate(int dim, const char* filename)
 
 			double myCr = initGrid(n)[0];
 			double myNb = initGrid(n)[1];
+			double myDel = dV*initGrid(n)[2];
+			double myMu  = dV*initGrid(n)[3];
+			double myLav = dV*initGrid(n)[4];
 			double myf = dV*(gibbs(initGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                    + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 			                                    + kappa_lav * (gradPhi_lav * gradPhi_lav));
@@ -294,15 +300,18 @@ void generate(int dim, const char* filename)
 			#pragma omp critical
 			{
 			#endif
-				totCr += myCr; // total Cr mass
-				totNb += myNb; // total Nb mass
-				totF += myf;   // total free energy
+				totCr  += myCr;  // total Cr mass
+				totNb  += myNb;  // total Nb mass
+				totDel += myDel; // total delta volume
+				totMu  += myMu;  // total mu volume
+				totLav += myLav; // total Laves volume
+				totF   += myf;   // total free energy
 			#ifndef MPI_VERSION
 			}
 			#endif
 		}
 
-		print_matrix(initGrid, nodes(initGrid)/2);
+		//print_matrix(initGrid, nodes(initGrid)/2);
 		//print_matrix(initGrid, 0);
 
 		totCr /= Ntot;
@@ -311,16 +320,22 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 		double myCr(totCr);
 		double myNb(totNb);
+		double myDel(totDel);
+		double myMu(totMu);
+		double myLav(totLav);
 		double myF(totF);
-		MPI::COMM_WORLD.Reduce(&myCr, &totCr, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myNb, &totNb, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myF,  &totF,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myDel, &totDel, 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myMu , &totMu , 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myLav, &totLav, 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
 
 		#ifdef MPI_VERSION
 		#endif
 		if (rank==0) {
-			cfile<<totCr<<'\t'<<totNb<<'\t'<<totF<<std::endl;
+			cfile<<totCr<<'\t'<<totNb<<'\t'<<totDel<<'\t'<<totMu<<'\t'<<totLav<<'\t'<<totF<<std::endl;
 			cfile.close();
 		}
 
@@ -387,10 +402,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		}
 
 		ghostswap(chemGrid);
-
-		double totCr = 0.0;
-		double totNb = 0.0;
-		double totF  = 0.0;
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -523,19 +534,29 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 		 * ====================================================================== */
 
+		double totCr = 0.0;
+		double totNb = 0.0;
+		double totDel = 0.0;
+		double totMu  = 0.0;
+		double totLav = 0.0;
+		double totF  = 0.0;
+
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
 		#endif
-		for (int n=0; n<nodes(oldGrid); n++) {
+		for (int n=0; n<nodes(oldGrid); n++) { // Note: The latest values are now stored in oldGrid, *not* newGrid!
 			vector<int> x = position(oldGrid,n);
 
-			vector<double> gradPhi_del = gradient(newGrid, x, 2);
-			vector<double> gradPhi_mu  = gradient(newGrid, x, 3);
-			vector<double> gradPhi_lav = gradient(newGrid, x, 4);
+			vector<double> gradPhi_del = gradient(oldGrid, x, 2);
+			vector<double> gradPhi_mu  = gradient(oldGrid, x, 3);
+			vector<double> gradPhi_lav = gradient(oldGrid, x, 4);
 
-			double myCr = newGrid(n)[0];
-			double myNb = newGrid(n)[1];
-			double myf = dV*(gibbs(newGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
+			double myCr = oldGrid(n)[0];
+			double myNb = oldGrid(n)[1];
+			double myDel = dV*oldGrid(n)[2];
+			double myMu  = dV*oldGrid(n)[3];
+			double myLav = dV*oldGrid(n)[4];
+			double myf = dV*(gibbs(oldGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                   + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 			                                   + kappa_lav * (gradPhi_lav * gradPhi_lav));
 
@@ -545,6 +566,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			#endif
 				totCr += myCr; // total Cr mass
 				totNb += myNb; // total Nb mass
+				totDel += myDel; // total delta volume
+				totMu  += myMu;  // total mu volume
+				totLav += myLav; // total Laves volume
 				totF  += myf;  // total free energy
 			#ifndef MPI_VERSION
 			}
@@ -558,21 +582,27 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		#ifdef MPI_VERSION
 		double myCr(totCr);
 		double myNb(totNb);
+		double myDel(totDel);
+		double myMu(totMu);
+		double myLav(totLav);
 		double myF(totF);
-		MPI::COMM_WORLD.Reduce(&myCr, &totCr, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myNb, &totNb, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myF,  &totF,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myDel, &totDel, 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myMu , &totMu , 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myLav, &totLav, 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
 		if (rank==0)
-			cfile<<totCr<<'\t'<<totNb<<'\t'<<totF<<std::endl;
+			cfile<<totCr<<'\t'<<totNb<<'\t'<<totDel<<'\t'<<totMu<<'\t'<<totLav<<'\t'<<totF<<std::endl;
 	}
 	if (rank==0)
 		cfile.close();
 
-	print_matrix(oldGrid, nodes(oldGrid)/2);
+	//print_matrix(oldGrid, nodes(oldGrid)/2);
 	//print_matrix(oldGrid, 0);
 
-	print_values(oldGrid);
+	//print_values(oldGrid);
 }
 
 
