@@ -83,7 +83,8 @@ const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near pr
 // Define st.dev. of Gaussians for alloying element segregation
 //                         Cr      Nb
 const double bell[NC] = {0.0625, 0.025};
-const double noise_amp = 1.25e-3;
+const double noise_amp = 1.0e-6;
+const double init_amp = 1.0e-6;
 
 // Kinetic and model parameters
 const double meshres = 5.0e-9;    // grid spacing (m)
@@ -108,8 +109,8 @@ const double omega_lav = 1.49e9;  // multiwell height (m^2/Nsm^2)
 // Numerical considerations
 const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
 const double epsilon = 1.0e-10;   // what to consider zero to avoid log(c) explosions
-const double dtp = (meshres*meshres)/(4000.0*kappa_del); // transformation-limited timestep
-const double dtc = (meshres*meshres)/(4000.0*Vm*Vm*M_Cr); // diffusion-limited timestep
+const double dtp = (meshres*meshres)/(40.0*kappa_del); // transformation-limited timestep
+const double dtc = (meshres*meshres)/(40.0*Vm*Vm*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
 
 namespace MMSP
@@ -191,12 +192,12 @@ void generate(int dim, const char* filename)
 			                //+ xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[1]*dx(initGrid,0)*Nx);
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-				initGrid(x)[0] = matrixCr + xCr[0]; //  + xCr[0]*noise_amp*real_gen(mt_rand);
-				initGrid(x)[1] = matrixNb + xNb[0]; //  + xCr[0]*noise_amp*real_gen(mt_rand);
+				initGrid(x)[0] = matrixCr + xCr[0]; //  + xCr[0]*init_amp*real_gen(mt_rand);
+				initGrid(x)[1] = matrixNb + xNb[0]; //  + xCr[0]*init_amp*real_gen(mt_rand);
 
 				// tiny bit of noise to avoid zeros
 				for (int i=NC; i<NC+NP-1; i++)
-					initGrid(x)[i] = noise_amp*real_gen(mt_rand);
+					initGrid(x)[i] = init_amp*real_gen(mt_rand);
 				for (int i=NC+NP-1; i<fields(initGrid); i++)
 					initGrid(x)[i] = 0.0;
 			}
@@ -212,46 +213,46 @@ void generate(int dim, const char* filename)
 			// Initialize delta precipitates
 			origin[0] = Nx / 2;
 			origin[1] = Ny - yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, 1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, 1.0 - epsilon);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 3*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 5*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 6*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 
 			// Initialize mu precipitates
 			j = 1;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - 2*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 3*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 4*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 5*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 
 			// Initialize Laves precipitates
 			j = 2;
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 2*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 4*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 6*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 		}
 
 		#ifndef MPI_VERSION
@@ -259,10 +260,10 @@ void generate(int dim, const char* filename)
 		#endif
 		for (int n=0; n<nodes(initGrid); n++) {
 			// Initialize compositions... Not well configured for vectorization
-			guessGamma(initGrid, n, mt_rand, real_gen, 0.0);
-			guessDelta(initGrid, n, mt_rand, real_gen, 0.0);
-			guessMu(   initGrid, n, mt_rand, real_gen, 0.0);
-			guessLaves(initGrid, n, mt_rand, real_gen, 0.0);
+			guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+			guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+			guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+			guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
 		}
 
 		rootsolver CommonTangentSolver;
@@ -496,10 +497,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Guess at parallel tangent compositions *
 			 * ====================================== */
 
-			guessGamma(newGrid, n, mt_rand, real_gen, 0.0);
-			guessDelta(newGrid, n, mt_rand, real_gen, 0.0);
-			guessMu(   newGrid, n, mt_rand, real_gen, 0.0);
-			guessLaves(newGrid, n, mt_rand, real_gen, 0.0);
+			guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
+			guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
+			guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
+			guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
 
 
 			/* =========================== *
@@ -829,15 +830,14 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	const double C_del_Nb = gsl_vector_get(x, 3);
 
 	const double C_mu_Cr  = gsl_vector_get(x, 4);
-	const double C_mu_Nb  = gsl_vector_get(x, 5);
-	const double C_mu_Ni = 1.0 - C_mu_Cr - C_mu_Nb;
+	const double C_mu_Ni  = gsl_vector_get(x, 5);
+	const double C_mu_Nb = 1.0 - C_mu_Cr - C_mu_Ni;
 
-	const double C_lav_Cr = gsl_vector_get(x, 6);
-	const double C_lav_Nb = gsl_vector_get(x, 7);
-	const double C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
+	const double C_lav_Nb = gsl_vector_get(x, 6);
+	const double C_lav_Ni = gsl_vector_get(x, 7);
+	const double C_lav_Cr = 1.0 - C_lav_Nb - C_lav_Ni;
 
-	for (unsigned int i=0; i<f->size; i++)
-		gsl_vector_set(f, i, 0.0);
+	gsl_vector_set_zero(f); // handy!
 
 	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
 	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
@@ -845,21 +845,11 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb));
 	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb));
 
-	#ifndef JACOBIAN
-	gsl_vector_set(f, 4, dg_del_dxCr(C_del_Cr, C_del_Nb) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
-	gsl_vector_set(f, 5, dg_del_dxNb(C_del_Cr, C_del_Nb) - dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni));
-	#else
-	gsl_vector_set(f, 4, dg_del_dxCr(C_del_Cr, C_del_Nb) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
-	gsl_vector_set(f, 5, dg_del_dxNb(C_del_Cr, C_del_Nb) - dg_mu_dxNb(C_mu_Nb, C_mu_Nb, C_mu_Ni));
-	#endif
+	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
+	gsl_vector_set(f, 5, dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni));
 
-	#ifndef JACOBIAN
-	gsl_vector_set(f, 6, dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxCr());
-	gsl_vector_set(f, 7, dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
-	#else
-	gsl_vector_set(f, 6, dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxCr());
-	gsl_vector_set(f, 7, dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
-	#endif
+	gsl_vector_set(f, 6, dg_gam_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
+	gsl_vector_set(f, 7, dg_gam_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNi(C_lav_Nb, C_lav_Ni));
 
 	return GSL_SUCCESS;
 }
@@ -868,8 +858,10 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 {
 	// Prepare constants
+	const double x_Cr = ((struct rparams*) params)->x_Cr;
+	const double x_Nb = ((struct rparams*) params)->x_Nb;
 	const double n_del = ((struct rparams*) params)->n_del;
-	const double n_mu  = ((struct rparams*) params)->n_mu;
+	const double n_mu = ((struct rparams*) params)->n_mu;
 	const double n_lav = ((struct rparams*) params)->n_lav;
 	const double n_gam = 1.0 - n_del - n_mu - n_lav;
 
@@ -882,19 +874,14 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	const double C_del_Nb = gsl_vector_get(x, 3);
 
 	const double C_mu_Cr  = gsl_vector_get(x, 4);
-	const double C_mu_Nb  = gsl_vector_get(x, 5);
-	const double C_mu_Ni  = 1.0 - C_mu_Cr - C_mu_Nb;
+	const double C_mu_Ni  = gsl_vector_get(x, 5);
+	const double C_mu_Nb = 1.0 - C_mu_Cr - C_mu_Ni;
 
-	const double C_lav_Cr = gsl_vector_get(x, 6);
-	const double C_lav_Nb = gsl_vector_get(x, 7);
-	const double C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
+	const double C_lav_Nb = gsl_vector_get(x, 6);
+	const double C_lav_Ni = gsl_vector_get(x, 7);
+	const double C_lav_Cr = 1.0 - C_lav_Nb - C_lav_Ni;
 
-	// Jacobian matrix: should have 32 populated entries
-
-	// Zero it all
-	for (unsigned int i=0; i<J->size1; i++)
-		for (unsigned int j=0; j<J->size2; j++)
-			gsl_matrix_set(J, i, j, 0);
+	gsl_matrix_set_zero(J); // handy!
 
 	// Conservation of mass (Cr, Nb)
 	gsl_matrix_set(J, 0, 0, -n_gam);
@@ -904,57 +891,56 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	gsl_matrix_set(J, 1, 3, -n_del);
 
 	gsl_matrix_set(J, 0, 4, -n_mu);
-	gsl_matrix_set(J, 1, 5, -n_mu);
+	gsl_matrix_set(J, 1, 4,  n_mu);
+	gsl_matrix_set(J, 1, 5,  n_mu);
 
-	gsl_matrix_set(J, 0, 6, -n_lav);
-	gsl_matrix_set(J, 1, 7, -n_lav);
-
-
-	// Equal chemical potential in gamma phase (Cr, Nb)
-	gsl_matrix_set(J, 2, 0,  d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-	gsl_matrix_set(J, 2, 1,  d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-	gsl_matrix_set(J, 3, 0,  d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-	gsl_matrix_set(J, 3, 1,  d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+	gsl_matrix_set(J, 0, 6,  n_lav);
+	gsl_matrix_set(J, 0, 7,  n_lav);
+	gsl_matrix_set(J, 1, 6, -n_lav);
 
 
-	// Equal chemical potential in delta phase (Cr, Nb)
-	const double J22 = -d2g_del_dxCrCr(C_del_Cr, C_del_Nb);
-	const double J23 = -d2g_del_dxCrNb(C_del_Cr, C_del_Nb);
-	const double J32 = -d2g_del_dxNbCr(C_del_Cr, C_del_Nb);
-	const double J33 = -d2g_del_dxNbNb(C_del_Cr, C_del_Nb);
+	// Equal chemical potential involving gamma phase (Cr, Nb, Ni)
+	const double J20 = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	const double J21 = d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	const double J30 = d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	const double J31 = d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	const double J50 = d2g_gam_dxNiCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	const double J51 = d2g_gam_dxNiNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	gsl_matrix_set(J, 2, 0, J20);
+	gsl_matrix_set(J, 2, 1, J21);
+	gsl_matrix_set(J, 3, 0, J30);
+	gsl_matrix_set(J, 3, 1, J31);
 
-	gsl_matrix_set(J, 2, 2,  J22);
-	gsl_matrix_set(J, 2, 3,  J23);
-	gsl_matrix_set(J, 3, 2,  J32);
-	gsl_matrix_set(J, 3, 3,  J33);
+	gsl_matrix_set(J, 4, 0, J20);
+	gsl_matrix_set(J, 4, 1, J21);
+	gsl_matrix_set(J, 5, 0, J50);
+	gsl_matrix_set(J, 5, 1, J51);
 
-	gsl_matrix_set(J, 4, 2, -J22);
-	gsl_matrix_set(J, 4, 3, -J23);
-	gsl_matrix_set(J, 5, 2, -J32);
-	gsl_matrix_set(J, 5, 3, -J33);
-
-
-	// Equal chemical potential in mu phase (Cr, Nb)
-	const double J44 = -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni);
-	const double J45 = -d2g_mu_dxCrNb();
-	const double J54 = -d2g_mu_dxNbCr();
-	const double J55 = -d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni);
-	gsl_matrix_set(J, 4, 4,  J44);
-	gsl_matrix_set(J, 4, 5,  J45);
-	gsl_matrix_set(J, 5, 4,  J54);
-	gsl_matrix_set(J, 5, 5,  J55);
-
-	gsl_matrix_set(J, 6, 4, -J44);
-	gsl_matrix_set(J, 6, 5, -J45);
-	gsl_matrix_set(J, 7, 4, -J54);
-	gsl_matrix_set(J, 7, 5, -J55);
+	gsl_matrix_set(J, 6, 0, J30);
+	gsl_matrix_set(J, 6, 1, J31);
+	gsl_matrix_set(J, 7, 0, J50);
+	gsl_matrix_set(J, 7, 1, J51);
 
 
-	// Equal chemical potential in Laves phase (Cr, Nb)
-	gsl_matrix_set(J, 6, 6,  d2g_lav_dxCrCr());
-	gsl_matrix_set(J, 6, 7,  d2g_lav_dxCrNb());
-	gsl_matrix_set(J, 7, 6,  d2g_lav_dxNbCr());
-	gsl_matrix_set(J, 7, 7,  d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
+	// Equal chemical potential involving delta phase (Cr, Nb)
+	gsl_matrix_set(J, 2, 2,-d2g_del_dxCrCr(C_del_Cr, C_del_Nb));
+	gsl_matrix_set(J, 2, 3,-d2g_del_dxCrNb(C_del_Cr, C_del_Nb));
+	gsl_matrix_set(J, 3, 2,-d2g_del_dxNbCr(C_del_Cr, C_del_Nb));
+	gsl_matrix_set(J, 3, 3,-d2g_del_dxNbNb(C_del_Cr, C_del_Nb));
+
+
+	// Equal chemical potential involving mu phase (Cr, Ni)
+	gsl_matrix_set(J, 4, 4,-d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
+	gsl_matrix_set(J, 4, 5,-d2g_mu_dxCrNi(C_mu_Cr, C_mu_Nb, C_mu_Ni));
+	gsl_matrix_set(J, 5, 4,-d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
+	gsl_matrix_set(J, 5, 5,-d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni));
+
+
+	// Equal chemical potential involving Laves phase (Nb, Ni)
+	gsl_matrix_set(J, 6, 6,-d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
+	gsl_matrix_set(J, 6, 7,-d2g_lav_dxNbNi(C_lav_Nb, C_lav_Ni));
+	gsl_matrix_set(J, 7, 6,-d2g_lav_dxNiNb(C_lav_Nb, C_lav_Ni));
+	gsl_matrix_set(J, 7, 7,-d2g_lav_dxNiNi(C_lav_Nb, C_lav_Ni));
 
 	return GSL_SUCCESS;
 }
@@ -987,11 +973,11 @@ rootsolver::rootsolver() :
 	 * methods reference (human or paper) to get your system of equations sorted.
 	 */
 	#ifndef JACOBIAN
-	algorithm = gsl_multiroot_fsolver_hybrid; // hybrids, hybrid, dnewton, broyden
+	algorithm = gsl_multiroot_fsolver_hybrids; // hybrids, hybrid, dnewton, broyden
 	solver = gsl_multiroot_fsolver_alloc(algorithm, n);
 	mrf = {&commonTangent_f, n, &par};
 	#else
-	algorithm = gsl_multiroot_fdfsolver_hybridj; // gnewton, hybrid, hybrids, newton
+	algorithm = gsl_multiroot_fdfsolver_hybridsj; // hybridsj, hybridj, newton, gnewton
 	solver = gsl_multiroot_fdfsolver_alloc(algorithm, n);
 	mrf = {&commonTangent_f, &commonTangent_df, &commonTangent_fdf, n, &par};
 	#endif
@@ -1003,6 +989,18 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	int status;
 	size_t iter = 0;
 
+	// Prepare variables
+	MMSP::vector<double> C(x->size, 0.0);
+
+	C[0] = static_cast<double>(GRID(n)[5]);                      // gamma Cr
+	C[1] = static_cast<double>(GRID(n)[6]);                      //       Nb
+	C[2] = static_cast<double>(GRID(n)[7]);                      // delta Cr
+	C[3] = static_cast<double>(GRID(n)[8]);                      //       Nb
+	C[4] = static_cast<double>(GRID(n)[9]);                      // mu    Cr
+	C[5] = static_cast<double>(1.0 - GRID(n)[9] - GRID(n)[10]);  //       Ni
+	C[6] = static_cast<double>(GRID(n)[12]);                     // Laves Nb
+	C[7] = static_cast<double>(1.0 - GRID(n)[11] - GRID(n)[12]); //       Ni
+
 	// initial guesses
 	par.x_Cr = GRID(n)[0];
 	par.x_Nb = GRID(n)[1];
@@ -1011,14 +1009,8 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	par.n_mu =  h(fabs(GRID(n)[3]));
 	par.n_lav = h(fabs(GRID(n)[4]));
 
-	gsl_vector_set(x, 0, GRID(n)[5]);
-	gsl_vector_set(x, 1, GRID(n)[6]);
-	gsl_vector_set(x, 2, GRID(n)[7]);
-	gsl_vector_set(x, 3, GRID(n)[8]);
-	gsl_vector_set(x, 4, GRID(n)[9]);
-	gsl_vector_set(x, 5, GRID(n)[10]);
-	gsl_vector_set(x, 6, GRID(n)[11]);
-	gsl_vector_set(x, 7, GRID(n)[12]);
+	for (int i=0; i<x->size; i++)
+		gsl_vector_set(x, i, C[i]);
 
 	#ifndef JACOBIAN
 	gsl_multiroot_fsolver_set(solver, &mrf, x);
@@ -1038,15 +1030,21 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status==GSL_CONTINUE && iter<maxiter);
 
-	for (int i=0; i<x->size; i++) {
-		// Kick stray values into (0, 1)
-		double C = gsl_vector_get(solver->x, i);
-		if (C<0.0)
-			C = epsilon;
-		if (C>1.0)
-			C = 1.0-epsilon;
+	GRID(n)[5] = static_cast<T>(C[0]);               // gamma Cr
+	GRID(n)[6] = static_cast<T>(C[1]);               //       Nb
+	GRID(n)[7] = static_cast<T>(C[2]);               // delta Cr
+	GRID(n)[8] = static_cast<T>(C[3]);               //       Nb
+	GRID(n)[9] = static_cast<T>(C[4]);               // mu    Cr
+	GRID(n)[10] = static_cast<T>(1.0 - C[4] - C[5]); //       Nb
+	GRID(n)[11] = static_cast<T>(1.0 - C[6] - C[7]); // Laves Cr
+	GRID(n)[12] = static_cast<T>(C[6]);              //       Nb
 
-		GRID(n)[i+NC+NP-1] = static_cast<T>(C);
+	for (int i=NC+NP-1; i<fields(GRID); i++) {
+		// Kick stray values into (0, 1)
+		if (GRID(n)[i]<0.0)
+			GRID(n)[i] = epsilon;
+		if (GRID(n)[i]>1.0)
+			GRID(n)[i] = 1.0-epsilon;
 	}
 
 	double residual = gsl_blas_dnrm2(solver->f);
@@ -1080,15 +1078,15 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	T C_gam_Nb = GRID(n)[6];
 	T C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
-	T C_del_Cr = GRID(n)[5];
-	T C_del_Nb = GRID(n)[6];
+	T C_del_Cr = GRID(n)[7];
+	T C_del_Nb = GRID(n)[8];
 
-	T C_mu_Cr = GRID(n)[5];
-	T C_mu_Nb = GRID(n)[6];
+	T C_mu_Cr = GRID(n)[9];
+	T C_mu_Nb = GRID(n)[10];
 	T C_mu_Ni = 1.0 - C_mu_Cr - C_mu_Nb;
 
-	T C_lav_Cr = GRID(n)[5];
-	T C_lav_Nb = GRID(n)[6];
+	T C_lav_Cr = GRID(n)[11];
+	T C_lav_Nb = GRID(n)[12];
 	T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
 	std::cout<<"\nValues at ("<<x[0]<<','<<x[1]<<"):\n";
@@ -1096,27 +1094,27 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 
 	std::cout<<"Equations at ("<<x[0]<<','<<x[1]<<"):\n";
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n",
-	xCr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr,
-	xNb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb,
+	xCr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr,
+	xNb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb,
 	dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb),
 	dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb),
-	dg_del_dxCr(C_del_Cr, C_del_Nb) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
-	dg_del_dxNb(C_del_Cr, C_del_Nb) - dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni),
-	dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxCr(),
-	dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
+	dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	dg_gam_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni),
+	dg_gam_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNi(C_lav_Nb, C_lav_Ni));
 
 	std::cout<<"Jacobian at ("<<x[0]<<','<<x[1]<<"):\n";
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav, 0.0);
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, -n_gam, 0.0, -n_del, 0.0, -n_mu, 0.0, -n_lav);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -n_gam,    0.0, -n_del,    0.0, -n_mu,  0.0,  n_lav, n_lav);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n",    0.0, -n_gam,    0.0, -n_del,  n_mu, n_mu, -n_lav,   0.0);
 
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxCrCr(C_del_Cr, C_del_Nb), -d2g_del_dxCrNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxNbCr(C_del_Cr, C_del_Nb), -d2g_del_dxNbNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
 
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, 0.0, d2g_del_dxCrCr(C_del_Cr, C_del_Nb), d2g_del_dxCrNb(C_del_Cr, C_del_Nb), -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_mu_dxCrNb(), 0.0, 0.0);
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, 0.0, d2g_del_dxNbCr(C_del_Cr, C_del_Nb), d2g_del_dxNbNb(C_del_Cr, C_del_Nb), -d2g_mu_dxNbCr(), -d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni), 0.0, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), 0.0, 0.0, -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_mu_dxCrNi(C_mu_Cr, C_mu_Nb, C_mu_Ni), 0.0, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),   -d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),     0.0, 0.0, -d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni), 0.0, 0.0);
 
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), d2g_mu_dxCrNb(), -d2g_lav_dxCrCr(), -d2g_lav_dxCrNb());
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", 0.0, 0.0, 0.0, 0.0, d2g_mu_dxNbCr(), d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_lav_dxNbCr(), -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), 0.0, 0.0, 0.0, 0.0, -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni), -d2g_lav_dxNbNi(C_lav_Nb, C_lav_Ni));
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNiCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNiNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), 0.0, 0.0, 0.0, 0.0, -d2g_lav_dxNiNb(C_lav_Nb, C_lav_Ni), -d2g_lav_dxNiNi(C_lav_Nb, C_lav_Ni));
 }
 
 #endif
