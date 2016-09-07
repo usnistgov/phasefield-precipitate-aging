@@ -14,10 +14,6 @@ typedef MMSP::grid<3,MMSP::vector<double> > GRID3D;
 double h(const double p);
 double hprime(const double p);
 
-// Double well potential
-double g(const double p);
-double gprime(const double p);
-
 // Gibbs free energy density
 double gibbs(const MMSP::vector<double>& v);
 

@@ -98,9 +98,9 @@ const double L_del = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
 const double L_mu  = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
 const double L_lav = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
 
-const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m^3)
-const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m^3)
-const double kappa_lav = 1.24e-8; // gradient energy coefficient (J/m^3)
+const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m)
+const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m)
+const double kappa_lav = 1.24e-8; // gradient energy coefficient (J/m)
 
 const double omega_del = 1.49e9;  // multiwell height (m^2/Nsm^2)
 const double omega_mu  = 1.49e9;  // multiwell height (m^2/Nsm^2)
@@ -109,8 +109,8 @@ const double omega_lav = 1.49e9;  // multiwell height (m^2/Nsm^2)
 // Numerical considerations
 const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
 const double epsilon = 1.0e-10;   // what to consider zero to avoid log(c) explosions
-const double dtp = (meshres*meshres)/(40.0*kappa_del); // transformation-limited timestep
-const double dtc = (meshres*meshres)/(40.0*Vm*Vm*M_Cr); // diffusion-limited timestep
+const double dtp = (meshres*meshres)/(8.0*kappa_del); // transformation-limited timestep
+const double dtc = (meshres*meshres)/(8.0*Vm*Vm*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
 
 namespace MMSP
@@ -156,8 +156,8 @@ void generate(int dim, const char* filename)
 		// Mu should dissolve kinetically.
 		//                            delta               mu                  Laves
 		//const double rPrecip[NP-1] = {1.2*dx(initGrid,0), 1.6*dx(initGrid,0), 1.6*dx(initGrid,0)};
-		//const double rPrecip[NP-1] = {3*dx(initGrid,0), 4*dx(initGrid,0), 4*dx(initGrid,0)};
-		const double rPrecip[NP-1] = {6*dx(initGrid,0), 8*dx(initGrid,0), 8*dx(initGrid,0)};
+		//const double rPrecip[NP-1] = {3.0*dx(initGrid,0), 4.0*dx(initGrid,0), 4.0*dx(initGrid,0)};
+		const double rPrecip[NP-1] = {7.0*dx(initGrid,0), 9.0*dx(initGrid,0), 11.0*dx(initGrid,0)};
 
 		// depletion region surrounding precipitates
 		double rDepltCr[NP-1] = {0.0};
@@ -276,24 +276,27 @@ void generate(int dim, const char* filename)
 
 		ghostswap(initGrid);
 
+		#ifndef MPI_VERSION
+		#pragma omp parallel for
+		#endif
 		for (int n=0; n<nodes(initGrid); n++) {
-			vector<double> gradPhiSq_del = gradient(initGrid, x, 2);
-			vector<double> gradPhiSq_mu  = gradient(initGrid, x, 3);
-			vector<double> gradPhiSq_lav = gradient(initGrid, x, 4);
+			vector<double> gradPhi_del = gradient(initGrid, x, 2);
+			vector<double> gradPhi_mu  = gradient(initGrid, x, 3);
+			vector<double> gradPhi_lav = gradient(initGrid, x, 4);
 
 			double myCr = initGrid(n)[0];
 			double myNb = initGrid(n)[1];
-			double myf = dV*(gibbs(initGrid(n)) + kappa_del*(gradPhiSq_del*gradPhiSq_del)
-			                                    + kappa_mu* (gradPhiSq_mu* gradPhiSq_mu)
-			                                    + kappa_lav*(gradPhiSq_lav*gradPhiSq_lav));
+			double myf = dV*(gibbs(initGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
+			                                    + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
+			                                    + kappa_lav * (gradPhi_lav * gradPhi_lav));
 
 			#ifndef MPI_VERSION
 			#pragma omp critical
 			{
 			#endif
-				totCr += myCr;             // total Cr mass
-				totNb += myNb;             // total Nb mass
-				totF += myf;               // total free energy
+				totCr += myCr; // total Cr mass
+				totNb += myNb; // total Nb mass
+				totF += myf;   // total free energy
 			#ifndef MPI_VERSION
 			}
 			#endif
@@ -309,8 +312,8 @@ void generate(int dim, const char* filename)
 		double myCr(totCr);
 		double myNb(totNb);
 		double myF(totF);
-		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myCr, &totCr, 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myNb, &totNb, 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myF,  &totF,  1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
 
@@ -375,9 +378,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		#pragma omp parallel for
 		#endif
 		for (int n=0; n<nodes(oldGrid); n++) {
-			T C_gam_Cr = oldGrid(n)[5];
-			T C_gam_Nb = oldGrid(n)[6];
-			T C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
+			const T& C_gam_Cr = oldGrid(n)[5];
+			const T& C_gam_Nb = oldGrid(n)[6];
+			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
 			chemGrid(n)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 			chemGrid(n)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
@@ -388,8 +391,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		double totCr = 0.0;
 		double totNb = 0.0;
 		double totF  = 0.0;
-		double maxUp = 0.0;
-		double maxUc = 0.0;
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -452,22 +453,22 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			double df_dphi_del = sign(phi_del) * (-hprime(fabs(phi_del))*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
 			                                      +hprime(fabs(phi_del))*g_del(C_del_Cr, C_del_Nb)
-			                                      -2.0*omega_del*phi_del*phi_del*(1.0-fabs(phi_del))
-			                    ) + 2.0*omega_del*phi_del*pow(1.0-fabs(phi_del),2)
+			                                      -2.0*omega_del*phi_del*phi_del*(1.0-fabs(phi_del)))
+			                    + 2.0*omega_del*phi_del*pow(1.0-fabs(phi_del),2)
 			                    + alpha*fabs(phi_del)*(phi_mu*phi_mu + phi_lav*phi_lav);
 
 
 			double df_dphi_mu = sign(phi_mu) * (-hprime(fabs(phi_mu))*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
 			                                   + hprime(fabs(phi_mu))*g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni)
-			                                   - 2.0*omega_mu*phi_mu*phi_mu*(1.0-fabs(phi_mu))
-			                    ) + 2.0*omega_mu*phi_mu*pow(1.0-fabs(phi_mu),2)
+			                                   - 2.0*omega_mu*phi_mu*phi_mu*(1.0-fabs(phi_mu)))
+			                    + 2.0*omega_mu*phi_mu*pow(1.0-fabs(phi_mu),2)
 			                    + alpha*fabs(phi_mu)*(phi_del*phi_del + phi_lav*phi_lav);
 
 
 			double df_dphi_lav = sign(phi_lav) * (-hprime(fabs(phi_lav))*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
 			                                     + hprime(fabs(phi_lav))*g_lav(C_lav_Nb, C_lav_Ni)
-			                                     - 2.0*omega_lav*phi_lav*phi_lav*(1.0-fabs(phi_lav))
-			                    ) + 2.0*omega_lav*phi_lav*pow(1.0-fabs(phi_lav),2)
+			                                     - 2.0*omega_lav*phi_lav*phi_lav*(1.0-fabs(phi_lav)))
+			                    + 2.0*omega_lav*phi_lav*pow(1.0-fabs(phi_lav),2)
 			                    + alpha*fabs(phi_lav)*(phi_del*phi_del + phi_mu*phi_mu);
 
 
@@ -510,41 +511,46 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			CommonTangentSolver.solve(newGrid, n);
 
 
-			/* ====================================================================== *
-			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
-			 * ====================================================================== */
-
-			vector<double> gradPhiSq_del = gradient(newGrid, x, 2); // Note: gradPhiSq != gradSqPhi
-			vector<double> gradPhiSq_mu  = gradient(newGrid, x, 3);
-			vector<double> gradPhiSq_lav = gradient(newGrid, x, 4);
-
-			double myCr = newGrid(n)[0];
-			double myNb = newGrid(n)[1];
-			double myf = dV*(gibbs(newGrid(n)) + kappa_del*(gradPhiSq_del*gradPhiSq_del)
-			                                   + kappa_mu *(gradPhiSq_mu* gradPhiSq_mu)
-			                                   + kappa_lav*(gradPhiSq_lav*gradPhiSq_lav));
-			//double myUp = std::max(newGrid(n)[0]-oldGrid(n)[0], newGrid(n)[1]-oldGrid(n)[1]) / meshres;
-			//double myUc = std::max(newGrid(n)[2]-oldGrid(n)[2], std::max(newGrid(n)[3]-oldGrid(n)[3], newGrid(n)[4]-oldGrid(n)[4])) / meshres;
-
-			#ifndef MPI_VERSION
-			#pragma omp critical
-			{
-			#endif
-				totCr += myCr;             // total Cr mass
-				totNb += myNb;             // total Nb mass
-				totF  += myf;               // total free energy
-				//maxUp = std::max(maxUp, myUp);
-				//maxUc = std::max(maxUc, myUc);
-			#ifndef MPI_VERSION
-			}
-			#endif
-
 			/* ======= *
 			 * ~ fin ~ *
 			 * ======= */
 		}
 		swap(oldGrid,newGrid);
 		ghostswap(oldGrid);
+
+
+		/* ====================================================================== *
+		 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
+		 * ====================================================================== */
+
+		#ifndef MPI_VERSION
+		#pragma omp parallel for
+		#endif
+		for (int n=0; n<nodes(oldGrid); n++) {
+			vector<int> x = position(oldGrid,n);
+
+			vector<double> gradPhi_del = gradient(newGrid, x, 2);
+			vector<double> gradPhi_mu  = gradient(newGrid, x, 3);
+			vector<double> gradPhi_lav = gradient(newGrid, x, 4);
+
+			double myCr = newGrid(n)[0];
+			double myNb = newGrid(n)[1];
+			double myf = dV*(gibbs(newGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
+			                                   + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
+			                                   + kappa_lav * (gradPhi_lav * gradPhi_lav));
+
+			#ifndef MPI_VERSION
+			#pragma omp critical
+			{
+			#endif
+				totCr += myCr; // total Cr mass
+				totNb += myNb; // total Nb mass
+				totF  += myf;  // total free energy
+			#ifndef MPI_VERSION
+			}
+			#endif
+
+		}
 
 		totCr /= Ntot;
 		totNb /= Ntot;
@@ -553,30 +559,19 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		double myCr(totCr);
 		double myNb(totNb);
 		double myF(totF);
-		//double myUp(maxUp);
-		//double myUc(maxUc);
 		MPI::COMM_WORLD.Reduce(&myCr, &totCr, 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myNb, &totNb, 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myF,  &totF,  1, MPI_DOUBLE, MPI_SUM, 0);
-		//MPI::COMM_WORLD.Allreduce(&myUp, &maxUp, 1, MPI_DOUBLE, MPI_MAX);
-		//MPI::COMM_WORLD.Allreduce(&myUc, &maxUc, 1, MPI_DOUBLE, MPI_MAX);
 		#endif
 		if (rank==0)
 			cfile<<totCr<<'\t'<<totNb<<'\t'<<totF<<std::endl;
-		/*
-		if (maxUp>1.0 || maxUc > 1.0) {// don't exceed the speed limit
-			if (rank==0) {
-				std::cerr<<"Error: speed limit exceeded (u_phi="<<maxUp<<", u_c="<<maxUc<<"). Aborting."<<std::endl;
-			}
-			MMSP::Abort(-1);
-		}
-		*/
 	}
 	if (rank==0)
 		cfile.close();
 
-	//print_matrix(oldGrid, nodes(oldGrid)/2);
-	print_matrix(oldGrid, 0);
+	print_matrix(oldGrid, nodes(oldGrid)/2);
+	//print_matrix(oldGrid, 0);
+
 	print_values(oldGrid);
 }
 
@@ -593,7 +588,7 @@ double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const doub
 
 double bellCurve(double x, double m, double s)
 {
-	return std::exp( -std::pow(x-m,2.0)/(2.0*s*s) );
+	return std::exp(-std::pow(x-m,2.0) / (2.0*s*s));
 }
 
 // Initial guesses for gamma, mu, and delta equilibrium compositions
@@ -602,8 +597,6 @@ void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 {
 	const T& xcr = fabs(GRID(n)[0]);
 	const T& xnb = fabs(GRID(n)[1]);
-	//GRID(n)[5] = -0.45*(xnb-0.075)/0.075;
-	//GRID(n)[6] = xnb;
 	// if it's inside the gamma field, don't change it
 	bool below_upper = (xcr < -0.45*(xnb-0.075)/0.075);
 	bool nb_rich = (xnb > 0.075);
@@ -633,8 +626,6 @@ void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 template<int dim,typename T>
 void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	//GRID(n)[9] = 0.02;
-	//GRID(n)[10] = 0.5;
 	const T& xcr = fabs(GRID(n)[0]);
 	const T& xnb = fabs(GRID(n)[1]);
 	// if it's inside the mu field, don't change it
@@ -661,8 +652,6 @@ void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_
 template<int dim,typename T>
 void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	//GRID(n)[11] = 0.332;
-	//GRID(n)[12] = 0.334;
 	const T& xcr = fabs(GRID(n)[0]);
 	const T& xnb = fabs(GRID(n)[1]);
 	// if it's inside the Laves field, don't change it
@@ -761,29 +750,23 @@ double h(const double p)
 
 double hprime(const double p)
 {
-	return 2.0*p * (8.0*p*p*p*sign(p) + 32.0*p*p*fabs(p) - 15.0*p*p - 15.0*p*fabs(p)*sign(p) + 5.0*p*sign(p) + 10.0*fabs(p) );
-}
-
-double g(const double p)
-{
-	return pow(p,2.0) * pow(1.0-p,2.0);
-}
-
-double gprime(const double p)
-{
-	return 2.0*p * (1.0-p)*(1.0-2.0*p);
+	return 2.0*p * (sign(p)*(8.0*p*p*p - 15.0*p*fabs(p) + 5.0*p) + 32.0*p*p*fabs(p) - 15.0*p*p + 10.0*fabs(p) );
 }
 
 double gibbs(const MMSP::vector<double>& v)
 {
-	double g  = g_gam(v[0],v[1],1.0-v[0]-v[1]) * (1.0 - h(fabs(v[2])) - h(fabs(v[3])) - h(fabs(v[4])));
-	       g += g_del(v[0],v[1]) * h(fabs(v[2]));
-	       g += g_mu( v[0],v[1],1.0-v[0]-v[1]) * h(fabs(v[3]));
-	       g += g_lav(v[1],1.0-v[0]-v[1]) * h(fabs(v[4]));
-	       g += omega_del * v[2]*v[2] * (1.0 - fabs(v[2]))*(1.0 - fabs(v[2]));
-	       g += omega_mu  * v[3]*v[3] * (1.0 - fabs(v[3]))*(1.0 - fabs(v[3]));
-	       g += omega_lav * v[4]*v[4] * (1.0 - fabs(v[4]))*(1.0 - fabs(v[4]));
-	for (int i=NC; i<NC+NP-1; i++)
+	double n_del = h(fabs(v[2]));
+	double n_mu  = h(fabs(v[3]));
+	double n_lav = h(fabs(v[4]));
+	double n_gam = 1.0 - n_del - n_mu - n_lav;
+	double g  = n_gam * g_gam(v[5],v[6],1.0-v[5]-v[6]);
+	       g += n_del * g_del(v[7],v[8]);
+	       g += n_mu * g_mu( v[9],v[10],1.0-v[9]-v[10]);
+	       g += n_lav * g_lav(v[12],1.0-v[11]-v[12]);
+	       g += omega_del * v[2]*v[2] * pow(1.0 - fabs(v[2]), 2);
+	       g += omega_mu  * v[3]*v[3] * pow(1.0 - fabs(v[3]), 2);
+	       g += omega_lav * v[4]*v[4] * pow(1.0 - fabs(v[4]), 2);
+	for (int i=NC; i<NC+NP-2; i++)
 		for (int j=i+1; j<NC+NP-1; j++)
 			g += 2.0 * alpha * v[i]*v[i] * v[j]*v[j];
 
