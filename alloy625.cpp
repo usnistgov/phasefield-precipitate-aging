@@ -73,10 +73,12 @@
  */
 
 
-// Define equilibrium phase compositions at global scope
-//                     gamma  delta    mu     laves
-const double xCr[NP] = {0.30, 0.00625, 0.025, 0.32};
-const double xNb[NP] = {0.02, 0.25,    0.525, 0.33};
+// Define equilibrium phase compositions at global scope. Gamma is nominally 30% Cr, 2% Nb,
+// but microsegregation should deplete that somewhat. Compare against the reported total
+// system composition and adjust gamma accordingly in the following arrays.
+//                     gamma       delta    mu     laves   Enriched gamma
+const double xCr[NP+1] = {0.2995, 0.00625, 0.025, 0.32,   0.31};
+const double xNb[NP+1] = {0.0122,    0.25, 0.525, 0.33,   0.13};
 const double xCrdep = 0.9*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
 const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
@@ -109,8 +111,8 @@ const double omega_lav = 1.49e9;  // multiwell height (m^2/Nsm^2)
 // Numerical considerations
 const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
 const double epsilon = 1.0e-10;   // what to consider zero to avoid log(c) explosions
-const double dtp = (meshres*meshres)/(8.0*kappa_del); // transformation-limited timestep
-const double dtc = (meshres*meshres)/(8.0*Vm*Vm*M_Cr); // diffusion-limited timestep
+const double dtp = (meshres*meshres)/(4.0*kappa_del); // transformation-limited timestep
+const double dtc = (meshres*meshres)/(4.0*Vm*Vm*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
 
 namespace MMSP
@@ -187,12 +189,12 @@ void generate(int dim, const char* filename)
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
 		for (x[0]=x0(initGrid); x[0]<x1(initGrid); x[0]++) {
-			double matrixCr = //0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], 0,                   bell[0]*dx(initGrid,0)*Nx);
-			                0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[0]*dx(initGrid,0)*Nx);
-			                //+ 0.25*xCr[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[0]*dx(initGrid,0)*Nx);
-			double matrixNb = //xNb[0]*bellCurve(dx(initGrid,0)*x[0], 0,                   bell[1]*dx(initGrid,0)*Nx);
-			                xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[1]*dx(initGrid,0)*Nx);
-			                //+ xNb[0]*bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[1]*dx(initGrid,0)*Nx);
+			double matrixCr = (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[0]*dx(initGrid,0)*Nx); // centerline
+			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                   bell[0]*dx(initGrid,0)*Nx);   // left wall
+			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[0]*dx(initGrid,0)*Nx);   // right wall
+			double matrixNb = (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[1]*dx(initGrid,0)*Nx); // centerline
+			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                   bell[1]*dx(initGrid,0)*Nx);   // left wall
+			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[1]*dx(initGrid,0)*Nx);   // right wall
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
 				initGrid(x)[0] = matrixCr + xCr[0]; //  + xCr[0]*init_amp*real_gen(mt_rand);
@@ -1053,11 +1055,11 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	GRID(n)[12] = static_cast<T>(C[6]);              //       Nb
 
 	for (int i=NC+NP-1; i<fields(GRID); i++) {
-		// Kick stray values into (0, 1)
-		if (GRID(n)[i]<0.0)
-			GRID(n)[i] = epsilon;
-		if (GRID(n)[i]>1.0)
-			GRID(n)[i] = 1.0-epsilon;
+		// Kick stray values back in range
+		if (GRID(n)[i]<-0.5)
+			GRID(n)[i] = -0.5+epsilon;
+		if (GRID(n)[i]>1.5)
+			GRID(n)[i] = 1.5-epsilon;
 	}
 
 	double residual = gsl_blas_dnrm2(solver->f);
