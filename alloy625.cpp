@@ -77,16 +77,14 @@
 // but microsegregation should deplete that somewhat. Compare against the reported total
 // system composition and adjust gamma accordingly in the following arrays.
 //                     gamma       delta    mu     laves   Enriched gamma
-const double xCr[NP+1] = {0.2995, 0.00625, 0.025, 0.32,   0.31};
-const double xNb[NP+1] = {0.0122,    0.25, 0.525, 0.33,   0.13};
-const double xCrdep = 0.9*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
-const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
+const double xCr[NP+1] = {0.2945,  0.00625, 0.025, 0.32,   0.31};
+const double xNb[NP+1] = {0.00254,    0.25, 0.525, 0.33,   0.13};
+const double xCrdep = 0.500*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
+const double xNbdep = 0.875*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                         Cr      Nb
-const double bell[NC] = {0.0625, 0.025};
-const double noise_amp = 1.0e-6;
-const double init_amp = 1.0e-6;
+const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
 const double meshres = 5.0e-9;    // grid spacing (m)
@@ -95,24 +93,41 @@ const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
 const double M_Cr = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
 const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
+/*
+const double M_Cr = 1.6e-11;      // mobility in FCC Ni (mol^2/Nsm^2)
+const double M_Nb = 1.7e-12;      // mobility in FCC Ni (mol^2/Nsm^2)
+*/
 
 const double L_del = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
 const double L_mu  = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
 const double L_lav = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
+/*
+const double L_del = 2.904e-6;   // numerical mobility (m^2/Nsm^2)
+const double L_mu  = 2.904e-6;   // numerical mobility (m^2/Nsm^2)
+const double L_lav = 2.904e-6;   // numerical mobility (m^2/Nsm^2)
+*/
 
 const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_lav = 1.24e-8; // gradient energy coefficient (J/m)
 
-const double omega_del = 1.49e9;  // multiwell height (m^2/Nsm^2)
-const double omega_mu  = 1.49e9;  // multiwell height (m^2/Nsm^2)
-const double omega_lav = 1.49e9;  // multiwell height (m^2/Nsm^2)
+const double sigma_del = 1.01;    // J/m^2
+const double sigma_mu  = 1.01;    // J/m^2
+const double sigma_lav = 1.01;    // J/m^2
+
+const double omega_del = 18.0 * sigma_del*sigma_del / kappa_del; // 1.49e9;  // multiwell height (m^2/Nsm^2)
+const double omega_mu  = 18.0 * sigma_mu *sigma_mu  / kappa_mu;  // 1.49e9;  // multiwell height (m^2/Nsm^2)
+const double omega_lav = 18.0 * sigma_lav*sigma_lav / kappa_lav; // 1.49e9;  // multiwell height (m^2/Nsm^2)
 
 // Numerical considerations
 const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
-const double epsilon = 1.0e-10;   // what to consider zero to avoid log(c) explosions
-const double dtp = (meshres*meshres)/(4.0*kappa_del); // transformation-limited timestep
-const double dtc = (meshres*meshres)/(4.0*Vm*Vm*M_Cr); // diffusion-limited timestep
+const double epsilon = 1.0e-12;   // what to consider zero to avoid log(c) explosions
+const double noise_amp = 0.0;     //1.0e-8;
+const double init_amp = 0.0;      // 1.0e-8;
+
+const double CFL = 1.0/425.0;     // numerical stability
+const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
+const double dtc = CFL*(meshres*meshres)/(4.0*Vm*Vm*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
 
 namespace MMSP
@@ -141,7 +156,7 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		// Construct grid
-		const int Nx = 192; // divisible by 12 and 32
+		const int Nx = 192; // divisible by 12 and 64
 		const int Ny = 192;
 		double dV = 1.0;
 		double Ntot = 1.0;
@@ -162,7 +177,8 @@ void generate(int dim, const char* filename)
 		//                            delta               mu                  Laves
 		//const double rPrecip[NP-1] = {1.2*7.5e-9, 1.6*7.5e-9, 1.6*7.5e-9};
 		//const double rPrecip[NP-1] = {3.0*5e-9, 4.0*5e-9, 4.0*5e-9};
-		const double rPrecip[NP-1] = {1.0*7.5e-9, 1.5*7.5e-9, 2.0*7.5e-9};
+		const double rPrecip[NP-1] = {2.0*7.5e-9, 2.0*7.5e-9, 2.0*7.5e-9};
+
 
 		// depletion region surrounding precipitates
 		double rDepltCr[NP-1] = {0.0};
@@ -175,9 +191,9 @@ void generate(int dim, const char* filename)
 
 		// Sanity check on system size and  particle spacing
 		if (rank==0 && dtp < dtc)
-			std::cout<<"Timestep (dt="<<dt<<") is transformation limited."<<std::endl;
+			std::cout<<"Timestep (dt="<<dt<<") is transformation limited (diffusion-limited dt="<<dtc<<")."<<std::endl;
 		else if (rank==0 && dtc < dtp)
-			std::cout<<"Timestep (dt="<<dt<<") is diffusion limited."<<std::endl;
+			std::cout<<"Timestep (dt="<<dt<<") is diffusion limited (transformation-limited dt="<<dtp<<")."<<std::endl;
 
 		for (int i=0; i<NP-1; i++) {
 			double rmax = std::max(rDepltCr[i]/dx(initGrid,0), rDepltNb[i]/dx(initGrid,0));
@@ -189,12 +205,14 @@ void generate(int dim, const char* filename)
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
 		for (x[0]=x0(initGrid); x[0]<x1(initGrid); x[0]++) {
-			double matrixCr = (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[0]*dx(initGrid,0)*Nx); // centerline
-			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                   bell[0]*dx(initGrid,0)*Nx);   // left wall
-			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[0]*dx(initGrid,0)*Nx);   // right wall
-			double matrixNb = (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx/2, bell[1]*dx(initGrid,0)*Nx); // centerline
-			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                   bell[1]*dx(initGrid,0)*Nx);   // left wall
-			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,   bell[1]*dx(initGrid,0)*Nx);   // right wall
+			double matrixCr = (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2), bell[0]); // centerline
+			//    matrixCr += 0.5*(xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2 + 10), bell[0]); // centerline
+			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                          bell[0]);   // left wall
+			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[0]);   // right wall
+			double matrixNb = (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2), bell[1]); // centerline
+			//    matrixNb += 0.5*(xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2 + 10), bell[1]); // centerline
+			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                          bell[1]);   // left wall
+			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[1]);   // right wall
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
 				initGrid(x)[0] = matrixCr + xCr[0]; //  + xCr[0]*init_amp*real_gen(mt_rand);
@@ -212,51 +230,52 @@ void generate(int dim, const char* filename)
 		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
 		if (1) {
 			vector<int> origin(2, 0);
-			const int xoffset = 25;
-			const int yoffset = Ny/7;
+			const int xoffset = 16;
+			const int yoffset = Ny/6;
+
 			int j = 0;
 			// Initialize delta precipitates
 			origin[0] = Nx / 2;
-			origin[1] = Ny - yoffset;
+			origin[1] = Ny - yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, 1.0 - epsilon);
-			origin[0] = Nx/2;
-			origin[1] = Ny - 3*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 			origin[0] = Nx/2 + xoffset;
-			origin[1] = Ny - 5*yoffset;
+			origin[1] = Ny - 5*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			origin[0] = Nx/2;
+			origin[1] = Ny - 3*yoffset + yoffset/2;
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 			origin[0] = Nx/2 - xoffset;
-			origin[1] = Ny - 6*yoffset;
+			origin[1] = Ny - 6*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 
 			// Initialize mu precipitates
 			j = 1;
 			origin[0] = Nx / 2;
-			origin[1] = Ny - 2*yoffset;
+			origin[1] = Ny - 2*yoffset + yoffset/2;
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			origin[0] = Nx/2 - xoffset;
+			origin[1] = Ny - 4*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			origin[0] = Nx/2 + xoffset;
-			origin[1] = Ny - 3*yoffset;
+			origin[1] = Ny - 3*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
-			origin[0] = Nx/2 - xoffset;
-			origin[1] = Ny - 4*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			origin[0] = Nx/2;
-			origin[1] = Ny - 5*yoffset;
+			origin[1] = Ny - 5*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 
 			// Initialize Laves precipitates
 			j = 2;
 			origin[0] = Nx/2 + xoffset;
-			origin[1] = Ny - yoffset;
+			origin[1] = Ny - yoffset + yoffset/2;
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			origin[0] = Nx/2;
+			origin[1] = Ny - 4*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			origin[0] = Nx/2 - xoffset;
-			origin[1] = Ny - 2*yoffset;
+			origin[1] = Ny - 2*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 			origin[0] = Nx/2;
-			origin[1] = Ny - 4*yoffset;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
-			origin[0] = Nx/2;
-			origin[1] = Ny - 6*yoffset;
+			origin[1] = Ny - 6*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
 		}
 
@@ -291,9 +310,9 @@ void generate(int dim, const char* filename)
 
 			double myCr = initGrid(n)[0];
 			double myNb = initGrid(n)[1];
-			double myDel = dV*initGrid(n)[2];
-			double myMu  = dV*initGrid(n)[3];
-			double myLav = dV*initGrid(n)[4];
+			double myDel = fabs(initGrid(n)[2]);
+			double myMu  = fabs(initGrid(n)[3]);
+			double myLav = fabs(initGrid(n)[4]);
 			double myf = dV*(gibbs(initGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                    + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 			                                    + kappa_lav * (gradPhi_lav * gradPhi_lav));
@@ -555,9 +574,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			double myCr = oldGrid(n)[0];
 			double myNb = oldGrid(n)[1];
-			double myDel = dV*oldGrid(n)[2];
-			double myMu  = dV*oldGrid(n)[3];
-			double myLav = dV*oldGrid(n)[4];
+			double myDel = fabs(oldGrid(n)[2]);
+			double myMu  = fabs(oldGrid(n)[3]);
+			double myLav = fabs(oldGrid(n)[4]);
 			double myf = dV*(gibbs(oldGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                   + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 			                                   + kappa_lav * (gradPhi_lav * gradPhi_lav));
@@ -596,7 +615,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
 		if (rank==0)
-			cfile<<totCr<<'\t'<<totNb<<'\t'<<totDel<<'\t'<<totMu<<'\t'<<totLav<<'\t'<<totF<<std::endl;
+			cfile<<totCr<<'\t'<<totNb<<'\t'<<totDel<<'\t'<<totMu<<'\t'<<totLav<<'\t'<<totF<<'\n';
 	}
 	if (rank==0)
 		cfile.close();
@@ -726,6 +745,9 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
 				GRID(x)[0] = xCr;
 				GRID(x)[1] = xNb;
 				GRID(x)[pid] = phi;
+			} else if (fabs(GRID(x)[2]) + fabs(GRID(x)[3]) + fabs(GRID(x)[4])>epsilon) {
+				// Don't deplete neighboring precipitates, only matrix
+				continue;
 			} else {
 				if (r<rdpltCr) { // point falls within Cr depletion region
 					T dxCr = xCrdep - xCrdep*(r-rprcp)/(rdpltCr-rprcp);
@@ -793,7 +815,7 @@ double gibbs(const MMSP::vector<double>& v)
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
 	double g  = n_gam * g_gam(v[5],v[6],1.0-v[5]-v[6]);
 	       g += n_del * g_del(v[7],v[8]);
-	       g += n_mu * g_mu( v[9],v[10],1.0-v[9]-v[10]);
+	       g += n_mu  * g_mu( v[9],v[10],1.0-v[9]-v[10]);
 	       g += n_lav * g_lav(v[12],1.0-v[11]-v[12]);
 	       g += omega_del * v[2]*v[2] * pow(1.0 - fabs(v[2]), 2);
 	       g += omega_mu  * v[3]*v[3] * pow(1.0 - fabs(v[3]), 2);
@@ -1054,13 +1076,15 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	GRID(n)[11] = static_cast<T>(1.0 - C[6] - C[7]); // Laves Cr
 	GRID(n)[12] = static_cast<T>(C[6]);              //       Nb
 
+	/*
 	for (int i=NC+NP-1; i<fields(GRID); i++) {
 		// Kick stray values back in range
-		if (GRID(n)[i]<-0.5)
-			GRID(n)[i] = -0.5+epsilon;
-		if (GRID(n)[i]>1.5)
-			GRID(n)[i] = 1.5-epsilon;
+		if (GRID(n)[i]<-2.0)
+			GRID(n)[i] = -2.0+epsilon;
+		if (GRID(n)[i]>2.0)
+			GRID(n)[i] = 2.0-epsilon;
 	}
+	*/
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
