@@ -76,11 +76,11 @@
 // Define equilibrium phase compositions at global scope. Gamma is nominally 30% Cr, 2% Nb,
 // but microsegregation should deplete that somewhat. Compare against the reported total
 // system composition and adjust gamma accordingly in the following arrays.
-//                     gamma       delta    mu     laves   Enriched gamma
+//                        gamma    delta    mu     laves   Enriched gamma
 const double xCr[NP+1] = {0.2945,  0.00625, 0.025, 0.32,   0.31};
 const double xNb[NP+1] = {0.00254,    0.25, 0.525, 0.33,   0.13};
-const double xCrdep = 0.500*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
-const double xNbdep = 0.875*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
+const double xCrdep = 0.5*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
+const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                         Cr      Nb
@@ -150,12 +150,12 @@ void generate(int dim, const char* filename)
 	std::mt19937_64 mt_rand(time(NULL)+rank);
 	std::uniform_real_distribution<double> real_gen(-1,1);
 
-	double totCr = 0.0;
-	double totNb = 0.0;
+	double totCr  = 0.0;
+	double totNb  = 0.0;
 	double totDel = 0.0;
 	double totMu  = 0.0;
 	double totLav = 0.0;
-	double totF  = 0.0;
+	double totF   = 0.0;
 
 	std::ofstream cfile;
 	if (rank==0)
@@ -182,9 +182,10 @@ void generate(int dim, const char* filename)
 		// Seed delta to dissolve deliberately.
 		// Mu should dissolve kinetically.
 		//                            delta               mu                  Laves
-		//const double rPrecip[NP-1] = {1.2*7.5e-9, 1.6*7.5e-9, 1.6*7.5e-9};
-		//const double rPrecip[NP-1] = {3.0*5e-9, 4.0*5e-9, 4.0*5e-9};
-		const double rPrecip[NP-1] = {2.0*7.5e-9, 2.0*7.5e-9, 2.0*7.5e-9};
+		//const double rPrecip[NP-1] = {1.2*7.5e-9 / dx(initGrid,0), 1.6*7.5e-9 / dx(initGrid,0), 1.6*7.5e-9 / dx(initGrid,0)};
+		//const double rPrecip[NP-1] = {3.0*5e-9 / dx(initGrid,0), 4.0*5e-9 / dx(initGrid,0), 4.0*5e-9 / dx(initGrid,0)};
+		//const double rPrecip[NP-1] = {2.0*7.5e-9 / dx(initGrid,0), 2.0*7.5e-9 / dx(initGrid,0), 2.0*7.5e-9 / dx(initGrid,0)};
+		const double rPrecip[NP-1] = {4.0*7.5e-9 / dx(initGrid,0), 4.0*7.5e-9 / dx(initGrid,0), 4.0*7.5e-9 / dx(initGrid,0)};
 
 
 		// depletion region surrounding precipitates
@@ -203,9 +204,13 @@ void generate(int dim, const char* filename)
 			std::cout<<"Timestep (dt="<<dt<<") is diffusion limited (transformation-limited dt="<<dtp<<")."<<std::endl;
 
 		for (int i=0; i<NP-1; i++) {
-			double rmax = std::max(rDepltCr[i]/dx(initGrid,0), rDepltNb[i]/dx(initGrid,0));
+			/*
+			double rmax = std::max(rDepltCr[i], rDepltNb[i]);
 			if (rmax > Ny/2)
 				std::cerr<<"Warning: domain too small to accommodate phase "<<i<<", expand beyond "<<2.0*rmax<<" pixels."<<std::endl;
+			*/
+			if (rPrecip[i] > Ny/2)
+				std::cerr<<"Warning: domain too small to accommodate phase "<<i<<", expand beyond "<<2.0*rPrecip[i]<<" pixels."<<std::endl;
 		}
 
 		vector<int> x(2, 0);
@@ -237,8 +242,8 @@ void generate(int dim, const char* filename)
 		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
 		if (1) {
 			vector<int> origin(2, 0);
-			const int xoffset = 16;
-			const int yoffset = Ny/6;
+			const int xoffset = 16 * (5.0e-9 / meshres); // 80 nm
+			const int yoffset = 32 * (5.0e-9 / meshres); // 160 nm
 
 			int j = 0;
 			// Initialize delta precipitates
@@ -284,6 +289,22 @@ void generate(int dim, const char* filename)
 			origin[0] = Nx/2;
 			origin[1] = Ny - 6*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
+
+			/*
+			const int xoffset = 16*5.0e-9/meshres;
+			int j = 0;
+			origin[0] = Nx / 2;
+			origin[1] = Ny / 2;
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+
+			j = 1;
+			origin[0] = Nx / 2 - xoffset;
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+
+			j = 2;
+			origin[0] = Nx / 2 + xoffset;
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			*/
 		}
 
 		#ifndef MPI_VERSION
@@ -740,19 +761,23 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
                 const double& xCrdep, const double& xNbdep, const T phi)
 {
 	MMSP::vector<int> x(origin);
-	double Rmax = std::max(rdpltCr, rdpltNb) / dx(GRID, 0);
-	for (x[0] = origin[0]-Rmax; x[0] <= origin[0]+Rmax; x[0]++) {
+	//double Rmax = std::max(rdpltCr, rdpltNb);
+	//for (x[0] = origin[0]-Rmax; x[0] <= origin[0]+Rmax; x[0]++) {
+	for (x[0] = origin[0]-rprcp; x[0] <= origin[0]+rprcp; x[0]++) {
 		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 			continue;
-		for (x[1] = origin[1]-Rmax; x[1] <= origin[1]+Rmax; x[1]++) {
+		//for (x[1] = origin[1]-Rmax; x[1] <= origin[1]+Rmax; x[1]++) {
+		for (x[1] = origin[1]-rprcp; x[1] <= origin[1]+rprcp; x[1]++) {
 			if (x[1] < y0(GRID) || x[1] >= y1(GRID))
 				continue;
-			const double r = radius(origin, x, dx(GRID,0));
+			const double r = radius(origin, x, 1);
 			if (r < rprcp) { // point falls within particle
 				GRID(x)[0] = xCr;
 				GRID(x)[1] = xNb;
 				GRID(x)[pid] = phi;
-			} else if (fabs(GRID(x)[2]) + fabs(GRID(x)[3]) + fabs(GRID(x)[4])>epsilon) {
+			}
+			/*
+			else if (fabs(GRID(x)[2]) + fabs(GRID(x)[3]) + fabs(GRID(x)[4])>epsilon) {
 				// Don't deplete neighboring precipitates, only matrix
 				continue;
 			} else {
@@ -765,6 +790,7 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
 					GRID(x)[1] = std::max(xNbdep, GRID(x)[1]-dxNb);
 				}
 			}
+			*/
 		}
 	}
 }
