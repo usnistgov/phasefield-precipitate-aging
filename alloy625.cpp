@@ -115,9 +115,16 @@ const double sigma_del = 1.01;    // J/m^2
 const double sigma_mu  = 1.01;    // J/m^2
 const double sigma_lav = 1.01;    // J/m^2
 
+/*
 const double omega_del = 18.0 * sigma_del*sigma_del / kappa_del; // 1.49e9;  // multiwell height (m^2/Nsm^2)
 const double omega_mu  = 18.0 * sigma_mu *sigma_mu  / kappa_mu;  // 1.49e9;  // multiwell height (m^2/Nsm^2)
 const double omega_lav = 18.0 * sigma_lav*sigma_lav / kappa_lav; // 1.49e9;  // multiwell height (m^2/Nsm^2)
+*/
+const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
+const double half_ifce_width = 14.0*meshres; // ensure at least 7 points through the interface
+const double omega_del = 6.0 * width_factor * sigma_del / half_ifce_width; // 1.49e9;  // multiwell height (m^2/Nsm^2)
+const double omega_mu  = 6.0 * width_factor * sigma_del / half_ifce_width; // 1.49e9;  // multiwell height (m^2/Nsm^2)
+const double omega_lav = 6.0 * width_factor * sigma_del / half_ifce_width; // 1.49e9;  // multiwell height (m^2/Nsm^2)
 
 // Numerical considerations
 const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
