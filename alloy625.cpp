@@ -87,25 +87,16 @@ const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near pr
 const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
-const double meshres = 5.0e-9;    // grid spacing (m)
+const double meshres = 1.25e-9;    // grid spacing (m)
 const double Vm = 1.0e-5;         // molar volume (m^3/mol)
 const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
 const double M_Cr = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
 const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
-/*
-const double M_Cr = 1.6e-11;      // mobility in FCC Ni (mol^2/Nsm^2)
-const double M_Nb = 1.7e-12;      // mobility in FCC Ni (mol^2/Nsm^2)
-*/
 
 const double L_del = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
 const double L_mu  = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
 const double L_lav = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
-/*
-const double L_del = 2.904e-6;   // numerical mobility (m^2/Nsm^2)
-const double L_mu  = 2.904e-6;   // numerical mobility (m^2/Nsm^2)
-const double L_lav = 2.904e-6;   // numerical mobility (m^2/Nsm^2)
-*/
 
 const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m)
@@ -115,24 +106,19 @@ const double sigma_del = 1.01;    // J/m^2
 const double sigma_mu  = 1.01;    // J/m^2
 const double sigma_lav = 1.01;    // J/m^2
 
-/*
-const double omega_del = 18.0 * sigma_del*sigma_del / kappa_del; // 1.49e9;  // multiwell height (m^2/Nsm^2)
-const double omega_mu  = 18.0 * sigma_mu *sigma_mu  / kappa_mu;  // 1.49e9;  // multiwell height (m^2/Nsm^2)
-const double omega_lav = 18.0 * sigma_lav*sigma_lav / kappa_lav; // 1.49e9;  // multiwell height (m^2/Nsm^2)
-*/
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
-const double half_ifce_width = 14.0*meshres; // ensure at least 7 points through the interface
-const double omega_del = 6.0 * width_factor * sigma_del / half_ifce_width; // 1.49e9;  // multiwell height (m^2/Nsm^2)
-const double omega_mu  = 6.0 * width_factor * sigma_del / half_ifce_width; // 1.49e9;  // multiwell height (m^2/Nsm^2)
-const double omega_lav = 6.0 * width_factor * sigma_del / half_ifce_width; // 1.49e9;  // multiwell height (m^2/Nsm^2)
+const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
+const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
+const double omega_mu  = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
+const double omega_lav = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
 
 // Numerical considerations
-const bool   useNeumann = true;   // apply zero-flux boundaries (Neumann type)
+const bool   useNeumann = false;  // apply zero-flux boundaries (Neumann type)
 const double epsilon = 1.0e-12;   // what to consider zero to avoid log(c) explosions
-const double noise_amp = 0.0;     //1.0e-8;
+const double noise_amp = 0.0;     // 1.0e-8;
 const double init_amp = 0.0;      // 1.0e-8;
 
-const double CFL = 1.0/425.0;     // numerical stability
+const double CFL = 1.0/500.0;     // numerical stability
 const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
 const double dtc = CFL*(meshres*meshres)/(4.0*Vm*Vm*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
@@ -163,8 +149,8 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		// Construct grid
-		const int Nx = 192; // divisible by 12 and 64
-		const int Ny = 192;
+		const int Nx = 768; // divisible by 12 and 64
+		const int Ny = 768;
 		double dV = 1.0;
 		double Ntot = 1.0;
 		GRID2D initGrid(13, 0, Nx, 0, Ny);
@@ -178,14 +164,11 @@ void generate(int dim, const char* filename)
 			}
 		}
 
-		// precipitate radii: minimum for stability is 7.5 nm, or 1.5*dx.
-		// Seed delta to dissolve deliberately.
-		// Mu should dissolve kinetically.
-		//                            delta               mu                  Laves
-		//const double rPrecip[NP-1] = {1.2*7.5e-9 / dx(initGrid,0), 1.6*7.5e-9 / dx(initGrid,0), 1.6*7.5e-9 / dx(initGrid,0)};
-		//const double rPrecip[NP-1] = {3.0*5e-9 / dx(initGrid,0), 4.0*5e-9 / dx(initGrid,0), 4.0*5e-9 / dx(initGrid,0)};
-		//const double rPrecip[NP-1] = {2.0*7.5e-9 / dx(initGrid,0), 2.0*7.5e-9 / dx(initGrid,0), 2.0*7.5e-9 / dx(initGrid,0)};
-		const double rPrecip[NP-1] = {4.0*7.5e-9 / dx(initGrid,0), 4.0*7.5e-9 / dx(initGrid,0), 4.0*7.5e-9 / dx(initGrid,0)};
+		// Precipitate radii: minimum for stability is 7.5 nm, or 1.5*dx. Ensure that radius is greater than 7*dx, or the
+		// particle will dissolve as the initially sharp interface becomes diffuse. Numerical dissolution is unphysical.
+		const double rPrecip[NP-1] = {1.5*7.5e-9 / dx(initGrid,0),  // delta
+		                              1.5*7.5e-9 / dx(initGrid,0),  // mu
+		                              1.5*7.5e-9 / dx(initGrid,0)}; // Laves
 
 
 		// depletion region surrounding precipitates
@@ -217,18 +200,18 @@ void generate(int dim, const char* filename)
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
 		for (x[0]=x0(initGrid); x[0]<x1(initGrid); x[0]++) {
-			double matrixCr = (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2), bell[0]); // centerline
+			double matrixCr = (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2), bell[0]);          // centerline
 			//    matrixCr += 0.5*(xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2 + 10), bell[0]); // centerline
-			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                          bell[0]);   // left wall
-			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[0]);   // right wall
-			double matrixNb = (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2), bell[1]); // centerline
+			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                          bell[0]);     // left wall
+			//    matrixCr += (xCr[4]-xCr[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[0]);     // right wall
+			double matrixNb = (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2), bell[1]);          // centerline
 			//    matrixNb += 0.5*(xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*(Nx/2 + 10), bell[1]); // centerline
-			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                          bell[1]);   // left wall
-			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[1]);   // right wall
+			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], 0,                          bell[1]);     // left wall
+			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[1]);     // right wall
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-				initGrid(x)[0] = matrixCr + xCr[0]; //  + xCr[0]*init_amp*real_gen(mt_rand);
-				initGrid(x)[1] = matrixNb + xNb[0]; //  + xCr[0]*init_amp*real_gen(mt_rand);
+				initGrid(x)[0] = matrixCr + xCr[0] * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[1] = matrixNb + xNb[0] * (1.0 + init_amp*real_gen(mt_rand));
 
 				// tiny bit of noise to avoid zeros
 				for (int i=NC; i<NC+NP-1; i++)
@@ -240,13 +223,13 @@ void generate(int dim, const char* filename)
 
 
 		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
-		if (1) {
+		const int xoffset = 16 * (5.0e-9 / meshres); //  80 nm
+		const int yoffset = 32 * (5.0e-9 / meshres); // 160 nm
+		if (Ny > 5.5*yoffset) { // seed full pairwise pattern
 			vector<int> origin(2, 0);
-			const int xoffset = 16 * (5.0e-9 / meshres); // 80 nm
-			const int yoffset = 32 * (5.0e-9 / meshres); // 160 nm
 
-			int j = 0;
 			// Initialize delta precipitates
+			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, 1.0 - epsilon);
@@ -289,42 +272,65 @@ void generate(int dim, const char* filename)
 			origin[0] = Nx/2;
 			origin[1] = Ny - 6*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
+		} else { // seed one row with all phi>0
+			vector<int> origin(2, 0);
 
-			/*
-			const int xoffset = 16*5.0e-9/meshres;
+			// Initialize delta precipitates
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny / 2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 
+			// Initialize mu precipitates
 			j = 1;
 			origin[0] = Nx / 2 - xoffset;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 
+			// Initialize Laves precipitates
 			j = 2;
 			origin[0] = Nx / 2 + xoffset;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
-			*/
 		}
 
-		#ifndef MPI_VERSION
-		#pragma omp parallel for
-		#endif
+
+		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
+		#ifdef MPI_VERSION
 		for (int n=0; n<nodes(initGrid); n++) {
-			// Initialize compositions... Not well configured for vectorization
 			guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
 			guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
 			guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
 			guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
 		}
+		#else
+		#pragma omp parallel for
+		for (int n=0; n<nodes(initGrid); n++) {
+			#pragma omp critical
+			{
+				guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+			}
+			#pragma omp critical
+			{
+				guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+			}
+			#pragma omp critical
+			{
+				guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+			}
+			#pragma omp critical
+			{
+				guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+			}
+		}
+		#endif
 
-		rootsolver CommonTangentSolver;
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
 		#endif
-		for (int n=0; n<nodes(initGrid); n++)
+		for (int n=0; n<nodes(initGrid); n++) {
+			rootsolver CommonTangentSolver;
 			CommonTangentSolver.solve(initGrid, n);
+		}
 
 		ghostswap(initGrid);
 
@@ -360,9 +366,6 @@ void generate(int dim, const char* filename)
 			#endif
 		}
 
-		//print_matrix(initGrid, nodes(initGrid)/2);
-		//print_matrix(initGrid, 0);
-
 		totCr /= Ntot;
 		totNb /= Ntot;
 
@@ -376,7 +379,7 @@ void generate(int dim, const char* filename)
 		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myDel, &totDel, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myMu , &totMu , 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myMu,  &totMu,  1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myLav, &totLav, 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
@@ -404,10 +407,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	ghostswap(oldGrid);
 	grid<dim,vector<T> > newGrid(oldGrid);
-	grid<dim,vector<T> > chemGrid(oldGrid, NC); // storage for chemical potentials
+	grid<dim,vector<T> > potGrid(oldGrid, NC); // storage for chemical potentials
 
 	// Construct the parallel tangent solver
-	rootsolver CommonTangentSolver;
 	std::mt19937_64 mt_rand(time(NULL)+rank);
 	std::uniform_real_distribution<double> real_gen(-1,1);
 
@@ -416,17 +418,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	for (int d=0; d<dim; d++) {
 		dx(oldGrid,d) = meshres;
 		dx(newGrid,d) = meshres;
-		dx(chemGrid,d) = meshres;
+		dx(potGrid,d) = meshres;
 		dV *= dx(oldGrid,d);
 		Ntot *= g1(oldGrid, d) - g0(oldGrid, d);
 		if (useNeumann && x0(oldGrid,d) == g0(oldGrid,d)) {
 			b0(oldGrid,d) = Neumann;
 			b0(newGrid,d) = Neumann;
-			b0(chemGrid,d) = Neumann;
+			b0(potGrid,d) = Neumann;
 		} else if (useNeumann && x1(oldGrid,d) == g1(oldGrid,d)) {
 			b1(oldGrid,d) = Neumann;
 			b1(newGrid,d) = Neumann;
-			b1(chemGrid,d) = Neumann;
+			b1(potGrid,d) = Neumann;
 		}
 	}
 
@@ -446,11 +448,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_gam_Nb = oldGrid(n)[6];
 			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
-			chemGrid(n)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			chemGrid(n)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			potGrid(n)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			potGrid(n)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 		}
 
-		ghostswap(chemGrid);
+		ghostswap(potGrid);
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -467,11 +469,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			const T& x_Cr     = oldGrid(n)[0]; // molar fraction of Cr + Mo
-			const T& x_Nb     = oldGrid(n)[1]; // molar fraction of Nb
+			const T& x_Cr = oldGrid(n)[0]; // molar fraction of Cr + Mo
+			const T& x_Nb = oldGrid(n)[1]; // molar fraction of Nb
 
-			double gradSqPot_Cr = laplacian(chemGrid, x, 0);
-			double gradSqPot_Nb = laplacian(chemGrid, x, 1);
+			double gradSqPot_Cr = laplacian(potGrid, x, 0);
+			double gradSqPot_Nb = laplacian(potGrid, x, 1);
 
 			newGrid(n)[0] = x_Cr + dt * Vm*Vm * M_Cr * gradSqPot_Cr;
 			newGrid(n)[1] = x_Nb + dt * Vm*Vm * M_Nb * gradSqPot_Nb;
@@ -558,16 +560,42 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Guess at parallel tangent compositions *
 			 * ====================================== */
 
+			#ifdef MPI_VERSION
 			guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
 			guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
 			guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
 			guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
+			#else
+			#pragma omp critical
+			{
+				guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
+			}
+			#pragma omp critical
+			{
+				guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
+			}
+			#pragma omp critical
+			{
+				guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
+			}
+			#pragma omp critical
+			{
+				guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
+			}
+			#endif
+			/*
+			// It's possible the previous concentration is already the best guess -- let them evolve, instead of resetting each time?
+			// Historically, this does not work well...
+			for (int i=NC+NP-1; i<fields(oldGrid); i++)
+				newGrid(n)[i] = oldGrid(n)[i];
+			*/
 
 
 			/* =========================== *
 			 * Solve for parallel tangents *
 			 * =========================== */
 
+			rootsolver CommonTangentSolver;
 			CommonTangentSolver.solve(newGrid, n);
 
 
@@ -613,12 +641,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			#pragma omp critical
 			{
 			#endif
-				totCr += myCr; // total Cr mass
-				totNb += myNb; // total Nb mass
+				totCr  += myCr;  // total Cr mass
+				totNb  += myNb;  // total Nb mass
 				totDel += myDel; // total delta volume
 				totMu  += myMu;  // total mu volume
 				totLav += myLav; // total Laves volume
-				totF  += myf;  // total free energy
+				totF   += myf;   // total free energy
 			#ifndef MPI_VERSION
 			}
 			#endif
@@ -638,7 +666,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myDel, &totDel, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myMu , &totMu , 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myMu,  &totMu,  1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myLav, &totLav, 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
@@ -648,10 +676,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	if (rank==0)
 		cfile.close();
 
-	//print_matrix(oldGrid, nodes(oldGrid)/2);
-	//print_matrix(oldGrid, 0);
-
-	//print_values(oldGrid);
 }
 
 
@@ -761,13 +785,11 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
                 const double& xCrdep, const double& xNbdep, const T phi)
 {
 	MMSP::vector<int> x(origin);
-	//double Rmax = std::max(rdpltCr, rdpltNb);
-	//for (x[0] = origin[0]-Rmax; x[0] <= origin[0]+Rmax; x[0]++) {
-	for (x[0] = origin[0]-rprcp; x[0] <= origin[0]+rprcp; x[0]++) {
+	double R = rprcp; //std::max(rdpltCr, rdpltNb);
+	for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
 		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 			continue;
-		//for (x[1] = origin[1]-Rmax; x[1] <= origin[1]+Rmax; x[1]++) {
-		for (x[1] = origin[1]-rprcp; x[1] <= origin[1]+rprcp; x[1]++) {
+		for (x[1] = origin[1] - R; x[1] <= origin[1] + R; x[1]++) {
 			if (x[1] < y0(GRID) || x[1] >= y1(GRID))
 				continue;
 			const double r = radius(origin, x, 1);
@@ -1028,7 +1050,7 @@ int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matr
 rootsolver::rootsolver() :
 	n(8), // eight equations
 	maxiter(1000),
-	tolerance(1.0e-12)
+	tolerance(std::min(epsilon, 1.0e-12))
 {
 	x = gsl_vector_alloc(n);
 
@@ -1064,10 +1086,13 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 
 	C[0] = static_cast<double>(GRID(n)[5]);                      // gamma Cr
 	C[1] = static_cast<double>(GRID(n)[6]);                      //       Nb
+
 	C[2] = static_cast<double>(GRID(n)[7]);                      // delta Cr
 	C[3] = static_cast<double>(GRID(n)[8]);                      //       Nb
+
 	C[4] = static_cast<double>(GRID(n)[9]);                      // mu    Cr
 	C[5] = static_cast<double>(1.0 - GRID(n)[9] - GRID(n)[10]);  //       Ni
+
 	C[6] = static_cast<double>(GRID(n)[12]);                     // Laves Nb
 	C[7] = static_cast<double>(1.0 - GRID(n)[11] - GRID(n)[12]); //       Ni
 
@@ -1102,22 +1127,15 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 
 	GRID(n)[5] = static_cast<T>(C[0]);               // gamma Cr
 	GRID(n)[6] = static_cast<T>(C[1]);               //       Nb
+
 	GRID(n)[7] = static_cast<T>(C[2]);               // delta Cr
 	GRID(n)[8] = static_cast<T>(C[3]);               //       Nb
+
 	GRID(n)[9] = static_cast<T>(C[4]);               // mu    Cr
 	GRID(n)[10] = static_cast<T>(1.0 - C[4] - C[5]); //       Nb
+
 	GRID(n)[11] = static_cast<T>(1.0 - C[6] - C[7]); // Laves Cr
 	GRID(n)[12] = static_cast<T>(C[6]);              //       Nb
-
-	/*
-	for (int i=NC+NP-1; i<fields(GRID); i++) {
-		// Kick stray values back in range
-		if (GRID(n)[i]<-2.0)
-			GRID(n)[i] = -2.0+epsilon;
-		if (GRID(n)[i]>2.0)
-			GRID(n)[i] = 2.0-epsilon;
-	}
-	*/
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
@@ -1142,7 +1160,7 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	T xNb = GRID(n)[1];
 
 	T n_del = h(fabs(GRID(n)[2]));
-	T n_mu =  h(fabs(GRID(n)[3]));
+	T n_mu  = h(fabs(GRID(n)[3]));
 	T n_lav = h(fabs(GRID(n)[4]));
 	T n_gam = 1.0 - n_del - n_mu - n_lav;
 
