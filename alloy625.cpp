@@ -113,7 +113,7 @@ const double omega_mu  = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8; 
 const double omega_lav = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
 
 // Numerical considerations
-const bool   useNeumann = false;  // apply zero-flux boundaries (Neumann type)
+const bool   useNeumann = true;  // apply zero-flux boundaries (Neumann type)?
 const double epsilon = 1.0e-12;   // what to consider zero to avoid log(c) explosions
 const double noise_amp = 0.0;     // 1.0e-8;
 const double init_amp = 0.0;      // 1.0e-8;
@@ -150,7 +150,8 @@ void generate(int dim, const char* filename)
 	if (dim==2) {
 		// Construct grid
 		const int Nx = 768; // divisible by 12 and 64
-		const int Ny = 768;
+		//const int Ny = 768;
+		const int Ny = 48;
 		double dV = 1.0;
 		double Ntot = 1.0;
 		GRID2D initGrid(13, 0, Nx, 0, Ny);
@@ -479,17 +480,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			newGrid(n)[1] = x_Nb + dt * Vm*Vm * M_Nb * gradSqPot_Nb;
 
 
-			/* ============================== *
-			 * Kick stray values into (0, 1) *
-			 * ============================== */
-
-			for (int i=0; i<NC; i++) {
-				if (newGrid(n)[i] < 0.0)
-					newGrid(n)[i] = epsilon;
-				if (newGrid(n)[i] > 1.0)
-					newGrid(n)[i] = 1.0 - epsilon;
-			}
-
 			/* ======================================== *
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
@@ -583,12 +573,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
 			}
 			#endif
-			/*
-			// It's possible the previous concentration is already the best guess -- let them evolve, instead of resetting each time?
-			// Historically, this does not work well...
-			for (int i=NC+NP-1; i<fields(oldGrid); i++)
-				newGrid(n)[i] = oldGrid(n)[i];
-			*/
 
 
 			/* =========================== *
