@@ -15,10 +15,10 @@
 #include<cmath>
 #include<random>
 #include<gsl/gsl_blas.h>
+#include<gsl/gsl_math.h>
+#include<gsl/gsl_roots.h>
 #include<gsl/gsl_vector.h>
 #include<gsl/gsl_multiroots.h>
-#include<gsl/gsl_interp2d.h>
-#include<gsl/gsl_spline2d.h>
 
 #include"MMSP.hpp"
 #include"alloy625.hpp"
@@ -114,9 +114,14 @@ const double omega_lav = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool   useNeumann = true;  // apply zero-flux boundaries (Neumann type)?
-const double epsilon = 1.0e-12;   // what to consider zero to avoid log(c) explosions
-const double noise_amp = 0.0;     // 1.0e-8;
-const double init_amp = 0.0;      // 1.0e-8;
+const double epsilon = 1.0e-12;  // what to consider zero to avoid log(c) explosions
+const double noise_amp = 0.0;    // 1.0e-8;
+const double init_amp = 0.0;     // 1.0e-8;
+
+const double root_tol = sqrt(epsilon); // residual tolerance (default is 1e-7)
+const double phase_tol = 0.001;  // coefficient of error (default is 0.001)
+const int root_max_iter = 1000;  // default is 1000, increasing probably won't change anything but your runtime
+
 
 const double CFL = 1.0/500.0;     // numerical stability
 const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
@@ -276,6 +281,7 @@ void generate(int dim, const char* filename)
 		} else { // seed one row with all phi>0
 			vector<int> origin(2, 0);
 
+			/*
 			// Initialize delta precipitates
 			int j = 0;
 			origin[0] = Nx / 2;
@@ -291,6 +297,23 @@ void generate(int dim, const char* filename)
 			j = 2;
 			origin[0] = Nx / 2 + xoffset;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			*/
+
+			// Initialize delta stripe
+			int j = 0;
+			origin[0] = Nx / 2;
+			origin[1] = Ny / 2;
+			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+
+			// Initialize mu stripe
+			j = 1;
+			origin[0] = Nx / 2 - xoffset;
+			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+
+			// Initialize Laves stripe
+			j = 2;
+			origin[0] = Nx / 2 + xoffset;
+			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 		}
 
 
@@ -538,11 +561,25 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Kick stray values into (-1, 1) *
 			 * ============================== */
 
-			for (int i=NC; i<NC+NP-1; i++) {
-				if (newGrid(n)[i] < -1.0)
-					newGrid(n)[i] = -1.0 + epsilon;
-				if (newGrid(n)[i] > 1.0)
-					newGrid(n)[i] = 1.0 - epsilon;
+			double phFrac[NP] = {0.0};
+			phFrac[0] = 1.0;
+			for (int i=1; i<NP; i++) {
+				phFrac[i] = h(newGrid(n)[NC+i-1]);
+				phFrac[0] -= phFrac[i];
+			}
+
+			if (phFrac[0] < 0.0 || phFrac[0] > 1.0) {
+				double nsum = fabs(phFrac[0]);
+				for (int i=1; i<NP; i++)
+					nsum += phFrac[i];
+				nsum = (nsum > epsilon) ? 1.0/nsum : 0.0;
+
+				// Renormalize and find values of phi satisfying the new fractions
+				phasekicker kicker;
+				for (int i=1; i<NP; i++) {
+					phFrac[i] *= nsum;
+					kicker.kick(phFrac[i], newGrid(n)[NC+i-1]);
+				}
 			}
 
 
@@ -770,6 +807,7 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
 {
 	MMSP::vector<int> x(origin);
 	double R = rprcp; //std::max(rdpltCr, rdpltNb);
+
 	for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
 		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 			continue;
@@ -797,6 +835,26 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
 				}
 			}
 			*/
+		}
+	}
+}
+
+template<typename T>
+void embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& origin, const int pid,
+                const double rprcp, const double rdpltCr, const double rdpltNb,
+                const T& xCr, const T& xNb,
+                const double& xCrdep, const double& xNbdep, const T phi)
+{
+	MMSP::vector<int> x(origin);
+	double R = rprcp; //std::max(rdpltCr, rdpltNb);
+
+	for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
+		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+			continue;
+		for (x[1] = y0(GRID); x[1] < y1(GRID); x[1]++) {
+			GRID(x)[0] = xCr;
+			GRID(x)[1] = xNb;
+			GRID(x)[pid] = phi;
 		}
 	}
 }
@@ -848,9 +906,9 @@ double hprime(const double p)
 
 double gibbs(const MMSP::vector<double>& v)
 {
-	double n_del = h(fabs(v[2]));
-	double n_mu  = h(fabs(v[3]));
-	double n_lav = h(fabs(v[4]));
+	double n_del = h(v[2]);
+	double n_mu  = h(v[3]);
+	double n_lav = h(v[4]);
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
 	double g  = n_gam * g_gam(v[5],v[6],1.0-v[5]-v[6]);
 	       g += n_del * g_del(v[7],v[8]);
@@ -1033,8 +1091,8 @@ int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matr
 
 rootsolver::rootsolver() :
 	n(8), // eight equations
-	maxiter(1000),
-	tolerance(std::min(epsilon, 1.0e-12))
+	maxiter(root_max_iter),
+	tolerance(root_tol)
 {
 	x = gsl_vector_alloc(n);
 
@@ -1049,11 +1107,13 @@ rootsolver::rootsolver() :
 	 * methods reference (human or paper) to get your system of equations sorted.
 	 */
 	#ifndef JACOBIAN
-	algorithm = gsl_multiroot_fsolver_hybrids; // hybrids, hybrid, dnewton, broyden
+	// Available algorithms are: hybrids, hybrid, dnewton, broyden (in order of *decreasing* efficiency)
+	algorithm = gsl_multiroot_fsolver_hybrids;
 	solver = gsl_multiroot_fsolver_alloc(algorithm, n);
 	mrf = {&commonTangent_f, n, &par};
 	#else
-	algorithm = gsl_multiroot_fdfsolver_hybridsj; // hybridsj, hybridj, newton, gnewton
+	// Available algorithms are: hybridsj, hybridj, newton, gnewton (in order of *decreasing* efficiency)
+	algorithm = gsl_multiroot_fdfsolver_hybridsj;
 	solver = gsl_multiroot_fdfsolver_alloc(algorithm, n);
 	mrf = {&commonTangent_f, &commonTangent_df, &commonTangent_fdf, n, &par};
 	#endif
@@ -1084,9 +1144,9 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	par.x_Cr = GRID(n)[0];
 	par.x_Nb = GRID(n)[1];
 
-	par.n_del = h(fabs(GRID(n)[2]));
-	par.n_mu =  h(fabs(GRID(n)[3]));
-	par.n_lav = h(fabs(GRID(n)[4]));
+	par.n_del = h(GRID(n)[2]);
+	par.n_mu =  h(GRID(n)[3]);
+	par.n_lav = h(GRID(n)[4]);
 
 	for (int i=0; i<x->size; i++)
 		gsl_vector_set(x, i, C[i]);
@@ -1109,17 +1169,39 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status==GSL_CONTINUE && iter<maxiter);
 
-	GRID(n)[5] = static_cast<T>(C[0]);               // gamma Cr
-	GRID(n)[6] = static_cast<T>(C[1]);               //       Nb
+	double sum = fabs(C[0]) + fabs(C[1]) + fabs(1.0 - C[0] - C[1]);
+	if (fabs(1.0 - sum) > epsilon) {
+		C[0] /= sum;
+		C[1] /= sum;
+	}
+	GRID(n)[5] = static_cast<T>(C[0]);      // gamma Cr
+	GRID(n)[6] = static_cast<T>(C[1]);      //       Nb
 
-	GRID(n)[7] = static_cast<T>(C[2]);               // delta Cr
-	GRID(n)[8] = static_cast<T>(C[3]);               //       Nb
+	sum = fabs(C[2]) + fabs(C[3]) + fabs(1.0 - C[2] - C[3]);
+	if (fabs(1.0 - sum) > epsilon) {
+		C[2] /= sum;
+		C[3] /= sum;
+	}
+	GRID(n)[7] = static_cast<T>(C[2]);      // delta Cr
+	GRID(n)[8] = static_cast<T>(C[3]);      //       Nb
 
-	GRID(n)[9] = static_cast<T>(C[4]);               // mu    Cr
-	GRID(n)[10] = static_cast<T>(1.0 - C[4] - C[5]); //       Nb
+	double C_mu_Nb = fabs(1.0 - C[4] - C[5]);
+	sum = fabs(C[4]) + fabs(C[5]) + C_mu_Nb;
+	if (fabs(1.0 - sum) > epsilon) {
+		C[4] /= sum;
+		C_mu_Nb /= sum;
+	}
+	GRID(n)[9] = static_cast<T>(C[4]);      // mu    Cr
+	GRID(n)[10] = static_cast<T>(C_mu_Nb);  //       Nb
 
-	GRID(n)[11] = static_cast<T>(1.0 - C[6] - C[7]); // Laves Cr
-	GRID(n)[12] = static_cast<T>(C[6]);              //       Nb
+	double C_lav_Cr = fabs(1.0 - C[6] - C[7]);
+	sum = fabs(C[6]) + fabs(C[7]) + C_lav_Cr;
+	if (fabs(1.0 - sum) > epsilon) {
+		C[6] /= sum;
+		C_lav_Cr /= sum;
+	}
+	GRID(n)[11] = static_cast<T>(C_lav_Cr); // Laves Cr
+	GRID(n)[12] = static_cast<T>(C[6]);     //       Nb
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
@@ -1136,6 +1218,71 @@ rootsolver::~rootsolver()
 	gsl_vector_free(x);
 }
 
+
+
+/* ========================================== *
+ * Invoke GSL to solve for valid phase fields *
+ * ========================================== */
+
+double phaseKicker_f(double x, void* params)
+{
+	double n = ((struct nparams*) params)->n;
+	return n - h(x);
+}
+
+phasekicker::phasekicker() :
+    maxiter(root_max_iter),
+    tolerance(phase_tol)
+{
+	// Available algorithms are: brent, falsepos, bisection (in order of *decreasing* efficiency)
+	algorithm = gsl_root_fsolver_brent;
+	solver = gsl_root_fsolver_alloc(algorithm);
+}
+
+
+phasekicker::~phasekicker()
+{
+	gsl_root_fsolver_free(solver);
+}
+
+template<typename T>
+int phasekicker::kick(const double& n, T& p)
+{
+	int status;
+	int iter = 0;
+	double x_lo = 0.0;
+	double x_hi = 1.0;
+	if (sign(p) < 0.0) {
+		// phi should not switch sign
+		x_lo = -1.0;
+		x_hi =  0.0;
+	}
+
+	par.n = n;
+	F.function = &phaseKicker_f;
+	F.params = &par;
+	double r = p;
+	gsl_root_fsolver_set(solver, &F, x_lo, x_hi);
+
+	do {
+		iter++;
+		status = gsl_root_fsolver_iterate(solver);
+		r = gsl_root_fsolver_root(solver);
+		x_lo = gsl_root_fsolver_x_lower(solver);
+		x_hi = gsl_root_fsolver_x_upper(solver);
+		status = gsl_root_test_interval(x_lo, x_hi, 0, tolerance);
+		if (status == GSL_SUCCESS)
+			break;
+	} while (status == GSL_CONTINUE && iter < maxiter);
+
+	if (status == GSL_SUCCESS)
+		p = r;
+
+	return status;
+}
+
+
+
 template<int dim,typename T>
 void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 {
@@ -1143,9 +1290,9 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	T xCr = GRID(n)[0];
 	T xNb = GRID(n)[1];
 
-	T n_del = h(fabs(GRID(n)[2]));
-	T n_mu  = h(fabs(GRID(n)[3]));
-	T n_lav = h(fabs(GRID(n)[4]));
+	T n_del = h(GRID(n)[2]);
+	T n_mu  = h(GRID(n)[3]);
+	T n_lav = h(GRID(n)[4]);
 	T n_gam = 1.0 - n_del - n_mu - n_lav;
 
 	T C_gam_Cr = GRID(n)[5];

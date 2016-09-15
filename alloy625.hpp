@@ -44,6 +44,12 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
                 const T& xCr, const T& xNb,
                 const double& xCrdep, const double& xNbdep, const T phi);
 
+template<typename T>
+void embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& origin, const int pid,
+                const double rprcp, const double rdpltCr, const double rdeplNb,
+                const T& xCr, const T& xNb,
+                const double& xCrdep, const double& xNbdep, const T phi);
+
 // Phi spans [-1,+1], need to know its sign without divide-by-zero errors
 
 void simple_progress(int step, int steps); // thread-compatible pared-down version of print_progress
@@ -53,6 +59,7 @@ void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID);
 
 template<int dim,typename T>
 void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n);
+
 
 /* Given const phase fractions (in gamma, mu, and delta)
  * and concentrations of Cr and Nb, iteratively determine the fictitious concentrations in each phase that
@@ -98,4 +105,30 @@ private:
 	gsl_multiroot_fdfsolver* solver;
 	gsl_multiroot_function_fdf mrf;
 	#endif
+};
+
+
+/* Solve for the phase field satisfying the given phase fraction */
+
+struct nparams {
+	double n;
+};
+
+double phaseKicker_f(double x, void* params);
+
+class phasekicker
+{
+public:
+	phasekicker();
+	~phasekicker();
+	template<typename T>
+	int kick(const double& n, T& p);
+
+private:
+	const size_t maxiter;
+	const double tolerance;
+	struct nparams par;
+	const gsl_root_fsolver_type* algorithm;
+	gsl_root_fsolver* solver;
+	gsl_function F;
 };
