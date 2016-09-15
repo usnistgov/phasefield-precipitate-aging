@@ -76,9 +76,9 @@
 // Define equilibrium phase compositions at global scope. Gamma is nominally 30% Cr, 2% Nb,
 // but microsegregation should deplete that somewhat. Compare against the reported total
 // system composition and adjust gamma accordingly in the following arrays.
-//                        gamma    delta    mu     laves   Enriched gamma
-const double xCr[NP+1] = {0.2945,  0.00625, 0.025, 0.32,   0.31};
-const double xNb[NP+1] = {0.00254,    0.25, 0.525, 0.33,   0.13};
+//                        gamma    delta     mu     laves    Enriched gamma
+const double xCr[NP+1] = {0.2945,  0.003125, 0.05,   0.325,  0.31};
+const double xNb[NP+1] = {0.00254, 0.24375,  0.4875, 0.2875, 0.05};
 const double xCrdep = 0.5*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
 const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
@@ -116,7 +116,7 @@ const double omega_lav = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8; 
 const bool   useNeumann = true;  // apply zero-flux boundaries (Neumann type)?
 const double epsilon = 1.0e-12;  // what to consider zero to avoid log(c) explosions
 const double noise_amp = 0.0;    // 1.0e-8;
-const double init_amp = 0.0;     // 1.0e-8;
+const double init_amp = sqrt(epsilon);     // 1.0e-8;
 
 const double root_tol = sqrt(epsilon); // residual tolerance (default is 1e-7)
 const double phase_tol = 0.001;  // coefficient of error (default is 0.001)
@@ -170,12 +170,11 @@ void generate(int dim, const char* filename)
 			}
 		}
 
-		// Precipitate radii: minimum for stability is 7.5 nm, or 1.5*dx. Ensure that radius is greater than 7*dx, or the
-		// particle will dissolve as the initially sharp interface becomes diffuse. Numerical dissolution is unphysical.
-		const double rPrecip[NP-1] = {1.5*7.5e-9 / dx(initGrid,0),  // delta
-		                              1.5*7.5e-9 / dx(initGrid,0),  // mu
-		                              1.5*7.5e-9 / dx(initGrid,0)}; // Laves
-
+		// Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
+		//                    minimum for numerical stability is 14*dx (due to interface width).
+		const double rPrecip[NP-1] = {1.0*7.5e-9 / dx(initGrid,0),  // delta
+		                              1.0*7.5e-9 / dx(initGrid,0),  // mu
+		                              1.0*7.5e-9 / dx(initGrid,0)}; // Laves
 
 		// depletion region surrounding precipitates
 		double rDepltCr[NP-1] = {0.0};
@@ -238,7 +237,7 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - yoffset + yoffset/2;
-			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, 1.0 - epsilon);
+			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 5*yoffset + yoffset/2;
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
@@ -352,6 +351,42 @@ void generate(int dim, const char* filename)
 		#pragma omp parallel for
 		#endif
 		for (int n=0; n<nodes(initGrid); n++) {
+
+			/* ============================== *
+			 * Kick stray values into (-1, 1) *
+			 * ============================== */
+
+			double phFrac[NP] = {1.0};
+			for (int i=1; i<NP; i++) {
+				phFrac[i] = h(initGrid(n)[NC+i-1]);
+				phFrac[0] -= phFrac[i];
+			}
+
+			if (phFrac[0] < 0.0) {
+				double rsum = 0.0;
+				for (int i=1; i<NP; i++)
+					rsum += phFrac[i];
+				rsum = (rsum > epsilon) ? 1.0/rsum : 0.0;
+
+				phasekicker kicker;
+				for (int i=1; i<NP; i++) {
+					phFrac[i] *= rsum;
+					kicker.kick(phFrac[i], initGrid(n)[NC+i-1]);
+				}
+			} else if (phFrac[0] > 1.0) {
+				double rsum = 1.0 / phFrac[0];
+				phasekicker kicker;
+				for (int i=1; i<NP; i++) {
+					phFrac[i] *= rsum;
+					kicker.kick(phFrac[i], initGrid(n)[NC+i-1]);
+				}
+			}
+
+
+			/* =========================== *
+			 * Solve for parallel tangents *
+			 * =========================== */
+
 			rootsolver CommonTangentSolver;
 			CommonTangentSolver.solve(initGrid, n);
 		}
@@ -368,9 +403,9 @@ void generate(int dim, const char* filename)
 
 			double myCr = initGrid(n)[0];
 			double myNb = initGrid(n)[1];
-			double myDel = fabs(initGrid(n)[2]);
-			double myMu  = fabs(initGrid(n)[3]);
-			double myLav = fabs(initGrid(n)[4]);
+			double myDel = h(initGrid(n)[2]);
+			double myMu  = h(initGrid(n)[3]);
+			double myLav = h(initGrid(n)[4]);
 			double myf = dV*(gibbs(initGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                    + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 			                                    + kappa_lav * (gradPhi_lav * gradPhi_lav));
@@ -526,23 +561,23 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_lav_Nb = oldGrid(n)[12]; // Nb molar fraction in pure Laves
 			const T  C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
-			double df_dphi_del = sign(phi_del) * (-hprime(fabs(phi_del))*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
-			                                      +hprime(fabs(phi_del))*g_del(C_del_Cr, C_del_Nb)
+			double df_dphi_del = sign(phi_del) * (-hprime(phi_del)*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
+			                                      +hprime(phi_del)*g_del(C_del_Cr, C_del_Nb)
 			                                      -2.0*omega_del*phi_del*phi_del*(1.0-fabs(phi_del)))
 			                    + 2.0*omega_del*phi_del*pow(1.0-fabs(phi_del),2)
 			                    + alpha*fabs(phi_del)*(phi_mu*phi_mu + phi_lav*phi_lav);
 
 
-			double df_dphi_mu = sign(phi_mu) * (-hprime(fabs(phi_mu))*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
-			                                   + hprime(fabs(phi_mu))*g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni)
-			                                   - 2.0*omega_mu*phi_mu*phi_mu*(1.0-fabs(phi_mu)))
+			double df_dphi_mu = sign(phi_mu) * (-hprime(phi_mu)*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
+			                                    +hprime(phi_mu)*g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni)
+			                                    -2.0*omega_mu*phi_mu*phi_mu*(1.0-fabs(phi_mu)))
 			                    + 2.0*omega_mu*phi_mu*pow(1.0-fabs(phi_mu),2)
 			                    + alpha*fabs(phi_mu)*(phi_del*phi_del + phi_lav*phi_lav);
 
 
-			double df_dphi_lav = sign(phi_lav) * (-hprime(fabs(phi_lav))*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
-			                                     + hprime(fabs(phi_lav))*g_lav(C_lav_Nb, C_lav_Ni)
-			                                     - 2.0*omega_lav*phi_lav*phi_lav*(1.0-fabs(phi_lav)))
+			double df_dphi_lav = sign(phi_lav) * (-hprime(phi_lav)*g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni)
+			                                      +hprime(phi_lav)*g_lav(C_lav_Nb, C_lav_Ni)
+			                                      -2.0*omega_lav*phi_lav*phi_lav*(1.0-fabs(phi_lav)))
 			                    + 2.0*omega_lav*phi_lav*pow(1.0-fabs(phi_lav),2)
 			                    + alpha*fabs(phi_lav)*(phi_del*phi_del + phi_mu*phi_mu);
 
@@ -561,23 +596,28 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Kick stray values into (-1, 1) *
 			 * ============================== */
 
-			double phFrac[NP] = {0.0};
-			phFrac[0] = 1.0;
+			double phFrac[NP] = {1.0};
 			for (int i=1; i<NP; i++) {
 				phFrac[i] = h(newGrid(n)[NC+i-1]);
 				phFrac[0] -= phFrac[i];
 			}
 
-			if (phFrac[0] < 0.0 || phFrac[0] > 1.0) {
-				double nsum = fabs(phFrac[0]);
+			if (phFrac[0] < 0.0) {
+				double rsum = 0.0;
 				for (int i=1; i<NP; i++)
-					nsum += phFrac[i];
-				nsum = (nsum > epsilon) ? 1.0/nsum : 0.0;
+					rsum += phFrac[i];
+				rsum = (rsum > epsilon) ? 1.0/rsum : 0.0;
 
-				// Renormalize and find values of phi satisfying the new fractions
 				phasekicker kicker;
 				for (int i=1; i<NP; i++) {
-					phFrac[i] *= nsum;
+					phFrac[i] *= rsum;
+					kicker.kick(phFrac[i], newGrid(n)[NC+i-1]);
+				}
+			} else if (phFrac[0] > 1.0) {
+				double rsum = 1.0 / phFrac[0];
+				phasekicker kicker;
+				for (int i=1; i<NP; i++) {
+					phFrac[i] *= rsum;
 					kicker.kick(phFrac[i], newGrid(n)[NC+i-1]);
 				}
 			}
@@ -587,6 +627,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Guess at parallel tangent compositions *
 			 * ====================================== */
 
+			/*
 			#ifdef MPI_VERSION
 			guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
 			guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
@@ -610,6 +651,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
 			}
 			#endif
+			*/
+			for (int i=NC+NP-1; i<fields(newGrid); i++)
+				newGrid(n)[i] = oldGrid(n)[i];
 
 
 			/* =========================== *
@@ -651,9 +695,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			double myCr = oldGrid(n)[0];
 			double myNb = oldGrid(n)[1];
-			double myDel = fabs(oldGrid(n)[2]);
-			double myMu  = fabs(oldGrid(n)[3]);
-			double myLav = fabs(oldGrid(n)[4]);
+			double myDel = h(oldGrid(n)[2]);
+			double myMu  = h(oldGrid(n)[3]);
+			double myLav = h(oldGrid(n)[4]);
 			double myf = dV*(gibbs(oldGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                   + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 			                                   + kappa_lav * (gradPhi_lav * gradPhi_lav));
@@ -719,8 +763,8 @@ double bellCurve(double x, double m, double s)
 template<int dim,typename T>
 void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T& xcr = fabs(GRID(n)[0]);
-	const T& xnb = fabs(GRID(n)[1]);
+	const T& xcr = GRID(n)[0];
+	const T& xnb = GRID(n)[1];
 	// if it's inside the gamma field, don't change it
 	bool below_upper = (xcr < -0.45*(xnb-0.075)/0.075);
 	bool nb_rich = (xnb > 0.075);
@@ -750,8 +794,8 @@ void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 template<int dim,typename T>
 void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T& xcr = fabs(GRID(n)[0]);
-	const T& xnb = fabs(GRID(n)[1]);
+	const T& xcr = GRID(n)[0];
+	const T& xnb = GRID(n)[1];
 	// if it's inside the mu field, don't change it
 	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
 	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
@@ -776,8 +820,8 @@ void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_
 template<int dim,typename T>
 void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T& xcr = fabs(GRID(n)[0]);
-	const T& xnb = fabs(GRID(n)[1]);
+	const T& xcr = GRID(n)[0];
+	const T& xnb = GRID(n)[1];
 	// if it's inside the Laves field, don't change it
 	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
 	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
@@ -821,7 +865,7 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
 				GRID(x)[pid] = phi;
 			}
 			/*
-			else if (fabs(GRID(x)[2]) + fabs(GRID(x)[3]) + fabs(GRID(x)[4])>epsilon) {
+			else if (h(GRID(x)[2]) + h(GRID(x)[3]) + h(GRID(x)[4])>epsilon) {
 				// Don't deplete neighboring precipitates, only matrix
 				continue;
 			} else {
@@ -873,7 +917,7 @@ void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 		for (int i=0; i<NC; i++)
 			totals[i] += GRID(n)[i];
 		for (int i=NC; i<NC+NP-1; i++)
-			totals[i] += std::fabs(GRID(n)[i]);
+			totals[i] += h(GRID(n)[i]);
 	}
 
 	#ifdef MPI_VERSION
@@ -951,7 +995,7 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	const double x_Cr = ((struct rparams*) params)->x_Cr;
 	const double x_Nb = ((struct rparams*) params)->x_Nb;
 	const double n_del = ((struct rparams*) params)->n_del;
-	const double n_mu = ((struct rparams*) params)->n_mu;
+	const double n_mu  = ((struct rparams*) params)->n_mu;
 	const double n_lav = ((struct rparams*) params)->n_lav;
 	const double n_gam = 1.0 - n_del - n_mu - n_lav;
 
@@ -995,7 +1039,7 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	const double x_Cr = ((struct rparams*) params)->x_Cr;
 	const double x_Nb = ((struct rparams*) params)->x_Nb;
 	const double n_del = ((struct rparams*) params)->n_del;
-	const double n_mu = ((struct rparams*) params)->n_mu;
+	const double n_mu  = ((struct rparams*) params)->n_mu;
 	const double n_lav = ((struct rparams*) params)->n_lav;
 	const double n_gam = 1.0 - n_del - n_mu - n_lav;
 
@@ -1169,37 +1213,47 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status==GSL_CONTINUE && iter<maxiter);
 
+	/*
 	double sum = fabs(C[0]) + fabs(C[1]) + fabs(1.0 - C[0] - C[1]);
 	if (fabs(1.0 - sum) > epsilon) {
 		C[0] /= sum;
 		C[1] /= sum;
 	}
+	*/
 	GRID(n)[5] = static_cast<T>(C[0]);      // gamma Cr
 	GRID(n)[6] = static_cast<T>(C[1]);      //       Nb
 
+	/*
 	sum = fabs(C[2]) + fabs(C[3]) + fabs(1.0 - C[2] - C[3]);
 	if (fabs(1.0 - sum) > epsilon) {
 		C[2] /= sum;
 		C[3] /= sum;
 	}
+	*/
 	GRID(n)[7] = static_cast<T>(C[2]);      // delta Cr
 	GRID(n)[8] = static_cast<T>(C[3]);      //       Nb
 
-	double C_mu_Nb = fabs(1.0 - C[4] - C[5]);
-	sum = fabs(C[4]) + fabs(C[5]) + C_mu_Nb;
+	/*
+	double C_mu_Nb = 1.0 - C[4] - C[5];
+	sum = fabs(C[4]) + fabs(C[5]) + fabs(C_mu_Nb);
 	if (fabs(1.0 - sum) > epsilon) {
 		C[4] /= sum;
 		C_mu_Nb /= sum;
 	}
+	*/
+	double C_mu_Nb = 1.0 - C[4] - C[5];
 	GRID(n)[9] = static_cast<T>(C[4]);      // mu    Cr
 	GRID(n)[10] = static_cast<T>(C_mu_Nb);  //       Nb
 
-	double C_lav_Cr = fabs(1.0 - C[6] - C[7]);
-	sum = fabs(C[6]) + fabs(C[7]) + C_lav_Cr;
+	/*
+	double C_lav_Cr = 1.0 - C[6] - C[7];
+	sum = fabs(C[6]) + fabs(C[7]) + fabs(C_lav_Cr);
 	if (fabs(1.0 - sum) > epsilon) {
 		C[6] /= sum;
 		C_lav_Cr /= sum;
 	}
+	*/
+	double C_lav_Cr = 1.0 - C[6] - C[7];
 	GRID(n)[11] = static_cast<T>(C_lav_Cr); // Laves Cr
 	GRID(n)[12] = static_cast<T>(C[6]);     //       Nb
 
@@ -1311,7 +1365,12 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
 	std::cout<<"\nValues at ("<<x[0]<<','<<x[1]<<"):\n";
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", xCr, xNb, n_del, n_mu, n_lav, C_gam_Cr, C_gam_Nb, C_del_Cr, C_del_Nb, C_mu_Cr, C_mu_Nb, C_lav_Cr, C_lav_Nb);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", xCr, xNb,
+	                                                                                                       n_del, n_mu, n_lav,
+	                                                                                                       C_gam_Cr, C_gam_Nb,
+	                                                                                                       C_del_Cr, C_del_Nb,
+	                                                                                                       C_mu_Cr, C_mu_Nb,
+	                                                                                                       C_lav_Cr, C_lav_Nb);
 
 	std::cout<<"Equations at ("<<x[0]<<','<<x[1]<<"):\n";
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n",
@@ -1328,14 +1387,40 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -n_gam,    0.0, -n_del,    0.0, -n_mu,  0.0,  n_lav, n_lav);
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n",    0.0, -n_gam,    0.0, -n_del,  n_mu, n_mu, -n_lav,   0.0);
 
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxCrCr(C_del_Cr, C_del_Nb), -d2g_del_dxCrNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), -d2g_del_dxNbCr(C_del_Cr, C_del_Nb), -d2g_del_dxNbNb(C_del_Cr, C_del_Nb), 0.0, 0.0, 0.0, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    -d2g_del_dxCrCr(C_del_Cr, C_del_Nb),
+	                                                                    -d2g_del_dxCrNb(C_del_Cr, C_del_Nb),
+	                                                                    0.0, 0.0, 0.0, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    -d2g_del_dxNbCr(C_del_Cr, C_del_Nb),
+	                                                                    -d2g_del_dxNbNb(C_del_Cr, C_del_Nb),
+	                                                                    0.0, 0.0, 0.0, 0.0);
 
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), 0.0, 0.0, -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_mu_dxCrNi(C_mu_Cr, C_mu_Nb, C_mu_Ni), 0.0, 0.0);
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),   -d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),     0.0, 0.0, -d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni), -d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni), 0.0, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    0.0, 0.0,
+	                                                                    -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	                                                                    -d2g_mu_dxCrNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	                                                                    0.0, 0.0);
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	                                                                    -d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	                                                                    0.0, 0.0,
+	                                                                    -d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	                                                                    -d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	                                                                    0.0, 0.0);
 
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), 0.0, 0.0, 0.0, 0.0, -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni), -d2g_lav_dxNbNi(C_lav_Nb, C_lav_Ni));
-	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNiCr(C_gam_Cr, C_gam_Nb, C_gam_Ni), d2g_gam_dxNiNb(C_gam_Cr, C_gam_Nb, C_gam_Ni), 0.0, 0.0, 0.0, 0.0, -d2g_lav_dxNiNb(C_lav_Nb, C_lav_Ni), -d2g_lav_dxNiNi(C_lav_Nb, C_lav_Ni));
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    0.0, 0.0, 0.0, 0.0,
+	                                                                    -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni),
+	                                                                    -d2g_lav_dxNbNi(C_lav_Nb, C_lav_Ni));
+	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNiCr(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    d2g_gam_dxNiNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
+	                                                                    0.0, 0.0, 0.0, 0.0,
+	                                                                    -d2g_lav_dxNiNb(C_lav_Nb, C_lav_Ni),
+	                                                                    -d2g_lav_dxNiNi(C_lav_Nb, C_lav_Ni));
 }
 
 #endif
