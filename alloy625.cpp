@@ -14,6 +14,7 @@
 #define ALLOY625_UPDATE
 #include<cmath>
 #include<random>
+#include<cassert>
 #include<gsl/gsl_blas.h>
 #include<gsl/gsl_math.h>
 #include<gsl/gsl_roots.h>
@@ -94,13 +95,17 @@ const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 const double M_Cr = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
 const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
 
-const double L_del = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
-const double L_mu  = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
-const double L_lav = 2.904e-11;   // numerical mobility (m^2/Nsm^2)
+const double D_Cr = Vm*Vm*M_Cr;   // diffusivity in FCC Ni (m^4/Ns)
+const double D_Nb = Vm*Vm*M_Nb;   // diffusivity in FCC Ni (m^4/Ns)
 
 const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_lav = 1.24e-8; // gradient energy coefficient (J/m)
+
+// Choose numerical diffusivity to lock chemical and transformational timescales
+const double L_del = 2.904e-11;   // numerical mobility (m^2/Ns)
+const double L_mu  = 2.904e-11;   // numerical mobility (m^2/Ns)
+const double L_lav = 2.904e-11;   // numerical mobility (m^2/Ns)
 
 const double sigma_del = 1.01;    // J/m^2
 const double sigma_mu  = 1.01;    // J/m^2
@@ -113,7 +118,7 @@ const double omega_mu  = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8; 
 const double omega_lav = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
 
 // Numerical considerations
-const bool   useNeumann = true;  // apply zero-flux boundaries (Neumann type)?
+const bool   useNeumann = false;  // apply zero-flux boundaries (Neumann type)?
 const double epsilon = 1.0e-12;  // what to consider zero to avoid log(c) explosions
 const double noise_amp = 0.0;    // 1.0e-8;
 const double init_amp = sqrt(epsilon);     // 1.0e-8;
@@ -123,7 +128,7 @@ const double phase_tol = 0.001;  // coefficient of error (default is 0.001)
 const int root_max_iter = 1000;  // default is 1000, increasing probably won't change anything but your runtime
 
 
-const double CFL = 1.0/500.0;     // numerical stability
+const double CFL = 1.0/400.0;     // numerical stability
 const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
 const double dtc = CFL*(meshres*meshres)/(4.0*Vm*Vm*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
@@ -141,12 +146,12 @@ void generate(int dim, const char* filename)
 	std::mt19937_64 mt_rand(time(NULL)+rank);
 	std::uniform_real_distribution<double> real_gen(-1,1);
 
-	double totCr  = 0.0;
-	double totNb  = 0.0;
+	double totF = 0.0;
+	double totCr = 0.0;
+	double totNb = 0.0;
 	double totDel = 0.0;
 	double totMu  = 0.0;
 	double totLav = 0.0;
-	double totF   = 0.0;
 
 	std::ofstream cfile;
 	if (rank==0)
@@ -495,6 +500,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	if (rank==0)
 		cfile.open("c.log",std::ofstream::out | std::ofstream::app);
 
+	/*
+	double maxPot = -1.0;
+	double minPot =  1.0;
+	*/
+
 	for (int step=0; step<steps; step++) {
 		if (rank==0)
 			print_progress(step, steps);
@@ -503,8 +513,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		#pragma omp parallel for
 		#endif
 		for (int n=0; n<nodes(oldGrid); n++) {
+			/*
 			const T& C_gam_Cr = oldGrid(n)[5];
 			const T& C_gam_Nb = oldGrid(n)[6];
+			*/
+			const T& C_gam_Cr = oldGrid(n)[0];
+			const T& C_gam_Nb = oldGrid(n)[1];
 			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
 			potGrid(n)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
@@ -528,14 +542,23 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			const T& x_Cr = oldGrid(n)[0]; // molar fraction of Cr + Mo
-			const T& x_Nb = oldGrid(n)[1]; // molar fraction of Nb
+			vector<T> lapPot = laplacian(potGrid, x);
 
-			double gradSqPot_Cr = laplacian(potGrid, x, 0);
-			double gradSqPot_Nb = laplacian(potGrid, x, 1);
+			newGrid(n)[0] = oldGrid(n)[0] + dt * D_Cr * lapPot[0];
+			newGrid(n)[1] = oldGrid(n)[1] + dt * D_Nb * lapPot[1];
 
-			newGrid(n)[0] = x_Cr + dt * Vm*Vm * M_Cr * gradSqPot_Cr;
-			newGrid(n)[1] = x_Nb + dt * Vm*Vm * M_Nb * gradSqPot_Nb;
+			/*
+			#ifndef MPI_VERSION
+			#pragma omp critical
+			{
+			maxPot = std::max(maxPot, lapPot[0]);
+			}
+			#pragma omp critical
+			{
+			minPot = std::min(minPot, lapPot[0]);
+			}
+			#endif
+			*/
 
 
 			/* ======================================== *
@@ -676,12 +699,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 		 * ====================================================================== */
 
+
+		double totF = 0.0;
 		double totCr = 0.0;
 		double totNb = 0.0;
 		double totDel = 0.0;
 		double totMu  = 0.0;
 		double totLav = 0.0;
-		double totF  = 0.0;
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -740,6 +764,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	}
 	if (rank==0)
 		cfile.close();
+
+	/*
+	#ifdef MPI_VERSION
+	double myMinRat(minPot);
+	double myMaxRat(maxPot);
+	MPI::COMM_WORLD.Reduce(&myMinRat, &minPot, 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&myMaxRat, &maxPot, 1, MPI_DOUBLE, MPI_SUM, 0);
+	#endif
+	if (rank==0)
+		std::cout<<"lap(u_Cr) spanned ["<<minPot<<", "<<maxPot<<"]."<<std::endl;
+	*/
 
 }
 
@@ -890,9 +925,10 @@ void embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& 
                 const double& xCrdep, const double& xNbdep, const T phi)
 {
 	MMSP::vector<int> x(origin);
-	double R = rprcp; //std::max(rdpltCr, rdpltNb);
+	int R(rprcp); //std::max(rdpltCr, rdpltNb);
+	//double del = 4.51;
 
-	for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
+	for (x[0] = origin[0] - R; x[0] < origin[0] + R; x[0]++) {
 		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 			continue;
 		for (x[1] = y0(GRID); x[1] < y1(GRID); x[1]++) {
@@ -901,6 +937,31 @@ void embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& 
 			GRID(x)[pid] = phi;
 		}
 	}
+
+	/*
+	for (x[0] = origin[0] - R - 2*del; x[0] < origin[0] - R; x[0]++) {
+		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+			continue;
+		//double tanhprof = 0.5*(1.0 + std::tanh(double(-x[0] + origin[0] + R + del)/(2.0*del)));
+		double tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] + R + del)/(del)));
+		for (x[1] = y0(GRID); x[1] < y1(GRID); x[1]++) {
+			GRID(x)[0] = GRID(x)[0] - tanhprof*(GRID(x)[0] - xCr);
+			GRID(x)[1] = GRID(x)[1] - tanhprof*(GRID(x)[1] - xNb);
+			GRID(x)[pid] = phi;
+		}
+	}
+	for (x[0] = origin[0] + R; x[0] < origin[0] + R + 2*del; x[0]++) {
+		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+			continue;
+		double tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] - R - del)/(del)));
+		//double tanhprof = 0.5*(1.0 + std::tanh(double(-x[0] + origin[0] + R + del)/(2.0*del)));
+		for (x[1] = y0(GRID); x[1] < y1(GRID); x[1]++) {
+			GRID(x)[0] = xCr - tanhprof*(xCr - GRID(x)[0]);
+			GRID(x)[1] = xNb - tanhprof*(xNb - GRID(x)[1]);
+			GRID(x)[pid] = phi;
+		}
+	}
+	*/
 }
 
 template<int dim, typename T>
@@ -1078,10 +1139,12 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving gamma phase (Cr, Nb, Ni)
-	const double J20 = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	//const double J20 = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	const double J20 = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Ni);
 	const double J21 = d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 	const double J30 = d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-	const double J31 = d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	//const double J31 = d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	const double J31 = d2g_gam_dxNbNb(C_gam_Nb, C_gam_Ni);
 	const double J50 = d2g_gam_dxNiCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 	const double J51 = d2g_gam_dxNiNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 	gsl_matrix_set(J, 2, 0, J20);
