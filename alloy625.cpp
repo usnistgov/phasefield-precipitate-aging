@@ -103,9 +103,14 @@ const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_lav = 1.24e-8; // gradient energy coefficient (J/m)
 
 // Choose numerical diffusivity to lock chemical and transformational timescales
+/*
 const double L_del = 2.904e-11;   // numerical mobility (m^2/Ns)
 const double L_mu  = 2.904e-11;   // numerical mobility (m^2/Ns)
 const double L_lav = 2.904e-11;   // numerical mobility (m^2/Ns)
+*/
+const double L_del = 1.92e-12;   // numerical mobility (m^2/Ns)
+const double L_mu  = 1.92e-12;   // numerical mobility (m^2/Ns)
+const double L_lav = 1.92e-12;   // numerical mobility (m^2/Ns)
 
 const double sigma_del = 1.01;    // J/m^2
 const double sigma_mu  = 1.01;    // J/m^2
@@ -130,9 +135,9 @@ const double root_tol = 1.0e-10;  // residual tolerance (default is 1e-7)
 const int root_max_iter = 1000;   // default is 1000, increasing probably won't change anything but your runtime
 
 
-const double CFL = 1.0/500.0;     // numerical stability
+const double CFL = 1.0/8.0;     // numerical stability
 const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
-const double dtc = CFL*(meshres*meshres)/(4.0*Vm*Vm*M_Cr); // diffusion-limited timestep
+const double dtc = CFL*(meshres*meshres)/(4.0*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
 
 namespace MMSP
@@ -164,7 +169,7 @@ void generate(int dim, const char* filename)
 		// Construct grid
 		const int Nx = 768; // divisible by 12 and 64
 		//const int Ny = 768;
-		const int Ny = 48;
+		const int Ny = 24;
 		double dV = 1.0;
 		double Ntot = 1.0;
 		GRID2D initGrid(13, 0, Nx, 0, Ny);
@@ -372,7 +377,7 @@ void generate(int dim, const char* filename)
 				}
 
 				if (phFrac[0] < -epsilon) {
-					// The other phases exceed one: renormalize with no gamma present
+					// Secondary phases exceed unity: renormalize with no gamma present
 					double rsum = 0.0;
 					for (int i=1; i<NP; i++)
 						rsum += phFrac[i];
@@ -385,7 +390,6 @@ void generate(int dim, const char* filename)
 					}
 				} else if (phFrac[0] > 1.0+epsilon) {
 					// Gamma went above one: renormalize with only gamma
-					// Note: I'm not sure this ever happens.
 					for (int i=NC; i<NC+NP-1; i++) {
 						initGrid(n)[i] = 0.0;
 					}
@@ -397,17 +401,9 @@ void generate(int dim, const char* filename)
 			 * Solve for parallel tangents *
 			 * =========================== */
 
-			rootsolver CommonTangentSolver;
-			CommonTangentSolver.solve(initGrid, n);
+			rootsolver parallelTangentSolver;
+			parallelTangentSolver.solve(initGrid, n);
 
-			/*
-			// Store chemical potentials for debugging
-			const double& C_gam_Cr = initGrid(n)[5];
-			const double& C_gam_Nb = initGrid(n)[6];
-			const double  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
-			initGrid(n)[13] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			initGrid(n)[14] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			*/
 		}
 
 		ghostswap(initGrid);
@@ -477,7 +473,12 @@ void generate(int dim, const char* filename)
 			cfile.close();
 		}
 
-		print_values(initGrid);
+		//print_values(initGrid);
+	if (rank==0) {
+		std::cout<<"    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
+		printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", totCr, totNb, 1.0-totCr-totNb,
+		                                                             totGam, totDel, totMu, totLav);
+	}
 		output(initGrid,filename);
 
 	} else
@@ -557,8 +558,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			vector<T> lapPot = laplacian(potGrid, x);
 
-			//newGrid(n)[13] = lapPot[0]; // cache for debugging
-			//newGrid(n)[14] = lapPot[1];
 			newGrid(n)[0] = oldGrid(n)[0] + dt * D_Cr * lapPot[0];
 			newGrid(n)[1] = oldGrid(n)[1] + dt * D_Nb * lapPot[1];
 
@@ -621,7 +620,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				}
 
 				if (phFrac[0] < -epsilon) {
-					// The other phases exceed one: renormalize with no gamma present
+					// Secondary phases exceed unity: renormalize with no gamma present
 					double rsum = 0.0;
 					for (int i=1; i<NP; i++)
 						rsum += phFrac[i];
@@ -634,7 +633,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 					}
 				} else if (phFrac[0] > 1.0+epsilon) {
 					// Gamma went above one: renormalize with only gamma
-					// Note: I'm not sure this ever happens.
 					for (int i=NC; i<NC+NP-1; i++) {
 						newGrid(n)[i] = 0.0;
 					}
@@ -680,8 +678,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve for parallel tangents *
 			 * =========================== */
 
-			rootsolver CommonTangentSolver;
-			CommonTangentSolver.solve(newGrid, n);
+			rootsolver parallelTangentSolver;
+			parallelTangentSolver.solve(newGrid, n);
 
 
 			/* ======= *
@@ -1073,7 +1071,7 @@ void simple_progress(int step, int steps)
  * molar fractions in each phase that satisfy equal chemical potential.
  */
 
-int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
+int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 {
 	// Prepare constants
 	const double x_Cr = ((struct rparams*) params)->x_Cr;
@@ -1117,7 +1115,7 @@ int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 }
 
 
-int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
+int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 {
 	// Prepare constants
 	const double x_Cr = ((struct rparams*) params)->x_Cr;
@@ -1210,10 +1208,10 @@ int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 }
 
 
-int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix* J)
+int parallelTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix* J)
 {
-	commonTangent_f(x,  params, f);
-	commonTangent_df(x, params, J);
+	parallelTangent_f(x,  params, f);
+	parallelTangent_df(x, params, J);
 
 	return GSL_SUCCESS;
 }
@@ -1240,12 +1238,12 @@ rootsolver::rootsolver() :
 	// Available algorithms are: hybrids, hybrid, dnewton, broyden (in order of *decreasing* efficiency)
 	algorithm = gsl_multiroot_fsolver_hybrids;
 	solver = gsl_multiroot_fsolver_alloc(algorithm, n);
-	mrf = {&commonTangent_f, n, &par};
+	mrf = {&parallelTangent_f, n, &par};
 	#else
 	// Available algorithms are: hybridsj, hybridj, newton, gnewton (in order of *decreasing* efficiency)
 	algorithm = gsl_multiroot_fdfsolver_hybridsj;
 	solver = gsl_multiroot_fdfsolver_alloc(algorithm, n);
-	mrf = {&commonTangent_f, &commonTangent_df, &commonTangent_fdf, n, &par};
+	mrf = {&parallelTangent_f, &parallelTangent_df, &parallelTangent_fdf, n, &par};
 	#endif
 }
 
@@ -1299,46 +1297,16 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status==GSL_CONTINUE && iter<maxiter);
 
-	/*
-	double sum = fabs(C[0]) + fabs(C[1]) + fabs(1.0 - C[0] - C[1]);
-	if (fabs(1.0 - sum) > epsilon) {
-		C[0] /= sum;
-		C[1] /= sum;
-	}
-	*/
 	GRID(n)[5] = static_cast<T>(C[0]);      // gamma Cr
 	GRID(n)[6] = static_cast<T>(C[1]);      //       Nb
 
-	/*
-	sum = fabs(C[2]) + fabs(C[3]) + fabs(1.0 - C[2] - C[3]);
-	if (fabs(1.0 - sum) > epsilon) {
-		C[2] /= sum;
-		C[3] /= sum;
-	}
-	*/
 	GRID(n)[7] = static_cast<T>(C[2]);      // delta Cr
 	GRID(n)[8] = static_cast<T>(C[3]);      //       Nb
 
-	/*
-	double C_mu_Nb = 1.0 - C[4] - C[5];
-	sum = fabs(C[4]) + fabs(C[5]) + fabs(C_mu_Nb);
-	if (fabs(1.0 - sum) > epsilon) {
-		C[4] /= sum;
-		C_mu_Nb /= sum;
-	}
-	*/
 	double C_mu_Nb = 1.0 - C[4] - C[5];
 	GRID(n)[9] = static_cast<T>(C[4]);      // mu    Cr
 	GRID(n)[10] = static_cast<T>(C_mu_Nb);  //       Nb
 
-	/*
-	double C_lav_Cr = 1.0 - C[6] - C[7];
-	sum = fabs(C[6]) + fabs(C[7]) + fabs(C_lav_Cr);
-	if (fabs(1.0 - sum) > epsilon) {
-		C[6] /= sum;
-		C_lav_Cr /= sum;
-	}
-	*/
 	double C_lav_Cr = 1.0 - C[6] - C[7];
 	GRID(n)[11] = static_cast<T>(C_lav_Cr); // Laves Cr
 	GRID(n)[12] = static_cast<T>(C[6]);     //       Nb

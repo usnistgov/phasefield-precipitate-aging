@@ -78,9 +78,9 @@ struct rparams {
 	double n_lav;
 };
 
-int commonTangent_f(const gsl_vector* x, void* params, gsl_vector* f);
-int commonTangent_df(const gsl_vector* x, void* params, gsl_matrix* J);
-int commonTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix* J);
+int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f);
+int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J);
+int parallelTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix* J);
 
 class rootsolver
 {
