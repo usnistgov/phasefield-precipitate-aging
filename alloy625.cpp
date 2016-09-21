@@ -23,7 +23,11 @@
 
 #include"MMSP.hpp"
 #include"alloy625.hpp"
+#ifdef PARABOLIC
+#include"parabola625.c"
+#else
 #include"energy625.c"
+#endif
 
 // Number of phases and components (for array allocation)
 #define NP 4
@@ -131,11 +135,12 @@ const double noise_amp = 0.0;   // 1.0e-8;
 const double init_amp = 0.0;    // 1.0e-8;
 
 const double phase_tol = 0.001;   // coefficient of error (default is 0.001)
-const double root_tol = 0.1;  // residual tolerance (default is 1e-7)
-const int root_max_iter = 5000;   // default is 1000, increasing probably won't change anything but your runtime
+//const double root_tol = 0.1;  // residual tolerance (default is 1e-7)
+const double root_tol = 1.0e-3;  // residual tolerance (default is 1e-7)
+const int root_max_iter = 100000;   // default is 1000, increasing probably won't change anything but your runtime
 
 
-const double CFL = 1.0/9600.0;     // numerical stability
+const double CFL = 1.0/500000.0;     // numerical stability
 const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
 const double dtc = CFL*(meshres*meshres)/(4.0*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
@@ -544,8 +549,14 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_gam_Nb = oldGrid(n)[6];
 			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
+			#ifdef PARABOLIC
+			potGrid(n)[0] = dg_gam_dxCr(C_gam_Cr);
+			potGrid(n)[1] = dg_gam_dxNb(C_gam_Nb);
+			#else
 			potGrid(n)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 			potGrid(n)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			#endif
+
 		}
 
 		ghostswap(potGrid);
@@ -594,6 +605,19 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_lav_Nb = oldGrid(n)[12]; // Nb molar fraction in pure Laves
 			const T  C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
+			#ifdef PARABOLIC
+			double df_dphi_del =  hprime(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
+			       df_dphi_del += 2.0*omega_del*sign(phi_del)*fabs(phi_del)*(1.0-fabs(phi_del)) * (1.0 - 2.0*fabs(phi_del));
+			       df_dphi_del += 4.0*alpha*fabs(phi_del)*sign(phi_del) * (phi_mu*phi_mu + phi_lav*phi_lav);
+
+			double df_dphi_mu  =  hprime(phi_mu) * (g_mu(C_mu_Cr, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
+			       df_dphi_mu +=  2.0*omega_mu*sign(phi_mu)*fabs(phi_mu)*(1.0-fabs(phi_mu)) * (1.0 - 2.0*fabs(phi_mu));
+			       df_dphi_mu +=  4.0*alpha*fabs(phi_mu)*sign(phi_mu) * (phi_del*phi_del + phi_lav*phi_lav);
+
+			double df_dphi_lav =  hprime(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
+			       df_dphi_lav += 2.0*omega_lav*sign(phi_lav)*fabs(phi_lav)*(1.0-fabs(phi_lav)) * (1.0 - 2.0*fabs(phi_lav));
+			       df_dphi_lav += 4.0*alpha*fabs(phi_lav)*sign(phi_lav) * (phi_del*phi_del + phi_mu*phi_mu);
+			#else
 			double df_dphi_del =  hprime(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			       df_dphi_del += 2.0*omega_del*sign(phi_del)*fabs(phi_del)*(1.0-fabs(phi_del)) * (1.0 - 2.0*fabs(phi_del));
 			       df_dphi_del += 4.0*alpha*fabs(phi_del)*sign(phi_del) * (phi_mu*phi_mu + phi_lav*phi_lav);
@@ -605,7 +629,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double df_dphi_lav =  hprime(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			       df_dphi_lav += 2.0*omega_lav*sign(phi_lav)*fabs(phi_lav)*(1.0-fabs(phi_lav)) * (1.0 - 2.0*fabs(phi_lav));
 			       df_dphi_lav += 4.0*alpha*fabs(phi_lav)*sign(phi_lav) * (phi_del*phi_del + phi_mu*phi_mu);
-
+			#endif
 
 			double lapPhi_del = laplacian(oldGrid, x, 2);
 			double lapPhi_mu  = laplacian(oldGrid, x, 3);
@@ -1090,6 +1114,16 @@ double gibbs(const MMSP::vector<double>& v)
 	double n_mu  = h(v[3]);
 	double n_lav = h(v[4]);
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
+
+	#ifdef PARABOLIC
+	double g  = n_gam * g_gam(v[5],v[6]);
+	       g += n_del * g_del(v[7],v[8]);
+	       g += n_mu  * g_mu( v[9],1.0-v[9]-v[10]);
+	       g += n_lav * g_lav(v[12],1.0-v[11]-v[12]);
+	       g += omega_del * v[2]*v[2] * pow(1.0 - fabs(v[2]), 2);
+	       g += omega_mu  * v[3]*v[3] * pow(1.0 - fabs(v[3]), 2);
+	       g += omega_lav * v[4]*v[4] * pow(1.0 - fabs(v[4]), 2);
+	#else
 	double g  = n_gam * g_gam(v[5],v[6],1.0-v[5]-v[6]);
 	       g += n_del * g_del(v[7],v[8]);
 	       g += n_mu  * g_mu( v[9],v[10],1.0-v[9]-v[10]);
@@ -1097,6 +1131,8 @@ double gibbs(const MMSP::vector<double>& v)
 	       g += omega_del * v[2]*v[2] * pow(1.0 - fabs(v[2]), 2);
 	       g += omega_mu  * v[3]*v[3] * pow(1.0 - fabs(v[3]), 2);
 	       g += omega_lav * v[4]*v[4] * pow(1.0 - fabs(v[4]), 2);
+	#endif
+
 	for (int i=NC; i<NC+NP-2; i++)
 		for (int j=i+1; j<NC+NP-1; j++)
 			g += 2.0 * alpha * v[i]*v[i] * v[j]*v[j];
@@ -1153,6 +1189,19 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 	gsl_vector_set_zero(f); // handy!
 
+	#ifdef PARABOLIC
+	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
+	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
+
+	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr) - dg_del_dxCr(C_del_Cr));
+	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Nb) - dg_del_dxNb(C_del_Nb));
+
+	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr) - dg_mu_dxCr(C_mu_Cr, C_mu_Ni));
+	gsl_vector_set(f, 5, dg_gam_dxNi() - dg_mu_dxNi(C_mu_Cr, C_mu_Ni));
+
+	gsl_vector_set(f, 6, dg_gam_dxNb(C_mu_Nb) - dg_lav_dxNb(C_lav_Nb));
+	gsl_vector_set(f, 7, dg_gam_dxNi() - dg_lav_dxNi(C_lav_Ni));
+	#else
 	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
 	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
 
@@ -1164,6 +1213,7 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 	gsl_vector_set(f, 6, dg_gam_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
 	gsl_vector_set(f, 7, dg_gam_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNi(C_lav_Nb, C_lav_Ni));
+	#endif
 
 	return GSL_SUCCESS;
 }
@@ -1214,6 +1264,14 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving gamma phase (Cr, Nb, Ni)
+	#ifdef PARABOLIC
+	const double J20 = d2g_gam_dxCrCr();
+	const double J21 = d2g_gam_dxCrNb();
+	const double J30 = d2g_gam_dxNbCr();
+	const double J31 = d2g_gam_dxNbNb();
+	const double J50 = d2g_gam_dxNiCr();
+	const double J51 = d2g_gam_dxNiNb();
+	#else
 	//const double J20 = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 	const double J20 = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Ni);
 	const double J21 = d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
@@ -1222,6 +1280,8 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	const double J31 = d2g_gam_dxNbNb(C_gam_Nb, C_gam_Ni);
 	const double J50 = d2g_gam_dxNiCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 	const double J51 = d2g_gam_dxNiNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	#endif
+
 	gsl_matrix_set(J, 2, 0, J20);
 	gsl_matrix_set(J, 2, 1, J21);
 	gsl_matrix_set(J, 3, 0, J30);
@@ -1239,24 +1299,44 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving delta phase (Cr, Nb)
+	#ifdef PARABOLIC
+	gsl_matrix_set(J, 2, 2,-d2g_del_dxCrCr());
+	gsl_matrix_set(J, 2, 3,-d2g_del_dxCrNb());
+	gsl_matrix_set(J, 3, 2,-d2g_del_dxNbCr());
+	gsl_matrix_set(J, 3, 3,-d2g_del_dxNbNb());
+	#else
 	gsl_matrix_set(J, 2, 2,-d2g_del_dxCrCr(C_del_Cr, C_del_Nb));
 	gsl_matrix_set(J, 2, 3,-d2g_del_dxCrNb(C_del_Cr, C_del_Nb));
 	gsl_matrix_set(J, 3, 2,-d2g_del_dxNbCr(C_del_Cr, C_del_Nb));
 	gsl_matrix_set(J, 3, 3,-d2g_del_dxNbNb(C_del_Cr, C_del_Nb));
+	#endif
 
 
 	// Equal chemical potential involving mu phase (Cr, Ni)
+	#ifdef PARABOLIC
+	gsl_matrix_set(J, 4, 4,-d2g_mu_dxCrCr());
+	gsl_matrix_set(J, 4, 5,-d2g_mu_dxCrNi());
+	gsl_matrix_set(J, 5, 4,-d2g_mu_dxNiCr());
+	gsl_matrix_set(J, 5, 5,-d2g_mu_dxNiNi());
+	#else
 	gsl_matrix_set(J, 4, 4,-d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
 	gsl_matrix_set(J, 4, 5,-d2g_mu_dxCrNi(C_mu_Cr, C_mu_Nb, C_mu_Ni));
 	gsl_matrix_set(J, 5, 4,-d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
 	gsl_matrix_set(J, 5, 5,-d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni));
-
+	#endif
 
 	// Equal chemical potential involving Laves phase (Nb, Ni)
+	#ifdef PARABOLIC
+	gsl_matrix_set(J, 6, 6,-d2g_lav_dxNbNb());
+	gsl_matrix_set(J, 6, 7,-d2g_lav_dxNbNi());
+	gsl_matrix_set(J, 7, 6,-d2g_lav_dxNiNb());
+	gsl_matrix_set(J, 7, 7,-d2g_lav_dxNiNi());
+	#else
 	gsl_matrix_set(J, 6, 6,-d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
 	gsl_matrix_set(J, 6, 7,-d2g_lav_dxNbNi(C_lav_Nb, C_lav_Ni));
 	gsl_matrix_set(J, 7, 6,-d2g_lav_dxNiNb(C_lav_Nb, C_lav_Ni));
 	gsl_matrix_set(J, 7, 7,-d2g_lav_dxNiNi(C_lav_Nb, C_lav_Ni));
+	#endif
 
 	return GSL_SUCCESS;
 }
@@ -1351,8 +1431,11 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
-	//if (status == GSL_SUCCESS) {
+	#ifdef PARABOLIC
+	if (status == GSL_SUCCESS) {
+	#else
 	if (1) {
+	#endif
 		GRID(n)[5] = static_cast<T>(gsl_vector_get(solver->x, 0));      // gamma Cr
 		GRID(n)[6] = static_cast<T>(gsl_vector_get(solver->x, 1));      //       Nb
 
