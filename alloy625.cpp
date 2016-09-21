@@ -124,18 +124,18 @@ const double omega_lav = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool useNeumann = true;   // apply zero-flux boundaries (Neumann type)?
-const bool numeric_gov = true; // reset phi if matrix passes outside [0,1]?
-const bool tanh_init = false;   // apply tanh profile to initial profile of composition and phase
-const double epsilon = 1.0e-12; // what to consider zero to avoid log(c) explosions
+const bool numeric_gov = false; // reset phi if matrix passes outside [0,1]?
+const bool tanh_init = true;   // apply tanh profile to initial profile of composition and phase
+const double epsilon = 1.0e-10; // what to consider zero to avoid log(c) explosions
 const double noise_amp = 0.0;   // 1.0e-8;
 const double init_amp = 0.0;    // 1.0e-8;
 
 const double phase_tol = 0.001;   // coefficient of error (default is 0.001)
-const double root_tol = 1.0e-10;  // residual tolerance (default is 1e-7)
-const int root_max_iter = 1000;   // default is 1000, increasing probably won't change anything but your runtime
+const double root_tol = 0.1;  // residual tolerance (default is 1e-7)
+const int root_max_iter = 5000;   // default is 1000, increasing probably won't change anything but your runtime
 
 
-const double CFL = 1.0/8.0;     // numerical stability
+const double CFL = 1.0/9600.0;     // numerical stability
 const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
 const double dtc = CFL*(meshres*meshres)/(4.0*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
@@ -167,9 +167,9 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		// Construct grid
-		const int Nx = 768; // divisible by 12 and 64
+		const int Nx = 800; // divisible by 12 and 64
 		//const int Ny = 768;
-		const int Ny = 24;
+		const int Ny = 15;
 		double dV = 1.0;
 		double Ntot = 1.0;
 		GRID2D initGrid(13, 0, Nx, 0, Ny);
@@ -200,18 +200,18 @@ void generate(int dim, const char* filename)
 
 		// Sanity check on system size and  particle spacing
 		if (rank==0 && dtp < dtc)
-			std::cout<<"Timestep (dt="<<dt<<") is transformation limited (diffusion-limited dt="<<dtc<<")."<<std::endl;
+			std::cout << "Timestep (dt=" << dt << ") is transformation limited (diffusion-limited dt=" << dtc << ")." << std::endl;
 		else if (rank==0 && dtc < dtp)
-			std::cout<<"Timestep (dt="<<dt<<") is diffusion limited (transformation-limited dt="<<dtp<<")."<<std::endl;
+			std::cout << "Timestep (dt=" << dt << ") is diffusion limited (transformation-limited dt=" << dtp << ")." << std::endl;
 
 		for (int i=0; i<NP-1; i++) {
 			/*
 			double rmax = std::max(rDepltCr[i], rDepltNb[i]);
 			if (rmax > Ny/2)
-				std::cerr<<"Warning: domain too small to accommodate phase "<<i<<", expand beyond "<<2.0*rmax<<" pixels."<<std::endl;
+				std::cerr << "Warning: domain too small to accommodate phase " << i << ", expand beyond " << 2.0*rmax << " pixels." << std::endl;
 			*/
 			if (rPrecip[i] > Ny/2)
-				std::cerr<<"Warning: domain too small to accommodate phase "<<i<<", expand beyond "<<2.0*rPrecip[i]<<" pixels."<<std::endl;
+				std::cerr << "Warning: domain too small to accommodate phase " << i << ", expand beyond " << 2.0*rPrecip[i] << " pixels." << std::endl;
 		}
 
 		vector<int> x(2, 0);
@@ -311,21 +311,26 @@ void generate(int dim, const char* filename)
 			embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 			*/
 
+
 			// Initialize delta stripe
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny / 2;
 			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  epsilon - 1.0);
 
+			/*
 			// Initialize mu stripe
 			j = 1;
 			origin[0] = Nx / 2 - xoffset;
 			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			*/
 
+			/*
 			// Initialize Laves stripe
 			j = 2;
 			origin[0] = Nx / 2 + xoffset;
 			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			*/
 		}
 
 
@@ -469,20 +474,22 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 		#endif
 		if (rank==0) {
-			cfile<<totCr<<'\t'<<totNb<<'\t'<<totGam<<'\t'<<totDel<<'\t'<<totMu<<'\t'<<totLav<<'\t'<<totF<<std::endl;
+			cfile << totCr  << '\t' << totNb  << '\t'
+			      << totGam << '\t' << totDel << '\t' << totMu << '\t' << totLav << '\t'
+			      << totF   << '\t' << '0'    << std::endl;
 			cfile.close();
 		}
 
 		//print_values(initGrid);
 	if (rank==0) {
-		std::cout<<"    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
+		std::cout << "    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
 		printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", totCr, totNb, 1.0-totCr-totNb,
 		                                                             totGam, totDel, totMu, totLav);
 	}
 		output(initGrid,filename);
 
 	} else
-		std::cerr<<"Error: "<<dim<<"-dimensional grids unsupported."<<std::endl;
+		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
 }
 
 template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int steps)
@@ -526,6 +533,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	for (int step=0; step<steps; step++) {
 		if (rank==0)
 			print_progress(step, steps);
+
+		double totBadTangents = 0.0;
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -679,7 +688,22 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * =========================== */
 
 			rootsolver parallelTangentSolver;
-			parallelTangentSolver.solve(newGrid, n);
+			double res = parallelTangentSolver.solve(newGrid, n);
+
+			if (res>root_tol) {
+				#ifndef MPI_VERSION
+				#pragma omp critical
+				{
+				totBadTangents += 1;
+				}
+				#else
+				totBadTangents += 1;
+				#endif
+			} /*else {
+				// Take average value
+				for (int i=NC+NP-1; i<fields(newGrid); i++)
+					newGrid(n)[i] = (newGrid(n)[i] + 3.0*oldGrid(n)[i])/4.0;
+			}*/
 
 
 			/* ======= *
@@ -746,6 +770,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		totDel /= Ntot;
 		totMu  /= Ntot;
 		totLav /= Ntot;
+		totBadTangents /= Ntot;
 
 		#ifdef MPI_VERSION
 		double myCr(totCr);
@@ -755,6 +780,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		double myLav(totLav);
 		double myGam(totGam);
 		double myF(totF);
+		double myBad(totBadTangents);
 		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myDel, &totDel, 1, MPI_DOUBLE, MPI_SUM, 0);
@@ -762,9 +788,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		MPI::COMM_WORLD.Reduce(&myLav, &totLav, 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myGam, &totGam, 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents,   1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
 		if (rank==0)
-			cfile<<totCr<<'\t'<<totNb<<'\t'<<totGam<<'\t'<<totDel<<'\t'<<totMu<<'\t'<<totLav<<'\t'<<totF<<'\n';
+			cfile << totCr  << '\t' << totNb << '\t'
+			      << totGam << '\t' << totDel << '\t' << totMu << '\t' << totLav << '\t'
+			      << totF   << '\t' << totBadTangents << '\n';
 	}
 	if (rank==0)
 		cfile.close();
@@ -791,8 +820,15 @@ double bellCurve(double x, double m, double s)
 template<int dim,typename T>
 void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T xcr = 0.30; //fabs(GRID(n)[0]);
-	const T xnb = 0.01; //fabs(GRID(n)[1]);
+	/*
+	const T xcr = 0.30;
+	const T xnb = 0.01;
+	const T xcr = (0.30 + GRID(n)[0])/2.0;
+	const T xnb = (0.01 + GRID(n)[1])/2.0;
+	*/
+
+	const T xcr = GRID(n)[0];
+	const T xnb = GRID(n)[1];
 	GRID(n)[5] = xcr + amp*real_gen(mt_rand);
 	GRID(n)[6] = xnb + amp*real_gen(mt_rand);
 }
@@ -800,18 +836,32 @@ void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 template<int dim,typename T>
 void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T xcr = 0.003125; //fabs(GRID(n)[0]);
-	const T xnb = 0.24375; //fabs(GRID(n)[1]);
-	GRID(n)[7] = xcr/*/(xcr+xnb+0.75)*/ + amp*real_gen(mt_rand);
-	GRID(n)[8] = xnb/*/(xcr+xnb+0.75)*/ + amp*real_gen(mt_rand);
+	/*
+	const T xcr = 0.003125;
+	const T xnb = 0.24375;
+	const T xcr = (0.003125 + GRID(n)[0])/2.0;
+	const T xnb = (0.24375 + GRID(n)[1])/2.0;
+	*/
+
+	const T xcr = GRID(n)[0];
+	const T xnb = GRID(n)[1];
+	GRID(n)[7] = xcr/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
+	GRID(n)[8] = xnb/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
 }
 
 template<int dim,typename T>
 void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T xcr = 0.05; //fabs(GRID(n)[0]);
-	const T xnb = 0.4875; //fabs(GRID(n)[1]);
-	/*// if it's inside the mu field, don't change it
+	/*
+	const T xcr = 0.05;
+	const T xnb = 0.4875;
+	const T xcr = (0.05 + GRID(n)[0])/2.0;
+	const T xnb = (0.4875 + GRID(n)[1])/2.0;
+	*/
+
+	const T xcr = GRID(n)[0];
+	const T xnb = GRID(n)[1];
+	// if it's inside the mu field, don't change it
 	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
 	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
 	bool ni_poor = (1.0-xcr-xnb < 0.5);
@@ -828,17 +878,22 @@ void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_
 		GRID(n)[9] = 0.02;
 		GRID(n)[10] = 0.5;
 	}
-	*/
-	GRID(n)[9]  = xcr + amp*real_gen(mt_rand);
-	GRID(n)[10] = xnb + amp*real_gen(mt_rand);
+	GRID(n)[9]  = xcr; // + amp*real_gen(mt_rand);
+	GRID(n)[10] = xnb; // + amp*real_gen(mt_rand);
 }
 
 template<int dim,typename T>
 void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
-	const T xcr = 0.325; //fabs(GRID(n)[0]);
-	const T xnb = 0.2875; //fabs(GRID(n)[1]);
 	/*
+	const T xcr = 0.325;
+	const T xnb = 0.2875;
+	const T xcr = (0.325 + GRID(n)[0])/2.0;
+	const T xnb = (0.2875 + GRID(n)[1])/2.0;
+	*/
+
+	const T xcr = GRID(n)[0];
+	const T xnb = GRID(n)[1];
 	// if it's inside the Laves field, don't change it
 	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
 	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
@@ -856,9 +911,8 @@ void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 		GRID(n)[11] = 0.332;
 		GRID(n)[12] = 0.334;
 	}
-	*/
-	GRID(n)[11] = xcr + amp*real_gen(mt_rand);
-	GRID(n)[12] = xnb + amp*real_gen(mt_rand);
+	GRID(n)[11] = xcr; // + amp*real_gen(mt_rand);
+	GRID(n)[12] = xnb; // + amp*real_gen(mt_rand);
 }
 
 template<typename T>
@@ -1013,7 +1067,7 @@ void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	#endif
 
 	if (rank==0) {
-		std::cout<<"    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
+		std::cout << "    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
 		printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", totCr, totNb, 1.0-totCr-totNb,
 		                                                             totGam, totDel, totMu, totLav);
 	}
@@ -1053,11 +1107,11 @@ double gibbs(const MMSP::vector<double>& v)
 void simple_progress(int step, int steps)
 {
 	if (step==0)
-		std::cout<<" ["<<std::flush;
+		std::cout << " [" << std::flush;
 	else if (step==steps-1)
-		std::cout<<"•] "<<std::endl;
+		std::cout << "•] " << std::endl;
 	else if (step % (steps/20) == 0)
-		std::cout<<"• "<<std::flush;
+		std::cout << "• " << std::flush;
 }
 
 
@@ -1253,22 +1307,8 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	int status;
 	size_t iter = 0;
 
-	// Prepare variables
-	MMSP::vector<double> C(x->size, 0.0);
+	// fixed values
 
-	C[0] = static_cast<double>(GRID(n)[5]);                      // gamma Cr
-	C[1] = static_cast<double>(GRID(n)[6]);                      //       Nb
-
-	C[2] = static_cast<double>(GRID(n)[7]);                      // delta Cr
-	C[3] = static_cast<double>(GRID(n)[8]);                      //       Nb
-
-	C[4] = static_cast<double>(GRID(n)[9]);                      // mu    Cr
-	C[5] = static_cast<double>(1.0 - GRID(n)[9] - GRID(n)[10]);  //       Ni
-
-	C[6] = static_cast<double>(GRID(n)[12]);                     // Laves Nb
-	C[7] = static_cast<double>(1.0 - GRID(n)[11] - GRID(n)[12]); //       Ni
-
-	// initial guesses
 	par.x_Cr = GRID(n)[0];
 	par.x_Nb = GRID(n)[1];
 
@@ -1276,8 +1316,20 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	par.n_mu =  h(GRID(n)[3]);
 	par.n_lav = h(GRID(n)[4]);
 
-	for (int i=0; i<x->size; i++)
-		gsl_vector_set(x, i, C[i]);
+	// initial guesses
+
+	gsl_vector_set(x, 0, static_cast<double>(GRID(n)[5]));                      // gamma Cr
+	gsl_vector_set(x, 1, static_cast<double>(GRID(n)[6]));                      //       Nb
+
+	gsl_vector_set(x, 2, static_cast<double>(GRID(n)[7]));                      // delta Cr
+	gsl_vector_set(x, 3, static_cast<double>(GRID(n)[8]));                      //       Nb
+
+	gsl_vector_set(x, 4, static_cast<double>(GRID(n)[9]));                      // mu    Cr
+	gsl_vector_set(x, 5, static_cast<double>(1.0 - GRID(n)[9] - GRID(n)[10]));  //       Ni
+
+	gsl_vector_set(x, 6, static_cast<double>(GRID(n)[12]));                     // Laves Nb
+	gsl_vector_set(x, 7, static_cast<double>(1.0 - GRID(n)[11] - GRID(n)[12])); //       Ni
+
 
 	#ifndef JACOBIAN
 	gsl_multiroot_fsolver_set(solver, &mrf, x);
@@ -1297,21 +1349,28 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status==GSL_CONTINUE && iter<maxiter);
 
-	GRID(n)[5] = static_cast<T>(C[0]);      // gamma Cr
-	GRID(n)[6] = static_cast<T>(C[1]);      //       Nb
-
-	GRID(n)[7] = static_cast<T>(C[2]);      // delta Cr
-	GRID(n)[8] = static_cast<T>(C[3]);      //       Nb
-
-	double C_mu_Nb = 1.0 - C[4] - C[5];
-	GRID(n)[9] = static_cast<T>(C[4]);      // mu    Cr
-	GRID(n)[10] = static_cast<T>(C_mu_Nb);  //       Nb
-
-	double C_lav_Cr = 1.0 - C[6] - C[7];
-	GRID(n)[11] = static_cast<T>(C_lav_Cr); // Laves Cr
-	GRID(n)[12] = static_cast<T>(C[6]);     //       Nb
-
 	double residual = gsl_blas_dnrm2(solver->f);
+
+	//if (status == GSL_SUCCESS) {
+	if (1) {
+		GRID(n)[5] = static_cast<T>(gsl_vector_get(solver->x, 0));      // gamma Cr
+		GRID(n)[6] = static_cast<T>(gsl_vector_get(solver->x, 1));      //       Nb
+
+		GRID(n)[7] = static_cast<T>(gsl_vector_get(solver->x, 2));      // delta Cr
+		GRID(n)[8] = static_cast<T>(gsl_vector_get(solver->x, 3));      //       Nb
+
+		double C_mu_Cr = gsl_vector_get(solver->x, 4);
+		double C_mu_Ni = gsl_vector_get(solver->x, 5);
+		double C_mu_Nb = 1.0 - C_mu_Cr - C_mu_Ni;
+		GRID(n)[9] = static_cast<T>(C_mu_Cr);      // mu    Cr
+		GRID(n)[10] = static_cast<T>(C_mu_Nb);  //       Nb
+
+		double C_lav_Nb = gsl_vector_get(solver->x, 6);
+		double C_lav_Ni = gsl_vector_get(solver->x, 7);
+		double C_lav_Cr = 1.0 - C_lav_Nb - C_lav_Ni;
+		GRID(n)[11] = static_cast<T>(C_lav_Cr); // Laves Cr
+		GRID(n)[12] = static_cast<T>(C_lav_Nb);     //       Nb
+	}
 
 	return residual;
 }
@@ -1417,7 +1476,7 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	T C_lav_Nb = GRID(n)[12];
 	T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
-	std::cout<<"\nValues at ("<<x[0]<<','<<x[1]<<"):\n";
+	std::cout << "\nValues at (" << x[0] << ',' << x[1] << "):\n";
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", xCr, xNb,
 	                                                                                                       n_del, n_mu, n_lav,
 	                                                                                                       C_gam_Cr, C_gam_Nb,
@@ -1425,7 +1484,7 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	                                                                                                       C_mu_Cr, C_mu_Nb,
 	                                                                                                       C_lav_Cr, C_lav_Nb);
 
-	std::cout<<"Equations at ("<<x[0]<<','<<x[1]<<"):\n";
+	std::cout << "Equations at (" << x[0] << ',' << x[1] << "):\n";
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n",
 	xCr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr,
 	xNb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb,
@@ -1436,7 +1495,7 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	dg_gam_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni),
 	dg_gam_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNi(C_lav_Nb, C_lav_Ni));
 
-	std::cout<<"Jacobian at ("<<x[0]<<','<<x[1]<<"):\n";
+	std::cout << "Jacobian at (" << x[0] << ',' << x[1] << "):\n";
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -n_gam,    0.0, -n_del,    0.0, -n_mu,  0.0,  n_lav, n_lav);
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n",    0.0, -n_gam,    0.0, -n_del,  n_mu, n_mu, -n_lav,   0.0);
 
