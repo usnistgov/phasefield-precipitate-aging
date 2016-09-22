@@ -136,11 +136,11 @@ const double init_amp = 0.0;    // 1.0e-8;
 
 const double phase_tol = 0.001;   // coefficient of error (default is 0.001)
 //const double root_tol = 0.1;  // residual tolerance (default is 1e-7)
-const double root_tol = 1.0e-3;  // residual tolerance (default is 1e-7)
+const double root_tol = 1.0e-2;  // residual tolerance (default is 1e-7)
 const int root_max_iter = 100000;   // default is 1000, increasing probably won't change anything but your runtime
 
 
-const double CFL = 1.0/500000.0;     // numerical stability
+const double CFL = 1.0/5000.0;     // numerical stability
 const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
 const double dtc = CFL*(meshres*meshres)/(4.0*M_Cr); // diffusion-limited timestep
 const double dt = std::min(dtp, dtc);
@@ -1197,10 +1197,10 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Nb) - dg_del_dxNb(C_del_Nb));
 
 	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr) - dg_mu_dxCr(C_mu_Cr, C_mu_Ni));
-	gsl_vector_set(f, 5, dg_gam_dxNi() - dg_mu_dxNi(C_mu_Cr, C_mu_Ni));
+	gsl_vector_set(f, 5, dg_gam_dxNi()         - dg_mu_dxNi(C_mu_Cr, C_mu_Ni));
 
 	gsl_vector_set(f, 6, dg_gam_dxNb(C_mu_Nb) - dg_lav_dxNb(C_lav_Nb));
-	gsl_vector_set(f, 7, dg_gam_dxNi() - dg_lav_dxNi(C_lav_Ni));
+	gsl_vector_set(f, 7, dg_gam_dxNi()        - dg_lav_dxNi(C_lav_Ni));
 	#else
 	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
 	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
@@ -1211,8 +1211,8 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
 	gsl_vector_set(f, 5, dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni));
 
-	gsl_vector_set(f, 6, dg_gam_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
-	gsl_vector_set(f, 7, dg_gam_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNi(C_lav_Nb, C_lav_Ni));
+	gsl_vector_set(f, 6, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
+	gsl_vector_set(f, 7, dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNi(C_lav_Nb, C_lav_Ni));
 	#endif
 
 	return GSL_SUCCESS;
@@ -1431,11 +1431,7 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
-	#ifdef PARABOLIC
 	if (status == GSL_SUCCESS) {
-	#else
-	if (1) {
-	#endif
 		GRID(n)[5] = static_cast<T>(gsl_vector_get(solver->x, 0));      // gamma Cr
 		GRID(n)[6] = static_cast<T>(gsl_vector_get(solver->x, 1));      //       Nb
 
@@ -1569,14 +1565,15 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 
 	std::cout << "Equations at (" << x[0] << ',' << x[1] << "):\n";
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n",
-	xCr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr,
-	xNb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb,
-	dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb),
-	dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb),
-	dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
-	dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),
-	dg_gam_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni),
-	dg_gam_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni) - dg_lav_dxNi(C_lav_Nb, C_lav_Ni));
+	       xCr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr,
+	       xNb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb,
+	       dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb),
+	       dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb),
+	       dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	       dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),
+	       dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni),
+	       dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNi(C_lav_Nb, C_lav_Ni)
+	);
 
 	std::cout << "Jacobian at (" << x[0] << ',' << x[1] << "):\n";
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -n_gam,    0.0, -n_del,    0.0, -n_mu,  0.0,  n_lav, n_lav);
@@ -1586,36 +1583,40 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	                                                                    d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
 	                                                                    -d2g_del_dxCrCr(C_del_Cr, C_del_Nb),
 	                                                                    -d2g_del_dxCrNb(C_del_Cr, C_del_Nb),
-	                                                                    0.0, 0.0, 0.0, 0.0);
+	                                                                    0.0, 0.0, 0.0, 0.0
+	);
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni),
 	                                                                    d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
 	                                                                    -d2g_del_dxNbCr(C_del_Cr, C_del_Nb),
 	                                                                    -d2g_del_dxNbNb(C_del_Cr, C_del_Nb),
-	                                                                    0.0, 0.0, 0.0, 0.0);
-
+	                                                                    0.0, 0.0, 0.0, 0.0
+	);
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb, C_gam_Ni),
 	                                                                    d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
 	                                                                    0.0, 0.0,
 	                                                                    -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
 	                                                                    -d2g_mu_dxCrNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),
-	                                                                    0.0, 0.0);
+	                                                                    0.0, 0.0
+	);
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", -d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
 	                                                                    -d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),
 	                                                                    0.0, 0.0,
 	                                                                    -d2g_mu_dxNiCr(C_mu_Cr, C_mu_Nb, C_mu_Ni),
 	                                                                    -d2g_mu_dxNiNi(C_mu_Cr, C_mu_Nb, C_mu_Ni),
-	                                                                    0.0, 0.0);
-
+	                                                                    0.0, 0.0
+	);
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni),
 	                                                                    d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
 	                                                                    0.0, 0.0, 0.0, 0.0,
 	                                                                    -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni),
-	                                                                    -d2g_lav_dxNbNi(C_lav_Nb, C_lav_Ni));
+	                                                                    -d2g_lav_dxNbNi(C_lav_Nb, C_lav_Ni)
+	);
 	printf("%11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g %11.3g\n", d2g_gam_dxNiCr(C_gam_Cr, C_gam_Nb, C_gam_Ni),
 	                                                                    d2g_gam_dxNiNb(C_gam_Cr, C_gam_Nb, C_gam_Ni),
 	                                                                    0.0, 0.0, 0.0, 0.0,
 	                                                                    -d2g_lav_dxNiNb(C_lav_Nb, C_lav_Ni),
-	                                                                    -d2g_lav_dxNiNi(C_lav_Nb, C_lav_Ni));
+	                                                                    -d2g_lav_dxNiNi(C_lav_Nb, C_lav_Ni)
+	);
 }
 
 #endif
