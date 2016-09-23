@@ -123,27 +123,27 @@ const double sigma_lav = 1.01;    // J/m^2
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
 const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
-const double omega_mu  = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
-const double omega_lav = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
+const double omega_mu  = 3.0 * width_factor * sigma_mu  / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
+const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
 
 // Numerical considerations
 const bool useNeumann = true;   // apply zero-flux boundaries (Neumann type)?
 const bool numeric_gov = false; // reset phi if matrix passes outside [0,1]?
-const bool tanh_init = true;   // apply tanh profile to initial profile of composition and phase
+const bool tanh_init = false;   // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10; // what to consider zero to avoid log(c) explosions
 const double noise_amp = 0.0;   // 1.0e-8;
 const double init_amp = 0.0;    // 1.0e-8;
 
 const double phase_tol = 0.001;   // coefficient of error (default is 0.001)
 //const double root_tol = 0.1;  // residual tolerance (default is 1e-7)
-const double root_tol = 1.0e-2;  // residual tolerance (default is 1e-7)
+const double root_tol = 1.0e-4;  // residual tolerance (default is 1e-7)
 const int root_max_iter = 100000;   // default is 1000, increasing probably won't change anything but your runtime
 
 
-const double CFL = 1.0/5000.0;     // numerical stability
+const double CFL = 4.095994e-7; // numerical stability
 const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
 const double dtc = CFL*(meshres*meshres)/(4.0*M_Cr); // diffusion-limited timestep
-const double dt = std::min(dtp, dtc);
+const double dt = 1.0e-7; //std::min(dtp, dtc);
 
 namespace MMSP
 {
@@ -323,12 +323,10 @@ void generate(int dim, const char* filename)
 			origin[1] = Ny / 2;
 			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  epsilon - 1.0);
 
-			/*
 			// Initialize mu stripe
 			j = 1;
 			origin[0] = Nx / 2 - xoffset;
 			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
-			*/
 
 			/*
 			// Initialize Laves stripe
@@ -382,7 +380,7 @@ void generate(int dim, const char* filename)
 			if (numeric_gov) {
 				double phFrac[NP] = {1.0};
 				for (int i=1; i<NP; i++) {
-					phFrac[i] = h(initGrid(n)[NC+i-1]);
+					phFrac[i] = h(fabs(initGrid(n)[NC+i-1]));
 					phFrac[0] -= phFrac[i];
 				}
 
@@ -393,11 +391,15 @@ void generate(int dim, const char* filename)
 						rsum += phFrac[i];
 					rsum = (rsum > epsilon) ? 1.0/rsum : 0.0;
 
+					/*
 					phasekicker kicker;
 					for (int i=1; i<NP; i++) {
 						phFrac[i] *= rsum;
 						kicker.kick(phFrac[i], initGrid(n)[NC+i-1]);
 					}
+					*/
+					for (int i=NC; i<NC+NP-1; i++)
+							initGrid(n)[i] *= rsum;
 				} else if (phFrac[0] > 1.0+epsilon) {
 					// Gamma went above one: renormalize with only gamma
 					for (int i=NC; i<NC+NP-1; i++) {
@@ -428,9 +430,9 @@ void generate(int dim, const char* filename)
 
 			double myCr = initGrid(n)[0];
 			double myNb = initGrid(n)[1];
-			double myDel = h(initGrid(n)[2]);
-			double myMu  = h(initGrid(n)[3]);
-			double myLav = h(initGrid(n)[4]);
+			double myDel = h(fabs(initGrid(n)[2]));
+			double myMu  = h(fabs(initGrid(n)[3]));
+			double myLav = h(fabs(initGrid(n)[4]));
 			double myGam = 1.0 - myDel - myMu - myLav;
 			double myf = dV*(gibbs(initGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                    + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
@@ -606,29 +608,55 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T  C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
 			#ifdef PARABOLIC
-			double df_dphi_del =  hprime(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
+			/*
+			double df_dphi_del =  hprime(fabs(phi_del))*sign(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
 			       df_dphi_del += 2.0*omega_del*sign(phi_del)*fabs(phi_del)*(1.0-fabs(phi_del)) * (1.0 - 2.0*fabs(phi_del));
 			       df_dphi_del += 4.0*alpha*fabs(phi_del)*sign(phi_del) * (phi_mu*phi_mu + phi_lav*phi_lav);
 
-			double df_dphi_mu  =  hprime(phi_mu) * (g_mu(C_mu_Cr, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
+			double df_dphi_mu  =  hprime(fabs(phi_mu))*sign(phi_mu) * (g_mu(C_mu_Cr, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
 			       df_dphi_mu +=  2.0*omega_mu*sign(phi_mu)*fabs(phi_mu)*(1.0-fabs(phi_mu)) * (1.0 - 2.0*fabs(phi_mu));
 			       df_dphi_mu +=  4.0*alpha*fabs(phi_mu)*sign(phi_mu) * (phi_del*phi_del + phi_lav*phi_lav);
 
-			double df_dphi_lav =  hprime(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
+			double df_dphi_lav =  hprime(fabs(phi_lav))*sign(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
 			       df_dphi_lav += 2.0*omega_lav*sign(phi_lav)*fabs(phi_lav)*(1.0-fabs(phi_lav)) * (1.0 - 2.0*fabs(phi_lav));
 			       df_dphi_lav += 4.0*alpha*fabs(phi_lav)*sign(phi_lav) * (phi_del*phi_del + phi_mu*phi_mu);
+			*/
+			double df_dphi_del =  hprime(fabs(phi_del))*sign(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
+			       df_dphi_del += 2.0*omega_del*phi_del * (pow(1.0-fabs(phi_del), 2) - phi_del*sign(phi_del)*(1.0-fabs(phi_del)));
+			       df_dphi_del += 4.0*alpha*phi_del * (phi_mu*phi_mu + phi_lav*phi_lav);
+
+			double df_dphi_mu  =  hprime(fabs(phi_mu))*sign(phi_mu) * (g_mu(C_mu_Cr, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
+			       df_dphi_mu  += 2.0*omega_mu*phi_mu * (pow(1.0-fabs(phi_mu), 2) - phi_mu*sign(phi_mu)*(1.0-fabs(phi_mu)));
+			       df_dphi_mu  += 4.0*alpha*phi_mu * (phi_del*phi_del + phi_lav*phi_lav);
+
+			double df_dphi_lav =  hprime(fabs(phi_lav))*sign(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
+			       df_dphi_lav += 2.0*omega_lav*phi_lav * (pow(1.0-fabs(phi_lav), 2) - phi_lav*sign(phi_lav)*(1.0-fabs(phi_lav)));
+			       df_dphi_lav += 4.0*alpha*phi_lav * (phi_del*phi_del + phi_mu*phi_mu);
 			#else
-			double df_dphi_del =  hprime(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			/*
+			double df_dphi_del =  hprime(fabs(phi_del))*sign(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			       df_dphi_del += 2.0*omega_del*sign(phi_del)*fabs(phi_del)*(1.0-fabs(phi_del)) * (1.0 - 2.0*fabs(phi_del));
 			       df_dphi_del += 4.0*alpha*fabs(phi_del)*sign(phi_del) * (phi_mu*phi_mu + phi_lav*phi_lav);
 
-			double df_dphi_mu  =  hprime(phi_mu) * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			double df_dphi_mu  =  hprime(fabs(phi_mu))*sign(phi_mu) * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			       df_dphi_mu +=  2.0*omega_mu*sign(phi_mu)*fabs(phi_mu)*(1.0-fabs(phi_mu)) * (1.0 - 2.0*fabs(phi_mu));
 			       df_dphi_mu +=  4.0*alpha*fabs(phi_mu)*sign(phi_mu) * (phi_del*phi_del + phi_lav*phi_lav);
 
-			double df_dphi_lav =  hprime(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			double df_dphi_lav =  hprime(fabs(phi_lav))*sign(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			       df_dphi_lav += 2.0*omega_lav*sign(phi_lav)*fabs(phi_lav)*(1.0-fabs(phi_lav)) * (1.0 - 2.0*fabs(phi_lav));
 			       df_dphi_lav += 4.0*alpha*fabs(phi_lav)*sign(phi_lav) * (phi_del*phi_del + phi_mu*phi_mu);
+			*/
+			double df_dphi_del =  hprime(fabs(phi_del))*sign(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			       df_dphi_del += 2.0*omega_del*phi_del * (pow(1.0-fabs(phi_del), 2) - phi_del*sign(phi_del)*(1.0-fabs(phi_del)));
+			       df_dphi_del += 4.0*alpha*phi_del * (phi_mu*phi_mu + phi_lav*phi_lav);
+
+			double df_dphi_mu  =  hprime(fabs(phi_mu))*sign(phi_mu) * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			       df_dphi_mu  += 2.0*omega_mu*phi_mu * (pow(1.0-fabs(phi_mu), 2) - phi_mu*sign(phi_mu)*(1.0-fabs(phi_mu)));
+			       df_dphi_mu  += 4.0*alpha*phi_mu * (phi_del*phi_del + phi_lav*phi_lav);
+
+			double df_dphi_lav =  hprime(fabs(phi_lav))*sign(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			       df_dphi_lav += 2.0*omega_lav*phi_lav * (pow(1.0-fabs(phi_lav), 2) - phi_lav*sign(phi_lav)*(1.0-fabs(phi_lav)));
+			       df_dphi_lav += 4.0*alpha*phi_lav * (phi_del*phi_del + phi_mu*phi_mu);
 			#endif
 
 			double lapPhi_del = laplacian(oldGrid, x, 2);
@@ -648,7 +676,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			if (numeric_gov) {
 				double phFrac[NP] = {1.0};
 				for (int i=1; i<NP; i++) {
-					phFrac[i] = h(newGrid(n)[NC+i-1]);
+					phFrac[i] = h(fabs(newGrid(n)[NC+i-1]));
 					phFrac[0] -= phFrac[i];
 				}
 
@@ -659,11 +687,15 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 						rsum += phFrac[i];
 					rsum = (rsum > epsilon) ? 1.0/rsum : 0.0;
 
+					/*
 					phasekicker kicker;
 					for (int i=1; i<NP; i++) {
 						phFrac[i] *= rsum;
 						kicker.kick(phFrac[i], newGrid(n)[NC+i-1]);
 					}
+					*/
+					for (int i=NC; i<NC+NP-1; i++)
+						newGrid(n)[i] *= rsum;
 				} else if (phFrac[0] > 1.0+epsilon) {
 					// Gamma went above one: renormalize with only gamma
 					for (int i=NC; i<NC+NP-1; i++) {
@@ -677,7 +709,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Guess at parallel tangent compositions *
 			 * ====================================== */
 
-			/*
 			#ifdef MPI_VERSION
 			guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
 			guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
@@ -701,9 +732,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
 			}
 			#endif
-			*/
+			/*
 			for (int i=NC+NP-1; i<fields(newGrid); i++)
 				newGrid(n)[i] = oldGrid(n)[i];
+			*/
 
 
 
@@ -723,11 +755,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				#else
 				totBadTangents += 1;
 				#endif
-			} /*else {
+				/*
 				// Take average value
 				for (int i=NC+NP-1; i<fields(newGrid); i++)
-					newGrid(n)[i] = (newGrid(n)[i] + 3.0*oldGrid(n)[i])/4.0;
-			}*/
+					newGrid(n)[i] = (newGrid(n)[i] + oldGrid(n)[i]) / 2.0;
+				*/
+			}
 
 
 			/* ======= *
@@ -763,9 +796,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			double myCr = oldGrid(n)[0];
 			double myNb = oldGrid(n)[1];
-			double myDel = h(oldGrid(n)[2]);
-			double myMu  = h(oldGrid(n)[3]);
-			double myLav = h(oldGrid(n)[4]);
+			double myDel = h(fabs(oldGrid(n)[2]));
+			double myMu  = h(fabs(oldGrid(n)[3]));
+			double myLav = h(fabs(oldGrid(n)[4]));
 			double myGam = 1.0 - myDel - myMu - myLav;
 			double myf = dV*(gibbs(oldGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                   + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
@@ -861,14 +894,14 @@ template<int dim,typename T>
 void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
 	/*
-	const T xcr = 0.003125;
-	const T xnb = 0.24375;
-	const T xcr = (0.003125 + GRID(n)[0])/2.0;
-	const T xnb = (0.24375 + GRID(n)[1])/2.0;
-	*/
-
 	const T xcr = GRID(n)[0];
 	const T xnb = GRID(n)[1];
+	const T xcr = 0.003125;
+	const T xnb = 0.24375;
+	*/
+
+	const T xcr = (0.003125 + GRID(n)[0])/2.0;
+	const T xnb = (0.24375 + GRID(n)[1])/2.0;
 	GRID(n)[7] = xcr/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
 	GRID(n)[8] = xnb/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
 }
@@ -879,12 +912,12 @@ void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_
 	/*
 	const T xcr = 0.05;
 	const T xnb = 0.4875;
-	const T xcr = (0.05 + GRID(n)[0])/2.0;
-	const T xnb = (0.4875 + GRID(n)[1])/2.0;
-	*/
-
 	const T xcr = GRID(n)[0];
 	const T xnb = GRID(n)[1];
+	*/
+
+	const T xcr = (0.05 + GRID(n)[0])/2.0;
+	const T xnb = (0.4875 + GRID(n)[1])/2.0;
 	// if it's inside the mu field, don't change it
 	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
 	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
@@ -912,12 +945,12 @@ void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 	/*
 	const T xcr = 0.325;
 	const T xnb = 0.2875;
-	const T xcr = (0.325 + GRID(n)[0])/2.0;
-	const T xnb = (0.2875 + GRID(n)[1])/2.0;
-	*/
-
 	const T xcr = GRID(n)[0];
 	const T xnb = GRID(n)[1];
+	*/
+
+	const T xcr = (0.325 + GRID(n)[0])/2.0;
+	const T xnb = (0.2875 + GRID(n)[1])/2.0;
 	// if it's inside the Laves field, don't change it
 	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
 	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
@@ -961,7 +994,7 @@ void embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>
 				GRID(x)[pid] = phi;
 			}
 			/*
-			else if (h(GRID(x)[2]) + h(GRID(x)[3]) + h(GRID(x)[4])>epsilon) {
+			else if (h(fabs(GRID(x)[2])) + h(fabs(GRID(x)[3])) + h(fabs(GRID(x)[4]))>epsilon) {
 				// Don't deplete neighboring precipitates, only matrix
 				continue;
 			} else {
@@ -1048,9 +1081,9 @@ void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	for (int n=0; n<MMSP::nodes(GRID); n++) {
 		double myCr = GRID(n)[0];
 		double myNb = GRID(n)[1];
-		double myDel = h(GRID(n)[2]);
-		double myMu  = h(GRID(n)[3]);
-		double myLav = h(GRID(n)[4]);
+		double myDel = h(fabs(GRID(n)[2]));
+		double myMu  = h(fabs(GRID(n)[3]));
+		double myLav = h(fabs(GRID(n)[4]));
 		double myGam = 1.0 - myDel - myMu - myLav;
 
 		#ifndef MPI_VERSION
@@ -1100,19 +1133,19 @@ void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 
 double h(const double p)
 {
-	return pow(fabs(p), 3) * (16.0*pow(fabs(p), 2) - 15.0*fabs(p) + 10.0);
+	return p*p*p * (16.0*p*p - 15.0*p + 10.0);
 }
 
 double hprime(const double p)
 {
-	return sign(p) * pow(fabs(p),2)*(80.0*pow(fabs(p),2) - 60.0*fabs(p) + 30.0);
+	return p*p * (80.0*p*p - 60.0*p + 30.0);
 }
 
 double gibbs(const MMSP::vector<double>& v)
 {
-	double n_del = h(v[2]);
-	double n_mu  = h(v[3]);
-	double n_lav = h(v[4]);
+	double n_del = h(fabs(v[2]));
+	double n_mu  = h(fabs(v[3]));
+	double n_lav = h(fabs(v[4]));
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
 
 	#ifdef PARABOLIC
@@ -1199,8 +1232,8 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr) - dg_mu_dxCr(C_mu_Cr, C_mu_Ni));
 	gsl_vector_set(f, 5, dg_gam_dxNi()         - dg_mu_dxNi(C_mu_Cr, C_mu_Ni));
 
-	gsl_vector_set(f, 6, dg_gam_dxNb(C_mu_Nb) - dg_lav_dxNb(C_lav_Nb));
-	gsl_vector_set(f, 7, dg_gam_dxNi()        - dg_lav_dxNi(C_lav_Ni));
+	gsl_vector_set(f, 6, dg_gam_dxNb(C_gam_Nb) - dg_lav_dxNb(C_lav_Nb));
+	gsl_vector_set(f, 7, dg_gam_dxNi()         - dg_lav_dxNi(C_lav_Ni));
 	#else
 	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
 	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
@@ -1392,9 +1425,9 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	par.x_Cr = GRID(n)[0];
 	par.x_Nb = GRID(n)[1];
 
-	par.n_del = h(GRID(n)[2]);
-	par.n_mu =  h(GRID(n)[3]);
-	par.n_lav = h(GRID(n)[4]);
+	par.n_del = h(fabs(GRID(n)[2]));
+	par.n_mu =  h(fabs(GRID(n)[3]));
+	par.n_lav = h(fabs(GRID(n)[4]));
 
 	// initial guesses
 
@@ -1431,6 +1464,13 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
+	/*
+	#ifdef PARABOLIC
+	if (status == GSL_SUCCESS) {
+	#else
+	if (1) {
+	#endif
+	*/
 	if (status == GSL_SUCCESS) {
 		GRID(n)[5] = static_cast<T>(gsl_vector_get(solver->x, 0));      // gamma Cr
 		GRID(n)[6] = static_cast<T>(gsl_vector_get(solver->x, 1));      //       Nb
@@ -1473,7 +1513,7 @@ rootsolver::~rootsolver()
 double phaseKicker_f(double x, void* params)
 {
 	double n = ((struct nparams*) params)->n;
-	return n - h(x);
+	return n - h(fabs(x));
 }
 
 phasekicker::phasekicker() :
@@ -1535,9 +1575,9 @@ void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	T xCr = GRID(n)[0];
 	T xNb = GRID(n)[1];
 
-	T n_del = h(GRID(n)[2]);
-	T n_mu  = h(GRID(n)[3]);
-	T n_lav = h(GRID(n)[4]);
+	T n_del = h(fabs(GRID(n)[2]));
+	T n_mu  = h(fabs(GRID(n)[3]));
+	T n_lav = h(fabs(GRID(n)[4]));
 	T n_gam = 1.0 - n_del - n_mu - n_lav;
 
 	T C_gam_Cr = GRID(n)[5];

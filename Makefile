@@ -10,8 +10,8 @@ compiler = icc
 pcompiler = /usr/bin/mpic++.openmpi
 
 #flags = -O3 -Wall -std=c++11 -I $(incdir)
-flags = -O3 -Wall -std=c++11 -I $(incdir) -DJACOBIAN
-#flags = -O3 -Wall -std=c++11 -I $(incdir) -DJACOBIAN -DPARABOLIC
+#flags = -O3 -Wall -std=c++11 -I $(incdir) -DJACOBIAN
+flags = -O3 -Wall -std=c++11 -I $(incdir) -DJACOBIAN -DPARABOLIC
 
 pflags = $(flags) -include mpi.h
 
