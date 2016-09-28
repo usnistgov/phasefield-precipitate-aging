@@ -115,6 +115,8 @@ struct nparams {
 };
 
 double phaseKicker_f(double x, void* params);
+double phaseKicker_df(double x, void* params);
+void phaseKicker_fdf(double x, void* params, double* y, double* dy);
 
 class phasekicker
 {
@@ -128,7 +130,7 @@ private:
 	const size_t maxiter;
 	const double tolerance;
 	struct nparams par;
-	const gsl_root_fsolver_type* algorithm;
-	gsl_root_fsolver* solver;
-	gsl_function F;
+	const gsl_root_fdfsolver_type* algorithm;
+	gsl_root_fdfsolver* solver;
+	gsl_function_fdf F;
 };

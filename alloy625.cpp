@@ -96,8 +96,13 @@ const double meshres = 1.25e-9;    // grid spacing (m)
 const double Vm = 1.0e-5;         // molar volume (m^3/mol)
 const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
+/*
 const double M_Cr = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
 const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
+*/
+// Try Zhou's numbers (Al/Nb), for kicks
+const double M_Cr = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
+const double M_Nb = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
 
 const double D_Cr = Vm*Vm*M_Cr;   // diffusivity in FCC Ni (m^4/Ns)
 const double D_Nb = Vm*Vm*M_Nb;   // diffusivity in FCC Ni (m^4/Ns)
@@ -107,19 +112,21 @@ const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_lav = 1.24e-8; // gradient energy coefficient (J/m)
 
 // Choose numerical diffusivity to lock chemical and transformational timescales
-/*
+// Zhou's numbers
 const double L_del = 2.904e-11;   // numerical mobility (m^2/Ns)
 const double L_mu  = 2.904e-11;   // numerical mobility (m^2/Ns)
 const double L_lav = 2.904e-11;   // numerical mobility (m^2/Ns)
-*/
+/*
 const double L_del = 1.92e-12;   // numerical mobility (m^2/Ns)
 const double L_mu  = 1.92e-12;   // numerical mobility (m^2/Ns)
 const double L_lav = 1.92e-12;   // numerical mobility (m^2/Ns)
+*/
 
 const double sigma_del = 1.01;    // J/m^2
 const double sigma_mu  = 1.01;    // J/m^2
 const double sigma_lav = 1.01;    // J/m^2
 
+// Note that ifce width was not considered in Zhou's model, but is in vanilla KKS
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
 const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
@@ -128,7 +135,7 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool useNeumann = true;   // apply zero-flux boundaries (Neumann type)?
-const bool numeric_gov = false; // reset phi if matrix passes outside [0,1]?
+const bool numeric_gov = true; // reset phi if matrix passes outside [0,1]?
 const bool tanh_init = false;   // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10; // what to consider zero to avoid log(c) explosions
 const double noise_amp = 0.0;   // 1.0e-8;
@@ -143,7 +150,7 @@ const int root_max_iter = 100000;   // default is 1000, increasing probably won'
 const double CFL = 4.095994e-7; // numerical stability
 const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
 const double dtc = CFL*(meshres*meshres)/(4.0*M_Cr); // diffusion-limited timestep
-const double dt = 1.0e-7; //std::min(dtp, dtc);
+const double dt = 1.0e-8; //std::min(dtp, dtc);
 
 namespace MMSP
 {
@@ -328,12 +335,10 @@ void generate(int dim, const char* filename)
 			origin[0] = Nx / 2 - xoffset;
 			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 
-			/*
 			// Initialize Laves stripe
 			j = 2;
 			origin[0] = Nx / 2 + xoffset;
 			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
-			*/
 		}
 
 
@@ -380,30 +385,31 @@ void generate(int dim, const char* filename)
 			if (numeric_gov) {
 				double phFrac[NP] = {1.0};
 				for (int i=1; i<NP; i++) {
-					phFrac[i] = h(fabs(initGrid(n)[NC+i-1]));
-					phFrac[0] -= phFrac[i];
+					double pf = h(fabs(initGrid(n)[NC+i-1]));
+					phFrac[i] = pf;
+					phFrac[0] -= pf;
 				}
 
-				if (phFrac[0] < -epsilon) {
-					// Secondary phases exceed unity: renormalize with no gamma present
-					double rsum = 0.0;
+				if (phFrac[0] < 0.0) {
+					// Secondary phases exceed unity: renormalize without gamma
+					double rsum = epsilon;
 					for (int i=1; i<NP; i++)
 						rsum += phFrac[i];
 					rsum = (rsum > epsilon) ? 1.0/rsum : 0.0;
 
-					/*
 					phasekicker kicker;
 					for (int i=1; i<NP; i++) {
 						phFrac[i] *= rsum;
 						kicker.kick(phFrac[i], initGrid(n)[NC+i-1]);
 					}
-					*/
+					/*
 					for (int i=NC; i<NC+NP-1; i++)
 							initGrid(n)[i] *= rsum;
-				} else if (phFrac[0] > 1.0+epsilon) {
+					*/
+				} else if (phFrac[0] > 1.0) {
 					// Gamma went above one: renormalize with only gamma
 					for (int i=NC; i<NC+NP-1; i++) {
-						initGrid(n)[i] = 0.0;
+						initGrid(n)[i] = sign(initGrid(n)[i])*epsilon;
 					}
 				}
 			}
@@ -680,26 +686,26 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 					phFrac[0] -= phFrac[i];
 				}
 
-				if (phFrac[0] < -epsilon) {
+				if (phFrac[0] < 0.0) {
 					// Secondary phases exceed unity: renormalize with no gamma present
-					double rsum = 0.0;
+					double rsum = epsilon;
 					for (int i=1; i<NP; i++)
 						rsum += phFrac[i];
 					rsum = (rsum > epsilon) ? 1.0/rsum : 0.0;
 
-					/*
 					phasekicker kicker;
 					for (int i=1; i<NP; i++) {
 						phFrac[i] *= rsum;
 						kicker.kick(phFrac[i], newGrid(n)[NC+i-1]);
 					}
-					*/
+					/*
 					for (int i=NC; i<NC+NP-1; i++)
 						newGrid(n)[i] *= rsum;
-				} else if (phFrac[0] > 1.0+epsilon) {
+					*/
+				} else if (phFrac[0] > 1.0) {
 					// Gamma went above one: renormalize with only gamma
 					for (int i=NC; i<NC+NP-1; i++) {
-						newGrid(n)[i] = 0.0;
+						newGrid(n)[i] = sign(newGrid(n)[i])*epsilon;
 					}
 				}
 			}
@@ -1516,53 +1522,63 @@ double phaseKicker_f(double x, void* params)
 	return n - h(fabs(x));
 }
 
+double phaseKicker_df(double x, void* params)
+{
+	return -sign(x) * hprime(fabs(x));
+}
+
+void phaseKicker_fdf(double x, void* params, double* y, double* dy)
+{
+	*y  = phaseKicker_f(x, params);
+	*dy = phaseKicker_df(x, params);
+}
+
 phasekicker::phasekicker() :
     maxiter(root_max_iter),
     tolerance(phase_tol)
 {
-	// Available algorithms are: brent, falsepos, bisection (in order of *decreasing* efficiency)
-	algorithm = gsl_root_fsolver_brent;
-	solver = gsl_root_fsolver_alloc(algorithm);
+	// Available algorithms are: newton, secant, steffenson (decreasing convergence rate)
+	algorithm = gsl_root_fdfsolver_newton;
+	solver = gsl_root_fdfsolver_alloc(algorithm);
 }
 
 
 phasekicker::~phasekicker()
 {
-	gsl_root_fsolver_free(solver);
+	gsl_root_fdfsolver_free(solver);
 }
 
 template<typename T>
 int phasekicker::kick(const double& n, T& p)
 {
-	int status;
-	int iter = 0;
-	double x_lo = 0.0;
-	double x_hi = 1.0;
-	if (sign(p) < 0.0) {
-		// phi should not switch sign
-		x_lo = -1.0;
-		x_hi =  0.0;
+	int status = GSL_SUCCESS;
+
+	if (n < epsilon) {
+		p = 0.0;
+	} else {
+		double x0 = sign(p);
+		double r = std::min(sign(p)*1.1, 2.0*p); // try descending from high side
+		int iter = 0;
+
+		par.n = n;
+
+		F.f   = &phaseKicker_f;
+		F.df  = &phaseKicker_df;
+		F.fdf = &phaseKicker_fdf;
+		F.params = &par;
+
+		gsl_root_fdfsolver_set(solver, &F, r);
+
+		do {
+			iter++;
+			status = gsl_root_fdfsolver_iterate(solver);
+			x0 = r;
+			r = gsl_root_fdfsolver_root(solver);
+			status = gsl_root_test_delta(r, x0, 0, tolerance);
+		} while (status == GSL_CONTINUE && iter < maxiter);
+
+		p = r;
 	}
-
-	par.n = n;
-	F.function = &phaseKicker_f;
-	F.params = &par;
-	double r = p;
-	gsl_root_fsolver_set(solver, &F, x_lo, x_hi);
-
-	do {
-		iter++;
-		status = gsl_root_fsolver_iterate(solver);
-		r = gsl_root_fsolver_root(solver);
-		x_lo = gsl_root_fsolver_x_lower(solver);
-		x_hi = gsl_root_fsolver_x_upper(solver);
-		status = gsl_root_test_interval(x_lo, x_hi, 0, tolerance);
-		if (status == GSL_SUCCESS)
-			break;
-	} while (status == GSL_CONTINUE && iter < maxiter);
-
-	p = r;
-
 	return status;
 }
 
