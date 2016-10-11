@@ -92,7 +92,7 @@ const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near pr
 const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
-const double meshres = 1.25e-9;    // grid spacing (m)
+const double meshres = 5.0e-9; //1.25e-9;    // grid spacing (m)
 const double Vm = 1.0e-5;         // molar volume (m^3/mol)
 const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
@@ -127,6 +127,11 @@ const double sigma_mu  = 1.01;    // J/m^2
 const double sigma_lav = 1.01;    // J/m^2
 
 // Note that ifce width was not considered in Zhou's model, but is in vanilla KKS
+/*
+const double omega_del = 9.5e8;  // multiwell height (m^2/Nsm^2)
+const double omega_mu  = 9.5e8;  // multiwell height (m^2/Nsm^2)
+const double omega_lav = 9.5e8;  // multiwell height (m^2/Nsm^2)
+*/
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
 const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
@@ -136,14 +141,14 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 // Numerical considerations
 const bool useNeumann = true;   // apply zero-flux boundaries (Neumann type)?
 const bool numeric_gov = true; // reset phi if matrix passes outside [0,1]?
-const bool tanh_init = false;   // apply tanh profile to initial profile of composition and phase
+const bool tanh_init = true;   // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10; // what to consider zero to avoid log(c) explosions
-const double noise_amp = 0.0;   // 1.0e-8;
-const double init_amp = 0.0;    // 1.0e-8;
+const double noise_amp = 1.0e-3; //1.0e-8;
+const double init_amp = 1.0e-3; //1.0e-8;
 
-const double phase_tol = 0.001;   // coefficient of error (default is 0.001)
+const double phase_tol = 1.0e-6;   // coefficient of error for phase re-mapping (default is 0.001)
 //const double root_tol = 0.1;  // residual tolerance (default is 1e-7)
-const double root_tol = 1.0e-4;  // residual tolerance (default is 1e-7)
+const double root_tol = 1.0e-3;  // residual tolerance (default is 1e-7)
 const int root_max_iter = 100000;   // default is 1000, increasing probably won't change anything but your runtime
 
 
@@ -345,29 +350,29 @@ void generate(int dim, const char* filename)
 		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 		#ifdef MPI_VERSION
 		for (int n=0; n<nodes(initGrid); n++) {
-			guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
-			guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
-			guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
-			guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+			guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
+			guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
+			guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
+			guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 		}
 		#else
 		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
 			#pragma omp critical
 			{
-				guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+				guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
 			}
 			#pragma omp critical
 			{
-				guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+				guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
 			}
 			#pragma omp critical
 			{
-				guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+				guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
 			}
 			#pragma omp critical
 			{
-				guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 			}
 		}
 		#endif
@@ -383,7 +388,7 @@ void generate(int dim, const char* filename)
 			 * ============================== */
 
 			if (numeric_gov) {
-				double phFrac[NP] = {1.0};
+				vector<double> phFrac(NP, 1.0);
 				for (int i=1; i<NP; i++) {
 					double pf = h(fabs(initGrid(n)[NC+i-1]));
 					phFrac[i] = pf;
@@ -395,7 +400,7 @@ void generate(int dim, const char* filename)
 					double rsum = epsilon;
 					for (int i=1; i<NP; i++)
 						rsum += phFrac[i];
-					rsum = (rsum > epsilon) ? 1.0/rsum : 0.0;
+					rsum = 1.0/rsum;
 
 					phasekicker kicker;
 					for (int i=1; i<NP; i++) {
@@ -419,8 +424,8 @@ void generate(int dim, const char* filename)
 			 * Solve for parallel tangents *
 			 * =========================== */
 
-			rootsolver parallelTangentSolver;
-			parallelTangentSolver.solve(initGrid, n);
+			//rootsolver parallelTangentSolver;
+			//parallelTangentSolver.solve(initGrid, n);
 
 		}
 
@@ -553,16 +558,65 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		#pragma omp parallel for
 		#endif
 		for (int n=0; n<nodes(oldGrid); n++) {
+			/* =========================== *
+			 * Solve for parallel tangents *
+			 * =========================== */
+
+			rootsolver parallelTangentSolver;
+			double res = parallelTangentSolver.solve(oldGrid, n);
+
+			if (res>root_tol) {
+				#ifndef MPI_VERSION
+				#pragma omp critical
+				{
+				totBadTangents += 1;
+				}
+				#else
+				totBadTangents += 1;
+				#endif
+
+				// If guesses are invalid, this may cause errors.
+				#ifdef MPI_VERSION
+				guessGamma(oldGrid, n, mt_rand, real_gen, noise_amp);
+				guessDelta(oldGrid, n, mt_rand, real_gen, noise_amp);
+				guessMu(   oldGrid, n, mt_rand, real_gen, noise_amp);
+				guessLaves(oldGrid, n, mt_rand, real_gen, noise_amp);
+				#else
+				#pragma omp critical
+				{
+					guessGamma(oldGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessDelta(oldGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessMu(   oldGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessLaves(oldGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#endif
+			}
+
+			/* ========================= *
+			 * Store chemical potentials *
+			 * ========================= */
+
 			const T& C_gam_Cr = oldGrid(n)[5];
 			const T& C_gam_Nb = oldGrid(n)[6];
 			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
+			vector<int> x = position(oldGrid,n);
+
 			#ifdef PARABOLIC
-			potGrid(n)[0] = dg_gam_dxCr(C_gam_Cr);
-			potGrid(n)[1] = dg_gam_dxNb(C_gam_Nb);
+			potGrid(x)[0] = dg_gam_dxCr(C_gam_Cr);
+			potGrid(x)[1] = dg_gam_dxNb(C_gam_Nb);
 			#else
-			potGrid(n)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			potGrid(n)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			potGrid(x)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			potGrid(x)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 			#endif
 
 		}
@@ -586,8 +640,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			vector<T> lapPot = laplacian(potGrid, x);
 
-			newGrid(n)[0] = oldGrid(n)[0] + dt * D_Cr * lapPot[0];
-			newGrid(n)[1] = oldGrid(n)[1] + dt * D_Nb * lapPot[1];
+			newGrid(x)[0] = oldGrid(n)[0] + dt * D_Cr * lapPot[0];
+			newGrid(x)[1] = oldGrid(n)[1] + dt * D_Nb * lapPot[1];
 
 
 			/* ======================================== *
@@ -670,9 +724,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double lapPhi_lav = laplacian(oldGrid, x, 4);
 
 
-			newGrid(n)[2] = phi_del + dt * L_del * (kappa_del*lapPhi_del - df_dphi_del);
-			newGrid(n)[3] = phi_mu  + dt * L_mu  * (kappa_mu *lapPhi_mu  - df_dphi_mu);
-			newGrid(n)[4] = phi_lav + dt * L_lav * (kappa_lav*lapPhi_lav - df_dphi_lav);
+			newGrid(x)[2] = phi_del + dt * L_del * (kappa_del*lapPhi_del - df_dphi_del);
+			newGrid(x)[3] = phi_mu  + dt * L_mu  * (kappa_mu *lapPhi_mu  - df_dphi_mu);
+			newGrid(x)[4] = phi_lav + dt * L_lav * (kappa_lav*lapPhi_lav - df_dphi_lav);
 
 
 			/* ============================== *
@@ -680,9 +734,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ============================== */
 
 			if (numeric_gov) {
-				double phFrac[NP] = {1.0};
+				vector<double> phFrac(NP, 1.0);
 				for (int i=1; i<NP; i++) {
-					phFrac[i] = h(fabs(newGrid(n)[NC+i-1]));
+					phFrac[i] = h(fabs(newGrid(x)[NC+i-1]));
 					phFrac[0] -= phFrac[i];
 				}
 
@@ -691,82 +745,33 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 					double rsum = epsilon;
 					for (int i=1; i<NP; i++)
 						rsum += phFrac[i];
-					rsum = (rsum > epsilon) ? 1.0/rsum : 0.0;
+					rsum = 1.0/rsum;
 
 					phasekicker kicker;
 					for (int i=1; i<NP; i++) {
 						phFrac[i] *= rsum;
-						kicker.kick(phFrac[i], newGrid(n)[NC+i-1]);
+						kicker.kick(phFrac[i], newGrid(x)[NC+i-1]);
 					}
 					/*
+					// Incorrect approach, but fast
 					for (int i=NC; i<NC+NP-1; i++)
-						newGrid(n)[i] *= rsum;
+						newGrid(x)[i] *= rsum;
 					*/
 				} else if (phFrac[0] > 1.0) {
 					// Gamma went above one: renormalize with only gamma
 					for (int i=NC; i<NC+NP-1; i++) {
-						newGrid(n)[i] = sign(newGrid(n)[i])*epsilon;
+						newGrid(x)[i] = sign(newGrid(x)[i])*epsilon;
 					}
 				}
 			}
 
 
-			/* ====================================== *
-			 * Guess at parallel tangent compositions *
-			 * ====================================== */
+			/* ======================= *
+			 * Store parallel tangents *
+			 * ======================= */
 
-			#ifdef MPI_VERSION
-			guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
-			guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
-			guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
-			guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
-			#else
-			#pragma omp critical
-			{
-				guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
-			}
-			#pragma omp critical
-			{
-				guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
-			}
-			#pragma omp critical
-			{
-				guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
-			}
-			#pragma omp critical
-			{
-				guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
-			}
-			#endif
-			/*
 			for (int i=NC+NP-1; i<fields(newGrid); i++)
-				newGrid(n)[i] = oldGrid(n)[i];
-			*/
-
-
-
-			/* =========================== *
-			 * Solve for parallel tangents *
-			 * =========================== */
-
-			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(newGrid, n);
-
-			if (res>root_tol) {
-				#ifndef MPI_VERSION
-				#pragma omp critical
-				{
-				totBadTangents += 1;
-				}
-				#else
-				totBadTangents += 1;
-				#endif
-				/*
-				// Take average value
-				for (int i=NC+NP-1; i<fields(newGrid); i++)
-					newGrid(n)[i] = (newGrid(n)[i] + oldGrid(n)[i]) / 2.0;
-				*/
-			}
+				newGrid(x)[i] = oldGrid(n)[i];
 
 
 			/* ======= *
@@ -883,99 +888,115 @@ double bellCurve(double x, double m, double s)
 template<int dim,typename T>
 void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
+	MMSP::vector<int> x = MMSP::position(GRID, n);
+
 	/*
-	const T xcr = 0.30;
-	const T xnb = 0.01;
-	const T xcr = (0.30 + GRID(n)[0])/2.0;
-	const T xnb = (0.01 + GRID(n)[1])/2.0;
+	const T xcr = (0.30 + GRID(x)[0])/2.0;
+	const T xnb = (0.01 + GRID(x)[1])/2.0;
+	const T xcr = GRID(x)[0];
+	const T xnb = GRID(x)[1];
 	*/
 
-	const T xcr = GRID(n)[0];
-	const T xnb = GRID(n)[1];
-	GRID(n)[5] = xcr + amp*real_gen(mt_rand);
-	GRID(n)[6] = xnb + amp*real_gen(mt_rand);
+	const T xcr = 0.30;
+	const T xnb = 0.01;
+
+	GRID(x)[5] = xcr + amp*real_gen(mt_rand);
+	GRID(x)[6] = xnb + amp*real_gen(mt_rand);
 }
 
 template<int dim,typename T>
 void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
+	MMSP::vector<int> x = MMSP::position(GRID, n);
+
 	/*
-	const T xcr = GRID(n)[0];
-	const T xnb = GRID(n)[1];
-	const T xcr = 0.003125;
-	const T xnb = 0.24375;
+	const T xcr = (0.003125 + GRID(x)[0])/2.0;
+	const T xnb = (0.24375 + GRID(x)[1])/2.0;
+	const T xcr = GRID(x)[0];
+	const T xnb = GRID(x)[1];
 	*/
 
-	const T xcr = (0.003125 + GRID(n)[0])/2.0;
-	const T xnb = (0.24375 + GRID(n)[1])/2.0;
-	GRID(n)[7] = xcr/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
-	GRID(n)[8] = xnb/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
+	const T xcr = 0.003125;
+	const T xnb = 0.24375;
+
+	GRID(x)[7] = xcr/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
+	GRID(x)[8] = xnb/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
 }
 
 template<int dim,typename T>
 void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
+	MMSP::vector<int> x = MMSP::position(GRID, n);
+
 	/*
 	const T xcr = 0.05;
 	const T xnb = 0.4875;
-	const T xcr = GRID(n)[0];
-	const T xnb = GRID(n)[1];
+	const T xcr = (0.05 + GRID(x)[0])/2.0;
+	const T xnb = (0.4875 + GRID(x)[1])/2.0;
 	*/
 
-	const T xcr = (0.05 + GRID(n)[0])/2.0;
-	const T xnb = (0.4875 + GRID(n)[1])/2.0;
+	const T xcr = GRID(x)[0];
+	const T xnb = GRID(x)[1];
+
 	// if it's inside the mu field, don't change it
 	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
 	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
 	bool ni_poor = (1.0-xcr-xnb < 0.5);
 	if (ni_poor && below_upper && above_lower) {
-		GRID(n)[9] = xcr;
-		GRID(n)[10] = xnb;
+		GRID(x)[9] = xcr;
+		GRID(x)[10] = xnb;
 	} else if (ni_poor && below_upper) {
-		GRID(n)[9] = -0.5375*(xnb-0.5625)/0.1;
-		GRID(n)[10] = xnb;
+		GRID(x)[9] = -0.5375*(xnb-0.5625)/0.1;
+		GRID(x)[10] = xnb;
 	} else if (ni_poor && above_lower) {
-		GRID(n)[9] = 0.325*(xnb-0.475)/0.2;
-		GRID(n)[10] = xnb;
+		GRID(x)[9] = 0.325*(xnb-0.475)/0.2;
+		GRID(x)[10] = xnb;
 	} else {
-		GRID(n)[9] = 0.02;
-		GRID(n)[10] = 0.5;
+		GRID(x)[9] = 0.02;
+		GRID(x)[10] = 0.5;
 	}
-	GRID(n)[9]  = xcr; // + amp*real_gen(mt_rand);
-	GRID(n)[10] = xnb; // + amp*real_gen(mt_rand);
+	//GRID(x)[9]  = xcr; // + amp*real_gen(mt_rand);
+	//GRID(x)[10] = xnb; // + amp*real_gen(mt_rand);
+	GRID(x)[9]  += amp*real_gen(mt_rand);
+	GRID(x)[10] += amp*real_gen(mt_rand);
 }
 
 template<int dim,typename T>
 void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
+	MMSP::vector<int> x = MMSP::position(GRID, n);
+
 	/*
 	const T xcr = 0.325;
 	const T xnb = 0.2875;
-	const T xcr = GRID(n)[0];
-	const T xnb = GRID(n)[1];
+	const T xcr = (0.325 + GRID(x)[0])/2.0;
+	const T xnb = (0.2875 + GRID(x)[1])/2.0;
 	*/
 
-	const T xcr = (0.325 + GRID(n)[0])/2.0;
-	const T xnb = (0.2875 + GRID(n)[1])/2.0;
+	const T xcr = GRID(x)[0];
+	const T xnb = GRID(x)[1];
+
 	// if it's inside the Laves field, don't change it
 	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
 	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
 	bool ni_poor = (1.0-xcr-xnb < 0.4);
 	if (ni_poor && below_upper && above_lower) {
-		GRID(n)[11] = xcr;
-		GRID(n)[12] = xnb;
+		GRID(x)[11] = xcr;
+		GRID(x)[12] = xnb;
 	} else if (ni_poor && below_upper) {
-		GRID(n)[11] = 0.66*(xnb-0.325)/0.015;
-		GRID(n)[12] = xnb;
+		GRID(x)[11] = 0.66*(xnb-0.325)/0.015;
+		GRID(x)[12] = xnb;
 	} else if (ni_poor && above_lower) {
-		GRID(n)[11] = 0.68*(xnb-0.2)/0.12;
-		GRID(n)[12] = xnb;
+		GRID(x)[11] = 0.68*(xnb-0.2)/0.12;
+		GRID(x)[12] = xnb;
 	} else {
-		GRID(n)[11] = 0.332;
-		GRID(n)[12] = 0.334;
+		GRID(x)[11] = 0.332;
+		GRID(x)[12] = 0.334;
 	}
-	GRID(n)[11] = xcr; // + amp*real_gen(mt_rand);
-	GRID(n)[12] = xnb; // + amp*real_gen(mt_rand);
+	//GRID(x)[11] = xcr; // + amp*real_gen(mt_rand);
+	//GRID(x)[12] = xnb; // + amp*real_gen(mt_rand);
+	GRID(x)[11] += amp*real_gen(mt_rand);
+	GRID(x)[12] += amp*real_gen(mt_rand);
 }
 
 template<typename T>
@@ -1039,7 +1060,7 @@ void embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& 
 
 	if (tanh_init) {
 		// Create a tanh profile in composition surrounding the precipitate to reduce initial Laplacian
-		double del = 3.51;
+		double del = 4.3875e-9 / meshres;
 		for (x[0] = origin[0] - R - 2*del; x[0] < origin[0] - R; x[0]++) {
 			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 				continue;
@@ -1155,10 +1176,10 @@ double gibbs(const MMSP::vector<double>& v)
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
 
 	#ifdef PARABOLIC
-	double g  = n_gam * g_gam(v[5],v[6]);
-	       g += n_del * g_del(v[7],v[8]);
-	       g += n_mu  * g_mu( v[9],1.0-v[9]-v[10]);
-	       g += n_lav * g_lav(v[12],1.0-v[11]-v[12]);
+	double g  = n_gam * g_gam(v[5],  v[6]);
+	       g += n_del * g_del(v[7],  v[8]);
+	       g += n_mu  * g_mu( v[9],  1.0-v[9]-v[10]);
+	       g += n_lav * g_lav(v[12], 1.0-v[11]-v[12]);
 	       g += omega_del * v[2]*v[2] * pow(1.0 - fabs(v[2]), 2);
 	       g += omega_mu  * v[3]*v[3] * pow(1.0 - fabs(v[3]), 2);
 	       g += omega_lav * v[4]*v[4] * pow(1.0 - fabs(v[4]), 2);
@@ -1228,6 +1249,7 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 	gsl_vector_set_zero(f); // handy!
 
+
 	#ifdef PARABOLIC
 	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
 	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
@@ -1235,11 +1257,14 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr) - dg_del_dxCr(C_del_Cr));
 	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Nb) - dg_del_dxNb(C_del_Nb));
 
-	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr) - dg_mu_dxCr(C_mu_Cr, C_mu_Ni));
-	gsl_vector_set(f, 5, dg_gam_dxNi()         - dg_mu_dxNi(C_mu_Cr, C_mu_Ni));
+	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr)                     - dg_mu_dxCr(C_mu_Cr, C_mu_Ni));
+	gsl_vector_set(f, 5, dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNi(C_mu_Cr, C_mu_Ni));
 
-	gsl_vector_set(f, 6, dg_gam_dxNb(C_gam_Nb) - dg_lav_dxNb(C_lav_Nb));
-	gsl_vector_set(f, 7, dg_gam_dxNi()         - dg_lav_dxNi(C_lav_Ni));
+	gsl_vector_set(f, 6, dg_gam_dxNb(C_gam_Nb)                     - dg_lav_dxNb(C_lav_Nb));
+	gsl_vector_set(f, 7, dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNi(C_lav_Ni));
+
+
+
 	#else
 	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
 	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
@@ -1252,6 +1277,9 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 	gsl_vector_set(f, 6, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
 	gsl_vector_set(f, 7, dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNi(C_lav_Nb, C_lav_Ni));
+
+
+
 	#endif
 
 	return GSL_SUCCESS;
@@ -1477,7 +1505,10 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	if (1) {
 	#endif
 	*/
+	/* If res>tol, returned values will be replaced by guesses
 	if (status == GSL_SUCCESS) {
+	*/
+	if (1) {
 		GRID(n)[5] = static_cast<T>(gsl_vector_get(solver->x, 0));      // gamma Cr
 		GRID(n)[6] = static_cast<T>(gsl_vector_get(solver->x, 1));      //       Nb
 
@@ -1488,7 +1519,7 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 		double C_mu_Ni = gsl_vector_get(solver->x, 5);
 		double C_mu_Nb = 1.0 - C_mu_Cr - C_mu_Ni;
 		GRID(n)[9] = static_cast<T>(C_mu_Cr);      // mu    Cr
-		GRID(n)[10] = static_cast<T>(C_mu_Nb);  //       Nb
+		GRID(n)[10] = static_cast<T>(C_mu_Nb);     //       Nb
 
 		double C_lav_Nb = gsl_vector_get(solver->x, 6);
 		double C_lav_Ni = gsl_vector_get(solver->x, 7);
@@ -1577,7 +1608,8 @@ int phasekicker::kick(const double& n, T& p)
 			status = gsl_root_test_delta(r, x0, 0, tolerance);
 		} while (status == GSL_CONTINUE && iter < maxiter);
 
-		p = r;
+		if (status == GSL_SUCCESS)
+			p = r;
 	}
 	return status;
 }
