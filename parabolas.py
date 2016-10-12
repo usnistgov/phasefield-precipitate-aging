@@ -88,19 +88,20 @@ BCC_XCR, BCC_XNB, BCC_XNI = symbols('BCC_XCR BCC_XNB BCC_XNI')
 #                        (  2.6e4*(GAMMA_XCR - 0.30)**2
 #                         + 5.2e5*(GAMMA_XNB - 0.01)**2, True))
 
-#g_gamma = inVm * (  2.6e4*(GAMMA_XCR - 0.30)**2     + 5.2e5*(GAMMA_XNB - 0.01)**2 )
-#g_delta = inVm * (  1.5e6*(DELTA_XCR - 0.003125)**2 + 8.3e5*(DELTA_XNB - 0.24375 )**2 )
-#g_mu = inVm * (  9.5e4*(MU_XCR - 0.05  )**2         + 2.9e5*(1.0-MU_XCR-MU_XNI - 0.4875)**2 )
-#g_lavesHT = inVm * (  8.2e5*(LAVES_XNB - 0.2875)**2 + 9.5e4*(LAVES_XNI - 0.3875)**2 )
-#g_lavesLT = inVm * (  8.2e5*(LAVES_XNB - 0.2875)**2 + 9.5e4*(LAVES_XNI - 0.3875)**2)
-Ccr = 2.6e4
-Cnb = 5.2e5
-Cni = 9.5e4
-g_gamma = inVm * (  Ccr*(GAMMA_XCR - 0.30)**2     + Cnb*(GAMMA_XNB - 0.01)**2 )
-g_delta = inVm * (  Ccr*(DELTA_XCR - 0.003125)**2 + Cnb*(DELTA_XNB - 0.24375 )**2 )
-g_mu = inVm * (     Ccr*(MU_XCR - 0.05  )**2      + Cnb*(1.0-MU_XCR-MU_XNI - 0.4875)**2 )
-g_lavesHT = inVm * (Cnb*(LAVES_XNB - 0.2875)**2   + Cni*(LAVES_XNI - 0.3875)**2 )
-g_lavesLT = inVm * (Cnb*(LAVES_XNB - 0.2875)**2   + Cni*(LAVES_XNI - 0.3875)**2)
+g_gamma   = inVm * (2.6e4*(GAMMA_XCR - 0.30)**2     + 5.2e5*(GAMMA_XNB - 0.01)**2 )
+g_delta   = inVm * (1.5e6*(DELTA_XCR - 0.003125)**2 + 8.3e5*(DELTA_XNB - 0.24375 )**2 )
+g_mu      = inVm * (9.5e4*(MU_XCR - 0.05  )**2      + 2.9e5*(1.0-MU_XCR-MU_XNI - 0.4875)**2 )
+g_lavesHT = inVm * (8.2e5*(LAVES_XNB - 0.2875)**2   + 9.5e4*(LAVES_XNI - 0.3875)**2 )
+g_lavesLT = inVm * (8.2e5*(LAVES_XNB - 0.2875)**2   + 9.5e4*(LAVES_XNI - 0.3875)**2)
+
+#Ccr = 2.6e4
+#Cnb = 5.2e5
+#Cni = 9.5e4
+#g_gamma = inVm * (  Ccr*(GAMMA_XCR - 0.30)**2     + Cnb*(GAMMA_XNB - 0.01)**2 )
+#g_delta = inVm * (  Ccr*(DELTA_XCR - 0.003125)**2 + Cnb*(DELTA_XNB - 0.24375 )**2 )
+#g_mu = inVm * (     Ccr*(MU_XCR - 0.05  )**2      + Cnb*(1.0-MU_XCR-MU_XNI - 0.4875)**2 )
+#g_lavesHT = inVm * (Cnb*(LAVES_XNB - 0.2875)**2   + Cni*(LAVES_XNI - 0.3875)**2 )
+#g_lavesLT = inVm * (Cnb*(LAVES_XNB - 0.2875)**2   + Cni*(LAVES_XNI - 0.3875)**2)
 
 
 # Export C code
@@ -229,7 +230,7 @@ def computeKernelExclusive(n):
 
 # Generate ternary phase diagram
 
-density = 1001
+density = 501
 allCr = []
 allNb = []
 allG = []
@@ -243,7 +244,7 @@ if __name__ == '__main__':
     #bar = FloatProgress(min=0,max=density**2)
     #display(bar)
 
-    pool = Pool(12)
+    pool = Pool(6)
 
     i = 0
     for result in pool.imap(computeKernelExclusive, tqdm(range(density**2))):

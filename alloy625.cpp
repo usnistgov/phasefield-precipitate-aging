@@ -81,9 +81,11 @@
 // Define equilibrium phase compositions at global scope. Gamma is nominally 30% Cr, 2% Nb,
 // but microsegregation should deplete that somewhat. Compare against the reported total
 // system composition and adjust gamma accordingly in the following arrays.
-//                        gamma    delta     mu     laves    Enriched gamma
-const double xCr[NP+1] = {0.2945,  0.003125, 0.05,   0.325,  0.31};
-const double xNb[NP+1] = {0.00254, 0.24375,  0.4875, 0.2875, 0.12};
+//                        gamma   delta     mu     laves    Enriched gamma
+const double xCr[NP+1] = {0.2945, 0.003125, 0.05,   0.325,  0.31};
+const double xNb[NP+1] = {0.015,  0.24375,  0.4875, 0.2875, 0.12};
+//const double xCr[NP+1] = {0.2945,  0.003125, 0.05,   0.325,  0.31};   // for dx=1.25 nm
+//const double xNb[NP+1] = {0.00254,   0.24375,  0.4875, 0.2875, 0.12}; // for dx=1.25 nm
 const double xCrdep = 0.5*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
 const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
@@ -134,22 +136,22 @@ const double omega_lav = 9.5e8;  // multiwell height (m^2/Nsm^2)
 */
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
-const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
-const double omega_mu  = 3.0 * width_factor * sigma_mu  / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
-const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8;  // multiwell height (m^2/Nsm^2)
+const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
+const double omega_mu  = 3.0 * width_factor * sigma_mu  / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
+const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 
 // Numerical considerations
-const bool useNeumann = true;   // apply zero-flux boundaries (Neumann type)?
-const bool numeric_gov = true; // reset phi if matrix passes outside [0,1]?
-const bool tanh_init = true;   // apply tanh profile to initial profile of composition and phase
-const double epsilon = 1.0e-10; // what to consider zero to avoid log(c) explosions
-const double noise_amp = 1.0e-3; //1.0e-8;
-const double init_amp = 1.0e-3; //1.0e-8;
+const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
+const bool numeric_gov = false;   // reset phi if matrix passes outside [0,1]?
+const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
+const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
+const double noise_amp = 1.0e-3; // 1.0e-8;
+const double init_amp = 1.0e-3;  // 1.0e-8;
 
-const double phase_tol = 1.0e-6;   // coefficient of error for phase re-mapping (default is 0.001)
-//const double root_tol = 0.1;  // residual tolerance (default is 1e-7)
-const double root_tol = 1.0e-3;  // residual tolerance (default is 1e-7)
-const int root_max_iter = 100000;   // default is 1000, increasing probably won't change anything but your runtime
+const double phase_tol = 1.0e-6;  // coefficient of error for phase re-mapping (default is 0.001)
+//const double root_tol = 0.1;    // residual tolerance (default is 1e-7)
+const double root_tol = 1.0e-5;   // residual tolerance (default is 1e-7)
+const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 
 const double CFL = 4.095994e-7; // numerical stability
@@ -202,9 +204,9 @@ void generate(int dim, const char* filename)
 
 		// Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
 		//                    minimum for numerical stability is 14*dx (due to interface width).
-		const double rPrecip[NP-1] = {1.0*7.5e-9 / dx(initGrid,0),  // delta
-		                              1.0*7.5e-9 / dx(initGrid,0),  // mu
-		                              1.0*7.5e-9 / dx(initGrid,0)}; // Laves
+		const double rPrecip[NP-1] = {3.0*7.5e-9 / dx(initGrid,0),  // delta
+		                              3.0*7.5e-9 / dx(initGrid,0),  // mu
+		                              3.0*7.5e-9 / dx(initGrid,0)}; // Laves
 
 		// depletion region surrounding precipitates
 		double rDepltCr[NP-1] = {0.0};
@@ -333,7 +335,7 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny / 2;
-			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  epsilon - 1.0);
+			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
 
 			// Initialize mu stripe
 			j = 1;
@@ -893,14 +895,18 @@ void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 	/*
 	const T xcr = (0.30 + GRID(x)[0])/2.0;
 	const T xnb = (0.01 + GRID(x)[1])/2.0;
-	const T xcr = GRID(x)[0];
-	const T xnb = GRID(x)[1];
-	*/
-
 	const T xcr = 0.30;
 	const T xnb = 0.01;
+	*/
 
-	GRID(x)[5] = xcr + amp*real_gen(mt_rand);
+	// Coarsely approximate gamma using a line compound with x_Nb = 0.015
+
+	const T xcr = GRID(x)[0];
+	//const T xnb = GRID(x)[1];
+	const T xnb = 0.015;
+	const T xni = std::max(epsilon, 1.0 - xcr - GRID(x)[1]);
+
+	GRID(x)[5] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
 	GRID(x)[6] = xnb + amp*real_gen(mt_rand);
 }
 
@@ -912,15 +918,18 @@ void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 	/*
 	const T xcr = (0.003125 + GRID(x)[0])/2.0;
 	const T xnb = (0.24375 + GRID(x)[1])/2.0;
-	const T xcr = GRID(x)[0];
-	const T xnb = GRID(x)[1];
-	*/
-
 	const T xcr = 0.003125;
 	const T xnb = 0.24375;
+	*/
 
-	GRID(x)[7] = xcr/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
-	GRID(x)[8] = xnb/(xcr+xnb+0.75) + amp*real_gen(mt_rand);
+	// Coarsely approximate delta using a line compound with x_Ni = 0.75
+
+	const T xcr = GRID(x)[0];
+	const T xnb = GRID(x)[1];
+	const T xni = 0.75;
+
+	GRID(x)[7] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
+	GRID(x)[8] = xnb/(xcr + xnb + xni) + amp*real_gen(mt_rand);
 }
 
 template<int dim,typename T>
@@ -935,9 +944,16 @@ void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_
 	const T xnb = (0.4875 + GRID(x)[1])/2.0;
 	*/
 
-	const T xcr = GRID(x)[0];
-	const T xnb = GRID(x)[1];
+	// Coarsely approximate mu using a line compound with x_Nb=52.5%
 
+	const T xcr = GRID(x)[0];
+	//const T xnb = GRID(x)[1];
+	const T xnb = 0.525;
+	const T xni = std::max(epsilon, 1.0 - xcr - GRID(x)[1]);
+
+	GRID(x)[9] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
+	GRID(x)[10] = xnb + amp*real_gen(mt_rand);
+	/*
 	// if it's inside the mu field, don't change it
 	bool below_upper = (xcr < 0.325*(xnb-0.475)/0.2);
 	bool above_lower = (xcr > -0.5375*(xnb-0.5625)/0.1);
@@ -959,6 +975,7 @@ void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_
 	//GRID(x)[10] = xnb; // + amp*real_gen(mt_rand);
 	GRID(x)[9]  += amp*real_gen(mt_rand);
 	GRID(x)[10] += amp*real_gen(mt_rand);
+	*/
 }
 
 template<int dim,typename T>
@@ -973,9 +990,17 @@ void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 	const T xnb = (0.2875 + GRID(x)[1])/2.0;
 	*/
 
-	const T xcr = GRID(x)[0];
-	const T xnb = GRID(x)[1];
+	// Coarsely approximate Laves using a line compound with x_Nb = 30.0%
 
+	const T xcr = GRID(x)[0];
+	//const T xnb = GRID(x)[1];
+	const T xnb = 0.30;
+	const T xni = std::max(epsilon, 1.0 - xcr - GRID(x)[1]);
+
+	GRID(x)[11] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
+	GRID(x)[12] = xnb + amp*real_gen(mt_rand);
+
+	/*
 	// if it's inside the Laves field, don't change it
 	bool below_upper = (xcr < 0.68*(xnb-0.2)/0.12);
 	bool above_lower = (xcr > 0.66*(xnb-0.325)/0.015);
@@ -997,6 +1022,7 @@ void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& 
 	//GRID(x)[12] = xnb; // + amp*real_gen(mt_rand);
 	GRID(x)[11] += amp*real_gen(mt_rand);
 	GRID(x)[12] += amp*real_gen(mt_rand);
+	*/
 }
 
 template<typename T>
