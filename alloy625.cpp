@@ -129,16 +129,16 @@ const double sigma_mu  = 1.01;    // J/m^2
 const double sigma_lav = 1.01;    // J/m^2
 
 // Note that ifce width was not considered in Zhou's model, but is in vanilla KKS
-/*
 const double omega_del = 9.5e8;  // multiwell height (m^2/Nsm^2)
 const double omega_mu  = 9.5e8;  // multiwell height (m^2/Nsm^2)
 const double omega_lav = 9.5e8;  // multiwell height (m^2/Nsm^2)
-*/
+/*
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
 const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_mu  = 3.0 * width_factor * sigma_mu  / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
+*/
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
@@ -150,7 +150,7 @@ const double init_amp = 1.0e-3;  // 1.0e-8;
 
 const double phase_tol = 1.0e-6;  // coefficient of error for phase re-mapping (default is 0.001)
 //const double root_tol = 0.1;    // residual tolerance (default is 1e-7)
-const double root_tol = 1.0e-5;   // residual tolerance (default is 1e-7)
+const double root_tol = 1.0e-4;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 
@@ -669,57 +669,30 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_lav_Nb = oldGrid(n)[12]; // Nb molar fraction in pure Laves
 			const T  C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
+
+			// E.O.M. for phi is decomposed into four consituent terms below for clarity.
 			#ifdef PARABOLIC
-			/*
-			double df_dphi_del =  hprime(fabs(phi_del))*sign(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
-			       df_dphi_del += 2.0*omega_del*sign(phi_del)*fabs(phi_del)*(1.0-fabs(phi_del)) * (1.0 - 2.0*fabs(phi_del));
-			       df_dphi_del += 4.0*alpha*fabs(phi_del)*sign(phi_del) * (phi_mu*phi_mu + phi_lav*phi_lav);
-
-			double df_dphi_mu  =  hprime(fabs(phi_mu))*sign(phi_mu) * (g_mu(C_mu_Cr, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
-			       df_dphi_mu +=  2.0*omega_mu*sign(phi_mu)*fabs(phi_mu)*(1.0-fabs(phi_mu)) * (1.0 - 2.0*fabs(phi_mu));
-			       df_dphi_mu +=  4.0*alpha*fabs(phi_mu)*sign(phi_mu) * (phi_del*phi_del + phi_lav*phi_lav);
-
-			double df_dphi_lav =  hprime(fabs(phi_lav))*sign(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
-			       df_dphi_lav += 2.0*omega_lav*sign(phi_lav)*fabs(phi_lav)*(1.0-fabs(phi_lav)) * (1.0 - 2.0*fabs(phi_lav));
-			       df_dphi_lav += 4.0*alpha*fabs(phi_lav)*sign(phi_lav) * (phi_del*phi_del + phi_mu*phi_mu);
-			*/
-			double df_dphi_del =  hprime(fabs(phi_del))*sign(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
-			       df_dphi_del += 2.0*omega_del*phi_del * (pow(1.0-fabs(phi_del), 2) - phi_del*sign(phi_del)*(1.0-fabs(phi_del)));
-			       df_dphi_del += 4.0*alpha*phi_del * (phi_mu*phi_mu + phi_lav*phi_lav);
-
-			double df_dphi_mu  =  hprime(fabs(phi_mu))*sign(phi_mu) * (g_mu(C_mu_Cr, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
-			       df_dphi_mu  += 2.0*omega_mu*phi_mu * (pow(1.0-fabs(phi_mu), 2) - phi_mu*sign(phi_mu)*(1.0-fabs(phi_mu)));
-			       df_dphi_mu  += 4.0*alpha*phi_mu * (phi_del*phi_del + phi_lav*phi_lav);
-
-			double df_dphi_lav =  hprime(fabs(phi_lav))*sign(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
-			       df_dphi_lav += 2.0*omega_lav*phi_lav * (pow(1.0-fabs(phi_lav), 2) - phi_lav*sign(phi_lav)*(1.0-fabs(phi_lav)));
-			       df_dphi_lav += 4.0*alpha*phi_lav * (phi_del*phi_del + phi_mu*phi_mu);
+			double df_dphi_del =  sgn(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
+			double df_dphi_mu  =  sgn(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Ni)    - g_gam(C_gam_Cr, C_gam_Nb));
+			double df_dphi_lav =  sgn(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
 			#else
-			/*
-			double df_dphi_del =  hprime(fabs(phi_del))*sign(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			       df_dphi_del += 2.0*omega_del*sign(phi_del)*fabs(phi_del)*(1.0-fabs(phi_del)) * (1.0 - 2.0*fabs(phi_del));
-			       df_dphi_del += 4.0*alpha*fabs(phi_del)*sign(phi_del) * (phi_mu*phi_mu + phi_lav*phi_lav);
-
-			double df_dphi_mu  =  hprime(fabs(phi_mu))*sign(phi_mu) * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			       df_dphi_mu +=  2.0*omega_mu*sign(phi_mu)*fabs(phi_mu)*(1.0-fabs(phi_mu)) * (1.0 - 2.0*fabs(phi_mu));
-			       df_dphi_mu +=  4.0*alpha*fabs(phi_mu)*sign(phi_mu) * (phi_del*phi_del + phi_lav*phi_lav);
-
-			double df_dphi_lav =  hprime(fabs(phi_lav))*sign(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			       df_dphi_lav += 2.0*omega_lav*sign(phi_lav)*fabs(phi_lav)*(1.0-fabs(phi_lav)) * (1.0 - 2.0*fabs(phi_lav));
-			       df_dphi_lav += 4.0*alpha*fabs(phi_lav)*sign(phi_lav) * (phi_del*phi_del + phi_mu*phi_mu);
-			*/
-			double df_dphi_del =  hprime(fabs(phi_del))*sign(phi_del) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			       df_dphi_del += 2.0*omega_del*phi_del * (pow(1.0-fabs(phi_del), 2) - phi_del*sign(phi_del)*(1.0-fabs(phi_del)));
-			       df_dphi_del += 4.0*alpha*phi_del * (phi_mu*phi_mu + phi_lav*phi_lav);
-
-			double df_dphi_mu  =  hprime(fabs(phi_mu))*sign(phi_mu) * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			       df_dphi_mu  += 2.0*omega_mu*phi_mu * (pow(1.0-fabs(phi_mu), 2) - phi_mu*sign(phi_mu)*(1.0-fabs(phi_mu)));
-			       df_dphi_mu  += 4.0*alpha*phi_mu * (phi_del*phi_del + phi_lav*phi_lav);
-
-			double df_dphi_lav =  hprime(fabs(phi_lav))*sign(phi_lav) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			       df_dphi_lav += 2.0*omega_lav*phi_lav * (pow(1.0-fabs(phi_lav), 2) - phi_lav*sign(phi_lav)*(1.0-fabs(phi_lav)));
-			       df_dphi_lav += 4.0*alpha*phi_lav * (phi_del*phi_del + phi_mu*phi_mu);
+			double df_dphi_del =  sgn(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			double df_dphi_mu  =  sgn(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			double df_dphi_lav =  sgn(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			#endif
+
+			df_dphi_del += 2.0 * omega_del * phi_del * pow(1.0-fabs(phi_del), 2);
+			df_dphi_mu  += 2.0 * omega_mu  * phi_mu  * pow(1.0-fabs(phi_mu),  2);
+			df_dphi_lav += 2.0 * omega_lav * phi_lav * pow(1.0-fabs(phi_lav), 2);
+
+			df_dphi_del -= 2.0 * omega_del * sgn(phi_del) * phi_del * phi_del * (1.0-fabs(phi_del));
+			df_dphi_mu  -= 2.0 * omega_mu  * sgn(phi_mu)  * phi_mu  * phi_mu  * (1.0-fabs(phi_mu));
+			df_dphi_lav -= 2.0 * omega_lav * sgn(phi_lav) * phi_lav * phi_lav * (1.0-fabs(phi_lav));
+
+			df_dphi_del += 4.0 * alpha * phi_del * (phi_mu  * phi_mu  + phi_lav * phi_lav);
+			df_dphi_mu  += 4.0 * alpha * phi_mu  * (phi_del * phi_del + phi_lav * phi_lav);
+			df_dphi_lav += 4.0 * alpha * phi_lav * (phi_del * phi_del + phi_mu  * phi_mu);
+
 
 			double lapPhi_del = laplacian(oldGrid, x, 2);
 			double lapPhi_mu  = laplacian(oldGrid, x, 3);
@@ -727,7 +700,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 
 			newGrid(x)[2] = phi_del + dt * L_del * (kappa_del*lapPhi_del - df_dphi_del);
-			newGrid(x)[3] = phi_mu  + dt * L_mu  * (kappa_mu *lapPhi_mu  - df_dphi_mu);
+			newGrid(x)[3] = phi_mu  + dt * L_mu  * (kappa_mu *lapPhi_mu  - df_dphi_mu );
 			newGrid(x)[4] = phi_lav + dt * L_lav * (kappa_lav*lapPhi_lav - df_dphi_lav);
 
 
@@ -754,11 +727,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 						phFrac[i] *= rsum;
 						kicker.kick(phFrac[i], newGrid(x)[NC+i-1]);
 					}
-					/*
-					// Incorrect approach, but fast
-					for (int i=NC; i<NC+NP-1; i++)
-						newGrid(x)[i] *= rsum;
-					*/
 				} else if (phFrac[0] > 1.0) {
 					// Gamma went above one: renormalize with only gamma
 					for (int i=NC; i<NC+NP-1; i++) {
