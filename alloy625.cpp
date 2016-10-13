@@ -142,7 +142,7 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
-const bool numeric_gov = false;   // reset phi if matrix passes outside [0,1]?
+const bool numeric_gov = true;   // reset phi if matrix passes outside [0,1]?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
 const double noise_amp = 1.0e-3; // 1.0e-8;
@@ -390,44 +390,13 @@ void generate(int dim, const char* filename)
 			 * ============================== */
 
 			if (numeric_gov) {
-				vector<double> phFrac(NP, 1.0);
-				for (int i=1; i<NP; i++) {
-					double pf = h(fabs(initGrid(n)[NC+i-1]));
-					phFrac[i] = pf;
-					phFrac[0] -= pf;
-				}
-
-				if (phFrac[0] < 0.0) {
-					// Secondary phases exceed unity: renormalize without gamma
-					double rsum = epsilon;
-					for (int i=1; i<NP; i++)
-						rsum += phFrac[i];
-					rsum = 1.0/rsum;
-
-					phasekicker kicker;
-					for (int i=1; i<NP; i++) {
-						phFrac[i] *= rsum;
-						kicker.kick(phFrac[i], initGrid(n)[NC+i-1]);
-					}
-					/*
-					for (int i=NC; i<NC+NP-1; i++)
-							initGrid(n)[i] *= rsum;
-					*/
-				} else if (phFrac[0] > 1.0) {
-					// Gamma went above one: renormalize with only gamma
-					for (int i=NC; i<NC+NP-1; i++) {
-						initGrid(n)[i] = sign(initGrid(n)[i])*epsilon;
-					}
+				for (int i=NC; i<NC+NP-1; i++) {
+					if (initGrid(n)[i] > 1.0)
+						initGrid(n)[i] = 1.0 - epsilon;
+					else if (initGrid(n)[i] < -1.0)
+						initGrid(n)[i] = -1.0 + epsilon;
 				}
 			}
-
-
-			/* =========================== *
-			 * Solve for parallel tangents *
-			 * =========================== */
-
-			//rootsolver parallelTangentSolver;
-			//parallelTangentSolver.solve(initGrid, n);
 
 		}
 
@@ -672,22 +641,22 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			// E.O.M. for phi is decomposed into four consituent terms below for clarity.
 			#ifdef PARABOLIC
-			double df_dphi_del =  sgn(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
-			double df_dphi_mu  =  sgn(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Ni)    - g_gam(C_gam_Cr, C_gam_Nb));
-			double df_dphi_lav =  sgn(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
+			double df_dphi_del =  sign(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
+			double df_dphi_mu  =  sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Ni)    - g_gam(C_gam_Cr, C_gam_Nb));
+			double df_dphi_lav =  sign(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
 			#else
-			double df_dphi_del =  sgn(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			double df_dphi_mu  =  sgn(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			double df_dphi_lav =  sgn(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			double df_dphi_del =  sign(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			double df_dphi_mu  =  sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+			double df_dphi_lav =  sign(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			#endif
 
 			df_dphi_del += 2.0 * omega_del * phi_del * pow(1.0-fabs(phi_del), 2);
 			df_dphi_mu  += 2.0 * omega_mu  * phi_mu  * pow(1.0-fabs(phi_mu),  2);
 			df_dphi_lav += 2.0 * omega_lav * phi_lav * pow(1.0-fabs(phi_lav), 2);
 
-			df_dphi_del -= 2.0 * omega_del * sgn(phi_del) * phi_del * phi_del * (1.0-fabs(phi_del));
-			df_dphi_mu  -= 2.0 * omega_mu  * sgn(phi_mu)  * phi_mu  * phi_mu  * (1.0-fabs(phi_mu));
-			df_dphi_lav -= 2.0 * omega_lav * sgn(phi_lav) * phi_lav * phi_lav * (1.0-fabs(phi_lav));
+			df_dphi_del -= 2.0 * omega_del * sign(phi_del) * phi_del * phi_del * (1.0-fabs(phi_del));
+			df_dphi_mu  -= 2.0 * omega_mu  * sign(phi_mu)  * phi_mu  * phi_mu  * (1.0-fabs(phi_mu));
+			df_dphi_lav -= 2.0 * omega_lav * sign(phi_lav) * phi_lav * phi_lav * (1.0-fabs(phi_lav));
 
 			df_dphi_del += 4.0 * alpha * phi_del * (phi_mu  * phi_mu  + phi_lav * phi_lav);
 			df_dphi_mu  += 4.0 * alpha * phi_mu  * (phi_del * phi_del + phi_lav * phi_lav);
@@ -709,29 +678,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ============================== */
 
 			if (numeric_gov) {
-				vector<double> phFrac(NP, 1.0);
-				for (int i=1; i<NP; i++) {
-					phFrac[i] = h(fabs(newGrid(x)[NC+i-1]));
-					phFrac[0] -= phFrac[i];
-				}
-
-				if (phFrac[0] < 0.0) {
-					// Secondary phases exceed unity: renormalize with no gamma present
-					double rsum = epsilon;
-					for (int i=1; i<NP; i++)
-						rsum += phFrac[i];
-					rsum = 1.0/rsum;
-
-					phasekicker kicker;
-					for (int i=1; i<NP; i++) {
-						phFrac[i] *= rsum;
-						kicker.kick(phFrac[i], newGrid(x)[NC+i-1]);
-					}
-				} else if (phFrac[0] > 1.0) {
-					// Gamma went above one: renormalize with only gamma
-					for (int i=NC; i<NC+NP-1; i++) {
-						newGrid(x)[i] = sign(newGrid(x)[i])*epsilon;
-					}
+				for (int i=NC; i<NC+NP-1; i++) {
+					if (newGrid(x)[i] > 1.0)
+						newGrid(x)[i] = 1.0 - epsilon;
+					else if (newGrid(n)[i] < -1.0)
+						newGrid(x)[i] = -1.0 + epsilon;
 				}
 			}
 
