@@ -14,6 +14,7 @@ from itertools import chain
 from multiprocessing import Pool
 
 # Thermodynamics and computer-algebra libraries
+from pycalphad import Database, calculate, Model
 from sympy.utilities.codegen import codegen
 from sympy.parsing.sympy_parser import parse_expr
 from sympy import And, Ge, Gt, Le, Lt, Or, Piecewise, true
@@ -50,6 +51,36 @@ fr1by3 = 1.0/3
 fr1by2 = 1.0/2
 rt3by2 = np.sqrt(3.0)/2
 
+# Read CALPHAD database from disk, specify phases and elements of interest
+tdb = Database('Du_Cr-Nb-Ni_simple.tdb')
+phases = ['FCC_A1', 'D0A_NBNI3', 'D85_NI7NB6', 'C14_LAVES', 'C15_LAVES', 'BCC_A2']
+elements = ['CR', 'NB', 'NI']
+
+c_gamma = list(set([i for c in tdb.phases['FCC_A1'].constituents for i in c]))
+m_gamma = Model(tdb, c_gamma, 'FCC_A1')
+g_gamma = parse_expr(str(m_gamma.ast))
+
+c_delta = list(set([i for c in tdb.phases['D0A_NBNI3'].constituents for i in c]))
+m_delta = Model(tdb, c_delta, 'D0A_NBNI3')
+g_delta = parse_expr(str(m_delta.ast))
+
+c_mu = list(set([i for c in tdb.phases['D85_NI7NB6'].constituents for i in c]))
+m_mu = Model(tdb, c_mu, 'D85_NI7NB6')
+g_mu = parse_expr(str(m_mu.ast))
+
+c_lavesHT = list(set([i for c in tdb.phases['C14_LAVES'].constituents for i in c]))
+m_lavesHT = Model(tdb, c_lavesHT, 'C14_LAVES')
+g_laves = parse_expr(str(m_lavesHT.ast))
+
+c_lavesLT = list(set([i for c in tdb.phases['C15_LAVES'].constituents for i in c]))
+m_lavesLT = Model(tdb, c_lavesLT, 'C15_LAVES')
+g_lavesLT = parse_expr(str(m_lavesLT.ast))
+
+c_bcc = list(set([i for c in tdb.phases['BCC_A2'].constituents for i in c]))
+m_bcc = Model(tdb, c_bcc, 'BCC_A2')
+g_bcc = parse_expr(str(m_bcc.ast))
+
+
 # Convert sublattice to phase composition (y to x)
 # Declare sublattice variables used in Pycalphad expressions
 # Gamma
@@ -71,37 +102,104 @@ MU_XCR, MU_XNB, MU_XNI = symbols('MU_XCR MU_XNB MU_XNI')
 LAVES_XCR, LAVES_XNB, LAVES_XNI = symbols('LAVES_XCR LAVES_XNB LAVES_XNI')
 BCC_XCR, BCC_XNB, BCC_XNI = symbols('BCC_XCR BCC_XNB BCC_XNI')
 
+
 # Make substitutions
+g_gamma = inVm *g_gamma.subs({FCC_A10CR: GAMMA_XCR,
+                        FCC_A10NB: GAMMA_XNB,
+                        FCC_A10NI: GAMMA_XNI,
+                        FCC_A11VA: 1.0,
+                        T: temp})
 
-#g_gamma = inVm * Piecewise((
-#                        g_gamma.subs({FCC_A10CR: GAMMA_XCR,
-#                        FCC_A10NB: GAMMA_XNB,
-#                        FCC_A10NI: GAMMA_XNI,
-#                        FCC_A11VA: 1.0,
-#                        T: temp}),
-#                        Gt(GAMMA_XCR, -epsilon) &
-#                        Lt(GAMMA_XCR, 1+epsilon) &
-#                        Gt(GAMMA_XNB, -epsilon) &
-#                        Lt(GAMMA_XNB, 1+epsilon) &
-#                        Gt(GAMMA_XNI, -epsilon) &
-#                        Lt(GAMMA_XNI, 1+epsilon)),
-#                        (  2.6e4*(GAMMA_XCR - 0.30)**2
-#                         + 5.2e5*(GAMMA_XNB - 0.01)**2, True))
+g_delta = inVm * g_delta.subs({
+                 D0A_NBNI30NB: 4.0*DELTA_XNB,
+                 D0A_NBNI30NI: 1.0 - 4.0*DELTA_XNB,
+                 D0A_NBNI31CR: fr4by3 * DELTA_XCR,
+                 D0A_NBNI31NI: 1.0 - fr4by3 * DELTA_XCR,
+                 T: temp})
 
-g_gamma   = inVm * (2.6e4*(GAMMA_XCR - 0.30)**2     + 5.2e5*(GAMMA_XNB - 0.01)**2 )
-g_delta   = inVm * (1.5e6*(DELTA_XCR - 0.003125)**2 + 8.3e5*(DELTA_XNB - 0.24375 )**2 )
-g_mu      = inVm * (9.5e4*(MU_XCR - 0.05  )**2      + 2.9e5*(1.0-MU_XCR-MU_XNI - 0.4875)**2 )
-g_lavesHT = inVm * (8.2e5*(LAVES_XNB - 0.2875)**2   + 9.5e4*(LAVES_XNI - 0.3875)**2 )
-g_lavesLT = inVm * (8.2e5*(LAVES_XNB - 0.2875)**2   + 9.5e4*(LAVES_XNI - 0.3875)**2)
+g_mu = inVm * g_mu.subs({
+              D85_NI7NB60NB: 1.0,
+              D85_NI7NB61CR: fr13by7*MU_XCR,
+              D85_NI7NB61NB: fr13by7*MU_XNB - fr6by7,
+              D85_NI7NB61NI: fr13by7*MU_XNI,
+              T: temp})
 
-#Ccr = 2.6e4
-#Cnb = 5.2e5
-#Cni = 9.5e4
-#g_gamma = inVm * (  Ccr*(GAMMA_XCR - 0.30)**2     + Cnb*(GAMMA_XNB - 0.01)**2 )
-#g_delta = inVm * (  Ccr*(DELTA_XCR - 0.003125)**2 + Cnb*(DELTA_XNB - 0.24375 )**2 )
-#g_mu = inVm * (     Ccr*(MU_XCR - 0.05  )**2      + Cnb*(1.0-MU_XCR-MU_XNI - 0.4875)**2 )
-#g_lavesHT = inVm * (Cnb*(LAVES_XNB - 0.2875)**2   + Cni*(LAVES_XNI - 0.3875)**2 )
-#g_lavesLT = inVm * (Cnb*(LAVES_XNB - 0.2875)**2   + Cni*(LAVES_XNI - 0.3875)**2)
+g_laves = inVm * g_laves.subs({
+                 C14_LAVES0CR: 1.0 - fr3by2*LAVES_XNI,
+                 C14_LAVES0NI: fr3by2 * LAVES_XNI,
+                 C14_LAVES1CR: 1.0 - 3.0*LAVES_XNB,
+                 C14_LAVES1NB: 3.0 * LAVES_XNB,
+                 T: temp})
+
+
+
+
+# Specify equilibrium points for phase field
+xe_gam_Cr = 0.475
+xe_gam_Nb = 0.02
+xe_gam_Ni = 1.0 - xe_gam_Cr - xe_gam_Nb
+
+xe_del_Cr = 0.0125
+xe_del_Nb = 0.25
+
+xe_mu_Cr = 0.025
+xe_mu_Nb = 0.4875
+xe_mu_Ni = 1.0 - xe_mu_Cr - xe_mu_Nb
+
+xe_lav_Nb = 0.2625
+xe_lav_Ni = 0.375
+
+
+## Initialize curvatures (originally from CALPHAD, inVm already included)
+#C_gam_Cr = 3.5030e+09
+#C_gam_Nb = 8.3186e+10
+#C_del_Cr = 3.9330e+10
+#C_del_Nb = 1.3328e+10
+#C_mu_Cr = 3.8019e+10
+#C_mu_Nb = 5.8287e+10
+#C_lav_Nb = 1.6978e+11
+#C_lav_Ni = 1.7959e+10
+
+
+# Generate first derivatives
+dGgam_dxCr = diff(g_gamma, GAMMA_XCR)
+dGgam_dxNb = diff(g_gamma, GAMMA_XNB)
+dGgam_dxNi = diff(g_gamma, GAMMA_XNI)
+
+dGdel_dxCr = diff(g_delta, DELTA_XCR)
+dGdel_dxNb = diff(g_delta, DELTA_XNB)
+
+dGmu_dxCr = diff(g_mu, MU_XCR)
+dGmu_dxNi = diff(g_mu, MU_XNI)
+dGmu_dxNb = diff(g_mu, MU_XNB)
+
+dGlav_dxNb = diff(g_laves, LAVES_XNB)
+dGlav_dxNi = diff(g_laves, LAVES_XNI)
+dGlavL_dxNb = diff(g_lavesLT, LAVES_XNB)
+dGlavL_dxNi = diff(g_lavesLT, LAVES_XNI)
+
+C_gam_Cr = diff(dGgam_dxCr, GAMMA_XCR).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
+C_gam_Nb = diff(dGgam_dxNb, GAMMA_XNB).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
+print "Parabolic Gamma: %.4e(XCR - %.4f)**2 + %.4e(XNB - %.4f)**2" % (C_gam_Cr, xe_gam_Cr, C_gam_Nb, xe_gam_Nb)
+
+C_del_Cr = diff(dGdel_dxCr, DELTA_XCR).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb})
+C_del_Nb = diff(dGdel_dxNb, DELTA_XNB).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb})
+print "Parabolic Delta: %.4e(XCR - %.4f)**2 + %.4e(XNB - %.4f)**2" % (C_del_Cr, xe_del_Cr, C_del_Nb, xe_del_Nb)
+
+C_mu_Cr = diff(dGmu_dxCr, MU_XCR).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni})
+C_mu_Nb = diff(dGmu_dxNb, MU_XNB).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni})
+print "Parabolic Mu:    %.4e(XCR - %.4f)**2 + %.4e(XNB - %.4f)**2" % (C_mu_Cr, xe_mu_Cr, C_mu_Nb, xe_mu_Nb)
+
+C_lav_Nb = diff(dGlav_dxNb, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni})
+C_lav_Ni = diff(dGlav_dxNi, LAVES_XNI).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni})
+print "Parabolic Laves: %.4e(XNB - %.4f)**2 + %.4e(XNI - %.4f)**2" % (C_lav_Nb, xe_lav_Nb, C_lav_Ni, xe_lav_Ni)
+
+
+# Create parabolic approximation functions
+g_gamma = C_gam_Cr * (GAMMA_XCR - xe_gam_Cr)**2 + C_gam_Nb * (GAMMA_XNB - xe_gam_Nb)**2
+g_delta = C_del_Cr * (DELTA_XCR - xe_del_Cr)**2 + C_del_Nb * (DELTA_XNB - xe_del_Nb)**2
+g_mu    = C_mu_Cr  * (MU_XCR    - xe_mu_Cr )**2 + C_mu_Nb  * (MU_XNB    - xe_mu_Nb )**2
+g_laves = C_lav_Nb * (LAVES_XNB - xe_lav_Nb)**2 + C_lav_Ni * (LAVES_XNI - xe_lav_Nb)**2
 
 
 # Export C code
@@ -117,10 +215,11 @@ dGmu_dxCr = diff(g_mu, MU_XCR)
 dGmu_dxNi = diff(g_mu, MU_XNI)
 dGmu_dxNb = diff(g_mu, MU_XNB)
 
-dGlavH_dxNb = diff(g_lavesHT, LAVES_XNB)
-dGlavH_dxNi = diff(g_lavesHT, LAVES_XNI)
+dGlavH_dxNb = diff(g_laves, LAVES_XNB)
+dGlavH_dxNi = diff(g_laves, LAVES_XNI)
 dGlavL_dxNb = diff(g_lavesLT, LAVES_XNB)
 dGlavL_dxNi = diff(g_lavesLT, LAVES_XNI)
+
 
 # Generate optimized second derivatives
 d2Ggam_dxCrCr = diff(dGgam_dxCr, GAMMA_XCR)
@@ -154,7 +253,7 @@ d2GlavL_dxNiNi = diff(dGlavL_dxNi, LAVES_XNI)
 
 # Write Gibbs energy functions to disk, for direct use in phase-field code
 codegen([# Gibbs energies
-         ('g_gam',g_gamma), ('g_mu',g_mu), ('g_lav',g_lavesHT), ('g_lavLT',g_lavesLT), ('g_del',g_delta),
+         ('g_gam',g_gamma), ('g_mu',g_mu), ('g_lav',g_laves), ('g_lavLT',g_lavesLT), ('g_del',g_delta),
          # First derivatives
          ('dg_gam_dxCr',dGgam_dxCr), ('dg_gam_dxNb',dGgam_dxNb), ('dg_gam_dxNi',dGgam_dxNi),
          ('dg_del_dxCr',dGdel_dxCr), ('dg_del_dxNb',dGdel_dxNb),
@@ -222,7 +321,7 @@ def computeKernelExclusive(n):
         result[3] = g_gamma.subs({GAMMA_XCR: xcr, GAMMA_XNB: xnb, GAMMA_XNI: xni}) #Gg(xcr,xnb,xni)
         result[4] = g_delta.subs({DELTA_XCR: xcr, DELTA_XNB: xnb}) #Gd(xcr,xnb)
         result[5] = g_mu.subs({MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}) #Gu(xcr,xnb,xni)
-        result[6] = g_lavesHT.subs({LAVES_XNB: xnb, LAVES_XNI: xni}) #Gh(xnb,xni)
+        result[6] = g_laves.subs({LAVES_XNB: xnb, LAVES_XNI: xni}) #Gh(xnb,xni)
         #result[7] = g_lavesLT.subs({LAVES_XNB: xnb, LAVES_XNI: xni}) #Gl(xnb,xni)
         #result[8] = g_bcc.subs({BCC_XCR: xcr, BCC_XNB: xnb, BCC_XNI: xni}) #Gb(xcr,xnb,xni)
     
@@ -230,7 +329,7 @@ def computeKernelExclusive(n):
 
 # Generate ternary phase diagram
 
-density = 501
+density = 1001
 allCr = []
 allNb = []
 allG = []
