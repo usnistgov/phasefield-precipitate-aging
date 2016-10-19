@@ -1202,11 +1202,11 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr) - dg_del_dxCr(C_del_Cr));
 	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Nb) - dg_del_dxNb(C_del_Nb));
 
-	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr)                     - dg_mu_dxCr(C_mu_Cr, C_mu_Ni));
-	gsl_vector_set(f, 5, dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNi(C_mu_Cr, C_mu_Ni));
+	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr)           - dg_mu_dxCr(C_mu_Cr));
+	gsl_vector_set(f, 5, dg_gam_dxNi(C_gam_Cr, C_gam_Ni) - dg_mu_dxNi(C_mu_Cr, C_mu_Ni));
 
-	gsl_vector_set(f, 6, dg_gam_dxNb(C_gam_Nb)                     - dg_lav_dxNb(C_lav_Nb));
-	gsl_vector_set(f, 7, dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNi(C_lav_Ni));
+	gsl_vector_set(f, 6, dg_gam_dxNb(C_gam_Nb)           - dg_lav_dxNb(C_lav_Nb));
+	gsl_vector_set(f, 7, dg_gam_dxNi(C_gam_Cr, C_gam_Ni) - dg_lav_dxNi(C_lav_Ni));
 
 
 
