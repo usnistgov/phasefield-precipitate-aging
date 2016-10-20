@@ -142,15 +142,15 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
-const bool numeric_gov = true;   // reset phi if matrix passes outside [0,1]?
+const bool numeric_gov = false;   // reset phi if matrix passes outside [0,1]?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
-const double noise_amp = 1.0e-3; // 1.0e-8;
-const double init_amp = 1.0e-3;  // 1.0e-8;
+const double noise_amp = 0.0; //1.0e-3; // 1.0e-8;
+const double init_amp = 0.0; //1.0e-3;  // 1.0e-8;
 
 const double phase_tol = 1.0e-6;  // coefficient of error for phase re-mapping (default is 0.001)
 //const double root_tol = 0.1;    // residual tolerance (default is 1e-7)
-const double root_tol = 1.0e-4;   // residual tolerance (default is 1e-7)
+const double root_tol = 1.0e-5;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 
@@ -186,12 +186,13 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		// Construct grid
-		const int Nx = 800; // divisible by 12 and 64
+		const int Nx = 384; // divisible by 12 and 64
 		//const int Ny = 768;
-		const int Ny = 15;
+		const int Ny = 10;
+		//const int Ny = 15;
 		double dV = 1.0;
 		double Ntot = 1.0;
-		GRID2D initGrid(13, 0, Nx, 0, Ny);
+		GRID2D initGrid(14, 0, Nx, 0, Ny);
 		for (int d=0; d<dim; d++) {
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
@@ -247,12 +248,12 @@ void generate(int dim, const char* filename)
 			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[1]);     // right wall
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-				initGrid(x)[0] = matrixCr + xCr[0] * (1.0 + init_amp*real_gen(mt_rand));
-				initGrid(x)[1] = matrixNb + xNb[0] * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[0] = matrixCr + xCr[0]; // * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[1] = matrixNb + xNb[0]; // * (1.0 + init_amp*real_gen(mt_rand));
 
 				// tiny bit of noise to avoid zeros
 				for (int i=NC; i<NC+NP-1; i++)
-					initGrid(x)[i] = init_amp*real_gen(mt_rand);
+					initGrid(x)[i] = 0.0; //init_amp*real_gen(mt_rand);
 				for (int i=NC+NP-1; i<fields(initGrid); i++)
 					initGrid(x)[i] = 0.0;
 			}
@@ -419,6 +420,7 @@ void generate(int dim, const char* filename)
 			double myf = dV*(gibbs(initGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                    + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 			                                    + kappa_lav * (gradPhi_lav * gradPhi_lav));
+			initGrid(n)[fields(initGrid)-1] = myf;
 
 			#ifndef MPI_VERSION
 			#pragma omp critical
@@ -529,6 +531,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		#pragma omp parallel for
 		#endif
 		for (int n=0; n<nodes(oldGrid); n++) {
+			vector<int> x = position(oldGrid,n);
+
 			/* =========================== *
 			 * Solve for parallel tangents *
 			 * =========================== */
@@ -572,6 +576,14 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				#endif
 			}
 
+			/* ======================= *
+			 * Store parallel tangents *
+			 * ======================= */
+
+			for (int i=NC+NP-1; i<fields(newGrid); i++)
+				newGrid(x)[i] = oldGrid(n)[i];
+
+
 			/* ========================= *
 			 * Store chemical potentials *
 			 * ========================= */
@@ -579,8 +591,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_gam_Cr = oldGrid(n)[5];
 			const T& C_gam_Nb = oldGrid(n)[6];
 			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
-
-			vector<int> x = position(oldGrid,n);
 
 			#ifdef PARABOLIC
 			potGrid(x)[0] = dg_gam_dxCr(C_gam_Cr);
@@ -619,24 +629,24 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
 
-			const T& phi_del  = oldGrid(n)[2]; // phase fraction of delta
-			const T& phi_mu   = oldGrid(n)[3]; // phase fraction of mu
-			const T& phi_lav  = oldGrid(n)[4]; // phase fraction of Laves
+			const T phi_del  = oldGrid(n)[2]; // phase fraction of delta
+			const T phi_mu   = oldGrid(n)[3]; // phase fraction of mu
+			const T phi_lav  = oldGrid(n)[4]; // phase fraction of Laves
 
-			const T& C_gam_Cr = oldGrid(n)[5]; // Cr molar fraction in pure gamma
-			const T& C_gam_Nb = oldGrid(n)[6]; // Nb molar fraction in pure gamma
-			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
+			const T C_gam_Cr = oldGrid(n)[5]; // Cr molar fraction in pure gamma
+			const T C_gam_Nb = oldGrid(n)[6]; // Nb molar fraction in pure gamma
+			const T C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
-			const T& C_del_Cr = oldGrid(n)[7]; // Cr molar fraction in pure delta
-			const T& C_del_Nb = oldGrid(n)[8]; // Nb molar fraction in pure delta
+			const T C_del_Cr = oldGrid(n)[7]; // Cr molar fraction in pure delta
+			const T C_del_Nb = oldGrid(n)[8]; // Nb molar fraction in pure delta
 
-			const T& C_mu_Cr  = oldGrid(n)[9];  // Cr molar fraction in pure mu
-			const T& C_mu_Nb  = oldGrid(n)[10]; // Nb molar fraction in pure mu
-			const T  C_mu_Ni  = 1.0 - C_mu_Cr - C_mu_Nb;
+			const T C_mu_Cr  = oldGrid(n)[9];  // Cr molar fraction in pure mu
+			const T C_mu_Nb  = oldGrid(n)[10]; // Nb molar fraction in pure mu
+			const T C_mu_Ni  = 1.0 - C_mu_Cr - C_mu_Nb;
 
-			const T& C_lav_Cr = oldGrid(n)[11]; // Cr molar fraction in pure Laves
-			const T& C_lav_Nb = oldGrid(n)[12]; // Nb molar fraction in pure Laves
-			const T  C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
+			const T C_lav_Cr = oldGrid(n)[11]; // Cr molar fraction in pure Laves
+			const T C_lav_Nb = oldGrid(n)[12]; // Nb molar fraction in pure Laves
+			const T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
 
 			// E.O.M. for phi is decomposed into four consituent terms below for clarity.
@@ -650,13 +660,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double df_dphi_lav =  sign(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			#endif
 
-			df_dphi_del += 2.0 * omega_del * phi_del * pow(1.0-fabs(phi_del), 2);
-			df_dphi_mu  += 2.0 * omega_mu  * phi_mu  * pow(1.0-fabs(phi_mu),  2);
-			df_dphi_lav += 2.0 * omega_lav * phi_lav * pow(1.0-fabs(phi_lav), 2);
+			df_dphi_del += 2.0 * omega_del * phi_del * pow(1.0 - fabs(phi_del), 2);
+			df_dphi_mu  += 2.0 * omega_mu  * phi_mu  * pow(1.0 - fabs(phi_mu),  2);
+			df_dphi_lav += 2.0 * omega_lav * phi_lav * pow(1.0 - fabs(phi_lav), 2);
 
-			df_dphi_del -= 2.0 * omega_del * sign(phi_del) * phi_del * phi_del * (1.0-fabs(phi_del));
-			df_dphi_mu  -= 2.0 * omega_mu  * sign(phi_mu)  * phi_mu  * phi_mu  * (1.0-fabs(phi_mu));
-			df_dphi_lav -= 2.0 * omega_lav * sign(phi_lav) * phi_lav * phi_lav * (1.0-fabs(phi_lav));
+			df_dphi_del -= 2.0 * omega_del * sign(phi_del) * phi_del * phi_del * (1.0 - fabs(phi_del));
+			df_dphi_mu  -= 2.0 * omega_mu  * sign(phi_mu)  * phi_mu  * phi_mu  * (1.0 - fabs(phi_mu));
+			df_dphi_lav -= 2.0 * omega_lav * sign(phi_lav) * phi_lav * phi_lav * (1.0 - fabs(phi_lav));
 
 			df_dphi_del += 4.0 * alpha * phi_del * (phi_mu  * phi_mu  + phi_lav * phi_lav);
 			df_dphi_mu  += 4.0 * alpha * phi_mu  * (phi_del * phi_del + phi_lav * phi_lav);
@@ -668,9 +678,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double lapPhi_lav = laplacian(oldGrid, x, 4);
 
 
-			newGrid(x)[2] = phi_del + dt * L_del * (kappa_del*lapPhi_del - df_dphi_del);
-			newGrid(x)[3] = phi_mu  + dt * L_mu  * (kappa_mu *lapPhi_mu  - df_dphi_mu );
-			newGrid(x)[4] = phi_lav + dt * L_lav * (kappa_lav*lapPhi_lav - df_dphi_lav);
+			newGrid(x)[2] = phi_del + dt * L_del * (kappa_del * lapPhi_del - df_dphi_del);
+			newGrid(x)[3] = phi_mu  + dt * L_mu  * (kappa_mu  * lapPhi_mu  - df_dphi_mu );
+			newGrid(x)[4] = phi_lav + dt * L_lav * (kappa_lav * lapPhi_lav - df_dphi_lav);
 
 
 			/* ============================== *
@@ -685,14 +695,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 						newGrid(x)[i] = -1.0 + epsilon;
 				}
 			}
-
-
-			/* ======================= *
-			 * Store parallel tangents *
-			 * ======================= */
-
-			for (int i=NC+NP-1; i<fields(newGrid); i++)
-				newGrid(x)[i] = oldGrid(n)[i];
 
 
 			/* ======= *
@@ -735,6 +737,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double myf = dV*(gibbs(oldGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
 			                                   + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 			                                   + kappa_lav * (gradPhi_lav * gradPhi_lav));
+			oldGrid(n)[fields(oldGrid)-1] = static_cast<T>(myf);
 
 			#ifndef MPI_VERSION
 			#pragma omp critical
@@ -1105,12 +1108,12 @@ void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 
 double h(const double p)
 {
-	return p*p*p * (16.0*p*p - 15.0*p + 10.0);
+	return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);
 }
 
 double hprime(const double p)
 {
-	return p*p * (80.0*p*p - 60.0*p + 30.0);
+	return 30.0 * p * p * (1.0 - p) * (1.0 - p);
 }
 
 double gibbs(const MMSP::vector<double>& v)

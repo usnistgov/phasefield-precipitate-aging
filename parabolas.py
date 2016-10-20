@@ -116,23 +116,23 @@ xe_gam_Ni = 1.0 - xe_gam_Cr - xe_gam_Nb
 #xe_del_Nb = 0.2375
 #xe_del_Cr = 0.01015 # multimin
 #xe_del_Nb = 0.25000
-xe_del_Cr = 5.0e-3 # landscape
-xe_del_Nb = 0.25 - 5.0e-3
+xe_del_Cr = 0.0088 # landscape
+xe_del_Nb = 0.2493
 
 #xe_mu_Cr = 0.025 # original
 #xe_mu_Nb = 0.4875
 #xe_mu_Cr = 0.02792 # multimin
 #xe_mu_Nb = 0.49076
-xe_mu_Cr = 7.5e-3 # landscape
-xe_mu_Nb = 0.5 + 7.5e-3
+xe_mu_Cr = 0.0106 # landscape
+xe_mu_Nb = 0.5084
 xe_mu_Ni = 1.0 - xe_mu_Cr - xe_mu_Nb
 
 #xe_lav_Nb = 0.2625 # original
 #xe_lav_Ni = 0.375
 #xe_lav_Nb = 0.30427 # multimin
 #xe_lav_Ni = 0.49425
-xe_lav_Nb = 0.30 + 1.0e-4 # landscape
-xe_lav_Ni = 0.50 - 1.0e-4
+xe_lav_Nb = 0.306 # landscape
+xe_lav_Ni = 0.491
 
 
 g_gamma_raw = inVm * g_gamma.subs({FCC_A10CR: GAMMA_XCR,
@@ -341,7 +341,6 @@ codegen([# Gibbs energies
 
 
 # Generate ternary axes
-
 labels = [r'$\gamma$', r'$\delta$', r'$\mu$', 'LavesHT', 'LavesLT', 'BCC']
 colors = ['red', 'green', 'blue', 'cyan', 'magenta', 'yellow']
 
