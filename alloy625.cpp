@@ -98,13 +98,13 @@ const double meshres = 5.0e-9; //1.25e-9;    // grid spacing (m)
 const double Vm = 1.0e-5;         // molar volume (m^3/mol)
 const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
+// Zhou's numbers (Al/Nb)
+const double M_Cr = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
+const double M_Nb = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
 /*
 const double M_Cr = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
 const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
 */
-// Try Zhou's numbers (Al/Nb), for kicks
-const double M_Cr = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
-const double M_Nb = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
 
 const double D_Cr = Vm*Vm*M_Cr;   // diffusivity in FCC Ni (m^4/Ns)
 const double D_Nb = Vm*Vm*M_Nb;   // diffusivity in FCC Ni (m^4/Ns)
@@ -114,31 +114,32 @@ const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_lav = 1.24e-8; // gradient energy coefficient (J/m)
 
 // Choose numerical diffusivity to lock chemical and transformational timescales
+/*
 // Zhou's numbers
 const double L_del = 2.904e-11;   // numerical mobility (m^2/Ns)
 const double L_mu  = 2.904e-11;   // numerical mobility (m^2/Ns)
 const double L_lav = 2.904e-11;   // numerical mobility (m^2/Ns)
-/*
+*/
 const double L_del = 1.92e-12;   // numerical mobility (m^2/Ns)
 const double L_mu  = 1.92e-12;   // numerical mobility (m^2/Ns)
 const double L_lav = 1.92e-12;   // numerical mobility (m^2/Ns)
-*/
 
 const double sigma_del = 1.01;    // J/m^2
 const double sigma_mu  = 1.01;    // J/m^2
 const double sigma_lav = 1.01;    // J/m^2
 
 // Note that ifce width was not considered in Zhou's model, but is in vanilla KKS
+/*
+// Zhou's numbers
 const double omega_del = 9.5e8;  // multiwell height (m^2/Nsm^2)
 const double omega_mu  = 9.5e8;  // multiwell height (m^2/Nsm^2)
 const double omega_lav = 9.5e8;  // multiwell height (m^2/Nsm^2)
-/*
+*/
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
 const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_mu  = 3.0 * width_factor * sigma_mu  / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
-*/
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
@@ -148,10 +149,8 @@ const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explos
 const double noise_amp = 0.0; //1.0e-3; // 1.0e-8;
 const double init_amp = 0.0; //1.0e-3;  // 1.0e-8;
 
-const double phase_tol = 1.0e-6;  // coefficient of error for phase re-mapping (default is 0.001)
-//const double root_tol = 0.1;    // residual tolerance (default is 1e-7)
-const double root_tol = 1.0e-5;   // residual tolerance (default is 1e-7)
-const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
+const double root_tol = 1.0e-4;   // residual tolerance (default is 1e-7)
+const int root_max_iter = 50000; // default is 1000, increasing probably won't change anything but your runtime
 
 
 const double CFL = 4.095994e-7; // numerical stability
@@ -381,26 +380,6 @@ void generate(int dim, const char* filename)
 		#endif
 
 
-		#ifndef MPI_VERSION
-		#pragma omp parallel for
-		#endif
-		for (int n=0; n<nodes(initGrid); n++) {
-
-			/* ============================== *
-			 * Kick stray values into (-1, 1) *
-			 * ============================== */
-
-			if (numeric_gov) {
-				for (int i=NC; i<NC+NP-1; i++) {
-					if (initGrid(n)[i] > 1.0)
-						initGrid(n)[i] = 1.0 - epsilon;
-					else if (initGrid(n)[i] < -1.0)
-						initGrid(n)[i] = -1.0 + epsilon;
-				}
-			}
-
-		}
-
 		ghostswap(initGrid);
 
 		#ifndef MPI_VERSION
@@ -576,14 +555,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				#endif
 			}
 
-			/* ======================= *
-			 * Store parallel tangents *
-			 * ======================= */
-
-			for (int i=NC+NP-1; i<fields(newGrid); i++)
-				newGrid(x)[i] = oldGrid(n)[i];
-
-
 			/* ========================= *
 			 * Store chemical potentials *
 			 * ========================= */
@@ -621,8 +592,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			vector<T> lapPot = laplacian(potGrid, x);
 
-			newGrid(x)[0] = oldGrid(n)[0] + dt * D_Cr * lapPot[0];
-			newGrid(x)[1] = oldGrid(n)[1] + dt * D_Nb * lapPot[1];
+			const T xCr = oldGrid(n)[0];
+			const T xNb = oldGrid(n)[1];
+
+			newGrid(x)[0] = xCr + dt * D_Cr * lapPot[0];
+			newGrid(x)[1] = xNb + dt * D_Nb * lapPot[1];
 
 
 			/* ======================================== *
@@ -648,16 +622,48 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T C_lav_Nb = oldGrid(n)[12]; // Nb molar fraction in pure Laves
 			const T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
+			const double ndel = h(fabs(phi_del));
+			const double nmu  = h(fabs(phi_mu));
+			const double nlav = h(fabs(phi_lav));
+			const double ngam = 1.0 - ndel - nmu - nlav;
 
-			// E.O.M. for phi is decomposed into four consituent terms below for clarity.
+			double dxgam_Cr_dphi_del = (ngam<epsilon) ? 0.0 :
+			                           sign(phi_del)*hprime(fabs(phi_del))/(ngam*ngam)
+			                           * (xCr - (ndel*C_del_Cr + nmu*C_mu_Cr + nlav*C_lav_Cr) - ngam*C_del_Cr);
+			double dxgam_Cr_dphi_mu =  (ngam<epsilon) ? 0.0 :
+			                           sign(phi_mu)*hprime(fabs(phi_mu))/(ngam*ngam)
+			                           * (xCr - (ndel*C_del_Cr + nmu*C_mu_Cr + nlav*C_lav_Cr) - ngam*C_mu_Cr);
+			double dxgam_Nb_dphi_lav = (ngam<epsilon) ? 0.0 :
+			                           sign(phi_lav)*hprime(fabs(phi_lav))/(ngam*ngam)
+			                           * (xNb - (ndel*C_del_Nb + nmu*C_mu_Nb + nlav*C_lav_Nb) - ngam*C_lav_Nb);
+
+			double dxdel_Cr_dphi_del = (ndel<epsilon) ? 0.0 :
+			                           sign(phi_del)*hprime(fabs(phi_del))/(ndel*ndel)
+			                           * (ndel*(C_gam_Cr - C_del_Cr) - xCr + ngam*C_gam_Cr + nmu*C_mu_Cr + nlav*C_lav_Cr);
+			double dxmu_Cr_dphi_mu   = (nmu<epsilon) ? 0.0 :
+			                           sign(phi_mu)*hprime(fabs(phi_mu))/(nmu*nmu)
+			                           * (nmu*(C_gam_Cr - C_mu_Cr) - xCr + ngam*C_gam_Cr + ndel*C_del_Cr + nlav*C_lav_Cr);
+			double dxlav_Nb_dphi_lav = (nlav<epsilon) ? 0.0 :
+			                           sign(phi_lav)*hprime(fabs(phi_lav))/(nlav*nlav)
+			                           * (nlav*(C_gam_Nb - C_lav_Nb) - xNb + ngam*C_gam_Nb + ndel*C_del_Nb + nmu*C_mu_Nb);
+
+			// E.O.M. for phi is decomposed into consituent terms below for clarity.
 			#ifdef PARABOLIC
 			double df_dphi_del =  sign(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
 			double df_dphi_mu  =  sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Ni)    - g_gam(C_gam_Cr, C_gam_Nb));
 			double df_dphi_lav =  sign(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
+
+			df_dphi_del += ngam * dg_gam_dxCr(C_gam_Cr) * dxgam_Cr_dphi_del + ndel * dg_del_dxCr(C_del_Cr) * dxdel_Cr_dphi_del;
+			df_dphi_mu  += ngam * dg_gam_dxCr(C_gam_Cr) * dxgam_Cr_dphi_mu  + nmu  * dg_mu_dxCr(C_mu_Cr)   * dxmu_Cr_dphi_mu;
+			df_dphi_lav += ngam * dg_gam_dxNb(C_gam_Nb) * dxgam_Nb_dphi_lav + nlav * dg_lav_dxNb(C_lav_Nb) * dxlav_Nb_dphi_lav;
 			#else
 			double df_dphi_del =  sign(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			double df_dphi_mu  =  sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
 			double df_dphi_lav =  sign(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
+
+			df_dphi_del += ngam * dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) * dxgam_Cr_dphi_del + ndel * dg_del_dxCr(C_del_Cr, C_del_Nb) * dxdel_Cr_dphi_del;
+			df_dphi_mu  += ngam * dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) * dxgam_Cr_dphi_mu  + nmu  * dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) * dxmu_Cr_dphi_mu;
+			df_dphi_lav += ngam * dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) * dxgam_Nb_dphi_lav + nlav * dg_lav_dxNb(C_lav_Nb, C_lav_Ni) * dxlav_Nb_dphi_lav;
 			#endif
 
 			df_dphi_del += 2.0 * omega_del * phi_del * pow(1.0 - fabs(phi_del), 2);
@@ -683,18 +689,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			newGrid(x)[4] = phi_lav + dt * L_lav * (kappa_lav * lapPhi_lav - df_dphi_lav);
 
 
-			/* ============================== *
-			 * Kick stray values into (-1, 1) *
-			 * ============================== */
 
-			if (numeric_gov) {
-				for (int i=NC; i<NC+NP-1; i++) {
-					if (newGrid(x)[i] > 1.0)
-						newGrid(x)[i] = 1.0 - epsilon;
-					else if (newGrid(n)[i] < -1.0)
-						newGrid(x)[i] = -1.0 + epsilon;
-				}
-			}
+			/* ======================= *
+			 * Store parallel tangents *
+			 * ======================= */
+
+			for (int i=NC+NP-1; i<fields(newGrid); i++)
+				newGrid(x)[i] = oldGrid(n)[i];
 
 
 			/* ======= *
@@ -786,7 +787,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			cfile << totCr  << '\t' << totNb << '\t'
 			      << totGam << '\t' << totDel << '\t' << totMu << '\t' << totLav << '\t'
 			      << totF   << '\t' << totBadTangents << '\n';
+
 	}
+
 	if (rank==0)
 		cfile.close();
 
@@ -1514,7 +1517,7 @@ void phaseKicker_fdf(double x, void* params, double* y, double* dy)
 
 phasekicker::phasekicker() :
     maxiter(root_max_iter),
-    tolerance(phase_tol)
+    tolerance(1.0e-6)
 {
 	// Available algorithms are: newton, secant, steffenson (decreasing convergence rate)
 	algorithm = gsl_root_fdfsolver_newton;
