@@ -143,14 +143,13 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
-const bool numeric_gov = false;   // reset phi if matrix passes outside [0,1]?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
-const double noise_amp = 0.0; //1.0e-3; // 1.0e-8;
+const double noise_amp = 1.0e-4; // 1.0e-8;
 const double init_amp = 0.0; //1.0e-3;  // 1.0e-8;
 
-const double root_tol = 1.0e-4;   // residual tolerance (default is 1e-7)
-const int root_max_iter = 50000; // default is 1000, increasing probably won't change anything but your runtime
+const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
+const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 
 const double CFL = 4.095994e-7; // numerical stability
@@ -627,61 +626,53 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const double nlav = h(fabs(phi_lav));
 			const double ngam = 1.0 - ndel - nmu - nlav;
 
-			double dxgam_Cr_dphi_del = (ngam<epsilon) ? 0.0 :
-			                           sign(phi_del)*hprime(fabs(phi_del))/(ngam*ngam)
-			                           * (xCr - (ndel*C_del_Cr + nmu*C_mu_Cr + nlav*C_lav_Cr) - ngam*C_del_Cr);
-			double dxgam_Cr_dphi_mu =  (ngam<epsilon) ? 0.0 :
-			                           sign(phi_mu)*hprime(fabs(phi_mu))/(ngam*ngam)
-			                           * (xCr - (ndel*C_del_Cr + nmu*C_mu_Cr + nlav*C_lav_Cr) - ngam*C_mu_Cr);
-			double dxgam_Nb_dphi_lav = (ngam<epsilon) ? 0.0 :
-			                           sign(phi_lav)*hprime(fabs(phi_lav))/(ngam*ngam)
-			                           * (xNb - (ndel*C_del_Nb + nmu*C_mu_Nb + nlav*C_lav_Nb) - ngam*C_lav_Nb);
-
-			double dxdel_Cr_dphi_del = (ndel<epsilon) ? 0.0 :
-			                           sign(phi_del)*hprime(fabs(phi_del))/(ndel*ndel)
-			                           * (ndel*(C_gam_Cr - C_del_Cr) - xCr + ngam*C_gam_Cr + nmu*C_mu_Cr + nlav*C_lav_Cr);
-			double dxmu_Cr_dphi_mu   = (nmu<epsilon) ? 0.0 :
-			                           sign(phi_mu)*hprime(fabs(phi_mu))/(nmu*nmu)
-			                           * (nmu*(C_gam_Cr - C_mu_Cr) - xCr + ngam*C_gam_Cr + ndel*C_del_Cr + nlav*C_lav_Cr);
-			double dxlav_Nb_dphi_lav = (nlav<epsilon) ? 0.0 :
-			                           sign(phi_lav)*hprime(fabs(phi_lav))/(nlav*nlav)
-			                           * (nlav*(C_gam_Nb - C_lav_Nb) - xNb + ngam*C_gam_Nb + ndel*C_del_Nb + nmu*C_mu_Nb);
-
-			// E.O.M. for phi is decomposed into consituent terms below for clarity.
-			#ifdef PARABOLIC
-			double df_dphi_del =  sign(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb) - g_gam(C_gam_Cr, C_gam_Nb));
-			double df_dphi_mu  =  sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Ni)    - g_gam(C_gam_Cr, C_gam_Nb));
-			double df_dphi_lav =  sign(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni) - g_gam(C_gam_Cr, C_gam_Nb));
-
-			df_dphi_del += ngam * dg_gam_dxCr(C_gam_Cr) * dxgam_Cr_dphi_del + ndel * dg_del_dxCr(C_del_Cr) * dxdel_Cr_dphi_del;
-			df_dphi_mu  += ngam * dg_gam_dxCr(C_gam_Cr) * dxgam_Cr_dphi_mu  + nmu  * dg_mu_dxCr(C_mu_Cr)   * dxmu_Cr_dphi_mu;
-			df_dphi_lav += ngam * dg_gam_dxNb(C_gam_Nb) * dxgam_Nb_dphi_lav + nlav * dg_lav_dxNb(C_lav_Nb) * dxlav_Nb_dphi_lav;
-			#else
-			double df_dphi_del =  sign(phi_del) * hprime(fabs(phi_del)) * (g_del(C_del_Cr, C_del_Nb)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			double df_dphi_mu  =  sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni) - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-			double df_dphi_lav =  sign(phi_lav) * hprime(fabs(phi_lav)) * (g_lav(C_lav_Nb, C_lav_Ni)       - g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni));
-
-			df_dphi_del += ngam * dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) * dxgam_Cr_dphi_del + ndel * dg_del_dxCr(C_del_Cr, C_del_Nb) * dxdel_Cr_dphi_del;
-			df_dphi_mu  += ngam * dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) * dxgam_Cr_dphi_mu  + nmu  * dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni) * dxmu_Cr_dphi_mu;
-			df_dphi_lav += ngam * dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) * dxgam_Nb_dphi_lav + nlav * dg_lav_dxNb(C_lav_Nb, C_lav_Ni) * dxlav_Nb_dphi_lav;
-			#endif
-
-			df_dphi_del += 2.0 * omega_del * phi_del * pow(1.0 - fabs(phi_del), 2);
-			df_dphi_mu  += 2.0 * omega_mu  * phi_mu  * pow(1.0 - fabs(phi_mu),  2);
-			df_dphi_lav += 2.0 * omega_lav * phi_lav * pow(1.0 - fabs(phi_lav), 2);
-
-			df_dphi_del -= 2.0 * omega_del * sign(phi_del) * phi_del * phi_del * (1.0 - fabs(phi_del));
-			df_dphi_mu  -= 2.0 * omega_mu  * sign(phi_mu)  * phi_mu  * phi_mu  * (1.0 - fabs(phi_mu));
-			df_dphi_lav -= 2.0 * omega_lav * sign(phi_lav) * phi_lav * phi_lav * (1.0 - fabs(phi_lav));
-
-			df_dphi_del += 4.0 * alpha * phi_del * (phi_mu  * phi_mu  + phi_lav * phi_lav);
-			df_dphi_mu  += 4.0 * alpha * phi_mu  * (phi_del * phi_del + phi_lav * phi_lav);
-			df_dphi_lav += 4.0 * alpha * phi_lav * (phi_del * phi_del + phi_mu  * phi_mu);
-
 
 			double lapPhi_del = laplacian(oldGrid, x, 2);
 			double lapPhi_mu  = laplacian(oldGrid, x, 3);
 			double lapPhi_lav = laplacian(oldGrid, x, 4);
+
+
+			#ifdef PARABOLIC
+			double mu_Cr = dg_gam_dxCr(C_gam_Cr);
+			double mu_Nb = dg_gam_dxNb(C_gam_Nb);
+			double mu_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Ni);
+
+			double df_dphi_del = -sign(phi_del) * hprime(fabs(phi_del)) * (g_gam(C_gam_Cr, C_gam_Nb) - g_del(C_del_Cr, C_del_Nb)
+			                                                               - (C_gam_Cr - C_del_Cr) * mu_Cr
+			                                                               - (C_gam_Nb - C_del_Nb) * mu_Nb);
+
+			double df_dphi_mu  = -sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_gam(C_gam_Cr, C_gam_Nb) - g_mu(C_mu_Cr, C_mu_Ni)
+			                                                               - (C_gam_Cr - C_mu_Cr) * mu_Cr
+			                                                               - (C_gam_Ni - C_mu_Ni) * mu_Ni);
+
+			double df_dphi_lav = -sign(phi_lav) * hprime(fabs(phi_lav)) * (g_gam(C_gam_Cr, C_gam_Nb) - g_lav(C_lav_Nb, C_lav_Ni)
+			                                                               - (C_gam_Nb - C_lav_Nb) * mu_Nb
+			                                                               - (C_gam_Ni - C_lav_Ni) * mu_Ni);
+			#else
+			double mu_Cr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			double mu_Nb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			double mu_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+
+			double df_dphi_del = -sign(phi_del) * hprime(fabs(phi_del)) * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_del(C_del_Cr, C_del_Nb)
+			                                                               - (C_gam_Cr - C_del_Cr) * mu_Cr
+			                                                               - (C_gam_Nb - C_del_Nb) * mu_Nb);
+
+			double df_dphi_mu  = -sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni)
+			                                                               - (C_gam_Cr - C_mu_Cr) * mu_Cr
+			                                                               - (C_gam_Ni - C_mu_Ni) * mu_Ni);
+
+			double df_dphi_lav = -sign(phi_lav) * hprime(fabs(phi_lav)) * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_lav(C_lav_Nb, C_lav_Ni)
+			                                                               - (C_gam_Nb - C_lav_Nb) * mu_Nb
+			                                                               - (C_gam_Ni - C_lav_Ni) * mu_Ni);
+			#endif
+
+			df_dphi_del += 2.0 * omega_del * phi_del * (1.0 - fabs(phi_del)) * (1.0 - fabs(phi_del) - sign(phi_del) * phi_del);
+			df_dphi_mu  += 2.0 * omega_mu  * phi_mu  * (1.0 - fabs(phi_mu))  * (1.0 - fabs(phi_mu)  - sign(phi_mu)  * phi_mu);
+			df_dphi_lav += 2.0 * omega_lav * phi_lav * (1.0 - fabs(phi_lav)) * (1.0 - fabs(phi_lav) - sign(phi_lav) * phi_lav);
+
+			df_dphi_del += 4.0 * alpha * phi_del * (phi_mu  * phi_mu  + phi_lav * phi_lav);
+			df_dphi_mu  += 4.0 * alpha * phi_mu  * (phi_del * phi_del + phi_lav * phi_lav);
+			df_dphi_lav += 4.0 * alpha * phi_lav * (phi_del * phi_del + phi_mu  * phi_mu);
 
 
 			newGrid(x)[2] = phi_del + dt * L_del * (kappa_del * lapPhi_del - df_dphi_del);
