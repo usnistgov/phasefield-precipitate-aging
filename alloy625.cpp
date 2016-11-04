@@ -129,17 +129,17 @@ const double sigma_mu  = 1.01;    // J/m^2
 const double sigma_lav = 1.01;    // J/m^2
 
 // Note that ifce width was not considered in Zhou's model, but is in vanilla KKS
+/*
 // Zhou's numbers
 const double omega_del = 9.5e8;  // multiwell height (m^2/Nsm^2)
 const double omega_mu  = 9.5e8;  // multiwell height (m^2/Nsm^2)
 const double omega_lav = 9.5e8;  // multiwell height (m^2/Nsm^2)
-/*
+*/
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
 const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_mu  = 3.0 * width_factor * sigma_mu  / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
-*/
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?

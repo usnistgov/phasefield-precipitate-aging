@@ -111,7 +111,9 @@
 	I would expect them. After some mucking about, I've decided to trust Zhou \emph{et al.} and implement the equations -- and
 	take their partial derivatives -- as written.
 
+	\newpage
 	\appendix
+	\section{Model parameters}
 		\begin{table}\centering
 			\caption{Model parameters used in this work}
 			\begin{tabular}{lll}\hline
@@ -157,6 +159,67 @@
 				\hline
 			\end{tabular}
 		\end{table}
+	
+	\newpage
+	\section{Common Tangent}
+		To solve the common tangent construction, we need to conserve mass and equilibrate chemical potential:
+		\begin{align}\nonumber
+			n_i &= h(|\phi_i|)\\\nonumber
+			n_{\gamma} &= 1 - \sum n_i\\
+			0 &= x_{\ce{Cr}} - n_{\gamma}x_{\ce{Cr}}^{\gamma} - n_{\delta}x_{\ce{Cr}}^{\delta} - n_{\mu}x_{\ce{Cr}}^{\mu} - n_{\ce{L}}x_{\ce{Cr}}^{\ce{L}}\\
+			0 &= x_{\ce{Nb}} - n_{\gamma}x_{\ce{Nb}}^{\gamma} - n_{\delta}x_{\ce{Nb}}^{\delta} - n_{\mu}x_{\ce{Nb}}^{\mu} - n_{\ce{L}}x_{\ce{Nb}}^{\ce{L}}\\
+			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}} - \frac{\partial f_{\delta}}{\partial x_{\ce{Cr}}^{\delta}}\\
+			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\delta}}{\partial x_{\ce{Nb}}^{\delta}}\\
+			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}} - \frac{\partial f_{\mu}}{\partial x_{\ce{Cr}}^{\mu}}\\
+			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\mu}}{\partial x_{\ce{Nb}}^{\mu}}\\
+			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}} - \frac{\partial f_{\ce{L}}}{\partial x_{\ce{Cr}}^{\ce{L}}}\\
+			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\ce{L}}}{\partial x_{\ce{Nb}}^{\ce{L}}}
+		\end{align}
+
+		The Jacobian of this system of eight equations, depending on the eight unknown compositions $\{x_{\ce{Cr}}^i\}, \{x_{\ce{Nb}}^i\}$, is
+		
+		%\begin{table}\centering
+		%\caption{Jacobian}
+		\begin{small}
+		\begin{tabular}{|c|cccccccc|}\hline
+		  & $x_{\ce{Cr}}^{\gamma}$ & $x_{\ce{Nb}}^{\gamma}$ & $x_{\ce{Cr}}^{\delta}$ & $x_{\ce{Nb}}^{\delta}$
+		  & $x_{\ce{Cr}}^{\mu}$ & $x_{\ce{Nb}}^{\mu}$ & $x_{\ce{Cr}}^{\ce{L}}$ & $x_{\ce{Nb}}^{\ce{L}}$\\\hline
+		%
+		$f_{20}$ & $-n_{\gamma}$ & 0 & $-n_{\delta}$ & 0 & $-n_{\mu}$ & 0 & $-n_{\ce{L}}$ & 0\\
+		%
+		$f_{21}$ & 0 & $-n_{\gamma}$ & 0 & $-n_{\delta}$ & 0 & $-n_{\mu}$ & 0 & $-n_{\ce{L}}$\\
+		%
+		%
+		$f_{22}$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Cr}}^{\gamma})^2}$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}\partial x_{\ce{Nb}}^{\gamma}}$ 
+		& $\frac{\partial^2 f_{\delta}}{\partial(x_{\ce{Cr}}^{\delta})^2}$ & $\frac{\partial^2 f_{\delta}}{\partial x_{\ce{Cr}}^{\delta}\partial x_{\ce{Nb}}^{\delta}}$
+		& 0 & 0 & 0 & 0\\
+		%
+		$f_{23}$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}\partial x_{\ce{Cr}}^{\gamma}}$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Nb}}^{\gamma})^2}$
+		& $\frac{\partial^2 f_{\delta}}{\partial x_{\ce{Nb}}^{\delta} \partial x_{\ce{Cr}}^{\delta}}$ & $\frac{\partial^2 f_{\delta}}{\partial(x_{\ce{Nb}}^{\delta})^2}$
+		& 0 & 0 & 0 & 0\\
+		%
+		%
+		$f_{24}$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Cr}}^{\gamma})^2}$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}\partial x_{\ce{Nb}}^{\gamma}}$ 
+		& 0 & 0 & $\frac{\partial^2 f_{\mu}}{\partial(x_{\ce{Cr}}^{\mu})^2}$ & $\frac{\partial^2 f_{\mu}}{\partial x_{\ce{Cr}}^{\mu}\partial x_{\ce{Nb}}^{\mu}}$
+		& 0 & 0\\
+		%
+		$f_{25}$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}\partial x_{\ce{Cr}}^{\gamma}}$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Nb}}^{\gamma})^2}$
+		& 0 & 0 & $\frac{\partial^2 f_{\mu}}{\partial x_{\ce{Nb}}^{\mu} \partial x_{\ce{Cr}}^{\mu}}$ & $\frac{\partial^2 f_{\mu}}{\partial(x_{\ce{Nb}}^{\mu})^2}$
+		& 0 & 0\\
+		%
+		%
+		$f_{26}$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Cr}}^{\gamma})^2}$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}\partial x_{\ce{Nb}}^{\gamma}}$ 
+		& 0 & 0 & 0 & 0 & $\frac{\partial^2 f_{\ce{L}}}{\partial(x_{\ce{Cr}}^{\ce{L}})^2}$ & $\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Cr}}^{\ce{L}}\partial x_{\ce{Nb}}^{\ce{L}}}$
+		\\
+		%
+		$f_{27}$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}\partial x_{\ce{Cr}}^{\gamma}}$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Nb}}^{\gamma})^2}$
+		& 0 & 0 & 0 & 0 & $\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Nb}}^{\ce{L}} \partial x_{\ce{Cr}}^{\ce{L}}}$ & $\frac{\partial^2 f_{\ce{L}}}{\partial(x_{\ce{Nb}}^{\ce{L}})^2}$
+		\\\hline
+		%
+		%
+		\end{tabular}
+		%\end{table}
+		\end{small}
 	
 	\begin{thebibliography}{1}
 		\bibitem{Kim1999} Kim, S. G.; Kim, W. T. and Suzuki, T. ``Phase-field model for binary alloys.'' \emph{Phys. Rev. E} \textbf{60} (1999) 7186--7197. DOI: 10.1103/PhysRevE.60.7186.
