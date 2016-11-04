@@ -265,20 +265,15 @@ g_laves = C_lav_Nb * (LAVES_XNB - xe_lav_Nb)**2 + C_lav_Ni * (LAVES_XNI - xe_lav
 # Generate first derivatives
 dGgam_dxCr = diff(g_gamma, GAMMA_XCR)
 dGgam_dxNb = diff(g_gamma, GAMMA_XNB)
-dGgam_dxNi = diff(g_gamma.subs({GAMMA_XNB: 1-GAMMA_XCR-GAMMA_XNI}), GAMMA_XNI)
 
 dGdel_dxCr = diff(g_delta, DELTA_XCR)
 dGdel_dxNb = diff(g_delta, DELTA_XNB)
 
 dGmu_dxCr = diff(g_mu, MU_XCR)
-#dGmu_dxNi = diff(g_mu, MU_XNI)
-dGmu_dxNi = diff(g_mu.subs({MU_XNB: 1-MU_XCR-MU_XNI}), MU_XNI)
 dGmu_dxNb = diff(g_mu, MU_XNB)
 
-dGlavH_dxNb = diff(g_laves, LAVES_XNB)
-dGlavH_dxNi = diff(g_laves, LAVES_XNI)
-dGlavL_dxNb = diff(g_lavesLT, LAVES_XNB)
-dGlavL_dxNi = diff(g_lavesLT, LAVES_XNI)
+dGlav_dxCr = diff(g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
+dGlav_dxNb = diff(g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
 
 
 # Generate optimized second derivatives
@@ -286,9 +281,6 @@ d2Ggam_dxCrCr = diff(dGgam_dxCr, GAMMA_XCR)
 d2Ggam_dxCrNb = diff(dGgam_dxCr, GAMMA_XNB)
 d2Ggam_dxNbCr = diff(dGgam_dxNb, GAMMA_XCR)
 d2Ggam_dxNbNb = diff(dGgam_dxNb, GAMMA_XNB)
-d2Ggam_dxNiCr = diff(dGgam_dxNi, GAMMA_XCR)
-d2Ggam_dxNiNb = diff(dGgam_dxNi, GAMMA_XNB)
-d2Ggam_dxNiNi = diff(dGgam_dxNi, GAMMA_XNI)
 
 d2Gdel_dxCrCr = diff(dGdel_dxCr, DELTA_XCR)
 d2Gdel_dxCrNb = diff(dGdel_dxCr, DELTA_XNB)
@@ -296,20 +288,14 @@ d2Gdel_dxNbCr = diff(dGdel_dxNb, DELTA_XCR)
 d2Gdel_dxNbNb = diff(dGdel_dxNb, DELTA_XNB)
 
 d2Gmu_dxCrCr = diff(dGmu_dxCr, MU_XCR)
-d2Gmu_dxCrNi = diff(dGmu_dxCr, MU_XNI)
-d2Gmu_dxNiCr = diff(dGmu_dxNi, MU_XCR)
-d2Gmu_dxNiNi = diff(dGmu_dxNi, MU_XNI)
+d2Gmu_dxCrNb = diff(dGmu_dxCr, MU_XNI)
+d2Gmu_dxNbCr = diff(dGmu_dxNb, MU_XCR)
 d2Gmu_dxNbNb = diff(dGmu_dxNb, MU_XNB)
 
-d2GlavH_dxNbNb = diff(dGlavH_dxNb, LAVES_XNB)
-d2GlavH_dxNbNi = diff(dGlavH_dxNb, LAVES_XNI)
-d2GlavH_dxNiNb = diff(dGlavH_dxNi, LAVES_XNB)
-d2GlavH_dxNiNi = diff(dGlavH_dxNi, LAVES_XNI)
-
-d2GlavL_dxNbNb = diff(dGlavL_dxNb, LAVES_XNB)
-d2GlavL_dxNbNi = diff(dGlavL_dxNb, LAVES_XNI)
-d2GlavL_dxNiNb = diff(dGlavL_dxNi, LAVES_XNB)
-d2GlavL_dxNiNi = diff(dGlavL_dxNi, LAVES_XNI)
+d2Glav_dxCrCr = diff(dGlav_dxCr, LAVES_XNB)
+d2Glav_dxCrNb = diff(dGlav_dxCr, LAVES_XNB)
+d2Glav_dxNbCr = diff(dGlav_dxNb, LAVES_XCR)
+d2Glav_dxNbNb = diff(dGlav_dxNb, LAVES_XNB)
 
 # Write Gibbs energy functions to disk, for direct use in phase-field code
 codegen([# Gibbs energies
@@ -318,20 +304,16 @@ codegen([# Gibbs energies
          ('dg_gam_dxCr',dGgam_dxCr), ('dg_gam_dxNb',dGgam_dxNb), ('dg_gam_dxNi',dGgam_dxNi),
          ('dg_del_dxCr',dGdel_dxCr), ('dg_del_dxNb',dGdel_dxNb),
          ('dg_mu_dxCr',dGmu_dxCr), ('dg_mu_dxNb',dGmu_dxNb), ('dg_mu_dxNi',dGmu_dxNi),
-         ('dg_lav_dxNb',dGlavH_dxNb), ('dg_lav_dxNi',dGlavH_dxNi),
-         ('dg_lavLT_dxNb',dGlavL_dxNb), ('dg_lavLT_dxNi',dGlavL_dxNi),
+         ('dg_lav_dxCr',dGlav_dxCr), ('dg_lav_dxNb',dGlav_dxNb),
          # Second derivatives
          ('d2g_gam_dxCrCr',  d2Ggam_dxCrCr), ('d2g_gam_dxCrNb',d2Ggam_dxCrNb),
          ('d2g_gam_dxNbCr',  d2Ggam_dxNbCr), ('d2g_gam_dxNbNb',d2Ggam_dxNbNb),
-         ('d2g_gam_dxNiCr',  d2Ggam_dxNiCr), ('d2g_gam_dxNiNb',d2Ggam_dxNiNb),
          ('d2g_del_dxCrCr',  d2Gdel_dxCrCr), ('d2g_del_dxCrNb',d2Gdel_dxCrNb),
          ('d2g_del_dxNbCr',  d2Gdel_dxNbCr), ('d2g_del_dxNbNb',d2Gdel_dxNbNb),
-         ('d2g_mu_dxCrCr',   d2Gmu_dxCrCr),  ('d2g_mu_dxCrNi', d2Gmu_dxCrNi),
-         ('d2g_mu_dxNiCr',   d2Gmu_dxNiCr),  ('d2g_mu_dxNiNi', d2Gmu_dxNiNi),
-         ('d2g_lav_dxNbNb',  d2GlavH_dxNbNb),('d2g_lav_dxNbNi',d2GlavH_dxNbNi),
-         ('d2g_lav_dxNiNb',  d2GlavH_dxNiNb),('d2g_lav_dxNiNi',d2GlavH_dxNiNi),
-         ('d2g_lavLT_dxNbNb',d2GlavL_dxNbNb),('d2g_lavLT_dxNbNi',d2GlavL_dxNbNi),
-         ('d2g_lavLT_dxNiNb',d2GlavL_dxNiNb),('d2g_lavLT_dxNiNi',d2GlavL_dxNiNi)],
+         ('d2g_mu_dxCrCr',   d2Gmu_dxCrCr),  ('d2g_mu_dxCrNb', d2Gmu_dxCrNb),
+         ('d2g_mu_dxNbCr',   d2Gmu_dxNbCr),  ('d2g_mu_dxNbNb', d2Gmu_dxNbNb),
+         ('d2g_lav_dxCrCr',  d2Glav_dxCrCr),('d2g_lav_dxCrNb',d2Glav_dxCrNb),
+         ('d2g_lav_dxNbCr',  d2Glav_dxNbCr),('d2g_lav_dxNbNb',d2Glav_dxNbNb)],
         language='C', prefix='parabola625', project='ALLOY625', to_files=True)
 
 
@@ -376,7 +358,7 @@ for i in range(20):
 
 # Generate ternary phase diagram
 
-density = 10001
+density = 1001
 allCr = []
 allNb = []
 allG = []
