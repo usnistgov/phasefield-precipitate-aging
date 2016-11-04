@@ -9,9 +9,6 @@ from scipy.spatial import ConvexHull
 # Runtime / parallel libraries
 import time
 import warnings
-from tqdm import tqdm
-from itertools import chain
-from multiprocessing import Pool
 
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
@@ -22,8 +19,6 @@ from sympy import Abs, cse, diff, logcombine, powsimp, simplify, symbols, sympif
 
 # Visualization libraries
 import matplotlib.pylab as plt
-#from ipywidgets import FloatProgress
-#from IPython.display import display
 
 # Constants
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
@@ -340,9 +335,21 @@ codegen([# Gibbs energies
         language='C', prefix='parabola625', project='ALLOY625', to_files=True)
 
 
+
+# Define parabolic functions (faster than sympy)
+def pg(xcr, xnb):
+    return C_gam_Cr * (xcr - xe_gam_Cr)**2 + C_gam_Nb * (xnb - xe_gam_Nb)**2 + g0_gam
+def pd(xcr, xnb):
+    return C_del_Cr * (xcr - xe_del_Cr)**2 + C_del_Nb * (xnb - xe_del_Nb)**2 + g0_del
+def pm(xcr, xnb):
+    return C_mu_Cr  * (xcr - xe_mu_Cr )**2 + C_mu_Nb  * (xnb - xe_mu_Nb )**2 + g0_mu
+def pl(xnb, xni):
+    return C_lav_Nb * (xnb - xe_lav_Nb)**2 + C_lav_Ni * (xni - xe_lav_Ni)**2 + g0_lav
+
+
 # Generate ternary axes
-labels = [r'$\gamma$', r'$\delta$', r'$\mu$', 'LavesHT', 'LavesLT', 'BCC']
-colors = ['red', 'green', 'blue', 'cyan', 'magenta', 'yellow']
+labels = [r'$\gamma$', r'$\delta$', r'$\mu$', 'Laves']
+colors = ['red', 'green', 'blue', 'cyan']
 
 # triangle bounding the Gibbs simplex
 XS = [0.0, 1.0, 0.5, 0.0]
@@ -366,34 +373,10 @@ for i in range(20):
     Ytick.append(rt3by2*xcr)
 
 
-# Define threaded free energy calculator
-
-def computeKernelExclusive(n):
-    a = n / density # index along x-axis
-    b = n % density # index along y-axis
-
-    xnb = epsilon + 1.0*a / (density-1)
-    xcr = epsilon + 1.0*b / (density-1)
-    xni = 1.0 - xcr - xnb
-
-    result = [0]*7
-    
-    if xni>0:
-        result[0] = xcr
-        result[1] = xnb
-        result[2] = xni
-        result[3] = g_gamma.subs({GAMMA_XCR: xcr, GAMMA_XNB: xnb, GAMMA_XNI: xni}) #Gg(xcr,xnb,xni)
-        result[4] = g_delta.subs({DELTA_XCR: xcr, DELTA_XNB: xnb}) #Gd(xcr,xnb)
-        result[5] = g_mu.subs({MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}) #Gu(xcr,xnb,xni)
-        result[6] = g_laves.subs({LAVES_XNB: xnb, LAVES_XNI: xni}) #Gh(xnb,xni)
-        #result[7] = g_lavesLT.subs({LAVES_XNB: xnb, LAVES_XNI: xni}) #Gl(xnb,xni)
-        #result[8] = g_bcc.subs({BCC_XCR: xcr, BCC_XNB: xnb, BCC_XNI: xni}) #Gb(xcr,xnb,xni)
-    
-    return result
 
 # Generate ternary phase diagram
 
-density = 501
+density = 10001
 allCr = []
 allNb = []
 allG = []
@@ -401,52 +384,34 @@ allID = []
 points = []
 phases = []
 
-if __name__ == '__main__':
-    starttime = time.time() # not exact, but multiprocessing makes time.clock() read from different cores
-
-    #bar = FloatProgress(min=0,max=density**2)
-    #display(bar)
-
-    pool = Pool(6)
-
-    i = 0
-    for result in pool.imap(computeKernelExclusive, tqdm(range(density**2))):
-        xcr, xnb, xni, fg, fd, fu, fh = result
-        f = (fg, fd, fu, fh)
-
-        # Accumulate (x, y, G) points for each phase
-        if (fd**2 + fu**2 + fh**2) > epsilon:
+for xcr in np.linspace(epsilon, 1.0-epsilon, num=density):
+    for xnb in np.linspace(epsilon, 1.0-epsilon, num=density):
+        xni = 1.0 - xcr - xnb
+        if xni > -epsilon: # and xni < 1.0+epsilon:
+            f = (pg(xcr, xnb), pd(xcr, xnb), pm(xcr, xnb), pl(xnb, xni))
             for n in range(len(f)):
                 allCr.append(rt3by2*xcr)
                 allNb.append(xnb + xcr/2)
                 allG.append(f[n])
                 allID.append(n)
-        i += 1
-        #bar.value = i
-
-    pool.close()
-    pool.join()
     
-    points = np.array([allCr, allNb, allG]).T
+points = np.array([allCr, allNb, allG]).T
     
-    hull = ConvexHull(points)
+hull = ConvexHull(points)
     
-    runtime = time.time() - starttime
-    print "%ih:%im:%is elapsed" % (int(runtime/3600), int(runtime/60)%60, int(runtime)%60)
-
 
 # Prepare arrays for plotting
-X = [[],[],[],[], [], []]
-Y = [[],[],[],[], [], []]
+X = [[],[],[],[]]
+Y = [[],[],[],[]]
 tielines = []
 
 for simplex in hull.simplices:
     for i in simplex:
         X[allID[i]].append(allNb[i])
         Y[allID[i]].append(allCr[i])
-        for j in simplex:
-            if allID[i] != allID[j]:
-                tielines.append([[allNb[i], allNb[j]], [allCr[i], allCr[j]]])
+        #for j in simplex:
+        #    if allID[i] != allID[j]:
+        #        tielines.append([[allNb[i], allNb[j]], [allCr[i], allCr[j]]])
 
 
 # Plot phase diagram
@@ -458,13 +423,13 @@ plt.ylim([0,rt3by2])
 plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
 plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
 plt.plot(XS, YS, '-k')
-n = 0
-for tie in tielines:
-    plt.plot(tie[0], tie[1], '-k', alpha=0.025)
+#for tie in tielines:
+#    plt.plot(tie[0], tie[1], '-k', alpha=0.025)
 for i in range(len(labels)):
     plt.scatter(X[i], Y[i], color=colors[i], s=2.5, label=labels[i])
 plt.xticks(np.linspace(0, 1, 21))
 plt.scatter(Xtick, Ytick, color='black', s=3)
+#plt.scatter(0.02+0.3/2, rt3by2*0.3, color='red', s=8)
 plt.legend(loc='best')
 plt.savefig("parabolic_energy.png", bbox_inches='tight', dpi=400)
 

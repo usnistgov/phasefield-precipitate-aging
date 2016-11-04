@@ -91,7 +91,7 @@ const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near pr
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                         Cr      Nb
-const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
+const double bell[NC] = {150.0e-9, 50.0e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
 const double meshres = 5.0e-9; //1.25e-9;    // grid spacing (m)
@@ -114,32 +114,32 @@ const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_lav = 1.24e-8; // gradient energy coefficient (J/m)
 
 // Choose numerical diffusivity to lock chemical and transformational timescales
-/*
 // Zhou's numbers
 const double L_del = 2.904e-11;   // numerical mobility (m^2/Ns)
 const double L_mu  = 2.904e-11;   // numerical mobility (m^2/Ns)
 const double L_lav = 2.904e-11;   // numerical mobility (m^2/Ns)
-*/
+/*
 const double L_del = 1.92e-12;   // numerical mobility (m^2/Ns)
 const double L_mu  = 1.92e-12;   // numerical mobility (m^2/Ns)
 const double L_lav = 1.92e-12;   // numerical mobility (m^2/Ns)
+*/
 
 const double sigma_del = 1.01;    // J/m^2
 const double sigma_mu  = 1.01;    // J/m^2
 const double sigma_lav = 1.01;    // J/m^2
 
 // Note that ifce width was not considered in Zhou's model, but is in vanilla KKS
-/*
 // Zhou's numbers
 const double omega_del = 9.5e8;  // multiwell height (m^2/Nsm^2)
 const double omega_mu  = 9.5e8;  // multiwell height (m^2/Nsm^2)
 const double omega_lav = 9.5e8;  // multiwell height (m^2/Nsm^2)
-*/
+/*
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
 const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_mu  = 3.0 * width_factor * sigma_mu  / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
+*/
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
@@ -186,7 +186,8 @@ void generate(int dim, const char* filename)
 		// Construct grid
 		const int Nx = 384; // divisible by 12 and 64
 		//const int Ny = 768;
-		const int Ny = 10;
+		//const int Ny = 10;
+		const int Ny = 5;
 		//const int Ny = 15;
 		double dV = 1.0;
 		double Ntot = 1.0;
@@ -330,6 +331,7 @@ void generate(int dim, const char* filename)
 			*/
 
 
+			/*
 			// Initialize delta stripe
 			int j = 0;
 			origin[0] = Nx / 2;
@@ -345,6 +347,12 @@ void generate(int dim, const char* filename)
 			j = 2;
 			origin[0] = Nx / 2 + xoffset;
 			embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			*/
+
+			// Initialize planar interface between gamma and delta
+			origin[0] = Nx / 4;
+			origin[1] = Ny / 2;
+			embedStripe(initGrid, origin, 2, Nx/4, 0, 0, xCr[1], xNb[1], xCrdep, xNbdep,  1.0 - epsilon);
 		}
 
 
