@@ -98,6 +98,7 @@ const double meshres = 5.0e-9; //1.25e-9;    // grid spacing (m)
 const double Vm = 1.0e-5;         // molar volume (m^3/mol)
 const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
+#ifndef PARABOLIC
 // Zhou's numbers (Al/Nb)
 const double M_Cr = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
 const double M_Nb = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
@@ -108,6 +109,12 @@ const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
 
 const double D_Cr = Vm*Vm*M_Cr;   // diffusivity in FCC Ni (m^4/Ns)
 const double D_Nb = Vm*Vm*M_Nb;   // diffusivity in FCC Ni (m^4/Ns)
+#else
+// Diffusion constant from Karunaratne and Reed
+const double D_Nb = 1.582202e-16; // diffusivity in FCC Ni (m^2/s)
+const double D_Cr = D_Nb;         // diffusivity in FCC Ni (m^2/s)
+#endif
+
 
 const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m)
 const double kappa_mu  = 1.24e-8; // gradient energy coefficient (J/m)
@@ -145,17 +152,21 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
-const double noise_amp = 1.0e-4; // 1.0e-8;
+const double noise_amp = 1.0e-5; // 1.0e-8;
 const double init_amp = 0.0; //1.0e-3;  // 1.0e-8;
 
 const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 
-const double CFL = 4.095994e-7; // numerical stability
-const double dtp = CFL*(meshres*meshres)/(4.0*L_del*kappa_del); // transformation-limited timestep
-const double dtc = CFL*(meshres*meshres)/(4.0*M_Cr); // diffusion-limited timestep
-const double dt = 1.0e-8; //std::min(dtp, dtc);
+const double LinStab = 0.001; // threshold of linear stability (von Neumann stability condition)
+const double dtp = (meshres*meshres)/(4.0 * L_del*kappa_del); // transformation-limited timestep
+#ifndef PARABOLIC
+const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*C_gam_Cr(), M_Nb*C_gam_Nb())); // diffusion-limited timestep
+#else
+const double dtc = (meshres*meshres)/(4.0 * std::max(D_Cr, D_Nb)); // diffusion-limited timestep
+#endif
+const double dt = LinStab * std::min(dtp, dtc);
 
 namespace MMSP
 {
@@ -218,10 +229,8 @@ void generate(int dim, const char* filename)
 
 
 		// Sanity check on system size and  particle spacing
-		if (rank==0 && dtp < dtc)
-			std::cout << "Timestep (dt=" << dt << ") is transformation limited (diffusion-limited dt=" << dtc << ")." << std::endl;
-		else if (rank==0 && dtc < dtp)
-			std::cout << "Timestep (dt=" << dt << ") is diffusion limited (transformation-limited dt=" << dtp << ")." << std::endl;
+		if (rank==0)
+			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
 		for (int i=0; i<NP-1; i++) {
 			/*
@@ -247,8 +256,8 @@ void generate(int dim, const char* filename)
 			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[1]);     // right wall
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-				initGrid(x)[0] = matrixCr + xCr[0]; // * (1.0 + init_amp*real_gen(mt_rand));
-				initGrid(x)[1] = matrixNb + xNb[0]; // * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[0] = xe_gam_Cr(); //matrixCr + xCr[0]; // * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[1] = xe_gam_Nb(); //matrixNb + xNb[0]; // * (1.0 + init_amp*real_gen(mt_rand));
 
 				// tiny bit of noise to avoid zeros
 				for (int i=NC; i<NC+NP-1; i++)
@@ -352,7 +361,7 @@ void generate(int dim, const char* filename)
 			// Initialize planar interface between gamma and delta
 			origin[0] = Nx / 4;
 			origin[1] = Ny / 2;
-			embedStripe(initGrid, origin, 2, Nx/4, 0, 0, xCr[1], xNb[1], xCrdep, xNbdep,  1.0 - epsilon);
+			embedStripe(initGrid, origin, 2, Nx/4, 0, 0, 1.1*xe_del_Cr(), 1.1*xe_del_Nb(), xe_del_Cr(), xe_del_Nb(),  1.0-epsilon);
 		}
 
 
@@ -478,7 +487,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	ghostswap(oldGrid);
 	grid<dim,vector<T> > newGrid(oldGrid);
+	#ifndef PARABOLIC
 	grid<dim,vector<T> > potGrid(oldGrid, NC); // storage for chemical potentials
+	#endif
 
 	// Construct the parallel tangent solver
 	std::mt19937_64 mt_rand(time(NULL)+rank);
@@ -489,17 +500,23 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	for (int d=0; d<dim; d++) {
 		dx(oldGrid,d) = meshres;
 		dx(newGrid,d) = meshres;
+		#ifndef PARABOLIC
 		dx(potGrid,d) = meshres;
+		#endif
 		dV *= dx(oldGrid,d);
 		Ntot *= g1(oldGrid, d) - g0(oldGrid, d);
 		if (useNeumann && x0(oldGrid,d) == g0(oldGrid,d)) {
 			b0(oldGrid,d) = Neumann;
 			b0(newGrid,d) = Neumann;
+			#ifndef PARABOLIC
 			b0(potGrid,d) = Neumann;
+			#endif
 		} else if (useNeumann && x1(oldGrid,d) == g1(oldGrid,d)) {
 			b1(oldGrid,d) = Neumann;
 			b1(newGrid,d) = Neumann;
+			#ifndef PARABOLIC
 			b1(potGrid,d) = Neumann;
+			#endif
 		}
 	}
 
@@ -570,17 +587,16 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_gam_Nb = oldGrid(n)[6];
 			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
-			#ifdef PARABOLIC
-			potGrid(x)[0] = dg_gam_dxCr(C_gam_Cr);
-			potGrid(x)[1] = dg_gam_dxNb(C_gam_Nb);
-			#else
+			#ifndef PARABOLIC
 			potGrid(x)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 			potGrid(x)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 			#endif
 
 		}
 
+		#ifndef PARABOLIC
 		ghostswap(potGrid);
+		#endif
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -597,13 +613,21 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			vector<T> lapPot = laplacian(potGrid, x);
 
 			const T xCr = oldGrid(n)[0];
 			const T xNb = oldGrid(n)[1];
 
+			#ifndef PARABOLIC
+			vector<T> lapPot = laplacian(potGrid, x);
+
 			newGrid(x)[0] = xCr + dt * D_Cr * lapPot[0];
 			newGrid(x)[1] = xNb + dt * D_Nb * lapPot[1];
+
+			#else
+			newGrid(x)[0] = xCr + dt * D_Cr * laplacian(oldGrid, x, 5);
+			newGrid(x)[1] = xNb + dt * D_Nb * laplacian(oldGrid, x, 6);
+
+			#endif
 
 
 			/* ======================================== *
@@ -1239,8 +1263,6 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 {
 	// Prepare constants
-	const double x_Cr = ((struct rparams*) params)->x_Cr;
-	const double x_Nb = ((struct rparams*) params)->x_Nb;
 	const double n_del = ((struct rparams*) params)->n_del;
 	const double n_mu  = ((struct rparams*) params)->n_mu;
 	const double n_lav = ((struct rparams*) params)->n_lav;
