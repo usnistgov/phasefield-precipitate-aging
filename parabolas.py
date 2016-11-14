@@ -16,20 +16,19 @@ from sympy.utilities.codegen import codegen
 from sympy.parsing.sympy_parser import parse_expr
 from sympy import And, Ge, Gt, Le, Lt, Or, Piecewise, true
 from sympy import Abs, cse, diff, logcombine, powsimp, simplify, symbols, sympify
+from sympy import exp
 
 # Visualization libraries
 import matplotlib.pylab as plt
 
 # Constants
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
-dx = 0.1 # small offset to avoid valid roots at edges of defined regions
 temp = 870.0 + 273.15 # 1143 Kelvin
 #temp = 1150.0 + 273.15 # Kelvin
 
 RT = 8.3144598*temp # J/mol/K
 Vm = 1.0e-5 # m^3/mol
 inVm = 1.0 / Vm # mol/m^3
-errslope = 1.5e5 # J/(mol/mol)m curvature of parabola outside phase-specific domain
 
 # Let's avoid integer arithmetic in fractions.
 fr13by7 = 13.0/7
@@ -103,23 +102,26 @@ BCC_XCR, BCC_XNB, BCC_XNI = symbols('BCC_XCR BCC_XNB BCC_XNI')
 #xe_gam_Nb = 0.02
 #xe_gam_Cr = 0.34588 # multimin
 #xe_gam_Nb = 0.18221
-xe_gam_Cr = 1.0e-2 # landscape
-xe_gam_Nb = 1.0/3 - 1.0e-2
+#xe_gam_Cr = 1.0e-2 # landscape, on border of triangle
+#xe_gam_Nb = 1.0/3 - 1.0e-2
+xe_gam_Cr = 0.001 # landscape
+xe_gam_Nb = 1.0/3
 xe_gam_Ni = 1.0 - xe_gam_Cr - xe_gam_Nb
+gam_cr_slope = -0.342
 
 #xe_del_Cr = 0.0125 # original
 #xe_del_Nb = 0.2375
 #xe_del_Cr = 0.01015 # multimin
 #xe_del_Nb = 0.25000
 xe_del_Cr = 0.0088 # landscape
-xe_del_Nb = 0.2493
+xe_del_Nb = 0.2500
 
 #xe_mu_Cr = 0.025 # original
 #xe_mu_Nb = 0.4875
 #xe_mu_Cr = 0.02792 # multimin
 #xe_mu_Nb = 0.49076
 xe_mu_Cr = 0.0106 # landscape
-xe_mu_Nb = 0.5084
+xe_mu_Nb = 0.4875
 xe_mu_Ni = 1.0 - xe_mu_Cr - xe_mu_Nb
 
 #xe_lav_Nb = 0.2625 # original
@@ -154,15 +156,40 @@ g_laves_raw = inVm * g_laves.subs({C14_LAVES0CR: 1.0 - fr3by2*LAVES_XNI,
                                    C14_LAVES1NB: 3.0 * LAVES_XNB,
                                    T: temp})
 
+# Generate first derivatives
+dGgam_dxCr = diff(g_gamma_raw, GAMMA_XCR)
+dGgam_dxNb = diff(g_gamma_raw, GAMMA_XNB)
+
+dGdel_dxCr = diff(g_delta_raw, DELTA_XCR)
+dGdel_dxNb = diff(g_delta_raw, DELTA_XNB)
+
+dGmu_dxCr = diff(g_mu_raw, MU_XCR)
+dGmu_dxNb = diff(g_mu_raw, MU_XNB)
+
+dGlav_dxNb = diff(g_laves_raw, LAVES_XNB)
+dGlav_dxNi = diff(g_laves_raw, LAVES_XNI)
+
+# Write Gibbs energy functions to disk, for direct use in phase-field code
+codegen([# Gibbs energies
+         ('g_gam',g_gamma_raw), ('g_del',g_delta_raw), ('g_mu',g_mu_raw), ('g_lav',g_laves_raw),
+         # First derivatives
+         ('dg_gam_dxCr',dGgam_dxCr), ('dg_gam_dxNb',dGgam_dxNb),
+         ('dg_del_dxCr',dGdel_dxCr), ('dg_del_dxNb',dGdel_dxNb),
+         ('dg_mu_dxCr', dGmu_dxCr),  ('dg_mu_dxNb', dGmu_dxNb),
+         ('dg_lav_dxNb',dGlav_dxNb), ('dg_lav_dxNi',dGlav_dxNi)],
+        language='C', prefix='unsafe625', project='ALLOY625', to_files=True)
+
 # Initialize parabolic curvatures from raw CALPHAD expressions
-C_gam_Cr = 0.5 * diff(g_gamma_raw, GAMMA_XCR, GAMMA_XCR).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
-C_gam_Nb = 0.5 * diff(g_gamma_raw, GAMMA_XNB, GAMMA_XNB).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
+C_gam_Cr = 0.0625 * diff(g_gamma_raw, GAMMA_XCR, GAMMA_XCR).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
+#C_gam_Cr = 0.006 * diff(g_gamma_raw, GAMMA_XCR, GAMMA_XCR).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
+#C_gam_Cr = 0.30e10 # from linescans on (0.01, 0.1, 0.2, 0.3, 0.4, 0.5)
+C_gam_Nb = 1.5 * diff(g_gamma_raw, GAMMA_XNB, GAMMA_XNB).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
 
-C_del_Cr = 0.5 * diff(g_delta_raw, DELTA_XCR, DELTA_XCR).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb})
-C_del_Nb = 0.5 * diff(g_delta_raw, DELTA_XNB, DELTA_XNB).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb})
+C_del_Cr = 0.2 * diff(g_delta_raw, DELTA_XCR, DELTA_XCR).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb})
+C_del_Nb = 6.0 * diff(g_delta_raw, DELTA_XNB, DELTA_XNB).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb})
 
-C_mu_Cr = 0.5 * diff(g_mu_raw, MU_XCR, MU_XCR).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni})
-C_mu_Nb = 0.5 * diff(g_mu_raw, MU_XNB, MU_XNB).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni})
+C_mu_Cr = 0.175 * diff(g_mu_raw, MU_XCR, MU_XCR).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni})
+C_mu_Nb = 1.0  * diff(g_mu_raw, MU_XNB, MU_XNB).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni})
 
 C_lav_Nb = 0.5 * diff(g_laves_raw, LAVES_XNB, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni})
 C_lav_Ni = 0.5 * diff(g_laves_raw, LAVES_XNI, LAVES_XNI).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni})
@@ -172,18 +199,18 @@ g0_del = g_delta_raw.subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb})
 g0_mu =  g_mu_raw.subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni})
 g0_lav = g_laves_raw.subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni})
 
-print "Parabolic Gamma: %.4e * (XCR - %.4f)**2 + %.4e * (XNB - %.4f)**2 + %.4e" % (C_gam_Cr, xe_gam_Cr, C_gam_Nb, xe_gam_Nb, g0_gam)
-print "Parabolic Delta: %.4e * (XCR - %.4f)**2 + %.4e * (XNB - %.4f)**2 + %.4e" % (C_del_Cr, xe_del_Cr, C_del_Nb, xe_del_Nb, g0_del)
-print "Parabolic Mu:    %.4e * (XCR - %.4f)**2 + %.4e * (XNB - %.4f)**2 + %.4e" % (C_mu_Cr, xe_mu_Cr, C_mu_Nb, xe_mu_Nb, g0_mu)
-print "Parabolic Laves: %.4e * (XNB - %.4f)**2 + %.4e * (XNI - %.4f)**2 + %.4e" % (C_lav_Nb, xe_lav_Nb, C_lav_Ni, xe_lav_Ni, g0_lav)
-print ""
+#print "Parabolic Gamma: %.4e * (XCR - %.4f)**2 + %.4e * (XNB - %.4f)**2 + %.4e" % (C_gam_Cr, xe_gam_Cr, C_gam_Nb, xe_gam_Nb, g0_gam)
+#print "Parabolic Delta: %.4e * (XCR - %.4f)**2 + %.4e * (XNB - %.4f)**2 + %.4e" % (C_del_Cr, xe_del_Cr, C_del_Nb, xe_del_Nb, g0_del)
+#print "Parabolic Mu:    %.4e * (XCR - %.4f)**2 + %.4e * (XNB - %.4f)**2 + %.4e" % (C_mu_Cr, xe_mu_Cr, C_mu_Nb, xe_mu_Nb, g0_mu)
+#print "Parabolic Laves: %.4e * (XNB - %.4f)**2 + %.4e * (XNI - %.4f)**2 + %.4e" % (C_lav_Nb, xe_lav_Nb, C_lav_Ni, xe_lav_Ni, g0_lav)
+#print ""
 
 # Make substitutions
 g_gamma = Piecewise((g_gamma_raw, Gt(GAMMA_XNI, 0) & Lt(GAMMA_XNI, 1) &
                                   Gt(GAMMA_XCR, 0) & Lt(GAMMA_XCR, 1) &
                                   Gt(GAMMA_XNB, 0) & Lt(GAMMA_XNB, 1)),
                     ( C_gam_Cr*(GAMMA_XCR - xe_gam_Cr)**2
-                    + C_gam_Nb*(GAMMA_XNB - xe_gam_Nb)**2
+                    + C_gam_Nb*(GAMMA_XNB - xe_gam_Nb - gam_cr_slope*GAMMA_XCR)**2
                     + g0_gam, True))
 
 g_delta = Piecewise((g_delta_raw, Le(DELTA_XCR, 0.75) & Le(DELTA_XNB, 0.25) &
@@ -234,25 +261,17 @@ dGlav_dxNi = diff(g_laves, LAVES_XNI)
 dGlavL_dxNb = diff(g_lavesLT, LAVES_XNB)
 dGlavL_dxNi = diff(g_lavesLT, LAVES_XNI)
 
-C_gam_Cr = 0.5 * diff(dGgam_dxCr, GAMMA_XCR).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
-C_gam_Nb = 0.5 * diff(dGgam_dxNb, GAMMA_XNB).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
+
 print "Parabolic Gamma: %.4e * (XCR - %.4f)**2 + %.4e * (XNB - %.4f)**2 + %.4e" % (C_gam_Cr, xe_gam_Cr, C_gam_Nb, xe_gam_Nb, g0_gam)
-
-C_del_Cr = 0.5 * diff(dGdel_dxCr, DELTA_XCR).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb})
-C_del_Nb = 0.5 * diff(dGdel_dxNb, DELTA_XNB).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb})
 print "Parabolic Delta: %.4e * (XCR - %.4f)**2 + %.4e * (XNB - %.4f)**2 + %.4e" % (C_del_Cr, xe_del_Cr, C_del_Nb, xe_del_Nb, g0_del)
-
-C_mu_Cr = 0.5 * diff(dGmu_dxCr, MU_XCR).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni})
-C_mu_Nb = 0.5 * diff(dGmu_dxNb, MU_XNB).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni})
 print "Parabolic Mu:    %.4e * (XCR - %.4f)**2 + %.4e * (XNB - %.4f)**2 + %.4e" % (C_mu_Cr, xe_mu_Cr, C_mu_Nb, xe_mu_Nb, g0_mu)
-
-C_lav_Nb = 0.5 * diff(dGlav_dxNb, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni})
-C_lav_Ni = 0.5 * diff(dGlav_dxNi, LAVES_XNI).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni})
 print "Parabolic Laves: %.4e * (XNB - %.4f)**2 + %.4e * (XNI - %.4f)**2 + %.4e" % (C_lav_Nb, xe_lav_Nb, C_lav_Ni, xe_lav_Ni, g0_lav)
 
 
 # Create parabolic approximation functions
-g_gamma = C_gam_Cr * (GAMMA_XCR - xe_gam_Cr)**2 + C_gam_Nb * (GAMMA_XNB - xe_gam_Nb)**2 + g0_gam
+g_gamma = C_gam_Cr * (GAMMA_XCR - exp(-12.31*GAMMA_XNB-1.457))**2 + C_gam_Nb * (GAMMA_XNB - xe_gam_Nb - gam_cr_slope * GAMMA_XCR)**2 + g0_gam
+#g_gamma = C_gam_Cr * (GAMMA_XCR - xe_gam_Cr)**2 + C_gam_Nb * (GAMMA_XNB - xe_gam_Nb - gam_cr_slope * GAMMA_XCR)**2 + g0_gam
+#g_gamma = C_gam_Cr * GAMMA_XCR + C_gam_Nb * (GAMMA_XNB - xe_gam_Nb - gam_cr_slope * GAMMA_XCR)**2 + g0_gam
 
 g_delta = C_del_Cr * (DELTA_XCR - xe_del_Cr)**2 + C_del_Nb * (DELTA_XNB - xe_del_Nb)**2 + g0_del
 
@@ -325,7 +344,9 @@ codegen([# Gibbs energies
 
 # Define parabolic functions (faster than sympy)
 def pg(xcr, xnb):
-    return C_gam_Cr * (xcr - xe_gam_Cr)**2 + C_gam_Nb * (xnb - xe_gam_Nb)**2 + g0_gam
+    return C_gam_Cr * (xcr - exp(-12.31*xnb-1.457))**2 + C_gam_Nb * (xnb - xe_gam_Nb - gam_cr_slope * xcr)**2 + g0_gam
+#    return C_gam_Cr * (xcr - xe_gam_Cr)**2 + C_gam_Nb * (xnb - xe_gam_Nb - gam_cr_slope * xcr)**2 + g0_gam
+#    return C_gam_Cr * xcr + C_gam_Nb * (xnb - xe_gam_Nb - gam_cr_slope * xcr)**2 + g0_gam
 def pd(xcr, xnb):
     return C_del_Cr * (xcr - xe_del_Cr)**2 + C_del_Nb * (xnb - xe_del_Nb)**2 + g0_del
 def pm(xcr, xnb):
@@ -363,26 +384,33 @@ for i in range(20):
 
 # Generate ternary phase diagram
 
-density = 501
-allCr = []
-allNb = []
+density = 201
+
+allY = []
+allX = []
 allG = []
 allID = []
 points = []
 phases = []
 
-for xcr in np.linspace(epsilon, 1.0-epsilon, num=density):
-    for xnb in np.linspace(epsilon, 1.0-epsilon, num=density):
-        xni = 1.0 - xcr - xnb
-        if xni > 0.95*epsilon: # and xni < 1.0+epsilon:
+#for xcr in np.linspace(0, 1, density, endpoint=False):
+#    for xnb in np.linspace(0, 1, density, endpoint=False):
+for phi in np.linspace(-1, 1, density): #, endpoint=False):
+    for psi in np.linspace(0, 1, density, endpoint=False):
+        xni = (1+phi)*(1-psi)/2 + 0.5*(np.random.random_sample() - 0.5)/(density-1)
+        xnb = (1-phi)*(1-psi)/2 + 0.5*(np.random.random_sample() - 0.5)/(density-1)
+        xcr = 1 - xni - xnb # psi + (np.random.random_sample() - 0.5)/(density-1)
+        if (xcr < 1  and xcr > 0) \
+        and (xnb < 1  and xnb > 0) \
+        and (xni < 1  and xni > 0):
             f = (pg(xcr, xnb), pd(xcr, xnb), pm(xcr, xnb), pl(xnb, xni))
             for n in range(len(f)):
-                allCr.append(rt3by2*xcr)
-                allNb.append(xnb + xcr/2)
+                allX.append(xnb + xcr/2)
+                allY.append(rt3by2*xcr)
                 allG.append(f[n])
                 allID.append(n)
 
-points = np.array([allCr, allNb, allG]).T
+points = np.array([allX, allY, allG]).T
     
 hull = ConvexHull(points)
     
@@ -393,12 +421,14 @@ Y = [[],[],[],[]]
 tielines = []
 
 for simplex in hull.simplices:
+    if len(simplex) != 3:
+        print simplex
     for i in simplex:
-        X[allID[i]].append(allNb[i])
-        Y[allID[i]].append(allCr[i])
-        #for j in simplex:
-        #    if allID[i] != allID[j]:
-        #        tielines.append([[allNb[i], allNb[j]], [allCr[i], allCr[j]]])
+        X[allID[i]].append(allX[i])
+        Y[allID[i]].append(allY[i])
+        for j in simplex:
+            if j>i and allID[i] != allID[j]:
+                tielines.append([[allX[i], allX[j]], [allY[i], allY[j]]])
 
 
 # Plot phase diagram
@@ -410,13 +440,91 @@ plt.ylim([0,rt3by2])
 plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
 plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
 plt.plot(XS, YS, '-k')
-#for tie in tielines:
-#    plt.plot(tie[0], tie[1], '-k', alpha=0.025)
+for tie in tielines:
+    plt.plot(tie[0], tie[1], '-k', alpha=0.025)
 for i in range(len(labels)):
     plt.scatter(X[i], Y[i], color=colors[i], s=2.5, label=labels[i])
 plt.xticks(np.linspace(0, 1, 21))
 plt.scatter(Xtick, Ytick, color='black', s=3)
 #plt.scatter(0.02+0.3/2, rt3by2*0.3, color='red', s=8)
 plt.legend(loc='best')
-plt.savefig("parabolic_energy.png", bbox_inches='tight', dpi=400)
+plt.savefig("parabolic_energy.png", bbox_inches='tight', dpi=100)
+plt.close()
+
+
+
+# Compare CALPHAD and parabolic expressions (const. Cr)
+stepsz = 0.01
+
+# Plot phase diagram
+plt.figure()
+plt.title("Cr-Nb-Ni at %.0fK"%temp)
+#plt.xlabel(r'$x_\mathrm{Nb}$')
+plt.xlabel(r'$x_\mathrm{Cr}$')
+plt.ylabel(r'$\mathcal{F}$')
+#plt.xlim([0, 0.625])
+plt.ylim([-1e10, 0])
+
+#for xcr in (0.01, 0.1, 0.2, 0.3, 0.4, 0.5):
+#for xcr in (0.01, 0.2):
+#for xcr in (0.3, 0.4):
+for xnb in (0.01, 0.05, 0.1, 0.15, 0.2, 0.25):
+    xgam = []
+    cgam = []
+    pgam = []
+    pdel = []
+    pmu = []
+    plav = []
+    ##for xnb in np.arange(0.01, 0.98, stepsz):
+    #for xcr in np.arange(0.01, 0.6, stepsz):
+    #    xni = 1.0 - xcr - xnb
+    #    #xgam.append(xnb)
+    #    xgam.append(xcr)
+    #    cgam.append(g_gamma_raw.subs({GAMMA_XCR: xcr, GAMMA_XNB: xnb, GAMMA_XNI: xni}))
+    #    pgam.append(pg(xcr, xnb))
+    ##    pdel.append(pd(xcr, xnb))
+    ##    pmu.append( pm(xcr, xnb))
+    ##    plav.append(pl(xnb, xni))
+
+    xdel = []
+    cdel = []
+    #for xnb in np.arange(0.01, 0.25, stepsz):
+    for xcr in np.arange(0.01, 0.75, stepsz):
+        xni = 1.0 - xcr - xnb
+    #    xdel.append(xnb)
+        xdel.append(xcr)
+        cdel.append(g_delta_raw.subs({DELTA_XCR: xcr, DELTA_XNB: xnb, DELTA_XNI: xni}))
+
+    xmu  = []
+    cmu = []
+    #for xnb in np.arange(6.0/13, 0.98, stepsz):
+    for xcr in np.arange(0.01, 7.0/13, stepsz):
+        xni = 1.0 - xcr - xnb
+    #    xmu.append(xnb)
+        xmu.append(xcr)
+        cmu.append(g_mu_raw.subs({MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}))
+
+    #xlav = []
+    #clav = []
+    ##for xnb in np.arange(0.01, 0.33, stepsz):
+    #for xcr in np.arange(0.01, 0.67, stepsz):
+    #    xni = 1.0 - xcr - xnb
+    ##    xlav.append(xnb)
+    #    xlav.append(xcr)
+    #    clav.append(g_laves_raw.subs({LAVES_XCR: xcr, LAVES_XNB: xnb, LAVES_XNI: xni}))
+
+    #plt.plot(xgam, cgam, label=r'$\gamma$ CALPHAD')
+    #plt.plot(xgam, pgam, label=r'$\gamma$ parabol')
+
+    plt.plot(xdel, cdel, label=r'$\delta$ CALPHAD')
+    #plt.plot(xgam, pdel, label=r'$\delta$ parabol')
+
+    plt.plot(xmu,  cmu,  label=r'$\mu$ CALPHAD')
+    #plt.plot(xgam, pmu,  label=r'$\mu$ parabol')
+
+    #plt.plot(xlav, clav, label=r'L CALPHAD')
+    #plt.plot(xgam, plav, label=r'L parabol')
+
+plt.legend(loc='best', fontsize=6)
+plt.savefig("linescan.png", bbox_inches='tight', dpi=300)
 
