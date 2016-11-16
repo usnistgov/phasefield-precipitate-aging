@@ -24,7 +24,7 @@
 #include"MMSP.hpp"
 #include"alloy625.hpp"
 #ifdef PARABOLIC
-#include"parabola625.c"
+#include"taylor625.c"
 #else
 #include"energy625.c"
 #endif
@@ -110,9 +110,16 @@ const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
 const double D_Cr = Vm*Vm*M_Cr;   // diffusivity in FCC Ni (m^4/Ns)
 const double D_Nb = Vm*Vm*M_Nb;   // diffusivity in FCC Ni (m^4/Ns)
 #else
+/*
 // Diffusion constant from Karunaratne and Reed
 const double D_Nb = 1.582202e-16; // diffusivity in FCC Ni (m^2/s)
 const double D_Cr = D_Nb;         // diffusivity in FCC Ni (m^2/s)
+*/
+// Diffusion constants from Xu
+const double D_CrCr = 2.42e-15; // diffusivity in FCC Ni (m^2/s)
+const double D_CrNb = 2.47e-15; // diffusivity in FCC Ni (m^2/s)
+const double D_NbCr = 0.43e-15; // diffusivity in FCC Ni (m^2/s)
+const double D_NbNb = 3.32e-15; // diffusivity in FCC Ni (m^2/s)
 #endif
 
 
@@ -162,9 +169,9 @@ const int root_max_iter = 500000; // default is 1000, increasing probably won't 
 const double LinStab = 0.001; // threshold of linear stability (von Neumann stability condition)
 const double dtp = (meshres*meshres)/(4.0 * L_del*kappa_del); // transformation-limited timestep
 #ifndef PARABOLIC
-const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*C_gam_Cr(), M_Nb*C_gam_Nb())); // diffusion-limited timestep
+const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2Ggam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2Ggam_dxNbNb()))); // diffusion-limited timestep
 #else
-const double dtc = (meshres*meshres)/(4.0 * std::max(D_Cr, D_Nb)); // diffusion-limited timestep
+const double dtc = (meshres*meshres)/(4.0 * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
 #endif
 const double dt = LinStab * std::min(dtp, dtc);
 
@@ -198,7 +205,7 @@ void generate(int dim, const char* filename)
 		const int Nx = 192; // divisible by 12 and 64
 		//const int Ny = 768;
 		//const int Ny = 10;
-		const int Ny = 5;
+		const int Ny = 3;
 		//const int Ny = 15;
 		double dV = 1.0;
 		double Ntot = 1.0;
@@ -256,8 +263,8 @@ void generate(int dim, const char* filename)
 			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[1]);     // right wall
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-				initGrid(x)[0] = xe_gam_Cr(); //matrixCr + xCr[0]; // * (1.0 + init_amp*real_gen(mt_rand));
-				initGrid(x)[1] = xe_gam_Nb(); //matrixNb + xNb[0]; // * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[0] = 0.5 * (xe_gam_Cr() + xe_del_Cr()); //matrixCr + xCr[0]; // * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[1] = 0.5 * (xe_gam_Nb() + xe_del_Nb());//0.06; //xe_gam_Nb(); //matrixNb + xNb[0]; // * (1.0 + init_amp*real_gen(mt_rand));
 
 				// tiny bit of noise to avoid zeros
 				for (int i=NC; i<NC+NP-1; i++)
@@ -361,7 +368,7 @@ void generate(int dim, const char* filename)
 			// Initialize planar interface between gamma and delta
 			origin[0] = Nx / 4;
 			origin[1] = Ny / 2;
-			embedStripe(initGrid, origin, 2, Nx/4, 0, 0, 1.1*xe_del_Cr(), 1.1*xe_del_Nb(), xe_del_Cr(), xe_del_Nb(),  1.0-epsilon);
+			embedStripe(initGrid, origin, 2, Nx/4, 0, 0, xe_del_Cr(), xe_del_Nb(), xe_gam_Cr(), xe_gam_Nb(),  1.0-epsilon);
 		}
 
 
@@ -624,8 +631,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			newGrid(x)[1] = xNb + dt * D_Nb * lapPot[1];
 
 			#else
-			newGrid(x)[0] = xCr + dt * D_Cr * laplacian(oldGrid, x, 5);
-			newGrid(x)[1] = xNb + dt * D_Nb * laplacian(oldGrid, x, 6);
+			const double lapCr = laplacian(oldGrid, x, 5);
+			const double lapNb = laplacian(oldGrid, x, 6);
+
+			newGrid(x)[0] = xCr + dt * D_NbNb * lapNb + dt * D_NbCr * lapCr;
+			newGrid(x)[1] = xNb + dt * D_CrNb * lapNb + dt * D_CrCr * lapCr;
 
 			#endif
 
@@ -664,7 +674,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double lapPhi_lav = laplacian(oldGrid, x, 4);
 
 
-			#ifdef PARABOLIC
+			/*#ifdef PARABOLIC
 			double mu_Cr = dg_gam_dxCr(C_gam_Cr);
 			double mu_Nb = dg_gam_dxNb(C_gam_Nb);
 			double mu_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni);
@@ -681,6 +691,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			                                                               - (C_gam_Nb - C_lav_Nb) * mu_Nb
 			                                                               - (C_gam_Ni - C_lav_Ni) * mu_Ni);
 			#else
+			*/
 			double mu_Cr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 			double mu_Nb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 			double mu_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni);
@@ -696,7 +707,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double df_dphi_lav = -sign(phi_lav) * hprime(fabs(phi_lav)) * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_lav(C_lav_Nb, C_lav_Ni)
 			                                                               - (C_gam_Nb - C_lav_Nb) * mu_Nb
 			                                                               - (C_gam_Ni - C_lav_Ni) * mu_Ni);
-			#endif
+			//#endif
 
 			df_dphi_del += 2.0 * omega_del * phi_del * (1.0 - fabs(phi_del)) * (1.0 - fabs(phi_del) - sign(phi_del) * phi_del);
 			df_dphi_mu  += 2.0 * omega_mu  * phi_mu  * (1.0 - fabs(phi_mu))  * (1.0 - fabs(phi_mu)  - sign(phi_mu)  * phi_mu);
@@ -1149,7 +1160,7 @@ double gibbs(const MMSP::vector<double>& v)
 	double n_lav = h(fabs(v[4]));
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
 
-	#ifdef PARABOLIC
+	/*#ifdef PARABOLIC
 	double g  = n_gam * g_gam(v[5],  v[6]);
 	       g += n_del * g_del(v[7],  v[8]);
 	       g += n_mu  * g_mu( v[9],  1.0-v[9]-v[10]);
@@ -1158,6 +1169,7 @@ double gibbs(const MMSP::vector<double>& v)
 	       g += omega_mu  * v[3]*v[3] * pow(1.0 - fabs(v[3]), 2);
 	       g += omega_lav * v[4]*v[4] * pow(1.0 - fabs(v[4]), 2);
 	#else
+	*/
 	double g  = n_gam * g_gam(v[5],v[6],1.0-v[5]-v[6]);
 	       g += n_del * g_del(v[7],v[8]);
 	       g += n_mu  * g_mu( v[9],v[10],1.0-v[9]-v[10]);
@@ -1165,7 +1177,7 @@ double gibbs(const MMSP::vector<double>& v)
 	       g += omega_del * v[2]*v[2] * pow(1.0 - fabs(v[2]), 2);
 	       g += omega_mu  * v[3]*v[3] * pow(1.0 - fabs(v[3]), 2);
 	       g += omega_lav * v[4]*v[4] * pow(1.0 - fabs(v[4]), 2);
-	#endif
+	//#endif
 
 	for (int i=NC; i<NC+NP-2; i++)
 		for (int j=i+1; j<NC+NP-1; j++)
@@ -1228,14 +1240,14 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
 	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
 
-	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr) - dg_del_dxCr(C_del_Cr));
-	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Nb) - dg_del_dxNb(C_del_Nb));
+	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb));
+	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb));
 
-	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr) - dg_mu_dxCr(C_mu_Cr));
-	gsl_vector_set(f, 5, dg_gam_dxNb(C_gam_Nb) - dg_mu_dxNb(C_mu_Nb));
+	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxCr(C_mu_Cr, C_mu_Ni));
+	gsl_vector_set(f, 5, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNb(C_mu_Nb, C_mu_Ni));
 
-	gsl_vector_set(f, 6, dg_gam_dxCr(C_gam_Cr) - dg_lav_dxCr(C_lav_Cr, C_lav_Nb));
-	gsl_vector_set(f, 7, dg_gam_dxNb(C_gam_Nb) - dg_lav_dxNb(C_lav_Cr, C_lav_Nb));
+	gsl_vector_set(f, 6, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxCr(C_lav_Cr, C_lav_Nb));
+	gsl_vector_set(f, 7, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNb(C_lav_Cr, C_lav_Nb));
 
 
 
