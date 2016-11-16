@@ -22,6 +22,9 @@ alloy625: alloy625.cpp
 parallel: alloy625.cpp
 	$(pcompiler) $(pflags) $< -o $@ -lz -lgsl -lgslcblas
 
+minima: minima.c
+	g++ -O3 -Wall $< -o $@ -lgsl -lgslcblas
+
 clean:
 	rm -f alloy625 parallel
 
