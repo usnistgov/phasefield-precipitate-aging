@@ -124,8 +124,9 @@ xe_mu_Ni = 1.0 - xe_mu_Cr - xe_mu_Nb
 
 #xe_lav_Nb = 0.32 # phase diagram
 #xe_lav_Ni = 0.34
+xe_lav_Cr = 0.34
 xe_lav_Nb = 0.29
-xe_lav_Ni = 0.37
+xe_lav_Ni = 1.0 - xe_lav_Cr - xe_lav_Nb
 
 
 
@@ -397,7 +398,7 @@ for i in range(20):
 
 # Generate ternary phase diagram
 
-density = 101
+density = 201
 
 allY = []
 allX = []
@@ -408,14 +409,14 @@ phases = []
 
 #for xcr in np.linspace(0, 1, density, endpoint=False):
 #    for xnb in np.linspace(0, 1, density, endpoint=False):
-for phi in np.linspace(-1, 1, density): #, endpoint=False):
-    for psi in np.linspace(0, 1, density, endpoint=False):
-        xni = (1+phi)*(1-psi)/2 + 0.5*(np.random.random_sample() - 0.5)/(density-1)
-        xnb = (1-phi)*(1-psi)/2 + 0.5*(np.random.random_sample() - 0.5)/(density-1)
-        xcr = 1 - xni - xnb # psi + (np.random.random_sample() - 0.5)/(density-1)
-        if (xcr < 1  and xcr > 0) \
-        and (xnb < 1  and xnb > 0) \
-        and (xni < 1  and xni > 0):
+for phi in np.linspace(-1.1, 1.1, density): #, endpoint=False):
+    for psi in np.linspace(-0.05, 1, density, endpoint=False):
+        xni = (1+phi)*(1-psi)/2 #+ 0.5*(np.random.random_sample() - 0.5)/(density-1)
+        xnb = (1-phi)*(1-psi)/2 #+ 0.5*(np.random.random_sample() - 0.5)/(density-1)
+        xcr = 1 - xni - xnb     # psi + (np.random.random_sample() - 0.5)/(density-1)
+        if  (xcr < 1  and xcr > -0.05) \
+        and (xnb < 1.1  and xnb > -0.1) \
+        and (xni < 1.1  and xni > -0.1):
             f = (t_gamma.subs({GAMMA_XCR: xcr, GAMMA_XNB: xnb, GAMMA_XNI: xni}),
                  t_delta.subs({DELTA_XCR: xcr, DELTA_XNB: xnb, DELTA_XNI: xni}),
                  t_mu.subs(   {MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}),
@@ -451,8 +452,8 @@ for simplex in hull.simplices:
 pltsize = 20
 plt.figure(figsize=(pltsize, rt3by2*pltsize))
 plt.title("Cr-Nb-Ni at %.0fK"%temp, fontsize=18)
-plt.xlim([0,1])
-plt.ylim([0,rt3by2])
+plt.xlim([-0.1, 1.1])
+plt.ylim([-0.1*rt3by2, 1.1*rt3by2])
 plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
 plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
 plt.plot(XS, YS, '-k')
@@ -460,10 +461,11 @@ for tie in tielines:
     plt.plot(tie[0], tie[1], '-k', alpha=0.025)
 for i in range(len(labels)):
     plt.scatter(X[i], Y[i], color=colors[i], s=2.5, label=labels[i])
-plt.scatter(X0, Y0, color='black', s=5)
+plt.scatter(X0, Y0, color='black', s=6)
 plt.xticks(np.linspace(0, 1, 21))
 plt.scatter(Xtick, Ytick, color='black', s=3)
 #plt.scatter(0.02+0.3/2, rt3by2*0.3, color='red', s=8)
+#plt.scatter(simX(0.1625, 0.013), simY(0.013), color='black', s=5)
 plt.legend(loc='best')
 plt.savefig("parabolic_energy.png", bbox_inches='tight', dpi=100)
 plt.close()
@@ -477,15 +479,12 @@ stepsz = 0.01
 plt.figure()
 plt.title("Cr-Nb-Ni at %.0fK"%temp)
 plt.xlabel(r'$x_\mathrm{Nb}$')
-#plt.xlabel(r'$x_\mathrm{Cr}$')
 plt.ylabel(r'$\mathcal{F}$')
-#plt.xlim([0, 0.625])
 plt.ylim([-1e10, 0])
 
 #for xcr in (0.01, 0.1, 0.2, 0.3, 0.4, 0.5):
-for xcr in (0.1, 0.2):
+for xcr in (0.01, 0.015):
 #for xcr in (0.3, 0.4):
-#for xnb in (0.01, 0.05, 0.1, 0.15, 0.2, 0.25):
     xgam = []
     cgam = []
     tgam = []
@@ -493,83 +492,118 @@ for xcr in (0.1, 0.2):
     tmu  = []
     tlav = []
     for xnb in np.arange(0.01, 0.98, stepsz):
-    #for xcr in np.arange(0.01, 0.6, stepsz):
         xni = 1.0 - xcr - xnb
         xgam.append(xnb)
-        #xgam.append(xcr)
     #    cgam.append(g_gamma.subs({GAMMA_XCR: xcr, GAMMA_XNB: xnb, GAMMA_XNI: xni}))
-    #    tgam.append(t_gamma.subs({GAMMA_XCR: xcr, GAMMA_XNB: xnb, GAMMA_XNI: xni}))
-    #    tdel.append(t_delta.subs({DELTA_XCR: xcr, DELTA_XNB: xnb}))
+        tgam.append(t_gamma.subs({GAMMA_XCR: xcr, GAMMA_XNB: xnb, GAMMA_XNI: xni}))
+        tdel.append(t_delta.subs({DELTA_XCR: xcr, DELTA_XNB: xnb}))
         tmu.append( t_mu.subs({MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}))
-    #    tlav.append(t_laves.subs({LAVES_XCR: xcr, LAVES_XNB: xnb, LAVES_XNI: xni}))
+        tlav.append(t_laves.subs({LAVES_XCR: xcr, LAVES_XNB: xnb, LAVES_XNI: xni}))
 
     #xdel = []
     #cdel = []
     #for xnb in np.arange(0.01, 0.25, stepsz):
-    ##for xcr in np.arange(0.01, 0.75, stepsz):
     #    xni = 1.0 - xcr - xnb
     #    xdel.append(xnb)
-    ##    xdel.append(xcr)
     #    cdel.append(g_delta.subs({DELTA_XCR: xcr, DELTA_XNB: xnb, DELTA_XNI: xni}))
 
-    xmu  = []
-    cmu = []
-    for xnb in np.arange(6.0/13, 0.98, stepsz):
-    #for xcr in np.arange(0.01, 7.0/13, stepsz):
-        xni = 1.0 - xcr - xnb
-        xmu.append(xnb)
-    #    xmu.append(xcr)
-        cmu.append(g_mu.subs({MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}))
+    #xmu  = []
+    #cmu = []
+    #for xnb in np.arange(6.0/13, 0.98, stepsz):
+    #    xni = 1.0 - xcr - xnb
+    #    xmu.append(xnb)
+    #    cmu.append(g_mu.subs({MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}))
 
     #xlav = []
     #clav = []
     #for xnb in np.arange(0.01, 0.33, stepsz):
-    ##for xcr in np.arange(0.01, 0.67, stepsz):
     #    xni = 1.0 - xcr - xnb
     #    xlav.append(xnb)
-    ##    xlav.append(xcr)
     #    clav.append(g_laves.subs({LAVES_XCR: xcr, LAVES_XNB: xnb, LAVES_XNI: xni}))
 
     #plt.plot(xgam, cgam, label=r'$\gamma$ CALPHAD')
-    #plt.plot(xgam, tgam, label=r'$\gamma$ Taylor')
+    plt.plot(xgam, tgam, label=r'$\gamma$ Taylor')
 
     #plt.plot(xdel, cdel, label=r'$\delta$ CALPHAD')
-    #plt.plot(xgam, tdel, label=r'$\delta$ Taylor')
+    plt.plot(xgam, tdel, label=r'$\delta$ Taylor')
 
-    plt.plot(xmu,  cmu,  label=r'$\mu$ CALPHAD')
+    #plt.plot(xmu,  cmu,  label=r'$\mu$ CALPHAD')
     plt.plot(xgam, tmu,  label=r'$\mu$ Taylor')
 
     #plt.plot(xlav, clav, label=r'L CALPHAD')
-    #plt.plot(xgam, tlav, label=r'L Taylor')
+    plt.plot(xgam, tlav, label=r'L Taylor')
 
 plt.legend(loc='best', fontsize=6)
-plt.savefig("linescan.png", bbox_inches='tight', dpi=300)
+plt.savefig("linescan_Nb.png", bbox_inches='tight', dpi=300)
+plt.close()
 
 
 
 
+# Compare CALPHAD and parabolic expressions (const. Nb)
+stepsz = 0.01
 
-## Make substitutions
-#g_gamma = Piecewise((g_gamma, Gt(GAMMA_XNI, 0) & Lt(GAMMA_XNI, 1) &
-#                              Gt(GAMMA_XCR, 0) & Lt(GAMMA_XCR, 1) &
-#                              Gt(GAMMA_XNB, 0) & Lt(GAMMA_XNB, 1)),
-#                    (t_gamma, True))
-#
-#g_delta = Piecewise((g_delta, Le(DELTA_XCR, 0.75) & Le(DELTA_XNB, 0.25) &
-#                              Gt(1-DELTA_XCR-DELTA_XNB, 0) & Lt(1-DELTA_XCR-DELTA_XNB, 1) &
-#                              Gt(DELTA_XCR, 0) & Lt(DELTA_XCR, 1) &
-#                              Gt(DELTA_XNB, 0) & Lt(DELTA_XNB, 1)),
-#                    (t_delta, True))
-#
-#g_mu    = Piecewise((g_mu, Le(MU_XCR+MU_XNI, fr7by13) & Ge(MU_XNB, fr6by13) &
-#                           Gt(MU_XCR, 0) & Lt(MU_XCR, 1) &
-#                           Lt(MU_XNB, 1) & 
-#                           Gt(MU_XNI, 0) & Lt(MU_XNI, 1)),
-#                    (t_mu, True))
-#
-#g_laves = Piecewise((g_laves, Le(LAVES_XNB, fr1by3) & Le(LAVES_XNI, fr2by3) &
-#                              Gt(LAVES_XNB, 0) & Gt(LAVES_XNI, 0) &
-#                              Gt(1-LAVES_XNB-LAVES_XNI, 0) & Lt(1-LAVES_XNB-LAVES_XNI, 1)),
-#                    (t_laves, True))
+# Plot phase diagram
+plt.figure()
+plt.title("Cr-Nb-Ni at %.0fK"%temp)
+plt.xlabel(r'$x_\mathrm{Cr}$')
+plt.ylabel(r'$\mathcal{F}$')
+#plt.xlim([0, 0.625])
+plt.ylim([-1e10, 0])
+
+for xnb in (0.15, 0.2):
+    xgam = []
+    cgam = []
+    tgam = []
+    tdel = []
+    tmu  = []
+    tlav = []
+    for xcr in np.arange(0.01, 0.6, stepsz):
+        xni = 1.0 - xcr - xnb
+        xgam.append(xcr)
+    #    cgam.append(g_gamma.subs({GAMMA_XCR: xcr, GAMMA_XNB: xnb, GAMMA_XNI: xni}))
+        tgam.append(t_gamma.subs({GAMMA_XCR: xcr, GAMMA_XNB: xnb, GAMMA_XNI: xni}))
+        tdel.append(t_delta.subs({DELTA_XCR: xcr, DELTA_XNB: xnb}))
+        tmu.append( t_mu.subs({MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}))
+        tlav.append(t_laves.subs({LAVES_XCR: xcr, LAVES_XNB: xnb, LAVES_XNI: xni}))
+
+    #xdel = []
+    #cdel = []
+    #for xcr in np.arange(0.01, 0.75, stepsz):
+    #    xni = 1.0 - xcr - xnb
+    #    xdel.append(xcr)
+    #    cdel.append(g_delta.subs({DELTA_XCR: xcr, DELTA_XNB: xnb, DELTA_XNI: xni}))
+
+    #xmu  = []
+    #cmu = []
+    #for xcr in np.arange(0.01, 7.0/13, stepsz):
+    #    xni = 1.0 - xcr - xnb
+    #    xmu.append(xcr)
+    #    cmu.append(g_mu.subs({MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}))
+
+    #xlav = []
+    #clav = []
+    #for xcr in np.arange(0.01, 0.67, stepsz):
+    #    xni = 1.0 - xcr - xnb
+    #    xlav.append(xcr)
+    #    clav.append(g_laves.subs({LAVES_XCR: xcr, LAVES_XNB: xnb, LAVES_XNI: xni}))
+
+    #plt.plot(xgam, cgam, label=r'$\gamma$ CALPHAD')
+    plt.plot(xgam, tgam, label=r'$\gamma$ Taylor')
+
+    #plt.plot(xdel, cdel, label=r'$\delta$ CALPHAD')
+    plt.plot(xgam, tdel, label=r'$\delta$ Taylor')
+
+    #plt.plot(xmu,  cmu,  label=r'$\mu$ CALPHAD')
+    plt.plot(xgam, tmu,  label=r'$\mu$ Taylor')
+
+    #plt.plot(xlav, clav, label=r'L CALPHAD')
+    plt.plot(xgam, tlav, label=r'L Taylor')
+
+plt.legend(loc='best', fontsize=6)
+plt.savefig("linescan_Cr.png", bbox_inches='tight', dpi=300)
+plt.close()
+
+
 
 

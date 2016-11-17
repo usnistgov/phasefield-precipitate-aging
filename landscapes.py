@@ -129,8 +129,9 @@ xe_mu_Ni = 1.0 - xe_mu_Cr - xe_mu_Nb
 
 #xe_lav_Nb = 0.32 # phase diagram
 #xe_lav_Ni = 0.34
+xe_lav_Cr = 0.34
 xe_lav_Nb = 0.29
-xe_lav_Ni = 0.37 
+xe_lav_Ni = 1.0 - xe_lav_Cr - xe_lav_Nb
 
 
 

@@ -263,8 +263,8 @@ void generate(int dim, const char* filename)
 			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[1]);     // right wall
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-				initGrid(x)[0] = 0.5 * (0.025 + 0.001); //matrixCr + xCr[0]; // * (1.0 + init_amp*real_gen(mt_rand));
-				initGrid(x)[1] = 0.5 * (0.0875 + 2375);//0.06; //xe_gam_Nb(); //matrixNb + xNb[0]; // * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[0] = 0.15; //0.5 * (0.1875 + 0.01); //matrixCr + xCr[0]; // * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[1] = 0.15; //0.5 * (0.05 + 0.25);   //0.06; //xe_gam_Nb(); //matrixNb + xNb[0]; // * (1.0 + init_amp*real_gen(mt_rand));
 
 				// tiny bit of noise to avoid zeros
 				for (int i=NC; i<NC+NP-1; i++)
@@ -368,8 +368,8 @@ void generate(int dim, const char* filename)
 			// Initialize planar interface between gamma and delta
 			origin[0] = Nx / 4;
 			origin[1] = Ny / 2;
-			const double delCr = 0.5 * (0.025 + 0.001);
-			const double delNb = 0.5 * (0.0875 + 2375);
+			const double delCr = 0.15; //0.5 * (0.1875 + 0.01);
+			const double delNb = 0.15; //0.5 * (0.05 + 0.25);
 			embedStripe(initGrid, origin, 2, Nx/4, 0, 0, delCr, delNb, delCr, delNb,  1.0-epsilon);
 		}
 
