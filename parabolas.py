@@ -107,25 +107,26 @@ BCC_XCR, BCC_XNB, BCC_XNI = symbols('BCC_XCR BCC_XNB BCC_XNI')
 # Specify equilibrium points for phase field
 #xe_gam_Cr = 0.49 # phase diagram
 #xe_gam_Nb = 0.03
-xe_gam_Cr = 0.1 # landscape
-xe_gam_Nb = 0.1  
+xe_gam_Cr = 0.15
+xe_gam_Nb = 0.0525
 xe_gam_Ni = 1.0 - xe_gam_Cr - xe_gam_Nb
 
 #xe_del_Cr = 0.02 # phase diagram
 #xe_del_Nb = 0.225
-xe_del_Cr = 0.1 # landscape
-xe_del_Nb = 0.2
+xe_del_Cr = 0.0125
+xe_del_Nb = 0.245
 
 #xe_mu_Cr = 0.01 # phase diagram
 #xe_mu_Nb = 0.61
-xe_mu_Cr = 0.01 # landscape
-xe_mu_Nb = 0.4715
+xe_mu_Cr = 0.02
+xe_mu_Nb = 0.5
 xe_mu_Ni = 1.0 - xe_mu_Cr - xe_mu_Nb
 
 #xe_lav_Nb = 0.32 # phase diagram
 #xe_lav_Ni = 0.34
-xe_lav_Nb = 0.30 # landscape
-xe_lav_Ni = 0.40
+xe_lav_Nb = 0.29
+xe_lav_Ni = 0.37
+
 
 
 X0 = (simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_mu_Nb, xe_mu_Cr), simX(xe_lav_Nb, 1-xe_lav_Nb-xe_lav_Ni))
@@ -396,7 +397,7 @@ for i in range(20):
 
 # Generate ternary phase diagram
 
-density = 151
+density = 101
 
 allY = []
 allX = []

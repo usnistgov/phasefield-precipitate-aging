@@ -166,7 +166,7 @@ const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 
-const double LinStab = 0.001; // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 const double dtp = (meshres*meshres)/(4.0 * L_del*kappa_del); // transformation-limited timestep
 #ifndef PARABOLIC
 const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2Ggam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2Ggam_dxNbNb()))); // diffusion-limited timestep
@@ -263,8 +263,8 @@ void generate(int dim, const char* filename)
 			//    matrixNb += (xNb[4]-xNb[0]) * bellCurve(dx(initGrid,0)*x[0], dx(initGrid,0)*Nx,          bell[1]);     // right wall
 
 			for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-				initGrid(x)[0] = 0.5 * (xe_gam_Cr() + xe_del_Cr()); //matrixCr + xCr[0]; // * (1.0 + init_amp*real_gen(mt_rand));
-				initGrid(x)[1] = 0.5 * (xe_gam_Nb() + xe_del_Nb());//0.06; //xe_gam_Nb(); //matrixNb + xNb[0]; // * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[0] = 0.5 * (0.025 + 0.001); //matrixCr + xCr[0]; // * (1.0 + init_amp*real_gen(mt_rand));
+				initGrid(x)[1] = 0.5 * (0.0875 + 2375);//0.06; //xe_gam_Nb(); //matrixNb + xNb[0]; // * (1.0 + init_amp*real_gen(mt_rand));
 
 				// tiny bit of noise to avoid zeros
 				for (int i=NC; i<NC+NP-1; i++)
@@ -368,7 +368,9 @@ void generate(int dim, const char* filename)
 			// Initialize planar interface between gamma and delta
 			origin[0] = Nx / 4;
 			origin[1] = Ny / 2;
-			embedStripe(initGrid, origin, 2, Nx/4, 0, 0, xe_del_Cr(), xe_del_Nb(), xe_gam_Cr(), xe_gam_Nb(),  1.0-epsilon);
+			const double delCr = 0.5 * (0.025 + 0.001);
+			const double delNb = 0.5 * (0.0875 + 2375);
+			embedStripe(initGrid, origin, 2, Nx/4, 0, 0, delCr, delNb, delCr, delNb,  1.0-epsilon);
 		}
 
 
@@ -494,9 +496,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	ghostswap(oldGrid);
 	grid<dim,vector<T> > newGrid(oldGrid);
-	#ifndef PARABOLIC
-	grid<dim,vector<T> > potGrid(oldGrid, NC); // storage for chemical potentials
-	#endif
 
 	// Construct the parallel tangent solver
 	std::mt19937_64 mt_rand(time(NULL)+rank);
@@ -507,23 +506,14 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	for (int d=0; d<dim; d++) {
 		dx(oldGrid,d) = meshres;
 		dx(newGrid,d) = meshres;
-		#ifndef PARABOLIC
-		dx(potGrid,d) = meshres;
-		#endif
 		dV *= dx(oldGrid,d);
 		Ntot *= g1(oldGrid, d) - g0(oldGrid, d);
 		if (useNeumann && x0(oldGrid,d) == g0(oldGrid,d)) {
 			b0(oldGrid,d) = Neumann;
 			b0(newGrid,d) = Neumann;
-			#ifndef PARABOLIC
-			b0(potGrid,d) = Neumann;
-			#endif
 		} else if (useNeumann && x1(oldGrid,d) == g1(oldGrid,d)) {
 			b1(oldGrid,d) = Neumann;
 			b1(newGrid,d) = Neumann;
-			#ifndef PARABOLIC
-			b1(potGrid,d) = Neumann;
-			#endif
 		}
 	}
 
@@ -594,16 +584,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T& C_gam_Nb = oldGrid(n)[6];
 			const T  C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
-			#ifndef PARABOLIC
-			potGrid(x)[0] = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			potGrid(x)[1] = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			#endif
-
 		}
-
-		#ifndef PARABOLIC
-		ghostswap(potGrid);
-		#endif
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -624,20 +605,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T xCr = oldGrid(n)[0];
 			const T xNb = oldGrid(n)[1];
 
-			#ifndef PARABOLIC
-			vector<T> lapPot = laplacian(potGrid, x);
-
-			newGrid(x)[0] = xCr + dt * D_Cr * lapPot[0];
-			newGrid(x)[1] = xNb + dt * D_Nb * lapPot[1];
-
-			#else
 			const double lapCr = laplacian(oldGrid, x, 5);
 			const double lapNb = laplacian(oldGrid, x, 6);
 
-			newGrid(x)[0] = xCr + dt * D_NbNb * lapNb + dt * D_NbCr * lapCr;
-			newGrid(x)[1] = xNb + dt * D_CrNb * lapNb + dt * D_CrCr * lapCr;
-
-			#endif
+			newGrid(x)[0] = xCr + dt * D_CrCr * lapCr + dt * D_CrNb * lapNb;
+			newGrid(x)[1] = xNb + dt * D_NbCr * lapCr + dt * D_NbNb * lapNb;
 
 
 			/* ======================================== *

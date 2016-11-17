@@ -112,25 +112,27 @@ BCC_XCR, BCC_XNB, BCC_XNI = symbols('BCC_XCR BCC_XNB BCC_XNI')
 # Specify equilibrium points for phase field
 #xe_gam_Cr = 0.49 # phase diagram
 #xe_gam_Nb = 0.03
-xe_gam_Cr = 0.1 # landscape
-xe_gam_Nb = 0.1
+xe_gam_Cr = 0.15
+xe_gam_Nb = 0.0525
 xe_gam_Ni = 1.0 - xe_gam_Cr - xe_gam_Nb
 
 #xe_del_Cr = 0.02 # phase diagram
 #xe_del_Nb = 0.225
-xe_del_Cr = 0.1 # landscape
-xe_del_Nb = 0.2
+xe_del_Cr = 0.0125
+xe_del_Nb = 0.245
 
 #xe_mu_Cr = 0.01 # phase diagram
 #xe_mu_Nb = 0.61
-xe_mu_Cr = 0.01 # landscape
-xe_mu_Nb = 0.4715
+xe_mu_Cr = 0.02  
+xe_mu_Nb = 0.5
 xe_mu_Ni = 1.0 - xe_mu_Cr - xe_mu_Nb
 
 #xe_lav_Nb = 0.32 # phase diagram
 #xe_lav_Ni = 0.34
-xe_lav_Nb = 0.30 # landscape
-xe_lav_Ni = 0.40
+xe_lav_Nb = 0.29
+xe_lav_Ni = 0.37 
+
+
 
 # Check that center points are valid
 if (xe_gam_Cr < 0 or xe_gam_Cr > 1 or xe_gam_Nb < 0 or xe_gam_Nb > 1):
@@ -274,7 +276,7 @@ g_laves = Piecewise((g_laves_raw, Le(LAVES_XNB, fr1by3) & Le(LAVES_XNI, fr2by3) 
 
 # Plot ternary free energy landscapes
 Titles = (r'$\gamma$', r'$\delta$', r'$\mu$', r'Laves')
-npts = 100
+npts = 75
 nfun = 4
 #levels = 100
 #levels = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10, 100, 1000, 10000, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12]
