@@ -1,8 +1,25 @@
-This directory contains MMSP code for phase field simulation of solid state transformation in Ni alloy 718.
+This directory contains MMSP code for phase field simulation of solid state
+transformation in Ni alloys 625 and 718. Phase field model implemented based on
+Zhou et al. [1], modified for Cr-Nb-Ni instead of Al-Nb-Ni. It is a
+generalization of the binary Kim-Kim-Suzuki model [2]. CALPHAD thermodynamic
+potentials from Du et al. [3], implemented by U. Kattner(NIST MML MSED).
+Diffusion constants for Cr and Nb in fcc Ni from Karunaratne [4] and Xu [5].
 
 Send questions or comments to trevor.keller@nist.gov (Trevor Keller)
 
 References:
 
-1. N Zhou, DC Lv, HL Zhang, D McAllister, F Zhang, MJ Mills, Y Wang. "Computer simulation of phase transformation and plastic deformation in IN718 superalloy:
-   Microstructural evolution during precipitation," Acta Materialia 65;270-286 (2014). DOI: 10.1016/j.actamat.2013.10.069
+1. N Zhou, DC Lv, HL Zhang, D McAllister, F Zhang, MJ Mills, Y Wang. "Computer
+   simulation of phase transformation and plastic deformation in IN718
+   superalloy: Microstructural evolution during precipitation,"
+   Acta Materialia 65;270-286 (2014). DOI: 10.1016/j.actamat.2013.10.069
+2. SG Kim, WT Kim, T Suzuki. "Phase-field model for binary alloys,"
+   Physical Review E 60;7186-7197 (1999). DOI: 10.1103/PhysRevE.60.7186
+3. Y Du, S Liu, Y Chang, Y Yang. "A thermodynamic modeling of the Cr–Nb–Ni
+   system," Calphad 29;140-148 (2005). DOI: 10.1016/j.calphad.2005.06.001
+4. M Karunaratne, R Reed. "Interdiffusion of Niobium and Molybdenum in Nickel
+   between 900-1300°C," in Diffusion in Materials - DIMAT2004, 237;420-425
+   (2005). DOI: 10.4028/www.scientific.net/DDF.237-240.420
+5. G Xu, Y Liu, Z Kang. "Atomic Mobilities and Interdiffusivities for fcc
+   Ni-Cr-Nb Alloys," Metallurgical and Materials Transactions B, 47;3126-3131
+   (2016). DOI: 10.1007/s11663-016-0726-6
