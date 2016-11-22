@@ -15,6 +15,7 @@
 #include<cmath>
 #include<random>
 #include<cassert>
+#include<sstream>
 #include<gsl/gsl_blas.h>
 #include<gsl/gsl_math.h>
 #include<gsl/gsl_roots.h>
@@ -200,7 +201,168 @@ void generate(int dim, const char* filename)
 	if (rank==0)
 		cfile.open("c.log",std::ofstream::out);
 
-	if (dim==2) {
+	if (dim==1) {
+		// Construct grid
+		const int Nx = 192; // divisible by 12 and 64
+		double dV = 1.0;
+		double Ntot = 1.0;
+		GRID1D initGrid(14, 0, Nx);
+		for (int d=0; d<dim; d++) {
+			dx(initGrid,d)=meshres;
+			dV *= meshres;
+			Ntot *= g1(initGrid, d) - g0(initGrid, d);
+			if (useNeumann) {
+				b0(initGrid, d) = Neumann;
+				b1(initGrid, d) = Neumann;
+			}
+		}
+
+		// Sanity check on system size and  particle spacing
+		if (rank==0)
+			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
+
+		vector<int> x(2, 0);
+		const int Nd = Nx / 3;
+
+		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
+		for (x[0]=x0(initGrid); x[0]<x1(initGrid); x[0]++) {
+			for (int i=NC; i<NC+NP-1; i++)
+				initGrid(x)[i] = 0.0; //init_amp*real_gen(mt_rand);
+			for (int i=NC+NP-1; i<fields(initGrid); i++)
+				initGrid(x)[i] = 0.0;
+
+			if (x[0] < Nd) {
+				// Initialize delta
+				initGrid(x)[0] = 0.0125;
+				initGrid(x)[1] = 0.2500;
+				initGrid(x)[2] = 1.0 - epsilon;
+			} else {
+				// Initialize gamma
+				initGrid(x)[0] = (0.15*Nx - 0.0125*Nd) / (Nx-Nd);
+				initGrid(x)[1] = (0.15*Nx - 0.2500*Nd) / (Nx-Nd);
+			}
+
+		}
+
+
+		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
+		#ifdef MPI_VERSION
+		for (int n=0; n<nodes(initGrid); n++) {
+			guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
+			guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
+			guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
+			guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
+		}
+		#else
+		#pragma omp parallel for
+		for (int n=0; n<nodes(initGrid); n++) {
+			#pragma omp critical
+			{
+				guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
+			}
+			#pragma omp critical
+			{
+				guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
+			}
+			#pragma omp critical
+			{
+				guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
+			}
+			#pragma omp critical
+			{
+				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
+			}
+		}
+		#endif
+
+
+		ghostswap(initGrid);
+
+		#ifndef MPI_VERSION
+		#pragma omp parallel for
+		#endif
+		for (int n=0; n<nodes(initGrid); n++) {
+			vector<double> gradPhi_del = gradient(initGrid, x, 2);
+			vector<double> gradPhi_mu  = gradient(initGrid, x, 3);
+			vector<double> gradPhi_lav = gradient(initGrid, x, 4);
+
+			double myCr = initGrid(n)[0];
+			double myNb = initGrid(n)[1];
+			double myDel = h(fabs(initGrid(n)[2]));
+			double myMu  = h(fabs(initGrid(n)[3]));
+			double myLav = h(fabs(initGrid(n)[4]));
+			double myGam = 1.0 - myDel - myMu - myLav;
+			double myf = dV*(gibbs(initGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
+			                                    + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
+			                                    + kappa_lav * (gradPhi_lav * gradPhi_lav));
+			initGrid(n)[fields(initGrid)-1] = myf;
+
+			#ifndef MPI_VERSION
+			#pragma omp critical
+			{
+			#endif
+				totCr  += myCr;  // total Cr mass
+				totNb  += myNb;  // total Nb mass
+				totDel += myDel; // total delta volume
+				totMu  += myMu;  // total mu volume
+				totLav += myLav; // total Laves volume
+				totGam += myGam; // total gamma volume
+				totF   += myf;   // total free energy
+			#ifndef MPI_VERSION
+			}
+			#endif
+		}
+
+		totCr /= Ntot;
+		totNb /= Ntot;
+		totGam /= Ntot;
+		totDel /= Ntot;
+		totMu  /= Ntot;
+		totLav /= Ntot;
+
+		#ifdef MPI_VERSION
+		double myCr(totCr);
+		double myNb(totNb);
+		double myDel(totDel);
+		double myMu(totMu);
+		double myGam(totGam);
+		double myLav(totLav);
+		double myF(totF);
+		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myDel, &totDel, 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myMu,  &totMu,  1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myLav, &totLav, 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myGam, &totGam, 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
+		#endif
+
+		#ifdef MPI_VERSION
+		#endif
+		if (rank==0) {
+			cfile << totCr  << '\t' << totNb  << '\t'
+			      << totGam << '\t' << totDel << '\t' << totMu << '\t' << totLav << '\t'
+			      << totF   << '\t' << '0'    << std::endl;
+			cfile.close();
+		}
+
+		//print_values(initGrid);
+		if (rank==0) {
+			std::cout << "    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
+			printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", totCr, totNb, 1.0-totCr-totNb,
+			                                                             totGam, totDel, totMu, totLav);
+		}
+
+		output(initGrid,filename);
+
+
+
+
+	} else if (dim==2) {
+
+
+
+
 		// Construct grid
 		const int Nx = 192; // divisible by 12 and 64
 		//const int Ny = 768;
@@ -476,15 +638,22 @@ void generate(int dim, const char* filename)
 		}
 
 		//print_values(initGrid);
-	if (rank==0) {
-		std::cout << "    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
-		printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", totCr, totNb, 1.0-totCr-totNb,
-		                                                             totGam, totDel, totMu, totLav);
-	}
+		if (rank==0) {
+			std::cout << "    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
+			printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", totCr, totNb, 1.0-totCr-totNb,
+			                                                             totGam, totDel, totMu, totLav);
+		}
+
 		output(initGrid,filename);
+
+
+
 
 	} else
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
+
+
+
 }
 
 template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int steps)
@@ -517,9 +686,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		}
 	}
 
-	std::ofstream cfile;
-	if (rank==0)
-		cfile.open("c.log",std::ofstream::out | std::ofstream::app);
+	std::stringstream cstrm("");
 
 	for (int step=0; step<steps; step++) {
 		if (rank==0)
@@ -700,7 +867,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Store parallel tangents *
 			 * ======================= */
 
-			for (int i=NC+NP-1; i<fields(newGrid); i++)
+			// Copy old into new as "close" guesses for the next timestep
+			for (int i=NC+NP-1; i<fields(newGrid)-1; i++)
 				newGrid(x)[i] = oldGrid(n)[i];
 
 
@@ -789,15 +957,24 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents,   1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
-		if (rank==0)
-			cfile << totCr  << '\t' << totNb << '\t'
+		if (rank==0) {
+			cstrm << totCr  << '\t' << totNb << '\t'
 			      << totGam << '\t' << totDel << '\t' << totMu << '\t' << totLav << '\t'
 			      << totF   << '\t' << totBadTangents << '\n';
+		}
 
 	}
 
-	if (rank==0)
+	std::ofstream cfile;
+	if (rank==0) {
+		cfile.open("c.log",std::ofstream::out | std::ofstream::app);
+
+		cfile << cstrm.rdbuf();
+
 		cfile.close();
+	}
+
+	cstrm.str("");
 
 }
 
