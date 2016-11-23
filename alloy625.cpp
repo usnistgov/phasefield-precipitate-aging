@@ -774,27 +774,15 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Point-wise kernel for parallel PDE integration *
 			 * ============================================== */
 
+
+			/* ================= *
+			 * Collect Constants *
+			 * ================= */
+
 			vector<int> x = position(oldGrid,n);
-
-
-			/* ============================================= *
-			 * Solve the Equation of Motion for Compositions *
-			 * ============================================= */
-
 
 			const T xCr = oldGrid(n)[0];
 			const T xNb = oldGrid(n)[1];
-
-			const double lapCr = laplacian(oldGrid, x, 5);
-			const double lapNb = laplacian(oldGrid, x, 6);
-
-			newGrid(x)[0] = xCr + dt * D_CrCr * lapCr + dt * D_CrNb * lapNb;
-			newGrid(x)[1] = xNb + dt * D_NbCr * lapCr + dt * D_NbNb * lapNb;
-
-
-			/* ======================================== *
-			 * Solve the Equation of Motion for Phases  *
-			 * ======================================== */
 
 			const T phi_del  = oldGrid(n)[2]; // phase fraction of delta
 			const T phi_mu   = oldGrid(n)[3]; // phase fraction of mu
@@ -815,67 +803,68 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const T C_lav_Nb = oldGrid(n)[12]; // Nb molar fraction in pure Laves
 			const T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
-			/*
-			const double ndel = h(fabs(phi_del));
-			const double nmu  = h(fabs(phi_mu));
-			const double nlav = h(fabs(phi_lav));
-			const double ngam = 1.0 - ndel - nmu - nlav;
-			*/
+
+			/* =================== *
+			 * Compute Derivatives *
+			 * =================== */
+
+			// Laplacians of field variables
+			const double lapPhi_del = laplacian(oldGrid, x, 2);
+			const double lapPhi_mu  = laplacian(oldGrid, x, 3);
+			const double lapPhi_lav = laplacian(oldGrid, x, 4);
+
+			const double lapxCr_gam = laplacian(oldGrid, x, 5);
+			const double lapxNb_gam = laplacian(oldGrid, x, 6);
 
 
-			double lapPhi_del = laplacian(oldGrid, x, 2);
-			double lapPhi_mu  = laplacian(oldGrid, x, 3);
-			double lapPhi_lav = laplacian(oldGrid, x, 4);
+			// Diffusion potentials (at equilibrium, equal to chemical potentials)
+			double pot_Cr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			double pot_Nb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			double pot_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni);
 
 
-			/*#ifdef PARABOLIC
-			double mu_Cr = dg_gam_dxCr(C_gam_Cr);
-			double mu_Nb = dg_gam_dxNb(C_gam_Nb);
-			double mu_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			// Variational derivatives (scalar minus gradient term in Euler-Lagrange eqn)
+			double delF_delPhi_del = -sign(phi_del) * hprime(fabs(phi_del))
+			                         * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_del(C_del_Cr, C_del_Nb)
+			                           - (C_gam_Cr - C_del_Cr) * pot_Cr - (C_gam_Nb - C_del_Nb) * pot_Nb);
 
-			double df_dphi_del = -sign(phi_del) * hprime(fabs(phi_del)) * (g_gam(C_gam_Cr, C_gam_Nb) - g_del(C_del_Cr, C_del_Nb)
-			                                                               - (C_gam_Cr - C_del_Cr) * mu_Cr
-			                                                               - (C_gam_Nb - C_del_Nb) * mu_Nb);
+			double delF_delPhi_mu  = -sign(phi_mu)  * hprime(fabs(phi_mu))
+			                         * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni)
+			                            - (C_gam_Cr - C_mu_Cr) * pot_Cr - (C_gam_Ni - C_mu_Ni) * pot_Ni);
 
-			double df_dphi_mu  = -sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_gam(C_gam_Cr, C_gam_Nb) - g_mu(C_mu_Cr, C_mu_Ni)
-			                                                               - (C_gam_Cr - C_mu_Cr) * mu_Cr
-			                                                               - (C_gam_Ni - C_mu_Ni) * mu_Ni);
+			double delF_delPhi_lav = -sign(phi_lav) * hprime(fabs(phi_lav))
+			                         * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_lav(C_lav_Nb, C_lav_Ni)
+			                            - (C_gam_Nb - C_lav_Nb) * pot_Nb - (C_gam_Ni - C_lav_Ni) * pot_Ni);
 
-			double df_dphi_lav = -sign(phi_lav) * hprime(fabs(phi_lav)) * (g_gam(C_gam_Cr, C_gam_Nb) - g_lav(C_lav_Nb, C_lav_Ni)
-			                                                               - (C_gam_Nb - C_lav_Nb) * mu_Nb
-			                                                               - (C_gam_Ni - C_lav_Ni) * mu_Ni);
-			#else
-			*/
-			double mu_Cr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			double mu_Nb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			double mu_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			delF_delPhi_del += 2.0 * omega_del * phi_del * (1.0 - fabs(phi_del)) * (1.0 - fabs(phi_del) - sign(phi_del) * phi_del);
+			delF_delPhi_mu  += 2.0 * omega_mu  * phi_mu  * (1.0 - fabs(phi_mu))  * (1.0 - fabs(phi_mu)  - sign(phi_mu)  * phi_mu);
+			delF_delPhi_lav += 2.0 * omega_lav * phi_lav * (1.0 - fabs(phi_lav)) * (1.0 - fabs(phi_lav) - sign(phi_lav) * phi_lav);
 
-			double df_dphi_del = -sign(phi_del) * hprime(fabs(phi_del)) * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_del(C_del_Cr, C_del_Nb)
-			                                                               - (C_gam_Cr - C_del_Cr) * mu_Cr
-			                                                               - (C_gam_Nb - C_del_Nb) * mu_Nb);
-
-			double df_dphi_mu  = -sign(phi_mu)  * hprime(fabs(phi_mu))  * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni)
-			                                                               - (C_gam_Cr - C_mu_Cr) * mu_Cr
-			                                                               - (C_gam_Ni - C_mu_Ni) * mu_Ni);
-
-			double df_dphi_lav = -sign(phi_lav) * hprime(fabs(phi_lav)) * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_lav(C_lav_Nb, C_lav_Ni)
-			                                                               - (C_gam_Nb - C_lav_Nb) * mu_Nb
-			                                                               - (C_gam_Ni - C_lav_Ni) * mu_Ni);
-			//#endif
-
-			df_dphi_del += 2.0 * omega_del * phi_del * (1.0 - fabs(phi_del)) * (1.0 - fabs(phi_del) - sign(phi_del) * phi_del);
-			df_dphi_mu  += 2.0 * omega_mu  * phi_mu  * (1.0 - fabs(phi_mu))  * (1.0 - fabs(phi_mu)  - sign(phi_mu)  * phi_mu);
-			df_dphi_lav += 2.0 * omega_lav * phi_lav * (1.0 - fabs(phi_lav)) * (1.0 - fabs(phi_lav) - sign(phi_lav) * phi_lav);
-
-			df_dphi_del += 4.0 * alpha * phi_del * (phi_mu  * phi_mu  + phi_lav * phi_lav);
-			df_dphi_mu  += 4.0 * alpha * phi_mu  * (phi_del * phi_del + phi_lav * phi_lav);
-			df_dphi_lav += 4.0 * alpha * phi_lav * (phi_del * phi_del + phi_mu  * phi_mu);
+			delF_delPhi_del += 4.0 * alpha * phi_del * (phi_mu  * phi_mu  + phi_lav * phi_lav);
+			delF_delPhi_mu  += 4.0 * alpha * phi_mu  * (phi_del * phi_del + phi_lav * phi_lav);
+			delF_delPhi_lav += 4.0 * alpha * phi_lav * (phi_del * phi_del + phi_mu  * phi_mu);
 
 
-			newGrid(x)[2] = phi_del + dt * L_del * (kappa_del * lapPhi_del - df_dphi_del);
-			newGrid(x)[3] = phi_mu  + dt * L_mu  * (kappa_mu  * lapPhi_mu  - df_dphi_mu );
-			newGrid(x)[4] = phi_lav + dt * L_lav * (kappa_lav * lapPhi_lav - df_dphi_lav);
+			delF_delPhi_del -= kappa_del * lapPhi_del;
+			delF_delPhi_mu  -= kappa_mu  * lapPhi_mu;
+			delF_delPhi_lav -= kappa_lav * lapPhi_lav;
 
+
+			/* ============================================= *
+			 * Solve the Equation of Motion for Compositions *
+			 * ============================================= */
+
+			newGrid(x)[0] = xCr + dt * D_CrCr * lapxCr_gam + dt * D_CrNb * lapxNb_gam;
+			newGrid(x)[1] = xNb + dt * D_NbCr * lapxCr_gam + dt * D_NbNb * lapxNb_gam;
+
+
+			/* ======================================== *
+			 * Solve the Equation of Motion for Phases  *
+			 * ======================================== */
+
+			newGrid(x)[2] = phi_del - dt * L_del * delF_delPhi_del;
+			newGrid(x)[3] = phi_mu  - dt * L_mu  * delF_delPhi_mu ;
+			newGrid(x)[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
 
 
 			/* ======================= *
@@ -994,7 +983,19 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 }
 
 
+
+
 } // namespace MMSP
+
+
+
+
+
+
+
+
+
+
 
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx)
 {
