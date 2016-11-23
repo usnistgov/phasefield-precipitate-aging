@@ -76,11 +76,13 @@
 
 
 // Define equilibrium phase compositions at global scope. Gamma is nominally 30% Cr, 2% Nb,
-// but microsegregation should deplete that somewhat. Compare against the reported total
-// system composition and adjust gamma accordingly in the following arrays.
-//                        gamma   delta     mu     laves    Enriched gamma (Excess)
-const double xCr[NP+1] = {0.2945, 0.003125, 0.05,   0.325,  0.31-0.2945};
-const double xNb[NP+1] = {0.015,  0.24375,  0.4875, 0.2875, 0.12-0.015};
+// as defined in the first elements of the two following arrays. The generate() function
+// will adjust the initial gamma composition depending on the type, amount, and composition
+// of the secondary phases to maintain the system's nominal composition.
+//                        Nominal |     phase diagram      | Enriched
+//                        gamma   | delta    mu     laves  | gamma (Excess)
+const double xCr[NP+1] = {0.30,     0.0125,  0.04,  0.3875,  0.31-0.30};
+const double xNb[NP+1] = {0.02,     0.2500,  0.50,  0.2500,  0.13-0.02};
 //const double xCr[NP+1] = {0.2945,  0.003125, 0.05,   0.325,  0.31};   // for dx=1.25 nm
 //const double xNb[NP+1] = {0.00254,   0.24375,  0.4875, 0.2875, 0.12}; // for dx=1.25 nm
 const double xCrdep = 0.5*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
@@ -156,8 +158,8 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
-const double noise_amp = 1.0e-5; // 1.0e-8;
-const double init_amp = 0.0; //1.0e-3;  // 1.0e-8;
+const double noise_amp = 1.0e-5; // amplitude of noise in replacement compositions for failed parallel tangents
+const double init_amp = 0.0;     // amplitude of noise in initial parallel tangent compositions
 
 const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
