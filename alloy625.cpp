@@ -1,13 +1,25 @@
-// alloy625.cpp
-// Algorithms for 2D and 3D isotropic Cr-Nb-Ni alloy phase transformations
-// Questions/comments to trevor.keller@nist.gov (Trevor Keller)
-
-// This implementation depends on the GNU Scientific Library
-// for multivariate root finding algorithms, and
-// The Mesoscale Microstructure Simulation Project for
-// high-performance grid operations in parallel. Use of these
-// software packages does not constitute endorsement by the
-// National Institute of Standards and Technology.
+/*************************************************************************************
+ * File: alloy625.cpp                                                                *
+ * Algorithms for 2D and 3D isotropic Cr-Nb-Ni alloy phase transformations           *
+ * This implementation depends on the GNU Scientific Library for multivariate root   *
+ * finding algorithms, and Mesoscale Microstructure Simulation Project for high-     *
+ * performance grid operations in parallel.                                          *
+ *                                                                                   *
+ * Questions/comments to trevor.keller@nist.gov (Trevor Keller, Ph.D.)               *
+ *                                                                                   *
+ * This software was developed at the National Institute of Standards and Technology *
+ * by employees of the Federal Government in the course of their official duties.    *
+ * Pursuant to title 17 section 105 of the United States Code this software is not   *
+ * subject to copyright protection and is in the public domain. NIST assumes no      *
+ * responsibility whatsoever for the use of this code by other parties, and makes no *
+ * guarantees, expressed or implied, about its quality, reliability, or any other    *
+ * characteristic. We would appreciate acknowledgement if the software is used.      *
+ *                                                                                   *
+ * This software can be redistributed and/or modified freely provided that any       *
+ * derivative works bear some notice that they are derived from it, and any modified *
+ * versions bear some notice that they have been modified.                           *
+ *                                                                                   *
+ *************************************************************************************/
 
 
 #ifndef ALLOY625_UPDATE
@@ -65,8 +77,8 @@
  * bal. Ni molar fraction in pure Laves
  */
 
-/* Based on experiments (EDS) and simulations (DICTRA), additively manufactured IN625
- * has the following compositions:
+/* Based on experiments (EDS) and simulations (DICTRA), additively manufactured
+ * IN625 has the following compositions:
  *
  * Element  Nominal  Interdendritic (mol %)
  * Cr+Mo      30%      31%
@@ -83,10 +95,6 @@
 //                        gamma   | delta    mu     laves  | gamma (Excess)
 const double xCr[NP+1] = {0.30,     0.0125,  0.04,  0.3875,  0.31-0.30};
 const double xNb[NP+1] = {0.02,     0.2500,  0.50,  0.2500,  0.13-0.02};
-
-// Define composition of depletion region surrounding secondary particles.
-const double xCrdep = 0.5*xCr[0]; // leftover Cr in depleted gamma phase near precipitate particle
-const double xNbdep = 0.5*xNb[0]; // leftover Nb in depleted gamma phase near precipitate particle
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                         Cr      Nb
@@ -393,25 +401,12 @@ void generate(int dim, const char* filename)
 		                              3.0*7.5e-9 / dx(initGrid,0),  // mu
 		                              3.0*7.5e-9 / dx(initGrid,0)}; // Laves
 
-		// depletion region surrounding precipitates
-		double rDepltCr[NP-1] = {0.0};
-		double rDepltNb[NP-1] = {0.0};
-		for (int i=0; i<NP-1; i++) {
-			rDepltCr[i] = std::sqrt(1.0+2.0*xCr[i+1]/xCrdep) * rPrecip[i];
-			rDepltNb[i] = std::sqrt(1.0+2.0*xNb[i+1]/xNbdep) * rPrecip[i];
-		}
-
 
 		// Sanity check on system size and  particle spacing
 		if (rank==0)
 			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
 		for (int i=0; i<NP-1; i++) {
-			/*
-			double rmax = std::max(rDepltCr[i], rDepltNb[i]);
-			if (rmax > Ny/2)
-				std::cerr << "Warning: domain too small to accommodate phase " << i << ", expand beyond " << 2.0*rmax << " pixels." << std::endl;
-			*/
 			if (rPrecip[i] > Ny/2)
 				std::cerr << "Warning: domain too small to accommodate phase " << i << ", expand beyond " << 2.0*rPrecip[i] << " pixels." << std::endl;
 		}
@@ -445,46 +440,46 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - epsilon);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 5*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 3*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + epsilon);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 6*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + epsilon);
 
 			// Initialize mu precipitates
 			j = 1;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - 2*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 4*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 3*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + epsilon);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 5*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + epsilon);
 
 			// Initialize Laves precipitates
 			j = 2;
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 4*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 2*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + epsilon);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 6*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep, -1.0 + epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + epsilon);
 		} else if (0) {
 			/* =============================================== *
 			 * Three-phase Particle Growth test configuration  *
@@ -498,17 +493,17 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny / 2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 
 			// Initialize mu precipitates
 			j = 1;
 			origin[0] = Nx / 2 - xoffset;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 
 			// Initialize Laves precipitates
 			j = 2;
 			origin[0] = Nx / 2 + xoffset;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 		} else if (0) {
 			/* ============================================= *
 			 * Three-phase Stripe Growth test configuration  *
@@ -522,17 +517,17 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny / 2;
-			comp += embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedStripe(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 
 			// Initialize mu stripe
 			j = 1;
 			origin[0] = Nx / 2 - xoffset;
-			comp += embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedStripe(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 
 			// Initialize Laves stripe
 			j = 2;
 			origin[0] = Nx / 2 + xoffset;
-			comp += embedStripe(initGrid, origin, j+2, rPrecip[j], rDepltCr[j], rDepltNb[j], xCr[j+1], xNb[j+1], xCrdep, xNbdep,  1.0 - epsilon);
+			comp += embedStripe(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - epsilon);
 
 		} else if (0) {
 			/* ============================================= *
@@ -549,7 +544,7 @@ void generate(int dim, const char* filename)
 			origin[1] = Ny / 2;
 			const double delCr = 0.15; // Choose initial composition carefully!
 			const double delNb = 0.15;
-			comp += embedStripe(initGrid, origin, 2, Nx/4, 0, 0, delCr, delNb, delCr, delNb,  1.0-epsilon);
+			comp += embedStripe(initGrid, origin, 2, Nx/4, delCr, delNb,  1.0-epsilon);
 		} else {
 			if (rank==0)
 				std::cerr<<"Error: specify an initial condition!"<<std::endl;
@@ -1141,10 +1136,12 @@ Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double be
 
 
 template<typename T>
-Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& origin, const int pid,
-                const double rprcp, const double rdpltCr, const double rdpltNb,
-                const T& xCr, const T& xNb,
-                const double& xCrdep, const double& xNbdep, const T phi)
+Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID,
+                          const MMSP::vector<int>& origin,
+                          const int pid,
+                          const double rprcp,
+                          const T& xCr, const T& xNb,
+                          const T phi)
 {
 	MMSP::vector<int> x(origin);
 	double R = rprcp; //std::max(rdpltCr, rdpltNb);
@@ -1165,21 +1162,6 @@ Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vect
 				comp.x[pid-NC][1] += xNb;
 				comp.N[pid-NC] += 1;
 			}
-			/*
-			else if (h(fabs(GRID(x)[2])) + h(fabs(GRID(x)[3])) + h(fabs(GRID(x)[4]))>epsilon) {
-				// Don't deplete neighboring precipitates, only matrix
-				continue;
-			} else {
-				if (r<rdpltCr) { // point falls within Cr depletion region
-					T dxCr = xCrdep - xCrdep*(r-rprcp)/(rdpltCr-rprcp);
-					GRID(x)[0] = std::max(xCrdep, GRID(x)[0]-dxCr);
-				}
-				if (r<rdpltNb) { // point falls within Nb depletion region
-					T dxNb = xNbdep - xNbdep*(r-rprcp)/(rdpltNb-rprcp);
-					GRID(x)[1] = std::max(xNbdep, GRID(x)[1]-dxNb);
-				}
-			}
-			*/
 		}
 	}
 
@@ -1188,10 +1170,12 @@ Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vect
 
 
 template<typename T>
-Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector<int>& origin, const int pid,
-                const double rprcp, const double rdpltCr, const double rdpltNb,
-                const T& xCr, const T& xNb,
-                const double& xCrdep, const double& xNbdep, const T phi)
+Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
+                        const MMSP::vector<int>& origin,
+                        const int pid,
+                        const double rprcp,
+                        const T& xCr, const T& xNb,
+                        const T phi)
 {
 	MMSP::vector<int> x(origin);
 	int R(rprcp); //std::max(rdpltCr, rdpltNb);
@@ -1272,18 +1256,6 @@ double gibbs(const MMSP::vector<double>& v)
 
 	return g;
 }
-
-
-void simple_progress(int step, int steps)
-{
-	if (step==0)
-		std::cout << " [" << std::flush;
-	else if (step==steps-1)
-		std::cout << "•] " << std::endl;
-	else if (step % (steps/20) == 0)
-		std::cout << "• " << std::flush;
-}
-
 
 
 
