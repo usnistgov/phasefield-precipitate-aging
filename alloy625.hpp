@@ -90,13 +90,6 @@ Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID, const MMSP::vector
 
 void simple_progress(int step, int steps); // thread-compatible pared-down version of print_progress
 
-template<int dim, typename T>
-void print_values(const MMSP::grid<dim,MMSP::vector<T> >& GRID);
-
-template<int dim,typename T>
-void print_matrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n);
-
-
 /* Given const phase fractions (in gamma, mu, and delta)
  * and concentrations of Cr and Nb, iteratively determine the fictitious concentrations in each phase that
  * satisfy the constraints of equal chemical potential and conservation of mass.
