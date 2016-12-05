@@ -167,3 +167,6 @@ Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
                         const T phi);
 
 
+template<int dim,class T>
+MMSP::vector<double> summarize(const MMSP::grid<dim, MMSP::vector<T> >& GRID);
+

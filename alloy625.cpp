@@ -27,7 +27,9 @@
 #include<cmath>
 #include<random>
 #include<cassert>
+#ifndef NOLOG
 #include<sstream>
+#endif
 #include<gsl/gsl_blas.h>
 #include<gsl/gsl_math.h>
 #include<gsl/gsl_roots.h>
@@ -195,17 +197,11 @@ void generate(int dim, const char* filename)
 	std::mt19937_64 mt_rand(time(NULL)+rank);
 	std::uniform_real_distribution<double> real_gen(-1,1);
 
-	double totF = 0.0;
-	double totCr = 0.0;
-	double totNb = 0.0;
-	double totDel = 0.0;
-	double totMu  = 0.0;
-	double totLav = 0.0;
-	double totGam = 0.0;
-
+	#ifndef NOLOG
 	std::ofstream cfile;
 	if (rank==0)
 		cfile.open("c.log",std::ofstream::out);
+	#endif
 
 	if (dim==1) {
 		// Construct grid
@@ -295,78 +291,20 @@ void generate(int dim, const char* filename)
 
 		ghostswap(initGrid);
 
-		#ifndef MPI_VERSION
-		#pragma omp parallel for
-		#endif
-		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> x = position(initGrid, n);
+		vector<double> summary = summarize(initGrid);
 
-			vector<double> gradPhi_del = gradient(initGrid, x, 2);
-			vector<double> gradPhi_mu  = gradient(initGrid, x, 3);
-			vector<double> gradPhi_lav = gradient(initGrid, x, 4);
-
-			double myCr = initGrid(n)[0];
-			double myNb = initGrid(n)[1];
-			double myDel = h(fabs(initGrid(n)[2]));
-			double myMu  = h(fabs(initGrid(n)[3]));
-			double myLav = h(fabs(initGrid(n)[4]));
-			double myGam = 1.0 - myDel - myMu - myLav;
-			double myf = dV*(gibbs(initGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
-			                                    + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
-			                                    + kappa_lav * (gradPhi_lav * gradPhi_lav));
-			initGrid(n)[fields(initGrid)-1] = myf;
-
-			#ifndef MPI_VERSION
-			#pragma omp critical
-			{
-			#endif
-				totCr  += myCr;  // total Cr mass
-				totNb  += myNb;  // total Nb mass
-				totDel += myDel; // total delta volume
-				totMu  += myMu;  // total mu volume
-				totLav += myLav; // total Laves volume
-				totGam += myGam; // total gamma volume
-				totF   += myf;   // total free energy
-			#ifndef MPI_VERSION
-			}
-			#endif
-		}
-
-		totCr /= Ntot;
-		totNb /= Ntot;
-		totGam /= Ntot;
-		totDel /= Ntot;
-		totMu  /= Ntot;
-		totLav /= Ntot;
-
-		#ifdef MPI_VERSION
-		double myCr(totCr);
-		double myNb(totNb);
-		double myDel(totDel);
-		double myMu(totMu);
-		double myGam(totGam);
-		double myLav(totLav);
-		double myF(totF);
-		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myDel, &totDel, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myMu,  &totMu,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myLav, &totLav, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myGam, &totGam, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
-		#endif
-
+		#ifndef NOLOG
 		if (rank==0) {
-			cfile << totCr  << '\t' << totNb  << '\t'
-			      << totGam << '\t' << totDel << '\t' << totMu << '\t' << totLav << '\t'
-			      << totF   << '\t' << '0'    << std::endl;
-			cfile.close();
+			cfile << summary[0]  << '\t' << summary[1] << '\t'
+			      << summary[2] << '\t' << summary[3] << '\t' << summary[4] << '\t' << summary[5] << '\t'
+			      << summary[6]   << '\t' << '0' << '\n';
 		}
+		#endif
 
 		if (rank==0) {
 			std::cout << "    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
-			printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", totCr, totNb, 1.0-totCr-totNb,
-			                                                             totGam, totDel, totMu, totLav);
+			printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
+			                                                             summary[2], summary[3], summary[4], summary[5]);
 		}
 
 		output(initGrid,filename);
@@ -620,80 +558,20 @@ void generate(int dim, const char* filename)
 
 		ghostswap(initGrid);
 
-		#ifndef MPI_VERSION
-		#pragma omp parallel for
-		#endif
-		for (int n=0; n<nodes(initGrid); n++) {
-			vector<int> x = position(initGrid, n);
+		vector<double> summary = summarize(initGrid);
 
-			vector<double> gradPhi_del = gradient(initGrid, x, 2);
-			vector<double> gradPhi_mu  = gradient(initGrid, x, 3);
-			vector<double> gradPhi_lav = gradient(initGrid, x, 4);
-
-			double myCr = initGrid(n)[0];
-			double myNb = initGrid(n)[1];
-			double myDel = h(fabs(initGrid(n)[2]));
-			double myMu  = h(fabs(initGrid(n)[3]));
-			double myLav = h(fabs(initGrid(n)[4]));
-			double myGam = 1.0 - myDel - myMu - myLav;
-			double myf = dV*(gibbs(initGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
-			                                    + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
-			                                    + kappa_lav * (gradPhi_lav * gradPhi_lav));
-			initGrid(n)[fields(initGrid)-1] = myf;
-
-			#ifndef MPI_VERSION
-			#pragma omp critical
-			{
-			#endif
-				totCr  += myCr;  // total Cr mass
-				totNb  += myNb;  // total Nb mass
-				totDel += myDel; // total delta volume
-				totMu  += myMu;  // total mu volume
-				totLav += myLav; // total Laves volume
-				totGam += myGam; // total gamma volume
-				totF   += myf;   // total free energy
-			#ifndef MPI_VERSION
-			}
-			#endif
-		}
-
-		totCr /= Ntot;
-		totNb /= Ntot;
-		totGam /= Ntot;
-		totDel /= Ntot;
-		totMu  /= Ntot;
-		totLav /= Ntot;
-
-		#ifdef MPI_VERSION
-		double myCr(totCr);
-		double myNb(totNb);
-		double myDel(totDel);
-		double myMu(totMu);
-		double myGam(totGam);
-		double myLav(totLav);
-		double myF(totF);
-		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myDel, &totDel, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myMu,  &totMu,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myLav, &totLav, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myGam, &totGam, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
-		#endif
-
-		#ifdef MPI_VERSION
-		#endif
+		#ifndef NOLOG
 		if (rank==0) {
-			cfile << totCr  << '\t' << totNb  << '\t'
-			      << totGam << '\t' << totDel << '\t' << totMu << '\t' << totLav << '\t'
-			      << totF   << '\t' << '0'    << std::endl;
-			cfile.close();
+			cfile << summary[0]  << '\t' << summary[1] << '\t'
+			      << summary[2] << '\t' << summary[3] << '\t' << summary[4] << '\t' << summary[5] << '\t'
+			      << summary[6]   << '\t' << '0' << '\n';
 		}
+		#endif
 
 		if (rank==0) {
 			std::cout << "    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
-			printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", totCr, totNb, 1.0-totCr-totNb,
-			                                                             totGam, totDel, totMu, totLav);
+			printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
+			                                                             summary[2], summary[3], summary[4], summary[5]);
 		}
 
 		output(initGrid,filename);
@@ -738,7 +616,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		}
 	}
 
+	#ifndef NOLOG
 	std::stringstream cstrm("");
+	#endif
 
 	for (int step=0; step<steps; step++) {
 		if (rank==0)
@@ -806,31 +686,33 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ============================================== */
 
 			vector<int> x = position(oldGrid,n);
+			vector<T>* oldGridN = &oldGrid(x);
+			vector<T>* newGridN = &newGrid(x);
 
 			/* ================= *
 			 * Collect Constants *
 			 * ================= */
 
-			const T xCr = oldGrid(n)[0];
-			const T xNb = oldGrid(n)[1];
+			const T xCr = (*oldGridN)[0];
+			const T xNb = (*oldGridN)[1];
 
-			const T phi_del  = oldGrid(n)[2]; // phase fraction of delta
-			const T phi_mu   = oldGrid(n)[3]; // phase fraction of mu
-			const T phi_lav  = oldGrid(n)[4]; // phase fraction of Laves
+			const T phi_del  = (*oldGridN)[2]; // phase fraction of delta
+			const T phi_mu   = (*oldGridN)[3]; // phase fraction of mu
+			const T phi_lav  = (*oldGridN)[4]; // phase fraction of Laves
 
-			const T C_gam_Cr = oldGrid(n)[5]; // Cr molar fraction in pure gamma
-			const T C_gam_Nb = oldGrid(n)[6]; // Nb molar fraction in pure gamma
+			const T C_gam_Cr = (*oldGridN)[5]; // Cr molar fraction in pure gamma
+			const T C_gam_Nb = (*oldGridN)[6]; // Nb molar fraction in pure gamma
 			const T C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
-			const T C_del_Cr = oldGrid(n)[7]; // Cr molar fraction in pure delta
-			const T C_del_Nb = oldGrid(n)[8]; // Nb molar fraction in pure delta
+			const T C_del_Cr = (*oldGridN)[7]; // Cr molar fraction in pure delta
+			const T C_del_Nb = (*oldGridN)[8]; // Nb molar fraction in pure delta
 
-			const T C_mu_Cr  = oldGrid(n)[9];  // Cr molar fraction in pure mu
-			const T C_mu_Nb  = oldGrid(n)[10]; // Nb molar fraction in pure mu
+			const T C_mu_Cr  = (*oldGridN)[9];  // Cr molar fraction in pure mu
+			const T C_mu_Nb  = (*oldGridN)[10]; // Nb molar fraction in pure mu
 			const T C_mu_Ni  = 1.0 - C_mu_Cr - C_mu_Nb;
 
-			const T C_lav_Cr = oldGrid(n)[11]; // Cr molar fraction in pure Laves
-			const T C_lav_Nb = oldGrid(n)[12]; // Nb molar fraction in pure Laves
+			const T C_lav_Cr = (*oldGridN)[11]; // Cr molar fraction in pure Laves
+			const T C_lav_Nb = (*oldGridN)[12]; // Nb molar fraction in pure Laves
 			const T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
 
@@ -884,17 +766,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			newGrid(n)[0] = xCr + dt * D_CrCr * lapxCr_gam + dt * D_CrNb * lapxNb_gam;
-			newGrid(n)[1] = xNb + dt * D_NbCr * lapxCr_gam + dt * D_NbNb * lapxNb_gam;
+			(*newGridN)[0] = xCr + dt * D_CrCr * lapxCr_gam + dt * D_CrNb * lapxNb_gam;
+			(*newGridN)[1] = xNb + dt * D_NbCr * lapxCr_gam + dt * D_NbNb * lapxNb_gam;
 
 
 			/* ======================================== *
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
 
-			newGrid(n)[2] = phi_del - dt * L_del * delF_delPhi_del;
-			newGrid(n)[3] = phi_mu  - dt * L_mu  * delF_delPhi_mu ;
-			newGrid(n)[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
+			(*newGridN)[2] = phi_del - dt * L_del * delF_delPhi_del;
+			(*newGridN)[3] = phi_mu  - dt * L_mu  * delF_delPhi_mu ;
+			(*newGridN)[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
 
 
 			/* =================================================== *
@@ -902,7 +784,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * =================================================== */
 
 			for (int i=NC+NP-1; i<fields(newGrid)-1; i++)
-				newGrid(n)[i] = oldGrid(n)[i];
+				(*newGridN)[i] = (*oldGridN)[i];
 
 
 			/* ======= *
@@ -917,87 +799,24 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 		 * ====================================================================== */
 
-
-		double totF = 0.0;
-		double totCr = 0.0;
-		double totNb = 0.0;
-		double totDel = 0.0;
-		double totMu  = 0.0;
-		double totLav = 0.0;
-		double totGam = 0.0;
-
-		#ifndef MPI_VERSION
-		#pragma omp parallel for
-		#endif
-		for (int n=0; n<nodes(oldGrid); n++) { // Note: The latest values are now stored in oldGrid, *not* newGrid!
-			vector<int> x = position(oldGrid,n);
-
-			vector<double> gradPhi_del = gradient(oldGrid, x, 2);
-			vector<double> gradPhi_mu  = gradient(oldGrid, x, 3);
-			vector<double> gradPhi_lav = gradient(oldGrid, x, 4);
-
-			double myCr = oldGrid(n)[0];
-			double myNb = oldGrid(n)[1];
-			double myDel = h(fabs(oldGrid(n)[2]));
-			double myMu  = h(fabs(oldGrid(n)[3]));
-			double myLav = h(fabs(oldGrid(n)[4]));
-			double myGam = 1.0 - myDel - myMu - myLav;
-			double myf = dV*(gibbs(oldGrid(n)) + kappa_del * (gradPhi_del * gradPhi_del)
-			                                   + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
-			                                   + kappa_lav * (gradPhi_lav * gradPhi_lav));
-			oldGrid(n)[fields(oldGrid)-1] = static_cast<T>(myf);
-
-			#ifndef MPI_VERSION
-			#pragma omp critical
-			{
-			#endif
-				totCr  += myCr;  // total Cr mass
-				totNb  += myNb;  // total Nb mass
-				totDel += myDel; // total delta volume
-				totMu  += myMu;  // total mu volume
-				totLav += myLav; // total Laves volume
-				totGam += myGam; // total gamma volume
-				totF   += myf;   // total free energy
-			#ifndef MPI_VERSION
-			}
-			#endif
-
-		}
-
-		totCr /= Ntot;
-		totNb /= Ntot;
-		totGam /= Ntot;
-		totDel /= Ntot;
-		totMu  /= Ntot;
-		totLav /= Ntot;
-		totBadTangents /= Ntot;
-
+		#ifndef NOLOG
 		#ifdef MPI_VERSION
-		double myCr(totCr);
-		double myNb(totNb);
-		double myDel(totDel);
-		double myMu(totMu);
-		double myLav(totLav);
-		double myGam(totGam);
-		double myF(totF);
+		totBadTangents /= Ntot;
 		double myBad(totBadTangents);
-		MPI::COMM_WORLD.Reduce(&myCr,  &totCr,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myNb,  &totNb,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myDel, &totDel, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myMu,  &totMu,  1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myLav, &totLav, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myGam, &totGam, 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myF,   &totF,   1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents,   1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_DOUBLE, MPI_SUM, 0);
 		#endif
+
+		vector<double> summary = summarize(oldGrid);
 		if (rank==0) {
-			cstrm << totCr  << '\t' << totNb << '\t'
-			      << totGam << '\t' << totDel << '\t' << totMu << '\t' << totLav << '\t'
-			      << totF   << '\t' << totBadTangents << '\n';
+			cstrm << summary[0] << '\t' << summary[1] << '\t'
+			      << summary[2] << '\t' << summary[3] << '\t' << summary[4] << '\t' << summary[5] << '\t'
+			      << summary[6] << '\t' << totBadTangents << '\n';
 		}
+		#endif
 
 	}
 
+	#ifndef NOLOG
 	std::ofstream cfile;
 	if (rank==0) {
 		cfile.open("c.log",std::ofstream::out | std::ofstream::app);
@@ -1008,6 +827,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	}
 
 	cstrm.str("");
+	#endif
 
 }
 
@@ -1489,27 +1309,28 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	size_t iter = 0;
 
 	// copy fixed values from grid
+	MMSP::vector<T>* GRIDN = &GRID(n);
 
-	par.x_Cr = GRID(n)[0];
-	par.x_Nb = GRID(n)[1];
+	par.x_Cr = (*GRIDN)[0];
+	par.x_Nb = (*GRIDN)[1];
 
-	par.n_del = h(fabs(GRID(n)[2]));
-	par.n_mu =  h(fabs(GRID(n)[3]));
-	par.n_lav = h(fabs(GRID(n)[4]));
+	par.n_del = h(fabs((*GRIDN)[2]));
+	par.n_mu =  h(fabs((*GRIDN)[3]));
+	par.n_lav = h(fabs((*GRIDN)[4]));
 
 	// copy initial guesses from grid
 
-	gsl_vector_set(x, 0, static_cast<double>(GRID(n)[5]));  // gamma Cr
-	gsl_vector_set(x, 1, static_cast<double>(GRID(n)[6]));  //       Nb
+	gsl_vector_set(x, 0, static_cast<double>((*GRIDN)[5]));  // gamma Cr
+	gsl_vector_set(x, 1, static_cast<double>((*GRIDN)[6]));  //       Nb
 
-	gsl_vector_set(x, 2, static_cast<double>(GRID(n)[7]));  // delta Cr
-	gsl_vector_set(x, 3, static_cast<double>(GRID(n)[8]));  //       Nb
+	gsl_vector_set(x, 2, static_cast<double>((*GRIDN)[7]));  // delta Cr
+	gsl_vector_set(x, 3, static_cast<double>((*GRIDN)[8]));  //       Nb
 
-	gsl_vector_set(x, 4, static_cast<double>(GRID(n)[9]));  // mu    Cr
-	gsl_vector_set(x, 5, static_cast<double>(GRID(n)[10])); //       Nb
+	gsl_vector_set(x, 4, static_cast<double>((*GRIDN)[9]));  // mu    Cr
+	gsl_vector_set(x, 5, static_cast<double>((*GRIDN)[10])); //       Nb
 
-	gsl_vector_set(x, 6, static_cast<double>(GRID(n)[11])); // Laves Cr
-	gsl_vector_set(x, 7, static_cast<double>(GRID(n)[12])); //       Nb
+	gsl_vector_set(x, 6, static_cast<double>((*GRIDN)[11])); // Laves Cr
+	gsl_vector_set(x, 7, static_cast<double>((*GRIDN)[12])); //       Nb
 
 
 	#ifndef JACOBIAN
@@ -1533,17 +1354,17 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	double residual = gsl_blas_dnrm2(solver->f);
 
 	if (status == GSL_SUCCESS) {
-		GRID(n)[5]  = static_cast<T>(gsl_vector_get(solver->x, 0)); // gamma Cr
-		GRID(n)[6]  = static_cast<T>(gsl_vector_get(solver->x, 1)); //       Nb
+		(*GRIDN)[5]  = static_cast<T>(gsl_vector_get(solver->x, 0)); // gamma Cr
+		(*GRIDN)[6]  = static_cast<T>(gsl_vector_get(solver->x, 1)); //       Nb
 
-		GRID(n)[7]  = static_cast<T>(gsl_vector_get(solver->x, 2)); // delta Cr
-		GRID(n)[8]  = static_cast<T>(gsl_vector_get(solver->x, 3)); //       Nb
+		(*GRIDN)[7]  = static_cast<T>(gsl_vector_get(solver->x, 2)); // delta Cr
+		(*GRIDN)[8]  = static_cast<T>(gsl_vector_get(solver->x, 3)); //       Nb
 
-		GRID(n)[9]  = static_cast<T>(gsl_vector_get(solver->x, 4)); // mu    Cr
-		GRID(n)[10] = static_cast<T>(gsl_vector_get(solver->x, 5)); //       Nb
+		(*GRIDN)[9]  = static_cast<T>(gsl_vector_get(solver->x, 4)); // mu    Cr
+		(*GRIDN)[10] = static_cast<T>(gsl_vector_get(solver->x, 5)); //       Nb
 
-		GRID(n)[11] = static_cast<T>(gsl_vector_get(solver->x, 6)); // Laves Cr
-		GRID(n)[12] = static_cast<T>(gsl_vector_get(solver->x, 7)); //       Nb
+		(*GRIDN)[11] = static_cast<T>(gsl_vector_get(solver->x, 6)); // Laves Cr
+		(*GRIDN)[12] = static_cast<T>(gsl_vector_get(solver->x, 7)); //       Nb
 	}
 
 	return residual;
@@ -1562,6 +1383,85 @@ rootsolver::~rootsolver()
 
 
 
+template<int dim,class T>
+MMSP::vector<double> summarize(const MMSP::grid<dim, MMSP::vector<T> >& GRID)
+{
+	double Ntot = 1.0;
+	double dV = 1.0;
+	for (int d=0; d<dim; d++) {
+		Ntot *= MMSP::g1(GRID, d) - MMSP::g0(GRID, d);
+		dV *= MMSP::dx(GRID, d);
+	}
+	MMSP::vector<double> summary(7, 0.0);
+
+	#ifndef MPI_VERSION
+	#pragma omp parallel for
+	#endif
+	for (int n=0; n<MMSP::nodes(GRID); n++) {
+		MMSP::vector<int> x = MMSP::position(GRID,n);
+		MMSP::vector<T>* GRIDN = &GRID(x);
+
+		MMSP::vector<double> gradPhi_del = MMSP::gradient(GRID, x, 2);
+		MMSP::vector<double> gradPhi_mu  = MMSP::gradient(GRID, x, 3);
+		MMSP::vector<double> gradPhi_lav = MMSP::gradient(GRID, x, 4);
+
+		double myCr = (*GRIDN)[0];
+		double myNb = (*GRIDN)[1];
+		double myDel = h(fabs((*GRIDN)[2]));
+		double myMu  = h(fabs((*GRIDN)[3]));
+		double myLav = h(fabs((*GRIDN)[4]));
+		double myGam = 1.0 - myDel - myMu - myLav;
+		double myf = dV*(gibbs((*GRIDN)) + kappa_del * (gradPhi_del * gradPhi_del)
+		                                   + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
+		                                   + kappa_lav * (gradPhi_lav * gradPhi_lav));
+		(*GRIDN)[fields(GRID)-1] = static_cast<T>(myf);
+
+		#ifndef MPI_VERSION
+		#pragma omp critical
+		{
+		#endif
+			summary[0] += myCr;  // total Cr mass
+			summary[1] += myNb;  // total Nb mass
+			summary[3] += myDel; // total delta volume
+			summary[4] += myMu;  // total mu volume
+			summary[5] += myLav; // total Laves volume
+			summary[2] += myGam; // total gamma volume
+			summary[6] += myf;   // total free energy
+		#ifndef MPI_VERSION
+		}
+		#endif
+
+	}
+
+	summary[0] /= Ntot;
+	summary[1] /= Ntot;
+	summary[2] /= Ntot;
+	summary[3] /= Ntot;
+	summary[4] /= Ntot;
+	summary[5] /= Ntot;
+
+	#ifdef MPI_VERSION
+	double myCr( summary[0]);
+	double myNb( summary[1]);
+	double myGam(summary[2]);
+	double myDel(summary[3]);
+	double myMu( summary[4]);
+	double myLav(summary[5]);
+	double myF(  summary[6]);
+
+	MPI::COMM_WORLD.Reduce(&myCr,  &summary[0], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&myNb,  &summary[1], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&myGam, &summary[2], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&myDel, &summary[3], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&myMu,  &summary[4], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&myLav, &summary[5], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&myF,   &summary[6], 1, MPI_DOUBLE, MPI_SUM, 0);
+
+	MPI::COMM_WORLD.Barrier();
+	#endif
+
+	return summary;
+}
 
 #endif
 

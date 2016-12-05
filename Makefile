@@ -13,12 +13,17 @@ pcompiler = /usr/bin/mpic++.openmpi
 #flags = -O3 -Wall -std=c++11 -I $(incdir)
 #flags = -O3 -Wall -std=c++11 -I $(incdir) -DJACOBIAN
 flags = -O3 -Wall -std=c++11 -I $(incdir) -DJACOBIAN -DPARABOLIC
+dflags = -pg -Wall -std=c++11 -I $(incdir) -DJACOBIAN -DPARABOLIC
 
 pflags = $(flags) -include mpi.h
 
-# serial program
+# OpenMP, default program
 alloy625: alloy625.cpp
-	$(compiler) $(flags) $< -o $@ -lz -lgsl -lgslcblas -fopenmp
+	$(compiler) $(flags) -DNOLOG $< -o $@ -lz -lgsl -lgslcblas -fopenmp
+
+# serial program (no parallelism or optimization)
+serial: alloy625.cpp
+	$(ccompiler) $(dflags) $< -o $@ -lz -lgsl -lgslcblas
 
 # parallel program (shared memory, OpenMP)
 smp: alloy625.cpp
