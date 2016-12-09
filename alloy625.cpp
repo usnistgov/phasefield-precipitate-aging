@@ -174,6 +174,7 @@ const double init_amp = 0.0;     // amplitude of noise in initial parallel tange
 const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
+const int logstep = 1000000;       // steps between logging status
 
 const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 const double dtp = (meshres*meshres)/(4.0 * L_del*kappa_del); // transformation-limited timestep
@@ -238,21 +239,22 @@ void generate(int dim, const char* filename)
 
 		for (int n=0; n<nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
+			vector<double>& initgridN = initGrid(n);
 
 			for (int i=NC; i<NC+NP-1; i++)
-				initGrid(n)[i] = 0.0; //init_amp*real_gen(mt_rand);
+				initgridN[i] = 0.0; //init_amp*real_gen(mt_rand);
 			for (int i=NC+NP-1; i<fields(initGrid); i++)
-				initGrid(n)[i] = 0.0;
+				initgridN[i] = 0.0;
 
 			if (x[0] < Ndel) {
 				// Initialize delta with equilibrium composition (from phase diagram)
-				initGrid(n)[0] = cdel[0];
-				initGrid(n)[1] = cdel[1];
-				initGrid(n)[2] = 1.0 - epsilon;
+				initgridN[0] = cdel[0];
+				initgridN[1] = cdel[1];
+				initgridN[2] = 1.0 - epsilon;
 			} else {
 				// Initialize gamma to satisfy (0.15, 0.15) system composition
-				initGrid(n)[0] = (csys[0] * Nx - cdel[0] * Ndel) / Ngam;
-				initGrid(n)[1] = (csys[1] * Nx - cdel[1] * Ndel) / Ngam;
+				initgridN[0] = (csys[0] * Nx - cdel[0] * Ndel) / Ngam;
+				initgridN[1] = (csys[1] * Nx - cdel[1] * Ndel) / Ngam;
 			}
 
 		}
@@ -351,8 +353,9 @@ void generate(int dim, const char* filename)
 
 		// Zero initial condition
 		for (int n=0; n<nodes(initGrid); n++) {
+			vector<double>& initgridN = initGrid(n);
 			for (int i=NC; i<fields(initGrid); i++)
-				initGrid(n)[i] = 0.0;
+				initgridN[i] = 0.0;
 		}
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
@@ -517,11 +520,13 @@ void generate(int dim, const char* filename)
 
 		for (int n=0; n<nodes(initGrid); n++) {
 			double nx = 0.0;
+			vector<double>& initgridN = initGrid(n);
+
 			for (int i=NC; i<NP-1; i++)
-				nx += h(fabs(initGrid(n)[i]));
+				nx += h(fabs(initgridN[i]));
 			if (nx < epsilon) { // pure gamma
-				initGrid(n)[0] += matCr;
-				initGrid(n)[1] += matNb;
+				initgridN[0] += matCr;
+				initgridN[1] += matNb;
 			}
 		}
 
@@ -618,6 +623,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	#ifndef NOLOG
 	std::stringstream cstrm("");
+	static int logcount = 1;
 	#endif
 
 	for (int step=0; step<steps; step++) {
@@ -686,33 +692,33 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ============================================== */
 
 			vector<int> x = position(oldGrid,n);
-			vector<T>* oldGridN = &oldGrid(x);
-			vector<T>* newGridN = &newGrid(x);
+			vector<T>& oldgridN = oldGrid(x);
+			vector<T>& newgridN = newGrid(x);
 
 			/* ================= *
 			 * Collect Constants *
 			 * ================= */
 
-			const T xCr = (*oldGridN)[0];
-			const T xNb = (*oldGridN)[1];
+			const T xCr = oldgridN[0];
+			const T xNb = oldgridN[1];
 
-			const T phi_del  = (*oldGridN)[2]; // phase fraction of delta
-			const T phi_mu   = (*oldGridN)[3]; // phase fraction of mu
-			const T phi_lav  = (*oldGridN)[4]; // phase fraction of Laves
+			const T phi_del  = oldgridN[2]; // phase fraction of delta
+			const T phi_mu   = oldgridN[3]; // phase fraction of mu
+			const T phi_lav  = oldgridN[4]; // phase fraction of Laves
 
-			const T C_gam_Cr = (*oldGridN)[5]; // Cr molar fraction in pure gamma
-			const T C_gam_Nb = (*oldGridN)[6]; // Nb molar fraction in pure gamma
+			const T C_gam_Cr = oldgridN[5]; // Cr molar fraction in pure gamma
+			const T C_gam_Nb = oldgridN[6]; // Nb molar fraction in pure gamma
 			const T C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
-			const T C_del_Cr = (*oldGridN)[7]; // Cr molar fraction in pure delta
-			const T C_del_Nb = (*oldGridN)[8]; // Nb molar fraction in pure delta
+			const T C_del_Cr = oldgridN[7]; // Cr molar fraction in pure delta
+			const T C_del_Nb = oldgridN[8]; // Nb molar fraction in pure delta
 
-			const T C_mu_Cr  = (*oldGridN)[9];  // Cr molar fraction in pure mu
-			const T C_mu_Nb  = (*oldGridN)[10]; // Nb molar fraction in pure mu
+			const T C_mu_Cr  = oldgridN[9];  // Cr molar fraction in pure mu
+			const T C_mu_Nb  = oldgridN[10]; // Nb molar fraction in pure mu
 			const T C_mu_Ni  = 1.0 - C_mu_Cr - C_mu_Nb;
 
-			const T C_lav_Cr = (*oldGridN)[11]; // Cr molar fraction in pure Laves
-			const T C_lav_Nb = (*oldGridN)[12]; // Nb molar fraction in pure Laves
+			const T C_lav_Cr = oldgridN[11]; // Cr molar fraction in pure Laves
+			const T C_lav_Nb = oldgridN[12]; // Nb molar fraction in pure Laves
 			const T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
 
@@ -766,17 +772,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			(*newGridN)[0] = xCr + dt * D_CrCr * lapxCr_gam + dt * D_CrNb * lapxNb_gam;
-			(*newGridN)[1] = xNb + dt * D_NbCr * lapxCr_gam + dt * D_NbNb * lapxNb_gam;
+			newgridN[0] = xCr + dt * D_CrCr * lapxCr_gam + dt * D_CrNb * lapxNb_gam;
+			newgridN[1] = xNb + dt * D_NbCr * lapxCr_gam + dt * D_NbNb * lapxNb_gam;
 
 
 			/* ======================================== *
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
 
-			(*newGridN)[2] = phi_del - dt * L_del * delF_delPhi_del;
-			(*newGridN)[3] = phi_mu  - dt * L_mu  * delF_delPhi_mu ;
-			(*newGridN)[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
+			newgridN[2] = phi_del - dt * L_del * delF_delPhi_del;
+			newgridN[3] = phi_mu  - dt * L_mu  * delF_delPhi_mu ;
+			newgridN[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
 
 
 			/* =================================================== *
@@ -784,7 +790,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * =================================================== */
 
 			for (int i=NC+NP-1; i<fields(newGrid)-1; i++)
-				(*newGridN)[i] = (*oldGridN)[i];
+				newgridN[i] = oldgridN[i];
 
 
 			/* ======= *
@@ -800,25 +806,31 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		 * ====================================================================== */
 
 		#ifndef NOLOG
-		#ifdef MPI_VERSION
-		totBadTangents /= Ntot;
-		double myBad(totBadTangents);
-		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_DOUBLE, MPI_SUM, 0);
-		#endif
+		if (logcount == logstep) {
+			logcount = 0;
+			#ifdef MPI_VERSION
+			totBadTangents /= Ntot;
+			double myBad(totBadTangents);
+			MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_DOUBLE, MPI_SUM, 0);
+			#endif
 
-		vector<double> summary = summarize(oldGrid);
-		if (rank==0) {
-			cstrm << summary[0] << '\t' << summary[1] << '\t'
-			      << summary[2] << '\t' << summary[3] << '\t' << summary[4] << '\t' << summary[5] << '\t'
-			      << summary[6] << '\t' << totBadTangents << '\n';
+			vector<double> summary = summarize(oldGrid);
+			if (rank==0) {
+				cstrm << summary[0] << '\t' << summary[1] << '\t'
+				      << summary[2] << '\t' << summary[3] << '\t' << summary[4] << '\t' << summary[5] << '\t'
+				      << summary[6] << '\t' << totBadTangents << '\n';
+			}
 		}
+
+		logcount++;
 		#endif
 
 	}
 
 	#ifndef NOLOG
-	std::ofstream cfile;
 	if (rank==0) {
+		std::ofstream cfile;
+
 		cfile.open("c.log",std::ofstream::out | std::ofstream::app);
 
 		cfile << cstrm.rdbuf();
@@ -827,6 +839,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	}
 
 	cstrm.str("");
+
 	#endif
 
 }
@@ -1309,28 +1322,28 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	size_t iter = 0;
 
 	// copy fixed values from grid
-	MMSP::vector<T>* GRIDN = &GRID(n);
+	MMSP::vector<T>& gridN = GRID(n);
 
-	par.x_Cr = (*GRIDN)[0];
-	par.x_Nb = (*GRIDN)[1];
+	par.x_Cr = gridN[0];
+	par.x_Nb = gridN[1];
 
-	par.n_del = h(fabs((*GRIDN)[2]));
-	par.n_mu =  h(fabs((*GRIDN)[3]));
-	par.n_lav = h(fabs((*GRIDN)[4]));
+	par.n_del = h(fabs(gridN[2]));
+	par.n_mu =  h(fabs(gridN[3]));
+	par.n_lav = h(fabs(gridN[4]));
 
 	// copy initial guesses from grid
 
-	gsl_vector_set(x, 0, static_cast<double>((*GRIDN)[5]));  // gamma Cr
-	gsl_vector_set(x, 1, static_cast<double>((*GRIDN)[6]));  //       Nb
+	gsl_vector_set(x, 0, static_cast<double>(gridN[5]));  // gamma Cr
+	gsl_vector_set(x, 1, static_cast<double>(gridN[6]));  //       Nb
 
-	gsl_vector_set(x, 2, static_cast<double>((*GRIDN)[7]));  // delta Cr
-	gsl_vector_set(x, 3, static_cast<double>((*GRIDN)[8]));  //       Nb
+	gsl_vector_set(x, 2, static_cast<double>(gridN[7]));  // delta Cr
+	gsl_vector_set(x, 3, static_cast<double>(gridN[8]));  //       Nb
 
-	gsl_vector_set(x, 4, static_cast<double>((*GRIDN)[9]));  // mu    Cr
-	gsl_vector_set(x, 5, static_cast<double>((*GRIDN)[10])); //       Nb
+	gsl_vector_set(x, 4, static_cast<double>(gridN[9]));  // mu    Cr
+	gsl_vector_set(x, 5, static_cast<double>(gridN[10])); //       Nb
 
-	gsl_vector_set(x, 6, static_cast<double>((*GRIDN)[11])); // Laves Cr
-	gsl_vector_set(x, 7, static_cast<double>((*GRIDN)[12])); //       Nb
+	gsl_vector_set(x, 6, static_cast<double>(gridN[11])); // Laves Cr
+	gsl_vector_set(x, 7, static_cast<double>(gridN[12])); //       Nb
 
 
 	#ifndef JACOBIAN
@@ -1354,17 +1367,17 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	double residual = gsl_blas_dnrm2(solver->f);
 
 	if (status == GSL_SUCCESS) {
-		(*GRIDN)[5]  = static_cast<T>(gsl_vector_get(solver->x, 0)); // gamma Cr
-		(*GRIDN)[6]  = static_cast<T>(gsl_vector_get(solver->x, 1)); //       Nb
+		gridN[5]  = static_cast<T>(gsl_vector_get(solver->x, 0)); // gamma Cr
+		gridN[6]  = static_cast<T>(gsl_vector_get(solver->x, 1)); //       Nb
 
-		(*GRIDN)[7]  = static_cast<T>(gsl_vector_get(solver->x, 2)); // delta Cr
-		(*GRIDN)[8]  = static_cast<T>(gsl_vector_get(solver->x, 3)); //       Nb
+		gridN[7]  = static_cast<T>(gsl_vector_get(solver->x, 2)); // delta Cr
+		gridN[8]  = static_cast<T>(gsl_vector_get(solver->x, 3)); //       Nb
 
-		(*GRIDN)[9]  = static_cast<T>(gsl_vector_get(solver->x, 4)); // mu    Cr
-		(*GRIDN)[10] = static_cast<T>(gsl_vector_get(solver->x, 5)); //       Nb
+		gridN[9]  = static_cast<T>(gsl_vector_get(solver->x, 4)); // mu    Cr
+		gridN[10] = static_cast<T>(gsl_vector_get(solver->x, 5)); //       Nb
 
-		(*GRIDN)[11] = static_cast<T>(gsl_vector_get(solver->x, 6)); // Laves Cr
-		(*GRIDN)[12] = static_cast<T>(gsl_vector_get(solver->x, 7)); //       Nb
+		gridN[11] = static_cast<T>(gsl_vector_get(solver->x, 6)); // Laves Cr
+		gridN[12] = static_cast<T>(gsl_vector_get(solver->x, 7)); //       Nb
 	}
 
 	return residual;
@@ -1399,22 +1412,22 @@ MMSP::vector<double> summarize(const MMSP::grid<dim, MMSP::vector<T> >& GRID)
 	#endif
 	for (int n=0; n<MMSP::nodes(GRID); n++) {
 		MMSP::vector<int> x = MMSP::position(GRID,n);
-		MMSP::vector<T>* GRIDN = &GRID(x);
+		MMSP::vector<T>& gridN = GRID(n);
 
 		MMSP::vector<double> gradPhi_del = MMSP::gradient(GRID, x, 2);
 		MMSP::vector<double> gradPhi_mu  = MMSP::gradient(GRID, x, 3);
 		MMSP::vector<double> gradPhi_lav = MMSP::gradient(GRID, x, 4);
 
-		double myCr = (*GRIDN)[0];
-		double myNb = (*GRIDN)[1];
-		double myDel = h(fabs((*GRIDN)[2]));
-		double myMu  = h(fabs((*GRIDN)[3]));
-		double myLav = h(fabs((*GRIDN)[4]));
+		double myCr = gridN[0];
+		double myNb = gridN[1];
+		double myDel = h(fabs(gridN[2]));
+		double myMu  = h(fabs(gridN[3]));
+		double myLav = h(fabs(gridN[4]));
 		double myGam = 1.0 - myDel - myMu - myLav;
-		double myf = dV*(gibbs((*GRIDN)) + kappa_del * (gradPhi_del * gradPhi_del)
-		                                   + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
-		                                   + kappa_lav * (gradPhi_lav * gradPhi_lav));
-		(*GRIDN)[fields(GRID)-1] = static_cast<T>(myf);
+		double myf = dV*(gibbs(gridN) + kappa_del * (gradPhi_del * gradPhi_del)
+		                              + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
+		                              + kappa_lav * (gradPhi_lav * gradPhi_lav));
+		gridN[fields(GRID)-1] = static_cast<T>(myf);
 
 		#ifndef MPI_VERSION
 		#pragma omp critical
