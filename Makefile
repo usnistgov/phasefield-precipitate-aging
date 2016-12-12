@@ -20,7 +20,7 @@ pflags = $(flags) -include mpi.h
 
 # OpenMP, default program
 alloy625: alloy625.cpp
-	$(compiler) $(flags) -DNOLOG $< -o $@ -lz -lgsl -lgslcblas -fopenmp
+	$(compiler) $(flags) $< -o $@ -lz -lgsl -lgslcblas -fopenmp
 
 # serial program (no parallelism or optimization)
 serial: alloy625.cpp

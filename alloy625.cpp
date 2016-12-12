@@ -107,29 +107,30 @@ const double meshres = 5.0e-9; //1.25e-9;    // grid spacing (m)
 const double Vm = 1.0e-5;         // molar volume (m^3/mol)
 const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
-#ifndef PARABOLIC
-// Zhou's numbers (Al/Nb)
-const double M_Cr = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
-const double M_Nb = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
-/*
-const double M_Cr = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
-const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
-*/
-
-const double D_Cr = Vm*Vm*M_Cr;   // diffusivity in FCC Ni (m^4/Ns)
-const double D_Nb = Vm*Vm*M_Nb;   // diffusivity in FCC Ni (m^4/Ns)
-#else
+//#ifndef PARABOLIC
+//// Zhou's numbers (Al/Nb)
+//const double M_Cr = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
+//const double M_Nb = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
+///*
+//const double M_Cr = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
+//const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
+//*/
+//
+//const double D_Cr = Vm*Vm*M_Cr;   // diffusivity in FCC Ni (m^4/Ns)
+//const double D_Nb = Vm*Vm*M_Nb;   // diffusivity in FCC Ni (m^4/Ns)
+//#else
 /*
 // Diffusion constant from Karunaratne and Reed
 const double D_Nb = 1.582202e-16; // diffusivity in FCC Ni (m^2/s)
 const double D_Cr = D_Nb;         // diffusivity in FCC Ni (m^2/s)
 */
+
 // Diffusion constants from Xu
 const double D_CrCr = 2.42e-15; // diffusivity in FCC Ni (m^2/s)
 const double D_CrNb = 2.47e-15; // diffusivity in FCC Ni (m^2/s)
 const double D_NbCr = 0.43e-15; // diffusivity in FCC Ni (m^2/s)
 const double D_NbNb = 3.32e-15; // diffusivity in FCC Ni (m^2/s)
-#endif
+//#endif
 
 
 const double kappa_del = 1.24e-8; // gradient energy coefficient (J/m)
@@ -178,11 +179,11 @@ const int logstep = 1000000;       // steps between logging status
 
 const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 const double dtp = (meshres*meshres)/(4.0 * L_del*kappa_del); // transformation-limited timestep
-#ifndef PARABOLIC
-const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2Ggam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2Ggam_dxNbNb()))); // diffusion-limited timestep
-#else
+//#ifndef PARABOLIC
+//const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
+//#else
 const double dtc = (meshres*meshres)/(4.0 * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
-#endif
+//#endif
 const double dt = LinStab * std::min(dtp, dtc);
 
 namespace MMSP
@@ -297,9 +298,9 @@ void generate(int dim, const char* filename)
 
 		#ifndef NOLOG
 		if (rank==0) {
-			cfile << summary[0]  << '\t' << summary[1] << '\t'
+			cfile << summary[0] << '\t' << summary[1] << '\t'
 			      << summary[2] << '\t' << summary[3] << '\t' << summary[4] << '\t' << summary[5] << '\t'
-			      << summary[6]   << '\t' << '0' << '\n';
+			      << summary[6] << '\t' << '0' << '\n';
 		}
 		#endif
 
@@ -692,35 +693,43 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ============================================== */
 
 			vector<int> x = position(oldGrid,n);
-			vector<T>& oldgridN = oldGrid(x);
-			vector<T>& newgridN = newGrid(x);
+			vector<T>& oldGridN = oldGrid(x);
+			vector<T>& newGridN = newGrid(x);
 
 			/* ================= *
 			 * Collect Constants *
 			 * ================= */
 
-			const T xCr = oldgridN[0];
-			const T xNb = oldgridN[1];
+			const T& xCr = oldGridN[0];
+			const T& xNb = oldGridN[1];
 
-			const T phi_del  = oldgridN[2]; // phase fraction of delta
-			const T phi_mu   = oldgridN[3]; // phase fraction of mu
-			const T phi_lav  = oldgridN[4]; // phase fraction of Laves
+			const T& phi_del  = oldGridN[2]; // phase fraction of delta
+			const T& phi_mu   = oldGridN[3]; // phase fraction of mu
+			const T& phi_lav  = oldGridN[4]; // phase fraction of Laves
 
-			const T C_gam_Cr = oldgridN[5]; // Cr molar fraction in pure gamma
-			const T C_gam_Nb = oldgridN[6]; // Nb molar fraction in pure gamma
+			const T abs_phi_del = fabs(phi_del);
+			const T abs_phi_mu  = fabs(phi_mu);
+			const T abs_phi_lav = fabs(phi_lav);
+
+			const T& C_gam_Cr = oldGridN[5]; // Cr molar fraction in pure gamma
+			const T& C_gam_Nb = oldGridN[6]; // Nb molar fraction in pure gamma
 			const T C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
-			const T C_del_Cr = oldgridN[7]; // Cr molar fraction in pure delta
-			const T C_del_Nb = oldgridN[8]; // Nb molar fraction in pure delta
+			const T& C_del_Cr = oldGridN[7]; // Cr molar fraction in pure delta
+			const T& C_del_Nb = oldGridN[8]; // Nb molar fraction in pure delta
 
-			const T C_mu_Cr  = oldgridN[9];  // Cr molar fraction in pure mu
-			const T C_mu_Nb  = oldgridN[10]; // Nb molar fraction in pure mu
-			const T C_mu_Ni  = 1.0 - C_mu_Cr - C_mu_Nb;
+			const T& C_mu_Cr  = oldGridN[9];  // Cr molar fraction in pure mu
+			const T& C_mu_Nb  = oldGridN[10]; // Nb molar fraction in pure mu
+			const T  C_mu_Ni = 1.0 - C_mu_Cr - C_mu_Nb;
 
-			const T C_lav_Cr = oldgridN[11]; // Cr molar fraction in pure Laves
-			const T C_lav_Nb = oldgridN[12]; // Nb molar fraction in pure Laves
-			const T C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
+			const T& C_lav_Cr = oldGridN[11]; // Cr molar fraction in pure Laves
+			const T& C_lav_Nb = oldGridN[12]; // Nb molar fraction in pure Laves
+			const T  C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
+			const double Ggam = g_gam(C_gam_Cr, C_gam_Nb);
+			const double Gdel = g_del(C_del_Cr, C_del_Nb);
+			const double Gmu  = g_mu( C_mu_Cr,  C_mu_Nb );
+			const double Glav = g_lav(C_lav_Cr, C_lav_Nb);
 
 			/* =================== *
 			 * Compute Derivatives *
@@ -736,27 +745,23 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 
 			// Diffusion potentials (at equilibrium, equal to chemical potentials)
-			double pot_Cr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			double pot_Nb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-			double pot_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+			// and "pressures"
+			const double pot_Cr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb);
+			const double pot_Nb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb);
+			const double pot_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Nb);
 
+			const double P_del = Ggam - Gdel - (C_gam_Cr - C_del_Cr) * pot_Cr - (C_gam_Nb - C_del_Nb) * pot_Nb;
+			const double P_mu  = Ggam - Gmu  - (C_gam_Cr - C_mu_Cr)  * pot_Cr - (C_gam_Ni - C_mu_Ni)  * pot_Ni;
+			const double P_lav = Ggam - Glav - (C_gam_Nb - C_lav_Nb) * pot_Nb - (C_gam_Ni - C_lav_Ni) * pot_Ni;
 
 			// Variational derivatives (scalar minus gradient term in Euler-Lagrange eqn)
-			double delF_delPhi_del = -sign(phi_del) * hprime(fabs(phi_del))
-			                         * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_del(C_del_Cr, C_del_Nb)
-			                           - (C_gam_Cr - C_del_Cr) * pot_Cr - (C_gam_Nb - C_del_Nb) * pot_Nb);
+			double delF_delPhi_del = -sign(phi_del) * hprime(abs_phi_del) * P_del;
+			double delF_delPhi_mu  = -sign(phi_mu)  * hprime(abs_phi_mu)  * P_mu;
+			double delF_delPhi_lav = -sign(phi_lav) * hprime(abs_phi_lav) * P_lav;
 
-			double delF_delPhi_mu  = -sign(phi_mu)  * hprime(fabs(phi_mu))
-			                         * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_mu(C_mu_Cr, C_mu_Nb, C_mu_Ni)
-			                            - (C_gam_Cr - C_mu_Cr) * pot_Cr - (C_gam_Ni - C_mu_Ni) * pot_Ni);
-
-			double delF_delPhi_lav = -sign(phi_lav) * hprime(fabs(phi_lav))
-			                         * (g_gam(C_gam_Cr, C_gam_Nb, C_gam_Ni) - g_lav(C_lav_Nb, C_lav_Ni)
-			                            - (C_gam_Nb - C_lav_Nb) * pot_Nb - (C_gam_Ni - C_lav_Ni) * pot_Ni);
-
-			delF_delPhi_del += 2.0 * omega_del * phi_del * (1.0 - fabs(phi_del)) * (1.0 - fabs(phi_del) - sign(phi_del) * phi_del);
-			delF_delPhi_mu  += 2.0 * omega_mu  * phi_mu  * (1.0 - fabs(phi_mu))  * (1.0 - fabs(phi_mu)  - sign(phi_mu)  * phi_mu);
-			delF_delPhi_lav += 2.0 * omega_lav * phi_lav * (1.0 - fabs(phi_lav)) * (1.0 - fabs(phi_lav) - sign(phi_lav) * phi_lav);
+			delF_delPhi_del += 2.0 * omega_del * phi_del * (1.0 - abs_phi_del) * (1.0 - abs_phi_del - sign(phi_del) * phi_del);
+			delF_delPhi_mu  += 2.0 * omega_mu  * phi_mu  * (1.0 - abs_phi_mu)  * (1.0 - abs_phi_mu  - sign(phi_mu)  * phi_mu);
+			delF_delPhi_lav += 2.0 * omega_lav * phi_lav * (1.0 - abs_phi_lav) * (1.0 - abs_phi_lav - sign(phi_lav) * phi_lav);
 
 			delF_delPhi_del += 4.0 * alpha * phi_del * (phi_mu  * phi_mu  + phi_lav * phi_lav);
 			delF_delPhi_mu  += 4.0 * alpha * phi_mu  * (phi_del * phi_del + phi_lav * phi_lav);
@@ -772,17 +777,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			newgridN[0] = xCr + dt * D_CrCr * lapxCr_gam + dt * D_CrNb * lapxNb_gam;
-			newgridN[1] = xNb + dt * D_NbCr * lapxCr_gam + dt * D_NbNb * lapxNb_gam;
+			newGridN[0] = xCr + dt * D_CrCr * lapxCr_gam + dt * D_CrNb * lapxNb_gam;
+			newGridN[1] = xNb + dt * D_NbCr * lapxCr_gam + dt * D_NbNb * lapxNb_gam;
 
 
 			/* ======================================== *
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
 
-			newgridN[2] = phi_del - dt * L_del * delF_delPhi_del;
-			newgridN[3] = phi_mu  - dt * L_mu  * delF_delPhi_mu ;
-			newgridN[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
+			newGridN[2] = phi_del - dt * L_del * delF_delPhi_del;
+			newGridN[3] = phi_mu  - dt * L_mu  * delF_delPhi_mu ;
+			newGridN[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
 
 
 			/* =================================================== *
@@ -790,7 +795,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * =================================================== */
 
 			for (int i=NC+NP-1; i<fields(newGrid)-1; i++)
-				newgridN[i] = oldgridN[i];
+				newGridN[i] = oldGridN[i];
 
 
 			/* ======= *
@@ -1075,10 +1080,10 @@ double gibbs(const MMSP::vector<double>& v)
 	double n_lav = h(fabs(v[4]));
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
 
-	double g  = n_gam * g_gam(v[5], v[6],  1.0-v[5]-v[6]);
-	       g += n_del * g_del(v[7], v[8]);
-	       g += n_mu  * g_mu( v[9], v[10], 1.0-v[9]-v[10]);
-	       g += n_lav * g_lav(v[12], 1.0-v[11]-v[12]);
+	double g  = n_gam * g_gam(v[5],  v[6]);
+	       g += n_del * g_del(v[7],  v[8]);
+	       g += n_mu  * g_mu( v[9],  v[10]);
+	       g += n_lav * g_lav(v[11], v[12]);
 	       g += omega_del * v[2]*v[2] * pow(1.0 - fabs(v[2]), 2);
 	       g += omega_mu  * v[3]*v[3] * pow(1.0 - fabs(v[3]), 2);
 	       g += omega_lav * v[4]*v[4] * pow(1.0 - fabs(v[4]), 2);
@@ -1119,29 +1124,28 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 	const double C_mu_Cr  = gsl_vector_get(x, 4);
 	const double C_mu_Nb  = gsl_vector_get(x, 5);
-	const double C_mu_Ni = 1.0 - C_mu_Cr - C_mu_Nb;
 
 	const double C_lav_Cr = gsl_vector_get(x, 6);
 	const double C_lav_Nb = gsl_vector_get(x, 7);
 
 
 	// Prepare derivatives
-	const double dgGdxCr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-	const double dgGdxNb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	const double dgGdxCr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb);
+	const double dgGdxNb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb);
 
 	const double dgDdxCr = dg_del_dxCr(C_del_Cr, C_del_Nb);
 	const double dgDdxNb = dg_del_dxNb(C_del_Cr, C_del_Nb);
 
-	const double dgUdxCr = dg_mu_dxCr(C_mu_Cr, C_mu_Ni);
-	const double dgUdxNb = dg_mu_dxNb(C_mu_Nb, C_mu_Ni);
+	const double dgUdxCr = dg_mu_dxCr(C_mu_Cr, C_mu_Nb);
+	const double dgUdxNb = dg_mu_dxNb(C_mu_Cr, C_mu_Nb);
 
 	const double dgLdxCr = dg_lav_dxCr(C_lav_Cr, C_lav_Nb);
 	const double dgLdxNb = dg_lav_dxNb(C_lav_Cr, C_lav_Nb);
 
 
 	// Update vector
-	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
-	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
+	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr);
+	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb);
 
 	gsl_vector_set(f, 2, dgGdxCr - dgDdxCr);
 	gsl_vector_set(f, 3, dgGdxNb - dgDdxNb);
@@ -1169,18 +1173,15 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	#ifndef PARABOLIC
 	const double C_gam_Cr = gsl_vector_get(x, 0);
 	const double C_gam_Nb = gsl_vector_get(x, 1);
-	const double C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
 	const double C_del_Cr = gsl_vector_get(x, 2);
 	const double C_del_Nb = gsl_vector_get(x, 3);
 
 	const double C_mu_Cr  = gsl_vector_get(x, 4);
 	const double C_mu_Nb  = gsl_vector_get(x, 5);
-	const double C_mu_Ni = 1.0 - C_mu_Cr - C_mu_Nb;
 
 	const double C_lav_Cr = gsl_vector_get(x, 6);
 	const double C_lav_Nb = gsl_vector_get(x, 7);
-	const double C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 	#endif
 
 	gsl_matrix_set_zero(J);
@@ -1206,10 +1207,10 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	const double J30 = d2g_gam_dxNbCr();
 	const double J31 = d2g_gam_dxNbNb();
 	#else
-	const double J20 = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Ni);
-	const double J21 = d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-	const double J30 = d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
-	const double J31 = d2g_gam_dxNbNb(C_gam_Nb, C_gam_Ni);
+	const double J20 = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb);
+	const double J21 = d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb);
+	const double J30 = d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb);
+	const double J31 = d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb);
 	#endif
 
 	gsl_matrix_set(J, 2, 0, J20);
@@ -1249,10 +1250,10 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	gsl_matrix_set(J, 5, 4, -d2g_mu_dxNbCr());
 	gsl_matrix_set(J, 5, 5, -d2g_mu_dxNbNb());
 	#else
-	gsl_matrix_set(J, 4, 4, -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
-	gsl_matrix_set(J, 4, 5, -d2g_mu_dxCrNb(C_mu_Cr, C_mu_Nb, C_mu_Ni));
-	gsl_matrix_set(J, 5, 4, -d2g_mu_dxNbCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
-	gsl_matrix_set(J, 5, 5, -d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni));
+	gsl_matrix_set(J, 4, 4, -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb));
+	gsl_matrix_set(J, 4, 5, -d2g_mu_dxCrNb(C_mu_Cr, C_mu_Nb));
+	gsl_matrix_set(J, 5, 4, -d2g_mu_dxNbCr(C_mu_Cr, C_mu_Nb));
+	gsl_matrix_set(J, 5, 5, -d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb));
 	#endif
 
 
@@ -1263,10 +1264,10 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	gsl_matrix_set(J, 7, 6, -d2g_lav_dxNbCr());
 	gsl_matrix_set(J, 7, 7, -d2g_lav_dxNbNb());
 	#else
-	gsl_matrix_set(J, 6, 6, -d2g_lav_dxCrCr(C_lav_Nb, C_lav_Ni));
-	gsl_matrix_set(J, 6, 7, -d2g_lav_dxCrNb(C_lav_Nb, C_lav_Ni));
-	gsl_matrix_set(J, 7, 6, -d2g_lav_dxNbCr(C_lav_Nb, C_lav_Ni));
-	gsl_matrix_set(J, 7, 7, -d2g_lav_dxNbNb(C_lav_Nb, C_lav_Ni));
+	gsl_matrix_set(J, 6, 6, -d2g_lav_dxCrCr(C_lav_Cr, C_lav_Nb));
+	gsl_matrix_set(J, 6, 7, -d2g_lav_dxCrNb(C_lav_Cr, C_lav_Nb));
+	gsl_matrix_set(J, 7, 6, -d2g_lav_dxNbCr(C_lav_Cr, C_lav_Nb));
+	gsl_matrix_set(J, 7, 7, -d2g_lav_dxNbNb(C_lav_Cr, C_lav_Nb));
 	#endif
 
 	return GSL_SUCCESS;
