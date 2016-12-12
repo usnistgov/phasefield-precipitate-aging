@@ -1098,6 +1098,9 @@ double gibbs(const MMSP::vector<double>& v)
 
 int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 {
+	// Initialize vector
+	gsl_vector_set_zero(f);
+
 	// Prepare constants
 	const double x_Cr = ((struct rparams*) params)->x_Cr;
 	const double x_Nb = ((struct rparams*) params)->x_Nb;
@@ -1115,47 +1118,40 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	const double C_del_Nb = gsl_vector_get(x, 3);
 
 	const double C_mu_Cr  = gsl_vector_get(x, 4);
-	const double C_mu_Ni  = gsl_vector_get(x, 5);
-	const double C_mu_Nb = 1.0 - C_mu_Cr - C_mu_Ni;
+	const double C_mu_Nb  = gsl_vector_get(x, 5);
+	const double C_mu_Ni = 1.0 - C_mu_Cr - C_mu_Nb;
 
-	const double C_lav_Nb = gsl_vector_get(x, 6);
-	const double C_lav_Ni = gsl_vector_get(x, 7);
-	const double C_lav_Cr = 1.0 - C_lav_Nb - C_lav_Ni;
-
-	gsl_vector_set_zero(f);
+	const double C_lav_Cr = gsl_vector_get(x, 6);
+	const double C_lav_Nb = gsl_vector_get(x, 7);
 
 
-	#ifdef PARABOLIC
+	// Prepare derivatives
+	const double dgGdxCr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+	const double dgGdxNb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni);
+
+	const double dgDdxCr = dg_del_dxCr(C_del_Cr, C_del_Nb);
+	const double dgDdxNb = dg_del_dxNb(C_del_Cr, C_del_Nb);
+
+	const double dgUdxCr = dg_mu_dxCr(C_mu_Cr, C_mu_Ni);
+	const double dgUdxNb = dg_mu_dxNb(C_mu_Nb, C_mu_Ni);
+
+	const double dgLdxCr = dg_lav_dxCr(C_lav_Cr, C_lav_Nb);
+	const double dgLdxNb = dg_lav_dxNb(C_lav_Cr, C_lav_Nb);
+
+
+	// Update vector
 	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
 	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
 
-	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb));
-	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb));
+	gsl_vector_set(f, 2, dgGdxCr - dgDdxCr);
+	gsl_vector_set(f, 3, dgGdxNb - dgDdxNb);
 
-	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxCr(C_mu_Cr, C_mu_Ni));
-	gsl_vector_set(f, 5, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNb(C_mu_Nb, C_mu_Ni));
+	gsl_vector_set(f, 4, dgGdxCr - dgUdxCr);
+	gsl_vector_set(f, 5, dgGdxNb - dgUdxNb);
 
-	gsl_vector_set(f, 6, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxCr(C_lav_Cr, C_lav_Nb));
-	gsl_vector_set(f, 7, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNb(C_lav_Cr, C_lav_Nb));
+	gsl_vector_set(f, 6, dgGdxCr - dgLdxCr);
+	gsl_vector_set(f, 7, dgGdxNb - dgLdxNb);
 
-
-
-	#else
-	gsl_vector_set(f, 0, x_Cr - n_gam*C_gam_Cr - n_del*C_del_Cr - n_mu*C_mu_Cr - n_lav*C_lav_Cr );
-	gsl_vector_set(f, 1, x_Nb - n_gam*C_gam_Nb - n_del*C_del_Nb - n_mu*C_mu_Nb - n_lav*C_lav_Nb );
-
-	gsl_vector_set(f, 2, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxCr(C_del_Cr, C_del_Nb));
-	gsl_vector_set(f, 3, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_del_dxNb(C_del_Cr, C_del_Nb));
-
-	gsl_vector_set(f, 4, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
-	gsl_vector_set(f, 5, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_mu_dxNb(C_mu_Cr, C_mu_Nb, C_mu_Ni));
-
-	gsl_vector_set(f, 6, dg_gam_dxCr(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxCr(C_lav_Nb, C_lav_Ni));
-	gsl_vector_set(f, 7, dg_gam_dxNb(C_gam_Cr, C_gam_Nb, C_gam_Ni) - dg_lav_dxNb(C_lav_Nb, C_lav_Ni));
-
-
-
-	#endif
 
 	return GSL_SUCCESS;
 }
@@ -1231,6 +1227,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	gsl_matrix_set(J, 7, 0, J30);
 	gsl_matrix_set(J, 7, 1, J31);
 
+
 	// Equal chemical potential involving delta phase (Cr, Nb)
 	#ifdef PARABOLIC
 	gsl_matrix_set(J, 2, 2, -d2g_del_dxCrCr());
@@ -1257,6 +1254,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	gsl_matrix_set(J, 5, 4, -d2g_mu_dxNbCr(C_mu_Cr, C_mu_Nb, C_mu_Ni));
 	gsl_matrix_set(J, 5, 5, -d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb, C_mu_Ni));
 	#endif
+
 
 	// Equal chemical potential involving Laves phase (Nb, Ni)
 	#ifdef PARABOLIC
