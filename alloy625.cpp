@@ -175,9 +175,11 @@ const double init_amp = 0.0;     // amplitude of noise in initial parallel tange
 const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
-const int logstep = 1000000;       // steps between logging status
+const int logstep = 100000;       // steps between logging status
 
-const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
+//const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 188.2529;  // threshold of linear stability (von Neumann stability condition)
+
 const double dtp = (meshres*meshres)/(4.0 * L_del*kappa_del); // transformation-limited timestep
 //#ifndef PARABOLIC
 //const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
@@ -608,6 +610,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	double dV = 1.0;
 	double Ntot = 1.0;
+	double totBadTangents;
 	for (int d=0; d<dim; d++) {
 		dx(oldGrid,d) = meshres;
 		dx(newGrid,d) = meshres;
@@ -631,7 +634,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (rank==0)
 			print_progress(step, steps);
 
-		double totBadTangents = 0.0;
+		totBadTangents = 0.0;
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -833,6 +836,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	}
 
 	#ifndef NOLOG
+
 	if (rank==0) {
 		std::ofstream cfile;
 
@@ -1117,7 +1121,6 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 	// Prepare variables
 	const double C_gam_Cr = gsl_vector_get(x, 0);
 	const double C_gam_Nb = gsl_vector_get(x, 1);
-	const double C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
 	const double C_del_Cr = gsl_vector_get(x, 2);
 	const double C_del_Nb = gsl_vector_get(x, 3);
@@ -1201,74 +1204,90 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving gamma phase (Cr, Nb, Ni)
+	// Cross-derivatives must needs be equal, dG_dxCrNb == dG_dxNbCr. Cf. Arfken Sec. 1.9.
 	#ifdef PARABOLIC
-	const double J20 = d2g_gam_dxCrCr();
-	const double J21 = d2g_gam_dxCrNb();
-	const double J30 = d2g_gam_dxNbCr();
-	const double J31 = d2g_gam_dxNbNb();
+	const double jac_gam_CrCr = d2g_gam_dxCrCr();
+	const double jac_gam_CrNb = d2g_gam_dxCrNb();
+	const double jac_gam_NbCr = jac_gam_CrNb;
+	const double jac_gam_NbNb = d2g_gam_dxNbNb();
 	#else
-	const double J20 = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb);
-	const double J21 = d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb);
-	const double J30 = d2g_gam_dxNbCr(C_gam_Cr, C_gam_Nb);
-	const double J31 = d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb);
+	const double jac_gam_CrCr = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb);
+	const double jac_gam_CrNb = d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb);
+	const double jac_gam_NbCr = jac_gam_CrNb;
+	const double jac_gam_NbNb = d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb);
 	#endif
 
-	gsl_matrix_set(J, 2, 0, J20);
-	gsl_matrix_set(J, 2, 1, J21);
-	gsl_matrix_set(J, 3, 0, J30);
-	gsl_matrix_set(J, 3, 1, J31);
+	gsl_matrix_set(J, 2, 0, jac_gam_CrCr);
+	gsl_matrix_set(J, 2, 1, jac_gam_CrNb);
+	gsl_matrix_set(J, 3, 0, jac_gam_NbCr);
+	gsl_matrix_set(J, 3, 1, jac_gam_NbNb);
 
-	gsl_matrix_set(J, 4, 0, J20);
-	gsl_matrix_set(J, 4, 1, J21);
-	gsl_matrix_set(J, 5, 0, J30);
-	gsl_matrix_set(J, 5, 1, J31);
+	gsl_matrix_set(J, 4, 0, jac_gam_CrCr);
+	gsl_matrix_set(J, 4, 1, jac_gam_CrNb);
+	gsl_matrix_set(J, 5, 0, jac_gam_NbCr);
+	gsl_matrix_set(J, 5, 1, jac_gam_NbNb);
 
-	gsl_matrix_set(J, 6, 0, J20);
-	gsl_matrix_set(J, 6, 1, J21);
-	gsl_matrix_set(J, 7, 0, J30);
-	gsl_matrix_set(J, 7, 1, J31);
+	gsl_matrix_set(J, 6, 0, jac_gam_CrCr);
+	gsl_matrix_set(J, 6, 1, jac_gam_CrNb);
+	gsl_matrix_set(J, 7, 0, jac_gam_CrNb);
+	gsl_matrix_set(J, 7, 1, jac_gam_NbNb);
 
 
 	// Equal chemical potential involving delta phase (Cr, Nb)
 	#ifdef PARABOLIC
-	gsl_matrix_set(J, 2, 2, -d2g_del_dxCrCr());
-	gsl_matrix_set(J, 2, 3, -d2g_del_dxCrNb());
-	gsl_matrix_set(J, 3, 2, -d2g_del_dxNbCr());
-	gsl_matrix_set(J, 3, 3, -d2g_del_dxNbNb());
+	const double jac_del_CrCr = d2g_del_dxCrCr();
+	const double jac_del_CrNb = d2g_del_dxCrNb();
+	const double jac_del_NbCr = jac_del_CrNb;
+	const double jac_del_NbNb = d2g_del_dxNbNb();
 	#else
-	gsl_matrix_set(J, 2, 2, -d2g_del_dxCrCr(C_del_Cr, C_del_Nb));
-	gsl_matrix_set(J, 2, 3, -d2g_del_dxCrNb(C_del_Cr, C_del_Nb));
-	gsl_matrix_set(J, 3, 2, -d2g_del_dxNbCr(C_del_Cr, C_del_Nb));
-	gsl_matrix_set(J, 3, 3, -d2g_del_dxNbNb(C_del_Cr, C_del_Nb));
+	const double jac_del_CrCr = d2g_del_dxCrCr(C_del_Cr, C_del_Nb);
+	const double jac_del_CrNb = d2g_del_dxCrNb(C_del_Cr, C_del_Nb);
+	const double jac_del_NbCr = jac_del_CrNb;
+	const double jac_del_NbNb = d2g_del_dxNbNb(C_del_Cr, C_del_Nb);
 	#endif
+
+	gsl_matrix_set(J, 2, 2, -jac_del_CrCr);
+	gsl_matrix_set(J, 2, 3, -jac_del_CrNb);
+	gsl_matrix_set(J, 3, 2, -jac_del_NbCr);
+	gsl_matrix_set(J, 3, 3, -jac_del_NbNb);
 
 
 	// Equal chemical potential involving mu phase (Cr, Ni)
 	#ifdef PARABOLIC
-	gsl_matrix_set(J, 4, 4, -d2g_mu_dxCrCr());
-	gsl_matrix_set(J, 4, 5, -d2g_mu_dxCrNb());
-	gsl_matrix_set(J, 5, 4, -d2g_mu_dxNbCr());
-	gsl_matrix_set(J, 5, 5, -d2g_mu_dxNbNb());
+	const double jac_mu_CrCr = d2g_mu_dxCrCr();
+	const double jac_mu_CrNb = d2g_mu_dxCrNb();
+	const double jac_mu_NbCr = jac_mu_CrNb;
+	const double jac_mu_NbNb = d2g_mu_dxNbNb();
 	#else
-	gsl_matrix_set(J, 4, 4, -d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb));
-	gsl_matrix_set(J, 4, 5, -d2g_mu_dxCrNb(C_mu_Cr, C_mu_Nb));
-	gsl_matrix_set(J, 5, 4, -d2g_mu_dxNbCr(C_mu_Cr, C_mu_Nb));
-	gsl_matrix_set(J, 5, 5, -d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb));
+	const double jac_mu_CrCr = d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb);
+	const double jac_mu_CrNb = d2g_mu_dxCrNb(C_mu_Cr, C_mu_Nb);
+	const double jac_mu_NbCr = jac_mu_CrNb;
+	const double jac_mu_NbNb = d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb);
 	#endif
+
+	gsl_matrix_set(J, 4, 4, -jac_mu_CrCr);
+	gsl_matrix_set(J, 4, 5, -jac_mu_CrNb);
+	gsl_matrix_set(J, 5, 4, -jac_mu_NbCr);
+	gsl_matrix_set(J, 5, 5, -jac_mu_NbNb);
 
 
 	// Equal chemical potential involving Laves phase (Nb, Ni)
 	#ifdef PARABOLIC
-	gsl_matrix_set(J, 6, 6, -d2g_lav_dxCrCr());
-	gsl_matrix_set(J, 6, 7, -d2g_lav_dxCrNb());
-	gsl_matrix_set(J, 7, 6, -d2g_lav_dxNbCr());
-	gsl_matrix_set(J, 7, 7, -d2g_lav_dxNbNb());
+	const double jac_lav_CrCr = d2g_mu_dxCrCr();
+	const double jac_lav_CrNb = d2g_mu_dxCrNb();
+	const double jac_lav_NbCr = jac_lav_CrNb;
+	const double jac_lav_NbNb = d2g_mu_dxNbNb();
 	#else
-	gsl_matrix_set(J, 6, 6, -d2g_lav_dxCrCr(C_lav_Cr, C_lav_Nb));
-	gsl_matrix_set(J, 6, 7, -d2g_lav_dxCrNb(C_lav_Cr, C_lav_Nb));
-	gsl_matrix_set(J, 7, 6, -d2g_lav_dxNbCr(C_lav_Cr, C_lav_Nb));
-	gsl_matrix_set(J, 7, 7, -d2g_lav_dxNbNb(C_lav_Cr, C_lav_Nb));
+	const double jac_lav_CrCr = d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb);
+	const double jac_lav_CrNb = d2g_mu_dxCrNb(C_mu_Cr, C_mu_Nb);
+	const double jac_lav_NbCr = jac_lav_CrNb;
+	const double jac_lav_NbNb = d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb);
 	#endif
+
+	gsl_matrix_set(J, 6, 6, -jac_lav_CrCr);
+	gsl_matrix_set(J, 6, 7, -jac_lav_CrNb);
+	gsl_matrix_set(J, 7, 6, -jac_lav_NbCr);
+	gsl_matrix_set(J, 7, 7, -jac_lav_NbNb);
 
 	return GSL_SUCCESS;
 }

@@ -54,31 +54,30 @@ def simY(x3):
 
 # Read CALPHAD database from disk, specify phases and elements of interest
 tdb = Database('Du_Cr-Nb-Ni_simple.tdb')
-phases = ['FCC_A1', 'D0A_NBNI3', 'D85_NI7NB6', 'C14_LAVES', 'C15_LAVES', 'BCC_A2']
 elements = ['CR', 'NB', 'NI']
 
-phases = list(set([i for c in tdb.phases['FCC_A1'].constituents for i in c]))
-model = Model(tdb, phases, 'FCC_A1')
+species = list(set([i for c in tdb.phases['FCC_A1'].constituents for i in c]))
+model = Model(tdb, species, 'FCC_A1')
 g_gamma = parse_expr(str(model.ast))
 
-phases = list(set([i for c in tdb.phases['D0A_NBNI3'].constituents for i in c]))
-model = Model(tdb, phases, 'D0A_NBNI3')
+species = list(set([i for c in tdb.phases['D0A_NBNI3'].constituents for i in c]))
+model = Model(tdb, species, 'D0A_NBNI3')
 g_delta = parse_expr(str(model.ast))
 
-phases = list(set([i for c in tdb.phases['D85_NI7NB6'].constituents for i in c]))
-model = Model(tdb, phases, 'D85_NI7NB6')
+species = list(set([i for c in tdb.phases['D85_NI7NB6'].constituents for i in c]))
+model = Model(tdb, species, 'D85_NI7NB6')
 g_mu = parse_expr(str(model.ast))
 
-phases = list(set([i for c in tdb.phases['C14_LAVES'].constituents for i in c]))
-model = Model(tdb, phases, 'C14_LAVES')
+species = list(set([i for c in tdb.phases['C14_LAVES'].constituents for i in c]))
+model = Model(tdb, species, 'C14_LAVES')
 g_laves = parse_expr(str(model.ast))
 
-phases = list(set([i for c in tdb.phases['C15_LAVES'].constituents for i in c]))
-model = Model(tdb, phases, 'C15_LAVES')
+species = list(set([i for c in tdb.phases['C15_LAVES'].constituents for i in c]))
+model = Model(tdb, species, 'C15_LAVES')
 g_lavesLT = parse_expr(str(model.ast))
 
-phases = list(set([i for c in tdb.phases['BCC_A2'].constituents for i in c]))
-model = Model(tdb, phases, 'BCC_A2')
+species = list(set([i for c in tdb.phases['BCC_A2'].constituents for i in c]))
+model = Model(tdb, species, 'BCC_A2')
 g_bcc = parse_expr(str(model.ast))
 
 
@@ -129,9 +128,10 @@ xe_lav_Nb = 0.29
 xe_lav_Ni = 1.0 - xe_lav_Cr - xe_lav_Nb
 
 
-
+# Plot centerpoints of Taylor series expansion
 X0 = (simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_mu_Nb, xe_mu_Cr), simX(xe_lav_Nb, 1-xe_lav_Nb-xe_lav_Ni))
 Y0 = (simY(xe_gam_Cr), simY(xe_del_Cr), simY(xe_mu_Cr), simY(1-xe_lav_Nb-xe_lav_Ni))
+
 
 # Make sublattice -> system substitutions
 g_gamma = inVm * g_gamma.subs({FCC_A10CR: GAMMA_XCR,
@@ -183,7 +183,7 @@ print "Parabolic Mu:    ", p_mu
 print "Parabolic Laves: ", p_laves
 print ""
 
-# Export C code
+
 # Generate first derivatives
 dGgam_dxCr = diff(p_gamma, GAMMA_XCR)
 dGgam_dxNb = diff(p_gamma, GAMMA_XNB)
@@ -479,7 +479,6 @@ allX = []
 allG = []
 allID = []
 points = []
-phases = []
 
 #for xcr in np.linspace(0, 1, density, endpoint=False):
 #    for xnb in np.linspace(0, 1, density, endpoint=False):
