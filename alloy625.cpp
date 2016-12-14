@@ -27,9 +27,7 @@
 #include<cmath>
 #include<random>
 #include<cassert>
-#ifndef NOLOG
-#include<sstream>
-#endif
+
 #include<gsl/gsl_blas.h>
 #include<gsl/gsl_math.h>
 #include<gsl/gsl_roots.h>
@@ -188,17 +186,17 @@ void generate(int dim, const char* filename)
 {
 	int rank=0;
 	#ifdef MPI_VERSION
+
 	rank = MPI::COMM_WORLD.Get_rank();
-	#endif
+
+ 	#endif
 	// Utilize Mersenne Twister from C++11 standard
 	std::mt19937_64 mt_rand(time(NULL)+rank);
 	std::uniform_real_distribution<double> real_gen(-1,1);
 
-	#ifndef NOLOG
-	std::ofstream cfile;
+	FILE* cfile = NULL;
 	if (rank==0)
-		cfile.open("c.log",std::ofstream::out);
-	#endif
+		cfile = fopen("c.log", "w"); // existing log will be overwritten
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * L_del*kappa_del); // transformation-limited timestep
 	//const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
@@ -263,13 +261,16 @@ void generate(int dim, const char* filename)
 
 		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 		#ifdef MPI_VERSION
+
 		for (int n=0; n<nodes(initGrid); n++) {
 			guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
 			guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
 			guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
 			guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 		}
+
 		#else
+
 		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
 			#pragma omp critical
@@ -289,6 +290,7 @@ void generate(int dim, const char* filename)
 				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 			}
 		}
+
 		#endif
 
 
@@ -296,17 +298,13 @@ void generate(int dim, const char* filename)
 
 		vector<double> summary = summarize(initGrid);
 
-		#ifndef NOLOG
-		if (rank==0) {
-			cfile << summary[0] << '\t' << summary[1] << '\t'
-			      << summary[2] << '\t' << summary[3] << '\t' << summary[4] << '\t' << summary[5] << '\t'
-			      << summary[6] << '\t' << '0' << '\n';
-		}
-		#endif
+		if (rank==0)
+			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
+			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], 0.0);
 
 		if (rank==0) {
-			std::cout << "    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
-			printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
+			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
+			printf("%11.9g %11.9g %11.9g %11.9g %11.9g %11.9g %11.9g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
 			                                                             summary[2], summary[3], summary[4], summary[5]);
 		}
 
@@ -496,7 +494,9 @@ void generate(int dim, const char* filename)
 		// Synchronize global intiial condition parameters
 		Composition myComp;
 		myComp += comp;
+
 		#ifdef MPI_VERSION
+
 		// Caution: Primitive. Will not scale to large MPI systems.
 		for (int j=0; j<NP; j++) {
 			MPI::COMM_WORLD.Allreduce(&myComp.N[j], &comp.N[j], 1, MPI_INT, MPI_SUM);
@@ -504,6 +504,7 @@ void generate(int dim, const char* filename)
 				MPI::COMM_WORLD.Allreduce(&myComp.x[j][i], &comp.x[j][i], 1, MPI_DOUBLE, MPI_SUM);
 			}
 		}
+
 		#endif
 
 
@@ -533,13 +534,16 @@ void generate(int dim, const char* filename)
 
 		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 		#ifdef MPI_VERSION
+
 		for (int n=0; n<nodes(initGrid); n++) {
 			guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
 			guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
 			guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
 			guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 		}
+
 		#else
+
 		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
 			#pragma omp critical
@@ -559,6 +563,7 @@ void generate(int dim, const char* filename)
 				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 			}
 		}
+
 		#endif
 
 
@@ -566,17 +571,13 @@ void generate(int dim, const char* filename)
 
 		vector<double> summary = summarize(initGrid);
 
-		#ifndef NOLOG
-		if (rank==0) {
-			cfile << summary[0]  << '\t' << summary[1] << '\t'
-			      << summary[2] << '\t' << summary[3] << '\t' << summary[4] << '\t' << summary[5] << '\t'
-			      << summary[6]   << '\t' << '0' << '\n';
-		}
-		#endif
+		if (rank==0)
+			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
+			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], 0.0);
 
 		if (rank==0) {
-			std::cout << "    x_Cr       x_Nb       x_Ni       p_g        p_d        p_m        p_l\n";
-			printf("%10.4g %10.4g %10.4g %10.4g %10.4g %10.4g %10.4g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
+			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
+			printf("%11.9g %11.9g %11.9g %11.9g %11.9g %11.9g %11.9g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
 			                                                             summary[2], summary[3], summary[4], summary[5]);
 		}
 
@@ -584,11 +585,11 @@ void generate(int dim, const char* filename)
 
 
 
-
 	} else
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
 
-
+	if (rank == 0)
+		fclose(cfile);
 
 }
 
@@ -596,7 +597,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 {
 	int rank=0;
 	#ifdef MPI_VERSION
+
 	rank = MPI::COMM_WORLD.Get_rank();
+
 	#endif
 
 	ghostswap(oldGrid);
@@ -627,10 +630,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		}
 	}
 
-	#ifndef NOLOG
-	std::stringstream cstrm("");
 	static int logcount = 1;
-	#endif
+
+	FILE* cfile = NULL;
+
+	if (rank==0)
+		cfile = fopen("c.log", "a"); // new results will be appended
 
 	for (int step=0; step<steps; step++) {
 		if (rank==0)
@@ -639,7 +644,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		double totBadTangents = 0.0;
 
 		#ifndef MPI_VERSION
+
 		#pragma omp parallel for
+
 		#endif
 		for (int n=0; n<nodes(oldGrid); n++) {
 			vector<int> x = position(oldGrid,n);
@@ -653,21 +660,28 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			if (res>root_tol) {
 				#ifndef MPI_VERSION
+
 				#pragma omp critical
 				{
 				totBadTangents += 1.0;
 				}
+
 				#else
+
 				totBadTangents += 1.0;
+
 				#endif
 
 				// If guesses are invalid, this may cause errors.
 				#ifdef MPI_VERSION
+
 				guessGamma(oldGrid, n, mt_rand, real_gen, noise_amp);
 				guessDelta(oldGrid, n, mt_rand, real_gen, noise_amp);
 				guessMu(   oldGrid, n, mt_rand, real_gen, noise_amp);
 				guessLaves(oldGrid, n, mt_rand, real_gen, noise_amp);
+
 				#else
+
 				#pragma omp critical
 				{
 					guessGamma(oldGrid, n, mt_rand, real_gen, noise_amp);
@@ -684,13 +698,16 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				{
 					guessLaves(oldGrid, n, mt_rand, real_gen, noise_amp);
 				}
+
 				#endif
 			}
 
 		}
 
 		#ifndef MPI_VERSION
+
 		#pragma omp parallel for
+
 		#endif
 		for (int n=0; n<nodes(oldGrid); n++) {
 			/* ============================================== *
@@ -815,43 +832,29 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 		 * ====================================================================== */
 
-		#ifndef NOLOG
 		if (logcount == logstep) {
 			logcount = 0;
 			#ifdef MPI_VERSION
+
 			totBadTangents /= Ntot;
 			double myBad(totBadTangents);
 			MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_DOUBLE, MPI_SUM, 0);
+
 			#endif
 
 			vector<double> summary = summarize(oldGrid);
-			if (rank==0) {
-				cstrm << summary[0] << '\t' << summary[1] << '\t'
-				      << summary[2] << '\t' << summary[3] << '\t' << summary[4] << '\t' << summary[5] << '\t'
-				      << summary[6] << '\t' << totBadTangents << '\n';
-			}
+			if (rank==0)
+				fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
+				summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
+
 		}
 
 		logcount++;
-		#endif
 
 	}
 
-	#ifndef NOLOG
-
-	if (rank==0) {
-		std::ofstream cfile;
-
-		cfile.open("c.log",std::ofstream::out | std::ofstream::app);
-
-		cfile << cstrm.rdbuf();
-
-		cfile.close();
-	}
-
-	cstrm.str("");
-
-	#endif
+	if (rank==0)
+		fclose(cfile);
 
 }
 
