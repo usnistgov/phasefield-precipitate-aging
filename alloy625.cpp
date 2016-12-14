@@ -178,15 +178,8 @@ const int root_max_iter = 500000; // default is 1000, increasing probably won't 
 const int logstep = 100000;       // steps between logging status
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
-const double LinStab = 1.0 / 188.2529;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
 
-const double dtp = (meshres*meshres)/(4.0 * L_del*kappa_del); // transformation-limited timestep
-//#ifndef PARABOLIC
-//const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
-//#else
-const double dtc = (meshres*meshres)/(4.0 * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
-//#endif
-const double dt = LinStab * std::min(dtp, dtc);
 
 namespace MMSP
 {
@@ -206,6 +199,11 @@ void generate(int dim, const char* filename)
 	if (rank==0)
 		cfile.open("c.log",std::ofstream::out);
 	#endif
+
+	const double dtp = (meshres*meshres)/(2.0 * dim * L_del*kappa_del); // transformation-limited timestep
+	//const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
+	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
+	const double dt = LinStab * std::min(dtp, dtc);
 
 	if (dim==1) {
 		// Construct grid
@@ -604,13 +602,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	ghostswap(oldGrid);
 	grid<dim,vector<T> > newGrid(oldGrid);
 
+	const double dtp = (meshres*meshres)/(2.0 * dim * L_del*kappa_del); // transformation-limited timestep
+	//const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
+	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
+	const double dt = LinStab * std::min(dtp, dtc);
+
 	// Construct the parallel tangent solver
 	std::mt19937_64 mt_rand(time(NULL)+rank);
 	std::uniform_real_distribution<double> real_gen(-1,1);
 
 	double dV = 1.0;
 	double Ntot = 1.0;
-	double totBadTangents;
 	for (int d=0; d<dim; d++) {
 		dx(oldGrid,d) = meshres;
 		dx(newGrid,d) = meshres;
@@ -634,7 +636,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (rank==0)
 			print_progress(step, steps);
 
-		totBadTangents = 0.0;
+		double totBadTangents = 0.0;
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -653,10 +655,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				#ifndef MPI_VERSION
 				#pragma omp critical
 				{
-				totBadTangents += 1;
+				totBadTangents += 1.0;
 				}
 				#else
-				totBadTangents += 1;
+				totBadTangents += 1.0;
 				#endif
 
 				// If guesses are invalid, this may cause errors.
@@ -1107,6 +1109,10 @@ double gibbs(const MMSP::vector<double>& v)
 
 int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 {
+	/* ======================================================= *
+	 * Build Vector of Mass and Chemical Potential Differences *
+	 * ======================================================= */
+
 	// Initialize vector
 	gsl_vector_set_zero(f);
 
@@ -1166,6 +1172,10 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 {
+	/* ========================================================= *
+	 * Build Jacobian of Mass and Chemical Potential Differences *
+	 * ========================================================= */
+
 	// Prepare constants
 	const double n_del = ((struct rparams*) params)->n_del;
 	const double n_mu  = ((struct rparams*) params)->n_mu;
@@ -1204,7 +1214,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving gamma phase (Cr, Nb, Ni)
-	// Cross-derivatives must needs be equal, dG_dxCrNb == dG_dxNbCr. Cf. Arfken Sec. 1.9.
+	// Cross-derivatives must needs be equal, d2G_dxCrNb == d2G_dxNbCr. Cf. Arfken Sec. 1.9.
 	#ifdef PARABOLIC
 	const double jac_gam_CrCr = d2g_gam_dxCrCr();
 	const double jac_gam_CrNb = d2g_gam_dxCrNb();
@@ -1273,15 +1283,15 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 	// Equal chemical potential involving Laves phase (Nb, Ni)
 	#ifdef PARABOLIC
-	const double jac_lav_CrCr = d2g_mu_dxCrCr();
-	const double jac_lav_CrNb = d2g_mu_dxCrNb();
+	const double jac_lav_CrCr = d2g_lav_dxCrCr();
+	const double jac_lav_CrNb = d2g_lav_dxCrNb();
 	const double jac_lav_NbCr = jac_lav_CrNb;
-	const double jac_lav_NbNb = d2g_mu_dxNbNb();
+	const double jac_lav_NbNb = d2g_lav_dxNbNb();
 	#else
-	const double jac_lav_CrCr = d2g_mu_dxCrCr(C_mu_Cr, C_mu_Nb);
-	const double jac_lav_CrNb = d2g_mu_dxCrNb(C_mu_Cr, C_mu_Nb);
+	const double jac_lav_CrCr = d2g_lav_dxCrCr(C_lav_Cr, C_lav_Nb);
+	const double jac_lav_CrNb = d2g_lav_dxCrNb(C_lav_Cr, C_lav_Nb);
 	const double jac_lav_NbCr = jac_lav_CrNb;
-	const double jac_lav_NbNb = d2g_mu_dxNbNb(C_mu_Cr, C_mu_Nb);
+	const double jac_lav_NbNb = d2g_lav_dxNbNb(C_lav_Cr, C_lav_Nb);
 	#endif
 
 	gsl_matrix_set(J, 6, 6, -jac_lav_CrCr);
