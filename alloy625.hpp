@@ -99,15 +99,9 @@ private:
 	const double tolerance;
 	gsl_vector* x;
 	struct rparams par;
-	#ifndef JACOBIAN
-	const gsl_multiroot_fsolver_type* algorithm;
-	gsl_multiroot_fsolver* solver;
-	gsl_multiroot_function mrf;
-	#else
 	const gsl_multiroot_fdfsolver_type* algorithm;
 	gsl_multiroot_fdfsolver* solver;
 	gsl_multiroot_function_fdf mrf;
-	#endif
 };
 /* ========================================================================= */
 

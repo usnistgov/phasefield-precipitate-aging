@@ -1331,26 +1331,18 @@ rootsolver::rootsolver() :
 	x = gsl_vector_alloc(n);
 
 	/* Choose the multidimensional root finding algorithm.
-	 * If the Jacobian matrix is not available, or suspected to be unreliable, use a derivative-free
-	 * algorithm. These are expensive since, in every case, the Jacobian is estimated internally
-	 * using finite differences. Do the math and specify the Jacobian if at all possible.
-	 * Consult the GSL manual for details:
+	 * Do the math and specify the Jacobian if at all possible. Consult the GSL manual for details:
 	 * https://www.gnu.org/software/gsl/manual/html_node/Multidimensional-Root_002dFinding.html
 	 *
 	 * If GSL finds the matrix to be singular, select a hybrid algorithm, then consult a numerical
 	 * methods reference (human or paper) to get your system of equations sorted.
+	 *
+	 * Available algorithms are, in order of *decreasing* efficiency:
+	 * hybridsj, hybridj, newton, gnewton
 	 */
-	#ifndef JACOBIAN
-	// Available algorithms are: hybrids, hybrid, dnewton, broyden (in order of *decreasing* efficiency)
-	algorithm = gsl_multiroot_fsolver_hybrids;
-	solver = gsl_multiroot_fsolver_alloc(algorithm, n);
-	mrf = {&parallelTangent_f, n, &par};
-	#else
-	// Available algorithms are: hybridsj, hybridj, newton, gnewton (in order of *decreasing* efficiency)
 	algorithm = gsl_multiroot_fdfsolver_hybridsj;
 	solver = gsl_multiroot_fdfsolver_alloc(algorithm, n);
 	mrf = {&parallelTangent_f, &parallelTangent_df, &parallelTangent_fdf, n, &par};
-	#endif
 }
 
 
@@ -1385,19 +1377,11 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	gsl_vector_set(x, 7, static_cast<double>(gridN[12])); //       Nb
 
 
-	#ifndef JACOBIAN
-	gsl_multiroot_fsolver_set(solver, &mrf, x);
-	#else
 	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
-	#endif
 
 	do {
 		iter++;
-		#ifndef JACOBIAN
-		status = gsl_multiroot_fsolver_iterate(solver);
-		#else
 		status = gsl_multiroot_fdfsolver_iterate(solver);
-		#endif
 		if (status) // extra points for finishing early!
 			break;
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
@@ -1425,11 +1409,7 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 
 rootsolver::~rootsolver()
 {
-	#ifndef JACOBIAN
-	gsl_multiroot_fsolver_free(solver);
-	#else
 	gsl_multiroot_fdfsolver_free(solver);
-	#endif
 	gsl_vector_free(x);
 }
 

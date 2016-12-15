@@ -2,49 +2,42 @@
 # GNU makefile for Ni-base superalloy decomposition
 # Questions/comments to trevor.keller@nist.gov (Trevor Keller)
 
-# includes
+# includes and boilerplate
 incdir = $(MMSP_PATH)/include
-
-# compilers/flags
-compiler = icc
-ccompiler = /usr/bin/g++
-#pcompiler = /usr/bin/mpic++.openmpi
+boiler = -Wall -std=c++11 -I $(incdir)
+links = -lz -lgsl -lgslcblas
+icompiler = icc
+gcompiler = /usr/bin/g++
 pcompiler = mpic++
 
-#flags = -O3 -Wall -std=c++11 -I $(incdir)
-#flags = -O3 -Wall -std=c++11 -I $(incdir) -DJACOBIAN
-flags = -O3 -Wall -std=c++11 -I $(incdir) -DJACOBIAN -DPARABOLIC
-dflags = -pg -Wall -std=c++11 -I $(incdir) -DJACOBIAN -DPARABOLIC
+fflags = -O3  $(boiler) -DPARABOLIC
+gflags = -pg $(boiler)
+pflags = -O3 $(boiler) -include mpi.h
 
-pflags = $(flags) -include mpi.h
 
-# OpenMP, default program
+# WORKSTATION
+
+# default program (shared memory, OpenMP)
 alloy625: alloy625.cpp
-	$(compiler) $(flags) $< -o $@ -lz -lgsl -lgslcblas -fopenmp
+	$(icompiler) $(fflags) $< -o $@ $(links) -fopenmp
 
-# serial program (no parallelism or optimization)
+# profiling program (no parallelism or optimization)
+gflags = -pg $(boiler)
 serial: alloy625.cpp
-	$(ccompiler) $(dflags) $< -o $@ -lz -lgsl -lgslcblas
+	$(gcompiler) $(gflags) $< -o $@ $(links)
 
-# parallel program (shared memory, OpenMP)
+
+# CLUSTER
+
+# threaded program (shared memory, OpenMP)
 smp: alloy625.cpp
-	$(ccompiler) $(flags) $< -o $@ -lz -lgsl -lgslcblas -fopenmp
+	$(gcompiler) $(fflags) $< -o $@ $(links) -fopenmp
 
 # parallel program (distributed memory, MPI)
 parallel: alloy625.cpp
-	$(pcompiler) $(pflags) $< -o $@ -lz -lgsl -lgslcblas
+	$(pcompiler) $(pflags) $< -o $@ $(links)
 
-minima: minima.c
-	g++ -O3 -Wall $< -o $@ -lgsl -lgslcblas
 
 clean:
-	rm -f alloy625 minima parallel smp
+	rm -f alloy625 parallel smp
 
-#alloy718: alloy718.cpp
-#	$(compiler) $(flags) $< -o $@ -lz
-#
-#parallel: alloy718.cpp
-#	$(pcompiler) $(pflags) $< -o $@ -lz
-#
-#clean:
-#	rm -f alloy718 parallel
