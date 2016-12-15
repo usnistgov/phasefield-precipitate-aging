@@ -67,6 +67,7 @@
 import numpy as np
 from scipy.optimize import fsolve
 from sympy.utilities.lambdify import lambdify
+from sympy.printing.theanocode import theano_function
 from scipy.spatial import ConvexHull
 
 # Runtime / parallel libraries
@@ -83,6 +84,7 @@ from sympy import exp
 
 # Visualization libraries
 import matplotlib.pylab as plt
+from matplotlib.colors import LogNorm
 
 # Constants
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
@@ -218,6 +220,12 @@ g_laves = inVm * g_laves.subs({C14_LAVES0CR: 1.0 - fr3by2*LAVES_XNI,
                                C14_LAVES1NB: 3.0 * LAVES_XNB,
                                T: temp})
 
+g_lavesLT = inVm * g_lavesLT.subs({C15_LAVES0CR: 1.0 - fr3by2*LAVES_XNI,
+                                C15_LAVES0NI: fr3by2 * LAVES_XNI,
+                                C15_LAVES1CR: 1.0 - 3.0*LAVES_XNB,
+                                C15_LAVES1NB: 3.0 * LAVES_XNB,
+                                T: temp})
+
 # Create parabolic approximation functions
 p_gamma = g_gamma.subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni}) \
         + 0.0625 * diff(g_gamma, GAMMA_XCR, GAMMA_XCR).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni}) * (GAMMA_XCR - xe_gam_Cr)**2\
@@ -351,6 +359,15 @@ t_laves = g_laves.subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
                 + diff(g_laves, LAVES_XNI, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
                 ) * (LAVES_XNB - xe_lav_Nb) * (LAVES_XNI - xe_lav_Ni)
 
+t_lavesLT = g_lavesLT.subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
+        + 1.0 * diff(g_lavesLT, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) * (LAVES_XNB - xe_lav_Nb) \
+        + 1.0 * diff(g_lavesLT, LAVES_XNI).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) * (LAVES_XNI - xe_lav_Ni) \
+        + 0.5 * diff(g_lavesLT, LAVES_XNB, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) * (LAVES_XNB - xe_lav_Nb)**2 \
+        + 0.5 * diff(g_lavesLT, LAVES_XNI, LAVES_XNI).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) * (LAVES_XNI - xe_lav_Ni)**2 \
+        + 0.5 * ( diff(g_lavesLT, LAVES_XNB, LAVES_XNI).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
+                + diff(g_lavesLT, LAVES_XNI, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
+                ) * (LAVES_XNB - xe_lav_Nb) * (LAVES_XNI - xe_lav_Ni)
+
 # Generate first derivatives
 t_dGgam_dxCr = diff(t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
 t_dGgam_dxNb = diff(t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
@@ -439,6 +456,12 @@ c_laves = Piecewise((g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}),
                      Gt(LAVES_XNI, 0) & Le(LAVES_XNI, fr2by3))       ,
                     (t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), True))
 
+c_lavesLT = Piecewise((g_lavesLT.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}),
+                     Gt(LAVES_XCR, 0) & Lt(LAVES_XCR, 1)             &
+                     Gt(LAVES_XNB, 0) & Le(LAVES_XNB, fr1by3)        &
+                     Gt(LAVES_XNI, 0) & Le(LAVES_XNI, fr2by3))       ,
+                    (t_lavesLT.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), True))
+
 # Generate first derivatives
 c_dGgam_dxCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
 c_dGgam_dxNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
@@ -504,3 +527,18 @@ codegen([# Gibbs energies
         language='C', prefix='energy625', project='ALLOY625', to_files=True)
 
 print "Finished writing paraboloid, Taylor series, and CALPHAD energy functions to disk."
+
+# Generate numerically efficient system-composition expressions
+TG = lambdify([GAMMA_XCR, GAMMA_XNB], t_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
+TD = lambdify([DELTA_XCR, DELTA_XNB], t_delta, modules='sympy')
+TU = lambdify([MU_XCR,    MU_XNB],    t_mu.subs({MU_XNI: 1-MU_XCR-MU_XNB}), modules='sympy')
+TL = lambdify([LAVES_XCR, LAVES_XNB], t_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
+TLL= lambdify([LAVES_XCR, LAVES_XNB], t_lavesLT.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
+
+GG = lambdify([GAMMA_XCR, GAMMA_XNB], c_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
+GD = lambdify([DELTA_XCR, DELTA_XNB], c_delta, modules='sympy')
+GU = lambdify([MU_XCR,    MU_XNB],    c_mu.subs({MU_XNI: 1-MU_XCR-MU_XNB}), modules='sympy')
+GL = lambdify([LAVES_XCR, LAVES_XNB], c_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
+GLL= lambdify([LAVES_XCR, LAVES_XNB], c_lavesLT.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
+
+print "Finished lambdifying Taylor series and CALPHAD energy functions."
