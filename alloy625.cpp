@@ -176,8 +176,11 @@ const int root_max_iter = 500000; // default is 1000, increasing probably won't 
 const int logstep = 100000;       // steps between logging status
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
+#ifdef PARABOLIC
 const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
-
+#else
+const double LinStab = 1.0 / 30.12045;  // threshold of linear stability (von Neumann stability condition)
+#endif
 
 namespace MMSP
 {
@@ -735,18 +738,15 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			const T& C_gam_Cr = oldGridN[5]; // Cr molar fraction in pure gamma
 			const T& C_gam_Nb = oldGridN[6]; // Nb molar fraction in pure gamma
-			const T C_gam_Ni = 1.0 - C_gam_Cr - C_gam_Nb;
 
 			const T& C_del_Cr = oldGridN[7]; // Cr molar fraction in pure delta
 			const T& C_del_Nb = oldGridN[8]; // Nb molar fraction in pure delta
 
 			const T& C_mu_Cr  = oldGridN[9];  // Cr molar fraction in pure mu
 			const T& C_mu_Nb  = oldGridN[10]; // Nb molar fraction in pure mu
-			const T  C_mu_Ni = 1.0 - C_mu_Cr - C_mu_Nb;
 
 			const T& C_lav_Cr = oldGridN[11]; // Cr molar fraction in pure Laves
 			const T& C_lav_Nb = oldGridN[12]; // Nb molar fraction in pure Laves
-			const T  C_lav_Ni = 1.0 - C_lav_Cr - C_lav_Nb;
 
 			const double Ggam = g_gam(C_gam_Cr, C_gam_Nb);
 			const double Gdel = g_del(C_del_Cr, C_del_Nb);
@@ -758,23 +758,24 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * =================== */
 
 			// Laplacians of field variables
-			const double lapPhi_del = laplacian(oldGrid, x, 2);
-			const double lapPhi_mu  = laplacian(oldGrid, x, 3);
-			const double lapPhi_lav = laplacian(oldGrid, x, 4);
+			const vector<double> laplac = laplacian(oldGrid, x);
 
-			const double lapxCr_gam = laplacian(oldGrid, x, 5);
-			const double lapxNb_gam = laplacian(oldGrid, x, 6);
+			const double& lapPhi_del = laplac[2];
+			const double& lapPhi_mu  = laplac[3];
+			const double& lapPhi_lav = laplac[4];
+
+			const double& lapxCr_gam = laplac[5];
+			const double& lapxNb_gam = laplac[6];
 
 
 			// Diffusion potentials (at equilibrium, equal to chemical potentials)
-			// and "pressures"
 			const double pot_Cr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb);
 			const double pot_Nb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb);
-			const double pot_Ni = dg_gam_dxNi(C_gam_Cr, C_gam_Nb);
 
+			// "Pressures" between matrix and precipitate phases
 			const double P_del = Ggam - Gdel - (C_gam_Cr - C_del_Cr) * pot_Cr - (C_gam_Nb - C_del_Nb) * pot_Nb;
-			const double P_mu  = Ggam - Gmu  - (C_gam_Cr - C_mu_Cr)  * pot_Cr - (C_gam_Ni - C_mu_Ni)  * pot_Ni;
-			const double P_lav = Ggam - Glav - (C_gam_Nb - C_lav_Nb) * pot_Nb - (C_gam_Ni - C_lav_Ni) * pot_Ni;
+			const double P_mu  = Ggam - Gmu  - (C_gam_Cr - C_mu_Cr)  * pot_Cr - (C_gam_Nb - C_mu_Nb)  * pot_Nb;
+			const double P_lav = Ggam - Glav - (C_gam_Cr - C_lav_Cr) * pot_Cr - (C_gam_Nb - C_lav_Nb) * pot_Nb;
 
 			// Variational derivatives (scalar minus gradient term in Euler-Lagrange eqn)
 			double delF_delPhi_del = -sign(phi_del) * hprime(abs_phi_del) * P_del;
@@ -1089,17 +1090,24 @@ double gibbs(const MMSP::vector<double>& v)
 	double n_lav = h(fabs(v[4]));
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
 
+	MMSP::vector<double> vsq(NP-1);
+	double diagonal = 0.0;
+
+	for (int i=0; i<NP-1; i++) {
+		vsq[i] = v[NC+i]*v[NC+i];
+		diagonal += vsq[i];
+	}
+
 	double g  = n_gam * g_gam(v[5],  v[6]);
 	       g += n_del * g_del(v[7],  v[8]);
 	       g += n_mu  * g_mu( v[9],  v[10]);
 	       g += n_lav * g_lav(v[11], v[12]);
-	       g += omega_del * v[2]*v[2] * pow(1.0 - fabs(v[2]), 2);
-	       g += omega_mu  * v[3]*v[3] * pow(1.0 - fabs(v[3]), 2);
-	       g += omega_lav * v[4]*v[4] * pow(1.0 - fabs(v[4]), 2);
+	       g += omega_del * vsq[2-NC] * pow(1.0 - fabs(v[2]), 2);
+	       g += omega_mu  * vsq[3-NC] * pow(1.0 - fabs(v[3]), 2);
+	       g += omega_lav * vsq[4-NC] * pow(1.0 - fabs(v[4]), 2);
 
-	for (int i=NC; i<NC+NP-2; i++)
-		for (int j=i+1; j<NC+NP-1; j++)
-			g += 2.0 * alpha * v[i]*v[i] * v[j]*v[j];
+	// Trijunction penalty, using dot product
+	g += alpha * (vsq*vsq - diagonal);
 
 	return g;
 }
