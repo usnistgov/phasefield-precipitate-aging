@@ -463,39 +463,39 @@ c_lavesLT = Piecewise((g_lavesLT.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}),
                     (t_lavesLT.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), True))
 
 # Generate first derivatives
-c_dGgam_dxCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
-c_dGgam_dxNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
-c_dGgam_dxNi = diff(c_gamma, GAMMA_XNI)
+dGgam_dxCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
+dGgam_dxNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
+dGgam_dxNi = diff(c_gamma, GAMMA_XNI)
 
-c_dGdel_dxCr = diff(c_delta, DELTA_XCR)
-c_dGdel_dxNb = diff(c_delta, DELTA_XNB)
+dGdel_dxCr = diff(c_delta, DELTA_XCR)
+dGdel_dxNb = diff(c_delta, DELTA_XNB)
 
-c_dGmu_dxCr = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR)
-c_dGmu_dxNb = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB)
+dGmu_dxCr = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR)
+dGmu_dxNb = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB)
 
-c_dGlav_dxCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
-c_dGlav_dxNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
+dGlav_dxCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
+dGlav_dxNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
 
 # Generate optimized second derivatives
-c_d2Ggam_dxCrCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XCR)
-c_d2Ggam_dxCrNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XNB)
-c_d2Ggam_dxNbCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XCR)
-c_d2Ggam_dxNbNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XNB)
+d2Ggam_dxCrCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XCR)
+d2Ggam_dxCrNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XNB)
+d2Ggam_dxNbCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XCR)
+d2Ggam_dxNbNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XNB)
 
-c_d2Gdel_dxCrCr = diff(c_delta, DELTA_XCR, DELTA_XCR)
-c_d2Gdel_dxCrNb = diff(c_delta, DELTA_XCR, DELTA_XNB)
-c_d2Gdel_dxNbCr = diff(c_delta, DELTA_XNB, DELTA_XCR)
-c_d2Gdel_dxNbNb = diff(c_delta, DELTA_XNB, DELTA_XNB)
+d2Gdel_dxCrCr = diff(c_delta, DELTA_XCR, DELTA_XCR)
+d2Gdel_dxCrNb = diff(c_delta, DELTA_XCR, DELTA_XNB)
+d2Gdel_dxNbCr = diff(c_delta, DELTA_XNB, DELTA_XCR)
+d2Gdel_dxNbNb = diff(c_delta, DELTA_XNB, DELTA_XNB)
 
-c_d2Gmu_dxCrCr = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR, MU_XCR)
-c_d2Gmu_dxCrNb = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR, MU_XNB)
-c_d2Gmu_dxNbCr = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB, MU_XCR)
-c_d2Gmu_dxNbNb = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB, MU_XNB)
+d2Gmu_dxCrCr = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR, MU_XCR)
+d2Gmu_dxCrNb = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR, MU_XNB)
+d2Gmu_dxNbCr = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB, MU_XCR)
+d2Gmu_dxNbNb = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB, MU_XNB)
 
-c_d2Glav_dxCrCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XCR)
-c_d2Glav_dxCrNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XNB)
-c_d2Glav_dxNbCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XCR)
-c_d2Glav_dxNbNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XNB)
+d2Glav_dxCrCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XCR)
+d2Glav_dxCrNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XNB)
+d2Glav_dxNbCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XCR)
+d2Glav_dxNbNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XNB)
 
 # Write CALPHAD functions as C code
 codegen([# Gibbs energies
@@ -509,21 +509,21 @@ codegen([# Gibbs energies
          ('xe_mu_Cr',  xe_mu_Cr),  ('xe_mu_Nb',  xe_mu_Nb),
          ('xe_lav_Nb', xe_lav_Nb), ('xe_lav_Ni', xe_lav_Ni),
          # First derivatives
-         ('dg_gam_dxCr', c_dGgam_dxCr.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
-         ('dg_gam_dxNb', c_dGgam_dxNb.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
-         ('dg_gam_dxNi', c_dGgam_dxNi.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
-         ('dg_del_dxCr', c_dGdel_dxCr), ('dg_del_dxNb', c_dGdel_dxNb),
-         ('dg_mu_dxCr',  c_dGmu_dxCr),  ('dg_mu_dxNb',  c_dGmu_dxNb),
-         ('dg_lav_dxCr', c_dGlav_dxCr), ('dg_lav_dxNb', c_dGlav_dxNb),
+         ('dg_gam_dxCr', dGgam_dxCr.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
+         ('dg_gam_dxNb', dGgam_dxNb.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
+         ('dg_gam_dxNi', dGgam_dxNi.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
+         ('dg_del_dxCr', dGdel_dxCr), ('dg_del_dxNb', dGdel_dxNb),
+         ('dg_mu_dxCr',  dGmu_dxCr),  ('dg_mu_dxNb',  dGmu_dxNb),
+         ('dg_lav_dxCr', dGlav_dxCr), ('dg_lav_dxNb', dGlav_dxNb),
          # Second derivatives
-         ('d2g_gam_dxCrCr', c_d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', c_d2Ggam_dxCrNb),
-         ('d2g_gam_dxNbCr', c_d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', c_d2Ggam_dxNbNb),
-         ('d2g_del_dxCrCr', c_d2Gdel_dxCrCr), ('d2g_del_dxCrNb', c_d2Gdel_dxCrNb),
-         ('d2g_del_dxNbCr', c_d2Gdel_dxNbCr), ('d2g_del_dxNbNb', c_d2Gdel_dxNbNb),
-         ('d2g_mu_dxCrCr',  c_d2Gmu_dxCrCr),  ('d2g_mu_dxCrNb',  c_d2Gmu_dxCrNb),
-         ('d2g_mu_dxNbCr',  c_d2Gmu_dxNbCr),  ('d2g_mu_dxNbNb',  c_d2Gmu_dxNbNb),
-         ('d2g_lav_dxCrCr', c_d2Glav_dxCrCr), ('d2g_lav_dxCrNb', c_d2Glav_dxCrNb),
-         ('d2g_lav_dxNbCr', c_d2Glav_dxNbCr), ('d2g_lav_dxNbNb', c_d2Glav_dxNbNb)],
+         ('d2g_gam_dxCrCr', d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', d2Ggam_dxCrNb),
+         ('d2g_gam_dxNbCr', d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', d2Ggam_dxNbNb),
+         ('d2g_del_dxCrCr', d2Gdel_dxCrCr), ('d2g_del_dxCrNb', d2Gdel_dxCrNb),
+         ('d2g_del_dxNbCr', d2Gdel_dxNbCr), ('d2g_del_dxNbNb', d2Gdel_dxNbNb),
+         ('d2g_mu_dxCrCr',  d2Gmu_dxCrCr),  ('d2g_mu_dxCrNb',  d2Gmu_dxCrNb),
+         ('d2g_mu_dxNbCr',  d2Gmu_dxNbCr),  ('d2g_mu_dxNbNb',  d2Gmu_dxNbNb),
+         ('d2g_lav_dxCrCr', d2Glav_dxCrCr), ('d2g_lav_dxCrNb', d2Glav_dxCrNb),
+         ('d2g_lav_dxNbCr', d2Glav_dxNbCr), ('d2g_lav_dxNbNb', d2Glav_dxNbNb)],
         language='C', prefix='energy625', project='ALLOY625', to_files=True)
 
 print "Finished writing paraboloid, Taylor series, and CALPHAD energy functions to disk."
