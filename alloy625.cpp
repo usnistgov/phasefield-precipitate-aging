@@ -179,7 +179,7 @@ const int logstep = 100000;       // steps between logging status
 #ifdef PARABOLIC
 const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
 #else
-const double LinStab = 1.0 / 30.12045;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 15060.22;  // threshold of linear stability (von Neumann stability condition)
 #endif
 
 namespace MMSP
@@ -226,17 +226,27 @@ void generate(int dim, const char* filename)
 		if (rank==0)
 			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
-		const int Ndel = Nx / 3;
-		const int Ngam = Nx - Ndel;
-		const double csys[2] = {0.1500, 0.1500}; // system Cr, Nb composition
-		const double cdel[2] = {0.0125, 0.2500}; // precip Cr, Nb composition
+		const int Nprcp = Nx / 3;
+		const int Nmtrx = Nx - Nprcp;
+
+		//const int pid = NC+0;
+		//const double Csstm[2] = {0.1500, 0.1500}; // gamma-delta system Cr, Nb composition
+		//const double Cprcp[2] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
+
+		//const int pid = NC+1;
+		//const double Csstm[2] = {0.0500, 0.3500}; // gamma-mu system Cr, Nb composition
+		//const double Cprcp[2] = {0.0500, 0.4500}; // mu  precipitate Cr, Nb composition
+
+		const int pid = NC+2;
+		const double Csstm[2] = {0.3625, 0.1625}; // gamma-Laves system Cr, Nb composition
+		const double Cprcp[2] = {0.3625, 0.2750}; // Laves precipitate  Cr, Nb composition
 
 		/* ============================================ *
 		 * Two-phase test configuration                 *
 		 *                                              *
 		 * Seed a 1.0 um domain with a planar interface *
-		 * between gamma and delta as a simple test of  *
-		 * diffusion and phase equations                *
+		 * between gamma and precipitate as a simple    *
+		 * test of diffusion and phase equations        *
 		 * ============================================ */
 
 		for (int n=0; n<nodes(initGrid); n++) {
@@ -244,19 +254,19 @@ void generate(int dim, const char* filename)
 			vector<double>& initgridN = initGrid(n);
 
 			for (int i=NC; i<NC+NP-1; i++)
-				initgridN[i] = 0.0; //init_amp*real_gen(mt_rand);
+				initgridN[i] = 0.0;
 			for (int i=NC+NP-1; i<fields(initGrid); i++)
 				initgridN[i] = 0.0;
 
-			if (x[0] < Ndel) {
-				// Initialize delta with equilibrium composition (from phase diagram)
-				initgridN[0] = cdel[0];
-				initgridN[1] = cdel[1];
-				initgridN[2] = 1.0 - epsilon;
+			if (x[0] < Nprcp) {
+				// Initialize precipitate with equilibrium composition (from phase diagram)
+				initgridN[0] = Cprcp[0];
+				initgridN[1] = Cprcp[1];
+				initgridN[pid] = 1.0 - epsilon;
 			} else {
-				// Initialize gamma to satisfy (0.15, 0.15) system composition
-				initgridN[0] = (csys[0] * Nx - cdel[0] * Ndel) / Ngam;
-				initgridN[1] = (csys[1] * Nx - cdel[1] * Ndel) / Ngam;
+				// Initialize gamma to satisfy system composition
+				initgridN[0] = (Csstm[0] * Nx - Cprcp[0] * Nprcp) / Nmtrx;
+				initgridN[1] = (Csstm[1] * Nx - Cprcp[1] * Nprcp) / Nmtrx;
 			}
 
 		}
