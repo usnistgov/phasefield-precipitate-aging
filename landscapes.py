@@ -81,7 +81,7 @@ for ax in axarr.reshape(-1):
     n+=1
 plt.figtext(x=0.5, y=0.0625, ha='center', fontsize=8, \
             s=r'White triangles enclose Gibbs simplex, $x_{\mathrm{Cr}}+x_{\mathrm{Nb}}+x_{\mathrm{Ni}}=1$.')
-f.savefig('ternary.png', dpi=600, bbox_inches='tight')
+f.savefig('ternary.png', dpi=400, bbox_inches='tight')
 plt.close()
 
 files = ['diagrams/gamma_parabola.png', 'diagrams/delta_parabola.png', 'diagrams/mu_parabola.png', 'diagrams/Laves_parabola.png']
@@ -98,7 +98,7 @@ for n in range(len(z)):
     plt.margins(0,0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
-    plt.savefig(files[n], transparent=True, dpi=600, bbox_inches='tight', pad_inches=0)
+    plt.savefig(files[n], transparent=True, dpi=400, bbox_inches='tight', pad_inches=0)
     plt.close()
 
 
@@ -169,7 +169,7 @@ for ax in axarr.reshape(-1):
     n+=1
 plt.figtext(x=0.5, y=0.0625, ha='center', fontsize=8, \
             s=r'White triangles enclose Gibbs simplex, $x_{\mathrm{Cr}}+x_{\mathrm{Nb}}+x_{\mathrm{Ni}}=1$.')
-f.savefig('ternary_taylor.png', dpi=600, bbox_inches='tight')
+f.savefig('ternary_taylor.png', dpi=400, bbox_inches='tight')
 plt.close()
 
 files = ['diagrams/gamma_taylor.png', 'diagrams/delta_taylor.png', 'diagrams/mu_taylor.png', 'diagrams/Laves_taylor.png']
@@ -186,7 +186,7 @@ for n in range(len(z)):
     plt.margins(0,0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
-    plt.savefig(files[n], transparent=True, dpi=600, bbox_inches='tight', pad_inches=0)
+    plt.savefig(files[n], transparent=True, dpi=400, bbox_inches='tight', pad_inches=0)
     plt.close()
 
 '''
@@ -290,7 +290,7 @@ for n in range(len(G)):
     plt.margins(0,0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
-    plt.savefig(files[n], transparent=True, dpi=600, bbox_inches='tight', pad_inches=0)
+    plt.savefig(files[n], transparent=True, dpi=400, bbox_inches='tight', pad_inches=0)
     plt.close()
 
 
@@ -317,7 +317,7 @@ for ax in axarr.reshape(-1):
 
 plt.figtext(x=0.5, y=0.0625, ha='center', fontsize=8, \
             s=r'White triangles enclose Gibbs simplex, $x_{\mathrm{Cr}}+x_{\mathrm{Nb}}+x_{\mathrm{Ni}}=1$.')
-f.savefig('ternary_calphad.png', dpi=600, bbox_inches='tight')
+f.savefig('ternary_calphad.png', dpi=400, bbox_inches='tight')
 plt.close()
 
 '''

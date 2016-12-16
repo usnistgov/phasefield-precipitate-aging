@@ -124,6 +124,26 @@ YS = [0.0, simY(0),   simY(1),   0.0]
 XT = [0.25, simX(0.4875,0.025), simX(0.5375,0.4625), 0.25]
 YT = [0.0,  simY(0.025),        simY(0.4625),        0.0]
 
+# Tick marks along simplex edges
+Xtick = []
+Ytick = []
+for i in range(20):
+    # Cr-Ni edge
+    xcr = 0.05*i
+    xnb = -0.002
+    Xtick.append(simX(xnb, xcr))
+    Ytick.append(simY(xcr))
+    # Cr-Nb edge
+    xcr = 0.05*i
+    xnb = 1.002 - xcr
+    Xtick.append(simX(xnb, xcr))
+    Ytick.append(simY(xcr))
+    # Nb-Ni edge
+    xcr = -0.002
+    xnb = 0.05*i
+    Xtick.append(simX(xnb, xcr))
+    Ytick.append(simY(xcr))
+
 # Read CALPHAD database from disk, specify phases and elements of interest
 tdb = Database('Du_Cr-Nb-Ni_simple.tdb')
 elements = ['CR', 'NB', 'NI']
