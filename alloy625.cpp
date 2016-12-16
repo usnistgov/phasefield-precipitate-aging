@@ -189,10 +189,9 @@ void generate(int dim, const char* filename)
 {
 	int rank=0;
 	#ifdef MPI_VERSION
-
 	rank = MPI::COMM_WORLD.Get_rank();
-
  	#endif
+
 	// Utilize Mersenne Twister from C++11 standard
 	std::mt19937_64 mt_rand(time(NULL)+rank);
 	std::uniform_real_distribution<double> real_gen(-1,1);
@@ -273,17 +272,6 @@ void generate(int dim, const char* filename)
 
 
 		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-		#ifdef MPI_VERSION
-
-		for (int n=0; n<nodes(initGrid); n++) {
-			guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
-			guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
-			guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
-			guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
-		}
-
-		#else
-
 		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
 			#pragma omp critical
@@ -303,9 +291,6 @@ void generate(int dim, const char* filename)
 				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 			}
 		}
-
-		#endif
-
 
 		ghostswap(initGrid);
 
@@ -546,17 +531,6 @@ void generate(int dim, const char* filename)
 		}
 
 		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-		#ifdef MPI_VERSION
-
-		for (int n=0; n<nodes(initGrid); n++) {
-			guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
-			guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
-			guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
-			guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
-		}
-
-		#else
-
 		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
 			#pragma omp critical
@@ -576,9 +550,6 @@ void generate(int dim, const char* filename)
 				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 			}
 		}
-
-		#endif
-
 
 		ghostswap(initGrid);
 
@@ -656,11 +627,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		double totBadTangents = 0.0;
 
-		#ifndef MPI_VERSION
-
 		#pragma omp parallel for
-
-		#endif
 		for (int n=0; n<nodes(oldGrid); n++) {
 			vector<int> x = position(oldGrid,n);
 
@@ -672,29 +639,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double res = parallelTangentSolver.solve(oldGrid, n);
 
 			if (res>root_tol) {
-				#ifndef MPI_VERSION
-
 				#pragma omp critical
 				{
 				totBadTangents += 1.0;
 				}
 
-				#else
-
-				totBadTangents += 1.0;
-
-				#endif
-
 				// If guesses are invalid, this may cause errors.
-				#ifdef MPI_VERSION
-
-				guessGamma(oldGrid, n, mt_rand, real_gen, noise_amp);
-				guessDelta(oldGrid, n, mt_rand, real_gen, noise_amp);
-				guessMu(   oldGrid, n, mt_rand, real_gen, noise_amp);
-				guessLaves(oldGrid, n, mt_rand, real_gen, noise_amp);
-
-				#else
-
 				#pragma omp critical
 				{
 					guessGamma(oldGrid, n, mt_rand, real_gen, noise_amp);
@@ -711,17 +661,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				{
 					guessLaves(oldGrid, n, mt_rand, real_gen, noise_amp);
 				}
-
-				#endif
 			}
 
 		}
 
-		#ifndef MPI_VERSION
-
 		#pragma omp parallel for
-
-		#endif
 		for (int n=0; n<nodes(oldGrid); n++) {
 			/* ============================================== *
 			 * Point-wise kernel for parallel PDE integration *
@@ -1436,9 +1380,7 @@ MMSP::vector<double> summarize(const MMSP::grid<dim, MMSP::vector<T> >& GRID)
 	}
 	MMSP::vector<double> summary(7, 0.0);
 
-	#ifndef MPI_VERSION
 	#pragma omp parallel for
-	#endif
 	for (int n=0; n<MMSP::nodes(GRID); n++) {
 		MMSP::vector<int> x = MMSP::position(GRID,n);
 		MMSP::vector<T>& gridN = GRID(n);
@@ -1458,20 +1400,34 @@ MMSP::vector<double> summarize(const MMSP::grid<dim, MMSP::vector<T> >& GRID)
 		                              + kappa_lav * (gradPhi_lav * gradPhi_lav));
 		gridN[fields(GRID)-1] = static_cast<T>(myf);
 
-		#ifndef MPI_VERSION
 		#pragma omp critical
 		{
-		#endif
 			summary[0] += myCr;  // total Cr mass
-			summary[1] += myNb;  // total Nb mass
-			summary[3] += myDel; // total delta volume
-			summary[4] += myMu;  // total mu volume
-			summary[5] += myLav; // total Laves volume
-			summary[2] += myGam; // total gamma volume
-			summary[6] += myf;   // total free energy
-		#ifndef MPI_VERSION
 		}
-		#endif
+		#pragma omp critical
+		{
+			summary[1] += myNb;  // total Nb mass
+		}
+		#pragma omp critical
+		{
+			summary[2] += myGam; // total gamma volume
+		}
+		#pragma omp critical
+		{
+			summary[3] += myDel; // total delta volume
+		}
+		#pragma omp critical
+		{
+			summary[4] += myMu;  // total mu volume
+		}
+		#pragma omp critical
+		{
+			summary[5] += myLav; // total Laves volume
+		}
+		#pragma omp critical
+		{
+			summary[6] += myf;   // total free energy
+		}
 
 	}
 
@@ -1483,6 +1439,7 @@ MMSP::vector<double> summarize(const MMSP::grid<dim, MMSP::vector<T> >& GRID)
 	summary[5] /= Ntot;
 
 	#ifdef MPI_VERSION
+	MPI::COMM_WORLD.Barrier();
 	double myCr( summary[0]);
 	double myNb( summary[1]);
 	double myGam(summary[2]);

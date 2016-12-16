@@ -35,7 +35,7 @@ smp: alloy625.cpp
 
 # parallel program (distributed memory, MPI)
 parallel: alloy625.cpp
-	$(pcompiler) $(pflags) $< -o $@ $(links)
+	$(pcompiler) $(pflags) $< -o $@ $(links) -fopenmp
 
 
 clean:
