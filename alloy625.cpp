@@ -299,7 +299,7 @@ void generate(int dim, const char* filename)
 
 		ghostswap(initGrid);
 
-		vector<double> summary = summarize(initGrid);
+		vector<double> summary = summarize(initGrid, dt, initGrid);
 
 		if (rank==0)
 			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
@@ -572,7 +572,7 @@ void generate(int dim, const char* filename)
 
 		ghostswap(initGrid);
 
-		vector<double> summary = summarize(initGrid);
+		vector<double> summary = summarize(initGrid, dt, initGrid);
 
 		if (rank==0)
 			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
@@ -825,8 +825,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ~ fin ~ *
 			 * ======= */
 		}
-		swap(oldGrid,newGrid);
-		ghostswap(oldGrid);
+
+		ghostswap(newGrid);
 
 
 		/* ====================================================================== *
@@ -843,12 +843,15 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			#endif
 
-			vector<double> summary = summarize(oldGrid);
+			vector<double> summary = summarize(oldGrid, dt, newGrid);
+
 			if (rank==0)
 				fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
 				summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
 
 		}
+
+		swap(oldGrid, newGrid);
 
 		logcount++;
 
@@ -860,11 +863,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 }
 
 
-
-
 } // namespace MMSP
-
-
 
 
 
@@ -1416,26 +1415,29 @@ rootsolver::~rootsolver()
 
 
 template<int dim,class T>
-MMSP::vector<double> summarize(const MMSP::grid<dim, MMSP::vector<T> >& GRID)
+MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double dt,
+                               MMSP::grid<dim, MMSP::vector<T> >& newGrid)
 {
 	double Ntot = 1.0;
 	double dV = 1.0;
 	for (int d=0; d<dim; d++) {
-		Ntot *= MMSP::g1(GRID, d) - MMSP::g0(GRID, d);
-		dV *= MMSP::dx(GRID, d);
+		Ntot *= MMSP::g1(newGrid, d) - MMSP::g0(newGrid, d);
+		dV *= MMSP::dx(newGrid, d);
 	}
 	MMSP::vector<double> summary(7, 0.0);
 
 	#ifndef MPI_VERSION
 	#pragma omp parallel for
 	#endif
-	for (int n=0; n<MMSP::nodes(GRID); n++) {
-		MMSP::vector<int> x = MMSP::position(GRID,n);
-		MMSP::vector<T>& gridN = GRID(n);
+	for (int n=0; n<MMSP::nodes(newGrid); n++) {
+		MMSP::vector<int> x = MMSP::position(newGrid,n);
+		MMSP::vector<T>& gridN = newGrid(n);
 
-		MMSP::vector<double> gradPhi_del = MMSP::gradient(GRID, x, 2);
-		MMSP::vector<double> gradPhi_mu  = MMSP::gradient(GRID, x, 3);
-		MMSP::vector<double> gradPhi_lav = MMSP::gradient(GRID, x, 4);
+		//MMSP::vector<double> gradC_Cr = MMSP::gradient(newGrid, x, 0);
+		//MMSP::vector<double> gradC_Nb = MMSP::gradient(newGrid, x, 1);
+		MMSP::vector<double> gradPhi_del = MMSP::gradient(newGrid, x, 2);
+		MMSP::vector<double> gradPhi_mu  = MMSP::gradient(newGrid, x, 3);
+		MMSP::vector<double> gradPhi_lav = MMSP::gradient(newGrid, x, 4);
 
 		double myCr = gridN[0];
 		double myNb = gridN[1];
@@ -1446,7 +1448,24 @@ MMSP::vector<double> summarize(const MMSP::grid<dim, MMSP::vector<T> >& GRID)
 		double myf = dV*(gibbs(gridN) + kappa_del * (gradPhi_del * gradPhi_del)
 		                              + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 		                              + kappa_lav * (gradPhi_lav * gradPhi_lav));
-		gridN[fields(GRID)-1] = static_cast<T>(myf);
+
+		double magGrad[3] = {//std::sqrt(gradC_Cr * gradC_Cr),
+		                     //std::sqrt(gradC_Nb * gradC_Nb),
+		                     std::sqrt(gradPhi_del * gradPhi_del),
+		                     std::sqrt(gradPhi_mu  * gradPhi_mu ),
+		                     std::sqrt(gradPhi_lav * gradPhi_lav)
+		                    };
+
+		double v = -1.0;
+		for (int i=0; i<3; i++) {
+			double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
+			double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
+			#pragma omp critical
+			{
+			v = std::max(v, myv);
+			}
+		}
+		gridN[fields(newGrid)-1] = static_cast<T>(v);
 
 		#ifndef MPI_VERSION
 		#pragma omp critical
