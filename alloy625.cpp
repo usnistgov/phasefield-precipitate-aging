@@ -102,7 +102,7 @@ const double bell[NC] = {150.0e-9, 50.0e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
 const double meshres = 5.0e-9; //1.25e-9;    // grid spacing (m)
-const double Vm = 1.0e-5;         // molar volume (m^3/mol)
+//const double Vm = 1.0e-5;         // molar volume (m^3/mol)
 const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
 //#ifndef PARABOLIC
@@ -179,7 +179,7 @@ const int logstep = 100000;       // steps between logging status
 #ifdef PARABOLIC
 const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
 #else
-const double LinStab = 1.0 / 15060.22;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
 
 namespace MMSP
@@ -228,17 +228,27 @@ void generate(int dim, const char* filename)
 		const int Nprcp = Nx / 3;
 		const int Nmtrx = Nx - Nprcp;
 
-		//const int pid = NC+0;
-		//const double Csstm[2] = {0.1500, 0.1500}; // gamma-delta system Cr, Nb composition
-		//const double Cprcp[2] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
+		/*
+		const double Csstm[2] = {0.1500, 0.1500}; // gamma-delta system Cr, Nb composition
+		const double Cprcp[2] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
+		const int mid = 0;    // matrix phase
+		const int pid = NC+0; // delta phase
 
-		//const int pid = NC+1;
-		//const double Csstm[2] = {0.0500, 0.3500}; // gamma-mu system Cr, Nb composition
-		//const double Cprcp[2] = {0.0500, 0.4500}; // mu  precipitate Cr, Nb composition
+		const double Csstm[2] = {0.0500, 0.3500}; // gamma-mu system Cr, Nb composition
+		const double Cprcp[2] = {0.0500, 0.4500}; // mu  precipitate Cr, Nb composition
+		const int mid = 0;    // matrix phase
+		const int pid = NC+1; // mu phase
 
-		const int pid = NC+2;
 		const double Csstm[2] = {0.3625, 0.1625}; // gamma-Laves system Cr, Nb composition
 		const double Cprcp[2] = {0.3625, 0.2750}; // Laves precipitate  Cr, Nb composition
+		const int mid = 0;    // matrix phase
+		const int pid = NC+2; // Laves phase
+		*/
+
+		const double Csstm[2] = {0.2500, 0.2500}; // delta-Laves system Cr, Nb composition
+		const double Cprcp[2] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
+		const int mid = NC+2; // Laves phase
+		const int pid = NC+0; // delta phase
 
 		/* ============================================ *
 		 * Two-phase test configuration                 *
@@ -248,14 +258,13 @@ void generate(int dim, const char* filename)
 		 * test of diffusion and phase equations        *
 		 * ============================================ */
 
+		const vector<double> blank(fields(initGrid), 0.0);
+
 		for (int n=0; n<nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
 			vector<double>& initgridN = initGrid(n);
 
-			for (int i=NC; i<NC+NP-1; i++)
-				initgridN[i] = 0.0;
-			for (int i=NC+NP-1; i<fields(initGrid); i++)
-				initgridN[i] = 0.0;
+			initgridN = blank;
 
 			if (x[0] < Nprcp) {
 				// Initialize precipitate with equilibrium composition (from phase diagram)
@@ -266,6 +275,10 @@ void generate(int dim, const char* filename)
 				// Initialize gamma to satisfy system composition
 				initgridN[0] = (Csstm[0] * Nx - Cprcp[0] * Nprcp) / Nmtrx;
 				initgridN[1] = (Csstm[1] * Nx - Cprcp[1] * Nprcp) / Nmtrx;
+				if (mid == pid)
+					initgridN[mid] = -1.0 + epsilon;
+				else if (mid != 0)
+					initgridN[mid] = 1.0 - epsilon;
 			}
 
 		}

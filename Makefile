@@ -10,7 +10,7 @@ icompiler = icc
 gcompiler = /usr/bin/g++
 pcompiler = mpic++
 
-fflags = -O3  $(boiler) -DPARABOLIC
+fflags = -O3 $(boiler) -DPARABOLIC
 gflags = -pg $(boiler)
 pflags = -O3 $(boiler) -include mpi.h
 
@@ -37,7 +37,9 @@ smp: alloy625.cpp
 parallel: alloy625.cpp
 	$(pcompiler) $(pflags) $< -o $@ $(links) -fopenmp
 
+pgparallel: alloy625.cpp
+	$(pcompiler) -fastsse -Minfo -std=c++11 -I $(incdir) -include mpi.h $< -o $@ $(links) -mp
 
 clean:
-	rm -f alloy625 parallel smp
+	rm -f alloy625 parallel pgparallel smp
 
