@@ -158,7 +158,7 @@ const double omega_mu  = 9.5e8;  // multiwell height (m^2/Nsm^2)
 const double omega_lav = 9.5e8;  // multiwell height (m^2/Nsm^2)
 */
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
-const double ifce_width = 7.0*meshres; // ensure at least 7 points through the interface
+const double ifce_width = 10.0*meshres; // ensure at least 7 points through the interface
 const double omega_del = 3.0 * width_factor * sigma_del / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_mu  = 3.0 * width_factor * sigma_mu  / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
 const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8;  // multiwell height (J/m^3)
@@ -225,9 +225,6 @@ void generate(int dim, const char* filename)
 		if (rank==0)
 			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
-		const int Nprcp = Nx / 3;
-		const int Nmtrx = Nx - Nprcp;
-
 		/*
 		const double Csstm[2] = {0.1500, 0.1500}; // gamma-delta system Cr, Nb composition
 		const double Cprcp[2] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
@@ -243,12 +240,12 @@ void generate(int dim, const char* filename)
 		const double Cprcp[2] = {0.3625, 0.2750}; // Laves precipitate  Cr, Nb composition
 		const int mid = 0;    // matrix phase
 		const int pid = NC+2; // Laves phase
-		*/
 
 		const double Csstm[2] = {0.2500, 0.2500}; // delta-Laves system Cr, Nb composition
 		const double Cprcp[2] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
 		const int mid = NC+2; // Laves phase
 		const int pid = NC+0; // delta phase
+		*/
 
 		/* ============================================ *
 		 * Two-phase test configuration                 *
@@ -258,6 +255,9 @@ void generate(int dim, const char* filename)
 		 * test of diffusion and phase equations        *
 		 * ============================================ */
 
+		/*
+		const int Nprcp = Nx / 3;
+		const int Nmtrx = Nx - Nprcp;
 		const vector<double> blank(fields(initGrid), 0.0);
 
 		for (int n=0; n<nodes(initGrid); n++) {
@@ -282,7 +282,54 @@ void generate(int dim, const char* filename)
 			}
 
 		}
+		*/
 
+
+		/* ============================= *
+		 * Four-phase test configuration *
+		 * ============================= */
+
+		const int Nprcp[NP-1] = {Nx / 8, Nx / 8, Nx / 8}; // grid points per seed
+		const int Noff = Nx / (NP-1); // grid points between seeds
+		int Nmtrx = Nx; // grid points of matrix phase
+
+		const double Csstm[2] = {0.3000, 0.1625}; // system Cr, Nb composition
+		const double Cprcp[NP-1][2] = {{0.0125, 0.2500}, // delta
+		                               {0.0500, 0.4500}, // mu
+		                               {0.3625, 0.2750}  // Laves
+		                              }; // precipitate  Cr, Nb composition
+
+		double matCr = Csstm[0] * Nx;
+		double matNb = Csstm[1] * Nx;
+		for (int pid=0; pid < NP-1; pid++) {
+			matCr -= Cprcp[pid][0] * Nprcp[pid];
+			matNb -= Cprcp[pid][1] * Nprcp[pid];
+			Nmtrx -= Nprcp[pid];
+		}
+		matCr /= Nmtrx;
+		matNb /= Nmtrx;
+
+		const vector<double> blank(fields(initGrid), 0.0);
+
+		for (int n=0; n<nodes(initGrid); n++) {
+			vector<int> x = position(initGrid, n);
+			vector<double>& initgridN = initGrid(n);
+
+			initgridN = blank;
+
+			// Initialize gamma to satisfy system composition
+			initgridN[0] = matCr;
+			initgridN[1] = matNb;
+
+			for (int pid=0; pid < NP-1; pid++) {
+				if (x[0]>= pid*Noff && x[0] < pid*Noff + Nprcp[pid]) {
+					// Initialize precipitate with equilibrium composition (from phase diagram)
+					initgridN[0] = Cprcp[pid][0];
+					initgridN[1] = Cprcp[pid][1];
+					initgridN[NC+pid] = 1.0 - epsilon;
+				}
+			}
+		}
 
 		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 		#pragma omp parallel for
@@ -1398,8 +1445,6 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		MMSP::vector<int> x = MMSP::position(newGrid,n);
 		MMSP::vector<T>& gridN = newGrid(n);
 
-		//MMSP::vector<double> gradC_Cr = MMSP::gradient(newGrid, x, 0);
-		//MMSP::vector<double> gradC_Nb = MMSP::gradient(newGrid, x, 1);
 		MMSP::vector<double> gradPhi_del = MMSP::gradient(newGrid, x, 2);
 		MMSP::vector<double> gradPhi_mu  = MMSP::gradient(newGrid, x, 3);
 		MMSP::vector<double> gradPhi_lav = MMSP::gradient(newGrid, x, 4);
@@ -1413,26 +1458,29 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		double myf = dV*(gibbs(gridN) + kappa_del * (gradPhi_del * gradPhi_del)
 		                              + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 		                              + kappa_lav * (gradPhi_lav * gradPhi_lav));
-		//gridN[fields(GRID)-1] = static_cast<T>(myf);
 
-		double magGrad[3] = {//std::sqrt(gradC_Cr * gradC_Cr),
-		                     //std::sqrt(gradC_Nb * gradC_Nb),
-		                     std::sqrt(gradPhi_del * gradPhi_del),
+		double magGrad[NP-1] = {std::sqrt(gradPhi_del * gradPhi_del),
 		                     std::sqrt(gradPhi_mu  * gradPhi_mu ),
 		                     std::sqrt(gradPhi_lav * gradPhi_lav)
 		                    };
 
-		double v = -1.0;
-		for (int i=0; i<3; i++) {
-			double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
-			double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
-			#pragma omp critical
-			{
-			v = std::max(v, myv);
+		double vmax = 0.0;
+		for (int i=0; i<NP-1; i++) {
+			if (magGrad[i] > 0.1 && magGrad[i] < 0.9) {
+				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
+				double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
+				#pragma omp critical
+				{
+					vmax = std::max(vmax, myv);
+				}
 			}
 		}
-		gridN[fields(newGrid)-1] = static_cast<T>(v);
+		gridN[fields(newGrid)-1] = static_cast<T>(vmax);
 
+		#pragma omp critical
+		{
+			summary[0] += myCr;  // total Cr mass
+		}
 		#pragma omp critical
 		{
 			summary[1] += myNb;  // total Nb mass
@@ -1475,7 +1523,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 	double myDel(summary[3]);
 	double myMu( summary[4]);
 	double myLav(summary[5]);
-	double myF(  summary[6]);
+	double myv(  summary[6]);
 
 	MPI::COMM_WORLD.Reduce(&myCr,  &summary[0], 1, MPI_DOUBLE, MPI_SUM, 0);
 	MPI::COMM_WORLD.Reduce(&myNb,  &summary[1], 1, MPI_DOUBLE, MPI_SUM, 0);
@@ -1483,7 +1531,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 	MPI::COMM_WORLD.Reduce(&myDel, &summary[3], 1, MPI_DOUBLE, MPI_SUM, 0);
 	MPI::COMM_WORLD.Reduce(&myMu,  &summary[4], 1, MPI_DOUBLE, MPI_SUM, 0);
 	MPI::COMM_WORLD.Reduce(&myLav, &summary[5], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&myF,   &summary[6], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&myv,   &summary[6], 1, MPI_DOUBLE, MPI_SUM, 0);
 
 	MPI::COMM_WORLD.Barrier();
 	#endif
