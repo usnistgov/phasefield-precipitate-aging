@@ -197,13 +197,20 @@ void generate(int dim, const char* filename)
 	std::uniform_real_distribution<double> real_gen(-1,1);
 
 	FILE* cfile = NULL;
-	if (rank==0)
+	FILE* tfile = NULL;
+
+	if (rank==0) {
 		cfile = fopen("c.log", "w"); // existing log will be overwritten
+		tfile = fopen("c.log", "w"); // existing log will be overwritten
+	}
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * L_del*kappa_del); // transformation-limited timestep
 	//const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
 	const double dt = LinStab * std::min(dtp, dtc);
+
+	if (rank==0)
+		fprintf(tfile, "%11.9g\n", dt);
 
 	if (dim==1) {
 		// Construct grid
@@ -632,10 +639,17 @@ void generate(int dim, const char* filename)
 	} else
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
 
-	if (rank == 0)
+	if (rank == 0) {
 		fclose(cfile);
+		fclose(tfile);
+	}
 
 }
+
+
+
+
+
 
 template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int steps)
 {
@@ -677,11 +691,24 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	static int logcount = 1;
 
 	FILE* cfile = NULL;
+	FILE* tfile = NULL;
 
-	if (rank==0)
+	if (rank==0) {
 		cfile = fopen("c.log", "a"); // new results will be appended
+		tfile = fopen("t.log", "a"); // new results will be appended
+	}
 
-	for (int step=0; step<steps; step++) {
+
+	// Prepare reference and live values for adaptive timestepper
+	static double current_time = 0.0;
+	const double runtime = current_time + dt * (steps-1);
+	const double max_dt = dt / (3.0 * LinStab);
+	const double scaleup = 1.1; // how fast to raise dt when stable
+	const double scaledn = 0.8; // how fast to drop dt when unstable
+
+	double current_dt = dt;
+
+	for (int step=0; current_time < runtime; step++) {
 		if (rank==0)
 			print_progress(step, steps);
 
@@ -814,17 +841,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			newGridN[0] = xCr + dt * D_CrCr * lapxCr_gam + dt * D_CrNb * lapxNb_gam;
-			newGridN[1] = xNb + dt * D_NbCr * lapxCr_gam + dt * D_NbNb * lapxNb_gam;
+			newGridN[0] = xCr + current_dt * D_CrCr * lapxCr_gam + current_dt * D_CrNb * lapxNb_gam;
+			newGridN[1] = xNb + current_dt * D_NbCr * lapxCr_gam + current_dt * D_NbNb * lapxNb_gam;
 
 
 			/* ======================================== *
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
 
-			newGridN[2] = phi_del - dt * L_del * delF_delPhi_del;
-			newGridN[3] = phi_mu  - dt * L_mu  * delF_delPhi_mu ;
-			newGridN[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
+			newGridN[2] = phi_del - current_dt * L_del * delF_delPhi_del;
+			newGridN[3] = phi_mu  - current_dt * L_mu  * delF_delPhi_mu ;
+			newGridN[4] = phi_lav - current_dt * L_lav * delF_delPhi_lav;
 
 
 			/* =================================================== *
@@ -842,37 +869,65 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		ghostswap(newGrid);
 
+		// Update timestep based on interfacial velocity
+		const double interfacialVelocity = maxVelocity(oldGrid, current_dt, newGrid);
 
-		/* ====================================================================== *
-		 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
-		 * ====================================================================== */
+		if (interfacialVelocity > meshres / 10) {
+			// Update failed: solution is unstable
+			current_dt *= scaledn;
+			step--;
+		} else {
 
-		if (logcount == logstep) {
-			logcount = 0;
-			#ifdef MPI_VERSION
+			// Update time
+			current_time += current_dt;
 
-			totBadTangents /= Ntot;
-			double myBad(totBadTangents);
-			MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_DOUBLE, MPI_SUM, 0);
+			/* ====================================================================== *
+			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
+			 * ====================================================================== */
 
-			#endif
+			if (logcount == logstep) {
+				logcount = 0;
 
-			vector<double> summary = summarize(oldGrid, dt, newGrid);
+				#ifdef MPI_VERSION
+				totBadTangents /= Ntot;
+				double myBad(totBadTangents);
+				MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_DOUBLE, MPI_SUM, 0);
+				#endif
 
+				vector<double> summary = summarize(oldGrid, current_dt, newGrid);
+
+				if (rank==0)
+					fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
+					current_time, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
+
+			}
+
+			logcount++;
+
+			// Adapt timestep
 			if (rank==0)
-				fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
-				summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
+				fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
+
+			if (interfacialVelocity > 0.0) {
+				if ((current_time + current_dt > runtime) && (step < steps - 1))  {
+					// penultimate step
+					current_dt = runtime - current_time;
+					step = steps - 2;
+				} else {
+					current_dt *= scaleup;
+					current_dt = std::min(current_dt, max_dt);
+				}
+			}
+
+			swap(oldGrid, newGrid);
 
 		}
-
-		swap(oldGrid, newGrid);
-
-		logcount++;
-
 	}
 
-	if (rank==0)
+	if (rank==0) {
 		fclose(cfile);
+		fclose(tfile);
+	}
 
 }
 
@@ -1429,7 +1484,45 @@ rootsolver::~rootsolver()
 
 
 template<int dim,class T>
-MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double dt,
+double maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
+                   MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
+{
+	double vmax = -epsilon;
+	#pragma omp parallel for
+	for (int n=0; n<MMSP::nodes(newGrid); n++) {
+		MMSP::vector<int> x = MMSP::position(newGrid,n);
+		MMSP::vector<T>& gridN = newGrid(n);
+
+		const double phFrac[NP-1] = {h(fabs(gridN[2])), h(fabs(gridN[3])), h(fabs(gridN[4]))};
+
+		for (int i=0; i<NP-1; i++) {
+			if (phFrac[i] > 0.1 && phFrac[i] < 0.9) {
+				MMSP::vector<double> gradPhi = MMSP::gradient(newGrid, x, i+NC);
+
+				const double magGrad = std::sqrt(gradPhi * gradPhi);
+				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
+				double myv = (magGrad>epsilon) ? dphidt / magGrad : 0.0;
+				#pragma omp critical
+				{
+					vmax = std::max(vmax, myv);
+				}
+			}
+		}
+
+	}
+
+	#ifdef MPI_VERSION
+	MPI::COMM_WORLD.Barrier();
+	double myv(vmax);
+	MPI::COMM_WORLD.Allreduce(&myv, &vmax, 1, MPI_DOUBLE, MPI_MAX);
+	#endif
+
+	return vmax;
+}
+
+
+template<int dim,class T>
+MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
                                MMSP::grid<dim, MMSP::vector<T> >& newGrid)
 {
 	double Ntot = 1.0;
@@ -1459,14 +1552,15 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		                              + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 		                              + kappa_lav * (gradPhi_lav * gradPhi_lav));
 
+		double phFrac[NP-1] = {myDel, myMu, myLav};
 		double magGrad[NP-1] = {std::sqrt(gradPhi_del * gradPhi_del),
-		                     std::sqrt(gradPhi_mu  * gradPhi_mu ),
-		                     std::sqrt(gradPhi_lav * gradPhi_lav)
-		                    };
+		                        std::sqrt(gradPhi_mu  * gradPhi_mu ),
+		                        std::sqrt(gradPhi_lav * gradPhi_lav)
+		                       };
 
 		double vmax = 0.0;
 		for (int i=0; i<NP-1; i++) {
-			if (magGrad[i] > 0.1 && magGrad[i] < 0.9) {
+			if (phFrac[i] > 0.1 && phFrac[i] < 0.9) {
 				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
 				double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
 				#pragma omp critical
