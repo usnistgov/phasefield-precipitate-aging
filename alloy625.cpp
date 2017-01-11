@@ -165,8 +165,9 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
+const bool adaptStep = true;     // apply adaptive time-stepping?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
-const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
+const double epsilon = 1.0e-12;  // what to consider zero to avoid log(c) explosions
 const double noise_amp = 1.0e-5; // amplitude of noise in replacement compositions for failed parallel tangents
 const double init_amp = 0.0;     // amplitude of noise in initial parallel tangent compositions
 
@@ -177,11 +178,10 @@ const int logstep = 100000;       // steps between logging status
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifdef PARABOLIC
-const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = (adaptStep) ? 1.0 / 37.65055 : 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
 #else
 const double LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
-
 namespace MMSP
 {
 
@@ -201,7 +201,7 @@ void generate(int dim, const char* filename)
 
 	if (rank==0) {
 		cfile = fopen("c.log", "w"); // existing log will be overwritten
-		tfile = fopen("c.log", "w"); // existing log will be overwritten
+		tfile = fopen("t.log", "w"); // existing log will be overwritten
 	}
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * L_del*kappa_del); // transformation-limited timestep
@@ -338,6 +338,8 @@ void generate(int dim, const char* filename)
 			}
 		}
 
+		double totBadTangents = 0.0;
+
 		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
@@ -357,6 +359,39 @@ void generate(int dim, const char* filename)
 			{
 				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 			}
+
+			/* =========================== *
+			 * Solve for parallel tangents *
+			 * =========================== */
+
+			rootsolver parallelTangentSolver;
+			double res = parallelTangentSolver.solve(initGrid, n);
+
+			if (res>root_tol) {
+				#pragma omp critical
+				{
+					totBadTangents += 1.0;
+				}
+
+				// If guesses are invalid, this may cause errors.
+				#pragma omp critical
+				{
+					guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+			}
+
 		}
 
 		ghostswap(initGrid);
@@ -365,7 +400,7 @@ void generate(int dim, const char* filename)
 
 		if (rank==0)
 			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
-			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], 0.0);
+			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
 
 		if (rank==0) {
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
@@ -597,6 +632,8 @@ void generate(int dim, const char* filename)
 			}
 		}
 
+		double totBadTangents = 0.0;
+
 		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
@@ -616,6 +653,38 @@ void generate(int dim, const char* filename)
 			{
 				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 			}
+
+			/* =========================== *
+			 * Solve for parallel tangents *
+			 * =========================== */
+
+			rootsolver parallelTangentSolver;
+			double res = parallelTangentSolver.solve(initGrid, n);
+
+			if (res>root_tol) {
+				#pragma omp critical
+				{
+					totBadTangents += 1.0;
+				}
+
+				// If guesses are invalid, this may cause errors.
+				#pragma omp critical
+				{
+					guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+			}
 		}
 
 		ghostswap(initGrid);
@@ -624,7 +693,7 @@ void generate(int dim, const char* filename)
 
 		if (rank==0)
 			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
-			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], 0.0);
+			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
 
 		if (rank==0) {
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
@@ -702,7 +771,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	// Prepare reference and live values for adaptive timestepper
 	static double current_time = 0.0;
 	const double runtime = current_time + dt * (steps-1);
-	const double max_dt = dt / (3.0 * LinStab);
+	const double timelimit = std::min(dtp, dtc) / 5;
+	const double speedlimit = meshres / 10;
 	const double scaleup = 1.1; // how fast to raise dt when stable
 	const double scaledn = 0.8; // how fast to drop dt when unstable
 
@@ -712,55 +782,15 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (rank==0)
 			print_progress(step, steps);
 
-		double totBadTangents = 0.0;
-
-		#pragma omp parallel for
-		for (int n=0; n<nodes(oldGrid); n++) {
-			vector<int> x = position(oldGrid,n);
-
-			/* =========================== *
-			 * Solve for parallel tangents *
-			 * =========================== */
-
-			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(oldGrid, n);
-
-			if (res>root_tol) {
-				#pragma omp critical
-				{
-				totBadTangents += 1.0;
-				}
-
-				// If guesses are invalid, this may cause errors.
-				#pragma omp critical
-				{
-					guessGamma(oldGrid, n, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessDelta(oldGrid, n, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessMu(   oldGrid, n, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessLaves(oldGrid, n, mt_rand, real_gen, noise_amp);
-				}
-			}
-
-		}
-
 		#pragma omp parallel for
 		for (int n=0; n<nodes(oldGrid); n++) {
 			/* ============================================== *
 			 * Point-wise kernel for parallel PDE integration *
 			 * ============================================== */
-
 			vector<int> x = position(oldGrid,n);
-			vector<T>& oldGridN = oldGrid(x);
-			vector<T>& newGridN = newGrid(x);
+
+			vector<T>& oldGridN = oldGrid(n);
+			vector<T>& newGridN = newGrid(n);
 
 			/* ================= *
 			 * Collect Constants *
@@ -854,14 +884,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			newGridN[4] = phi_lav - current_dt * L_lav * delF_delPhi_lav;
 
 
-			/* =================================================== *
-			 * Store old parallel tangent solutions as new guesses *
-			 * =================================================== */
-
-			for (int i=NC+NP-1; i<fields(newGrid)-1; i++)
-				newGridN[i] = oldGridN[i];
-
-
 			/* ======= *
 			 * ~ fin ~ *
 			 * ======= */
@@ -872,18 +894,51 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		// Update timestep based on interfacial velocity
 		const double interfacialVelocity = maxVelocity(oldGrid, current_dt, newGrid);
 
-		if (interfacialVelocity > meshres / 10) {
-			// Update failed: solution is unstable
-			current_dt *= scaledn;
-			step--;
-		} else {
+		if (interfacialVelocity < speedlimit) {
+			// Update succeeded: process solution
 
-			// Update time
-			current_time += current_dt;
+			/* =========================== *
+			 * Solve for parallel tangents *
+			 * =========================== */
+
+			double totBadTangents = 0.0;
+
+			#pragma omp parallel for
+			for (int n=0; n<nodes(newGrid); n++) {
+				rootsolver parallelTangentSolver;
+				double res = parallelTangentSolver.solve(newGrid, n);
+
+				if (res>root_tol) {
+					#pragma omp critical
+					{
+						totBadTangents += 1.0;
+					}
+
+					// If guesses are invalid, this may cause errors.
+					#pragma omp critical
+					{
+						guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
+					}
+					#pragma omp critical
+					{
+						guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
+					}
+					#pragma omp critical
+					{
+						guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
+					}
+					#pragma omp critical
+					{
+						guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
+					}
+				}
+			}
 
 			/* ====================================================================== *
 			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 			 * ====================================================================== */
+
+			current_time += current_dt; // increment before output block
 
 			if (logcount == logstep) {
 				logcount = 0;
@@ -902,25 +957,40 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			}
 
-			logcount++;
+			logcount++; // increment after output block
 
-			// Adapt timestep
-			if (rank==0)
-				fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
+			if (adaptStep) {
+				// Adapt timestep
+				if (rank==0)
+					fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
 
-			if (interfacialVelocity > 0.0) {
-				if ((current_time + current_dt > runtime) && (step < steps - 1))  {
-					// penultimate step
-					current_dt = runtime - current_time;
-					step = steps - 2;
-				} else {
-					current_dt *= scaleup;
-					current_dt = std::min(current_dt, max_dt);
+				if (interfacialVelocity > 0.0) {
+					if ((current_time + current_dt > runtime) && (step < steps - 1))  {
+						// penultimate step
+						current_dt = runtime - current_time;
+						step = steps - 2;
+					} else {
+						current_dt *= scaleup;
+						current_dt = std::min(current_dt, timelimit);
+					}
 				}
 			}
 
 			swap(oldGrid, newGrid);
 
+		} else {
+			// Update failed: solution is unstable
+			if (adaptStep) {
+				current_dt *= scaledn;
+				step--;
+			} else {
+				if (rank==0) {
+					std::cerr<<"ERROR: Interfacial velocity exceeded speed limit, timestep is too aggressive!"<<std::endl;
+					fclose(cfile);
+					fclose(tfile);
+				}
+				MMSP::Abort(-1);
+			}
 		}
 	}
 
@@ -1501,7 +1571,7 @@ double maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double con
 
 				const double magGrad = std::sqrt(gradPhi * gradPhi);
 				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
-				double myv = (magGrad>epsilon) ? dphidt / magGrad : 0.0;
+				double myv = (dphidt>epsilon && magGrad>epsilon) ? dphidt / magGrad : -epsilon;
 				#pragma omp critical
 				{
 					vmax = std::max(vmax, myv);
@@ -1562,7 +1632,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		for (int i=0; i<NP-1; i++) {
 			if (phFrac[i] > 0.1 && phFrac[i] < 0.9) {
 				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
-				double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
+				double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0;
 				#pragma omp critical
 				{
 					vmax = std::max(vmax, myv);
