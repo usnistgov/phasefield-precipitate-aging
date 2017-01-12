@@ -165,7 +165,7 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
-const bool adaptStep = true;     // apply adaptive time-stepping?
+const bool adaptStep = false;     // apply adaptive time-stepping?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-12;  // what to consider zero to avoid log(c) explosions
 const double noise_amp = 1.0e-5; // amplitude of noise in replacement compositions for failed parallel tangents
@@ -178,7 +178,7 @@ const int logstep = 100000;       // steps between logging status
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifdef PARABOLIC
-const double LinStab = (adaptStep) ? 1.0 / 37.65055 : 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
 #else
 const double LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
@@ -210,7 +210,7 @@ void generate(int dim, const char* filename)
 	const double dt = LinStab * std::min(dtp, dtc);
 
 	if (rank==0)
-		fprintf(tfile, "%11.9g\n", dt);
+		fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", 0.0, 0.0, dt);
 
 	if (dim==1) {
 		// Construct grid
@@ -287,7 +287,6 @@ void generate(int dim, const char* filename)
 				else if (mid != 0)
 					initgridN[mid] = 1.0 - epsilon;
 			}
-
 		}
 		*/
 
@@ -769,18 +768,24 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 
 	// Prepare reference and live values for adaptive timestepper
-	static double current_time = 0.0;
-	const double runtime = current_time + dt * (steps-1);
+	double current_time = 0.0;
+	double current_dt = dt;
+
+	const double run_time = current_time + dt * steps;
 	const double timelimit = std::min(dtp, dtc) / 5;
 	const double speedlimit = meshres / 10;
 	const double scaleup = 1.1; // how fast to raise dt when stable
 	const double scaledn = 0.8; // how fast to drop dt when unstable
 
-	double current_dt = dt;
 
-	for (int step=0; current_time < runtime; step++) {
+	while (current_time < run_time) {
+		// If this is the last step, make it precisely fit
+		current_dt = std::min(current_dt, run_time - current_time);
+
 		if (rank==0)
-			print_progress(step, steps);
+			print_progress(current_time / current_dt, run_time / current_dt);
+
+		double totBadTangents = 0.0;
 
 		#pragma omp parallel for
 		for (int n=0; n<nodes(oldGrid); n++) {
@@ -789,8 +794,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ============================================== */
 			vector<int> x = position(oldGrid,n);
 
-			vector<T>& oldGridN = oldGrid(n);
-			vector<T>& newGridN = newGrid(n);
+			vector<T>& oldGridN = oldGrid(x);
+			vector<T>& newGridN = newGrid(x);
 
 			/* ================= *
 			 * Collect Constants *
@@ -871,8 +876,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			newGridN[0] = xCr + current_dt * D_CrCr * lapxCr_gam + current_dt * D_CrNb * lapxNb_gam;
-			newGridN[1] = xNb + current_dt * D_NbCr * lapxCr_gam + current_dt * D_NbNb * lapxNb_gam;
+			newGridN[0] = xCr + current_dt * (D_CrCr * lapxCr_gam + D_CrNb * lapxNb_gam);
+			newGridN[1] = xNb + current_dt * (D_NbCr * lapxCr_gam + D_NbNb * lapxNb_gam);
 
 
 			/* ======================================== *
@@ -883,25 +888,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			newGridN[3] = phi_mu  - current_dt * L_mu  * delF_delPhi_mu ;
 			newGridN[4] = phi_lav - current_dt * L_lav * delF_delPhi_lav;
 
-
-			/* ======= *
-			 * ~ fin ~ *
-			 * ======= */
-		}
-
-		ghostswap(newGrid);
-
-		// Update timestep based on interfacial velocity
-		const double interfacialVelocity = maxVelocity(oldGrid, current_dt, newGrid);
-
-		if (interfacialVelocity < speedlimit) {
-			// Update succeeded: process solution
-
 			/* =========================== *
 			 * Solve for parallel tangents *
 			 * =========================== */
-
-			double totBadTangents = 0.0;
 
 			#pragma omp parallel for
 			for (int n=0; n<nodes(newGrid); n++) {
@@ -934,11 +923,23 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				}
 			}
 
+			/* ======= *
+			 * ~ fin ~ *
+			 * ======= */
+		}
+
+		ghostswap(newGrid);
+
+		// Update timestep based on interfacial velocity
+		const double interfacialVelocity = maxVelocity(oldGrid, current_dt, newGrid);
+
+		if (interfacialVelocity < speedlimit) {
+			// Update succeeded: process solution
+			current_time += current_dt; // increment before output block
+
 			/* ====================================================================== *
 			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 			 * ====================================================================== */
-
-			current_time += current_dt; // increment before output block
 
 			if (logcount == logstep) {
 				logcount = 0;
@@ -965,14 +966,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 					fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
 
 				if (interfacialVelocity > 0.0) {
-					if ((current_time + current_dt > runtime) && (step < steps - 1))  {
-						// penultimate step
-						current_dt = runtime - current_time;
-						step = steps - 2;
-					} else {
-						current_dt *= scaleup;
-						current_dt = std::min(current_dt, timelimit);
-					}
+					current_dt *= scaleup;
+					current_dt = std::min(current_time, timelimit);
 				}
 			}
 
@@ -982,7 +977,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			// Update failed: solution is unstable
 			if (adaptStep) {
 				current_dt *= scaledn;
-				step--;
+				//step--;
 			} else {
 				if (rank==0) {
 					std::cerr<<"ERROR: Interfacial velocity exceeded speed limit, timestep is too aggressive!"<<std::endl;
@@ -1632,7 +1627,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		for (int i=0; i<NP-1; i++) {
 			if (phFrac[i] > 0.1 && phFrac[i] < 0.9) {
 				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
-				double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0;
+				double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : -epsilon;
 				#pragma omp critical
 				{
 					vmax = std::max(vmax, myv);
