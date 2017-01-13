@@ -35,7 +35,10 @@ smp: alloy625.cpp
 
 # parallel program (distributed memory, MPI)
 parallel: alloy625.cpp
-	$(pcompiler) $(pflags) $< -o $@ $(links) -fopenmp
+	$(pcompiler) $(pflags) $< -o $@ $(links)
+
+ibtest: alloy625.cpp
+	mpicxx.mpich2 $(pflags) $< -o $@ $(links)
 
 pgparallel: alloy625.cpp
 	$(pcompiler) -fastsse -Minfo -std=c++11 -I $(incdir) -include mpi.h $< -o $@ $(links) -mp

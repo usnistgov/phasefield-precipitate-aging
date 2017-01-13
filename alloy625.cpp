@@ -167,7 +167,7 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
 const bool adaptStep = false;     // apply adaptive time-stepping?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
-const double epsilon = 1.0e-12;  // what to consider zero to avoid log(c) explosions
+const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
 const double noise_amp = 1.0e-5; // amplitude of noise in replacement compositions for failed parallel tangents
 const double init_amp = 0.0;     // amplitude of noise in initial parallel tangent compositions
 
@@ -778,12 +778,16 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	const double scaledn = 0.8; // how fast to drop dt when unstable
 
 
-	while (current_time < run_time) {
-		// If this is the last step, make it precisely fit
-		current_dt = std::min(current_dt, run_time - current_time);
-
+	//while (current_time < run_time) {
+	for (int step = 0; step < steps; step++) {
 		if (rank==0)
-			print_progress(current_time / current_dt, run_time / current_dt);
+			print_progress(step, steps);
+			//print_progress(current_time / current_dt, run_time / current_dt);
+
+		if (adaptStep) {
+		    // If this is the last step, make it precisely fit
+			current_dt = std::min(current_dt, run_time - current_time);
+		}
 
 		double totBadTangents = 0.0;
 
