@@ -311,6 +311,8 @@ void generate(int dim, const char* filename)
 
 		const vector<double> blank(fields(initGrid), 0.0);
 
+		double totBadTangents = 0.0;
+
 		for (int n=0; n<nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
 			vector<double>& initgridN = initGrid(n);
@@ -329,11 +331,8 @@ void generate(int dim, const char* filename)
 					initgridN[NC+pid] = 1.0 - epsilon;
 				}
 			}
-		}
 
-		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-		#pragma omp parallel for
-		for (int n=0; n<nodes(initGrid); n++) {
+			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 			#pragma omp critical
 			{
 				guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
@@ -350,6 +349,39 @@ void generate(int dim, const char* filename)
 			{
 				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 			}
+
+			/* =========================== *
+			 * Solve for parallel tangents *
+			 * =========================== */
+
+			rootsolver parallelTangentSolver;
+			double res = parallelTangentSolver.solve(initGrid, n);
+
+			if (res>root_tol) {
+				#pragma omp critical
+				{
+				totBadTangents += 1.0;
+				}
+
+				// If guesses are invalid, this may cause errors.
+				#pragma omp critical
+				{
+					guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+			}
+
 		}
 
 		ghostswap(initGrid);
@@ -358,7 +390,7 @@ void generate(int dim, const char* filename)
 
 		if (rank==0)
 			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
-			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], 0.0);
+			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
 
 		if (rank==0) {
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
@@ -578,6 +610,8 @@ void generate(int dim, const char* filename)
 		matCr /= Nmat;
 		matNb /= Nmat;
 
+		double totBadTangents = 0.0;
+
 		for (int n=0; n<nodes(initGrid); n++) {
 			double nx = 0.0;
 			vector<double>& initgridN = initGrid(n);
@@ -588,11 +622,8 @@ void generate(int dim, const char* filename)
 				initgridN[0] += matCr;
 				initgridN[1] += matNb;
 			}
-		}
 
-		// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-		#pragma omp parallel for
-		for (int n=0; n<nodes(initGrid); n++) {
+			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 			#pragma omp critical
 			{
 				guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
@@ -609,6 +640,38 @@ void generate(int dim, const char* filename)
 			{
 				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
 			}
+
+			/* =========================== *
+			 * Solve for parallel tangents *
+			 * =========================== */
+
+			rootsolver parallelTangentSolver;
+			double res = parallelTangentSolver.solve(initGrid, n);
+
+			if (res>root_tol) {
+				#pragma omp critical
+				{
+				totBadTangents += 1.0;
+				}
+
+				// If guesses are invalid, this may cause errors.
+				#pragma omp critical
+				{
+					guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+				}
+			}
 		}
 
 		ghostswap(initGrid);
@@ -617,7 +680,7 @@ void generate(int dim, const char* filename)
 
 		if (rank==0)
 			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
-			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], 0.0);
+			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
 
 		if (rank==0) {
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
@@ -686,44 +749,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			print_progress(step, steps);
 
 		double totBadTangents = 0.0;
-
-		#pragma omp parallel for
-		for (int n=0; n<nodes(oldGrid); n++) {
-			vector<int> x = position(oldGrid,n);
-
-			/* =========================== *
-			 * Solve for parallel tangents *
-			 * =========================== */
-
-			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(oldGrid, n);
-
-			if (res>root_tol) {
-				#pragma omp critical
-				{
-				totBadTangents += 1.0;
-				}
-
-				// If guesses are invalid, this may cause errors.
-				#pragma omp critical
-				{
-					guessGamma(oldGrid, n, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessDelta(oldGrid, n, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessMu(   oldGrid, n, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessLaves(oldGrid, n, mt_rand, real_gen, noise_amp);
-				}
-			}
-
-		}
 
 		#pragma omp parallel for
 		for (int n=0; n<nodes(oldGrid); n++) {
@@ -827,12 +852,37 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			newGridN[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
 
 
-			/* =================================================== *
-			 * Store old parallel tangent solutions as new guesses *
-			 * =================================================== */
+			/* =========================== *
+			 * Solve for parallel tangents *
+			 * =========================== */
 
-			for (int i=NC+NP-1; i<fields(newGrid)-1; i++)
-				newGridN[i] = oldGridN[i];
+			rootsolver parallelTangentSolver;
+			double res = parallelTangentSolver.solve(newGrid, n);
+
+			if (res>root_tol) {
+				#pragma omp critical
+				{
+				totBadTangents += 1.0;
+				}
+
+				// If guesses are invalid, this may cause errors.
+				#pragma omp critical
+				{
+					guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
+				}
+				#pragma omp critical
+				{
+					guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
+				}
+			}
 
 
 			/* ======= *
