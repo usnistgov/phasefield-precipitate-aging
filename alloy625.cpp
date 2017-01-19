@@ -313,6 +313,7 @@ void generate(int dim, const char* filename)
 
 		double totBadTangents = 0.0;
 
+		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
 			vector<double>& initgridN = initGrid(n);
@@ -612,6 +613,7 @@ void generate(int dim, const char* filename)
 
 		double totBadTangents = 0.0;
 
+		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
 			double nx = 0.0;
 			vector<double>& initgridN = initGrid(n);
@@ -890,7 +892,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ======= */
 		}
 
-		ghostswap(newGrid);
+		swap(oldGrid, newGrid);
+		ghostswap(oldGrid);
 
 
 		/* ====================================================================== *
@@ -899,23 +902,20 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		if (logcount == logstep) {
 			logcount = 0;
-			#ifdef MPI_VERSION
 
+			#ifdef MPI_VERSION
 			totBadTangents /= Ntot;
 			double myBad(totBadTangents);
 			MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_DOUBLE, MPI_SUM, 0);
-
 			#endif
 
-			vector<double> summary = summarize(oldGrid, dt, newGrid);
+			vector<double> summary = summarize(newGrid, dt, oldGrid);
 
 			if (rank==0)
 				fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
 				summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
 
 		}
-
-		swap(oldGrid, newGrid);
 
 		logcount++;
 
