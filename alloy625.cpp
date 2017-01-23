@@ -92,8 +92,8 @@
 // of the secondary phases to maintain the system's nominal composition.
 //                        Nominal |     phase diagram      | Enriched
 //                        gamma   | delta    mu     laves  | gamma (Excess)
-const double xCr[NP+1] = {0.30,     0.0125,  0.04,  0.3875,  0.31-0.30};
-const double xNb[NP+1] = {0.02,     0.2500,  0.50,  0.2500,  0.13-0.02};
+const double xCr[NP+2] = {0.30,     0.0125,  0.04,  0.3875,  0.31-0.30};
+const double xNb[NP+2] = {0.02,     0.2500,  0.50,  0.2500,  0.13-0.02};
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                         Cr      Nb
@@ -282,19 +282,19 @@ void generate(int dim, const char* filename)
 		 * Four-phase test configuration *
 		 * ============================= */
 
-		const int Nprcp[NP-1] = {Nx / 8, Nx / 8, Nx / 8}; // grid points per seed
-		const int Noff = Nx / (NP-1); // grid points between seeds
+		const int Nprcp[NP] = {Nx / 8, Nx / 8, Nx / 8}; // grid points per seed
+		const int Noff = Nx / NP; // grid points between seeds
 		int Nmtrx = Nx; // grid points of matrix phase
 
 		const double Csstm[2] = {0.3000, 0.1625}; // system Cr, Nb composition
-		const double Cprcp[NP-1][2] = {{0.0125, 0.2500}, // delta
+		const double Cprcp[NP][2] = {{0.0125, 0.2500}, // delta
 		                               {0.0500, 0.4500}, // mu
 		                               {0.3625, 0.2750}  // Laves
 		                              }; // precipitate  Cr, Nb composition
 
 		double matCr = Csstm[0] * Nx;
 		double matNb = Csstm[1] * Nx;
-		for (int pid=0; pid < NP-1; pid++) {
+		for (int pid=0; pid < NP; pid++) {
 			matCr -= Cprcp[pid][0] * Nprcp[pid];
 			matNb -= Cprcp[pid][1] * Nprcp[pid];
 			Nmtrx -= Nprcp[pid];
@@ -317,7 +317,7 @@ void generate(int dim, const char* filename)
 			initGridN[0] = matCr;
 			initGridN[1] = matNb;
 
-			for (int pid=0; pid < NP-1; pid++) {
+			for (int pid=0; pid < NP; pid++) {
 				if (x[0]>= pid*Noff && x[0] < pid*Noff + Nprcp[pid]) {
 					// Initialize precipitate with equilibrium composition (from phase diagram)
 					initGridN[0] = Cprcp[pid][0];
@@ -395,7 +395,7 @@ void generate(int dim, const char* filename)
 
 		// Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
 		//                    minimum for numerical stability is 14*dx (due to interface width).
-		const double rPrecip[NP-1] = {3.0*7.5e-9 / dx(initGrid,0),  // delta
+		const double rPrecip[NP] = {3.0*7.5e-9 / dx(initGrid,0),  // delta
 		                              3.0*7.5e-9 / dx(initGrid,0),  // mu
 		                              3.0*7.5e-9 / dx(initGrid,0)}; // Laves
 
@@ -404,7 +404,7 @@ void generate(int dim, const char* filename)
 		if (rank==0)
 			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
-		for (int i=0; i<NP-1; i++) {
+		for (int i=0; i<NP; i++) {
 			if (rPrecip[i] > Ny/2)
 				std::cerr << "Warning: domain too small to accommodate phase " << i << ", expand beyond " << 2.0*rPrecip[i] << " pixels." << std::endl;
 		}
@@ -557,7 +557,7 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 
 		// Caution: Primitive. Will not scale to large MPI systems.
-		for (int j=0; j<NP; j++) {
+		for (int j=0; j<NP+1; j++) {
 			MPI::COMM_WORLD.Allreduce(&myComp.N[j], &comp.N[j], 1, MPI_INT, MPI_SUM);
 			for (int i=0; i<NC; i++) {
 				MPI::COMM_WORLD.Allreduce(&myComp.x[j][i], &comp.x[j][i], 1, MPI_DOUBLE, MPI_SUM);
@@ -571,7 +571,7 @@ void generate(int dim, const char* filename)
 		double matCr = Ntot * xCr[0];
 		double matNb = Ntot * xNb[0];
 		double Nmat  = Ntot;
-		for (int i=0; i<NP; i++) {
+		for (int i=0; i<NP+1; i++) {
 			Nmat  -= comp.N[i];
 			matCr -= comp.x[i][0];
 			matNb -= comp.x[i][1];
@@ -586,7 +586,7 @@ void generate(int dim, const char* filename)
 			double nx = 0.0;
 			vector<double>& initGridN = initGrid(n);
 
-			for (int i=NC; i<NP-1; i++)
+			for (int i=NC; i<NC+NP; i++)
 				nx += h(fabs(initGridN[i]));
 			if (nx < epsilon) { // pure gamma
 				initGridN[0] += matCr;
@@ -798,7 +798,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * =========================== */
 
 			// Copy old values as initial guesses
-			for (int i=NC+NP-1; i<fields(newGrid)-1; i++)
+			for (int i=NC+NP; i<fields(newGrid)-1; i++)
 				newGridN[i] = oldGridN[i];
 
 			rootsolver parallelTangentSolver;
@@ -968,8 +968,8 @@ Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double be
 		GRID(n)[0] = matrixCr;
 		GRID(n)[1] = matrixNb;
 
-		comp.x[NP-1][0] += matrixCr;
-		comp.x[NP-1][1] += matrixNb;
+		comp.x[NP][0] += matrixCr;
+		comp.x[NP][1] += matrixNb;
 	}
 
 	return comp;
@@ -1083,10 +1083,10 @@ double gibbs(const MMSP::vector<double>& v)
 	double n_lav = h(fabs(v[4]));
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
 
-	MMSP::vector<double> vsq(NP-1);
+	MMSP::vector<double> vsq(NP);
 	double diagonal = 0.0;
 
-	for (int i=0; i<NP-1; i++) {
+	for (int i=0; i<NP; i++) {
 		vsq[i] = v[NC+i]*v[NC+i];
 		diagonal += vsq[i];
 	}
@@ -1436,13 +1436,13 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		                              + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
 		                              + kappa_lav * (gradPhi_lav * gradPhi_lav));
 
-		double magGrad[NP-1] = {std::sqrt(gradPhi_del * gradPhi_del),
+		double magGrad[NP] = {std::sqrt(gradPhi_del * gradPhi_del),
 		                     std::sqrt(gradPhi_mu  * gradPhi_mu ),
 		                     std::sqrt(gradPhi_lav * gradPhi_lav)
 		                    };
 
 		double vmax = 0.0;
-		for (int i=0; i<NP-1; i++) {
+		for (int i=0; i<NP; i++) {
 			if (magGrad[i] > 0.1 && magGrad[i] < 0.9) {
 				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
 				double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;

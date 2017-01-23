@@ -17,8 +17,8 @@
  * versions bear some notice that they have been modified.                           *
  *************************************************************************************/
 
-// Number of phases and components (for array allocation)
-#define NP 4
+// Number of precipitates and components (for array allocation)
+#define NP 3
 #define NC 2
 
 std::string PROGRAM = "alloy625";
@@ -36,26 +36,26 @@ class Composition {
 public:
 	Composition()
 	{
-		for (int i=0; i<NP; i++) {
+		for (int i=0; i<NP+1; i++) {
 			for (int j=0; j<NC; j++)
 				x[i][j] = 0.0;
 		}
-		for (int i=0; i<NP; i++)
+		for (int i=0; i<NP+1; i++)
 			N[i] = 0;
 	}
 	~Composition(){}
 	Composition& operator+=(const Composition& c);
-	double x[NP][NC]; // composition of each phase
+	double x[NP+1][NC]; // composition of each phase
 	int    N[NP];     // amount of each phase
 };
 
 Composition& Composition::operator+=(const Composition& c)
 {
-	for (int i=0; i<NP; i++) {
+	for (int i=0; i<NP+1; i++) {
 		for (int j=0; j<NC; j++)
 		this->x[i][j] += c.x[i][j];
 	}
-	for (int i=0; i<NP; i++)
+	for (int i=0; i<NP+1; i++)
 		this->N[i] += c.N[i];
 
 	return *this;
