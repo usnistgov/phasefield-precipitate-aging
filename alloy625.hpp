@@ -46,7 +46,7 @@ public:
 	~Composition(){}
 	Composition& operator+=(const Composition& c);
 	double x[NP+1][NC]; // composition of each phase
-	int    N[NP];     // amount of each phase
+	int    N[NP+1];     // amount of each phase
 };
 
 Composition& Composition::operator+=(const Composition& c)
