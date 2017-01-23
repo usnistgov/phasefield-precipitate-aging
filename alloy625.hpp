@@ -90,8 +90,8 @@ class rootsolver
 public:
 	rootsolver();
 	~rootsolver();
-	template<int dim,typename T>
-	double solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n);
+	template<typename T>
+	double solve(MMSP::vector<T>& GRIDN);
 
 private:
 	const size_t n;
@@ -127,17 +127,17 @@ double bellCurve(double x, double m, double s);
 
 // Guess values for parallel tangent solver: gamma, mu, and delta equilibrium compositions
 
-template<int dim,typename T>
-void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+template<typename T>
+void guessGamma(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
 
-template<int dim,typename T>
-void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+template<typename T>
+void guessDelta(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
 
-template<int dim,typename T>
-void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+template<typename T>
+void guessMu(   MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
 
-template<int dim,typename T>
-void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+template<typename T>
+void guessLaves(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
 
 
 // Cookie cutter functions to insert features into initial condition
@@ -161,11 +161,11 @@ Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
                         const T phi);
 
 
-template<int dim,class T>
+template<int dim,typename T>
 double maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
                    MMSP::grid<dim, MMSP::vector<T> > const & newGrid);
 
 
-template<int dim,class T>
+template<int dim,typename T>
 MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
                                MMSP::grid<dim, MMSP::vector<T> >& newGrid);

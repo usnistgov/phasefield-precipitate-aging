@@ -22,7 +22,6 @@ alloy625: alloy625.cpp
 	$(icompiler) $(fflags) $< -o $@ $(links) -fopenmp
 
 # profiling program (no parallelism or optimization)
-gflags = -pg $(boiler)
 serial: alloy625.cpp
 	$(gcompiler) $(gflags) $< -o $@ $(links)
 

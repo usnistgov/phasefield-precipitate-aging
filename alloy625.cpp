@@ -262,23 +262,23 @@ void generate(int dim, const char* filename)
 
 		for (int n=0; n<nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
-			vector<double>& initgridN = initGrid(n);
+			vector<double>& initGridN = initGrid(n);
 
-			initgridN = blank;
+			initGridN = blank;
 
 			if (x[0] < Nprcp) {
 				// Initialize precipitate with equilibrium composition (from phase diagram)
-				initgridN[0] = Cprcp[0];
-				initgridN[1] = Cprcp[1];
-				initgridN[pid] = 1.0 - epsilon;
+				initGridN[0] = Cprcp[0];
+				initGridN[1] = Cprcp[1];
+				initGridN[pid] = 1.0 - epsilon;
 			} else {
 				// Initialize gamma to satisfy system composition
-				initgridN[0] = (Csstm[0] * Nx - Cprcp[0] * Nprcp) / Nmtrx;
-				initgridN[1] = (Csstm[1] * Nx - Cprcp[1] * Nprcp) / Nmtrx;
+				initGridN[0] = (Csstm[0] * Nx - Cprcp[0] * Nprcp) / Nmtrx;
+				initGridN[1] = (Csstm[1] * Nx - Cprcp[1] * Nprcp) / Nmtrx;
 				if (mid == pid)
-					initgridN[mid] = -1.0 + epsilon;
+					initGridN[mid] = -1.0 + epsilon;
 				else if (mid != 0)
-					initgridN[mid] = 1.0 - epsilon;
+					initGridN[mid] = 1.0 - epsilon;
 			}
 
 		}
@@ -316,39 +316,39 @@ void generate(int dim, const char* filename)
 		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
-			vector<double>& initgridN = initGrid(n);
+			vector<double>& initGridN = initGrid(n);
 
-			initgridN = blank;
+			initGridN = blank;
 
 			// Initialize gamma to satisfy system composition
-			initgridN[0] = matCr;
-			initgridN[1] = matNb;
+			initGridN[0] = matCr;
+			initGridN[1] = matNb;
 
 			for (int pid=0; pid < NP-1; pid++) {
 				if (x[0]>= pid*Noff && x[0] < pid*Noff + Nprcp[pid]) {
 					// Initialize precipitate with equilibrium composition (from phase diagram)
-					initgridN[0] = Cprcp[pid][0];
-					initgridN[1] = Cprcp[pid][1];
-					initgridN[NC+pid] = 1.0 - epsilon;
+					initGridN[0] = Cprcp[pid][0];
+					initGridN[1] = Cprcp[pid][1];
+					initGridN[NC+pid] = 1.0 - epsilon;
 				}
 			}
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 			#pragma omp critical
 			{
-				guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
+				guessGamma<double>(initGridN, mt_rand, real_gen, init_amp);
 			}
 			#pragma omp critical
 			{
-				guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
+				guessDelta<double>(initGridN, mt_rand, real_gen, init_amp);
 			}
 			#pragma omp critical
 			{
-				guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
+				guessMu<double>(   initGridN, mt_rand, real_gen, init_amp);
 			}
 			#pragma omp critical
 			{
-				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
+				guessLaves<double>(initGridN, mt_rand, real_gen, init_amp);
 			}
 
 			/* =========================== *
@@ -356,7 +356,7 @@ void generate(int dim, const char* filename)
 			 * =========================== */
 
 			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(initGrid, n);
+			double res = parallelTangentSolver.solve(initGridN);
 
 			if (res>root_tol) {
 				#pragma omp critical
@@ -367,22 +367,21 @@ void generate(int dim, const char* filename)
 				// If guesses are invalid, this may cause errors.
 				#pragma omp critical
 				{
-					guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+					guessGamma<double>(initGridN, mt_rand, real_gen, noise_amp);
 				}
 				#pragma omp critical
 				{
-					guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+					guessDelta<double>(initGridN, mt_rand, real_gen, noise_amp);
 				}
 				#pragma omp critical
 				{
-					guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+					guessMu<double>(   initGridN, mt_rand, real_gen, noise_amp);
 				}
 				#pragma omp critical
 				{
-					guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+					guessLaves<double>(initGridN, mt_rand, real_gen, noise_amp);
 				}
 			}
-
 		}
 
 		ghostswap(initGrid);
@@ -443,9 +442,9 @@ void generate(int dim, const char* filename)
 
 		// Zero initial condition
 		for (int n=0; n<nodes(initGrid); n++) {
-			vector<double>& initgridN = initGrid(n);
+			vector<double>& initGridN = initGrid(n);
 			for (int i=NC; i<fields(initGrid); i++)
-				initgridN[i] = 0.0;
+				initGridN[i] = 0.0;
 		}
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
@@ -616,39 +615,40 @@ void generate(int dim, const char* filename)
 		#pragma omp parallel for
 		for (int n=0; n<nodes(initGrid); n++) {
 			double nx = 0.0;
-			vector<double>& initgridN = initGrid(n);
+			vector<double>& initGridN = initGrid(n);
 
 			for (int i=NC; i<NP-1; i++)
-				nx += h(fabs(initgridN[i]));
+				nx += h(fabs(initGridN[i]));
 			if (nx < epsilon) { // pure gamma
-				initgridN[0] += matCr;
-				initgridN[1] += matNb;
+				initGridN[0] += matCr;
+				initGridN[1] += matNb;
 			}
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 			#pragma omp critical
 			{
-				guessGamma(initGrid, n, mt_rand, real_gen, init_amp);
+				guessGamma(initGridN, mt_rand, real_gen, init_amp);
 			}
 			#pragma omp critical
 			{
-				guessDelta(initGrid, n, mt_rand, real_gen, init_amp);
+				guessDelta(initGridN, mt_rand, real_gen, init_amp);
 			}
 			#pragma omp critical
 			{
-				guessMu(   initGrid, n, mt_rand, real_gen, init_amp);
+				guessMu(   initGridN, mt_rand, real_gen, init_amp);
 			}
 			#pragma omp critical
 			{
-				guessLaves(initGrid, n, mt_rand, real_gen, init_amp);
+				guessLaves(initGridN, mt_rand, real_gen, init_amp);
 			}
+
 
 			/* =========================== *
 			 * Solve for parallel tangents *
 			 * =========================== */
 
 			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(initGrid, n);
+			double res = parallelTangentSolver.solve(initGridN);
 
 			if (res>root_tol) {
 				#pragma omp critical
@@ -659,19 +659,19 @@ void generate(int dim, const char* filename)
 				// If guesses are invalid, this may cause errors.
 				#pragma omp critical
 				{
-					guessGamma(initGrid, n, mt_rand, real_gen, noise_amp);
+					guessGamma(initGridN, mt_rand, real_gen, noise_amp);
 				}
 				#pragma omp critical
 				{
-					guessDelta(initGrid, n, mt_rand, real_gen, noise_amp);
+					guessDelta(initGridN, mt_rand, real_gen, noise_amp);
 				}
 				#pragma omp critical
 				{
-					guessMu(   initGrid, n, mt_rand, real_gen, noise_amp);
+					guessMu(   initGridN, mt_rand, real_gen, noise_amp);
 				}
 				#pragma omp critical
 				{
-					guessLaves(initGrid, n, mt_rand, real_gen, noise_amp);
+					guessLaves(initGridN, mt_rand, real_gen, noise_amp);
 				}
 			}
 		}
@@ -706,9 +706,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 {
 	int rank=0;
 	#ifdef MPI_VERSION
-
 	rank = MPI::COMM_WORLD.Get_rank();
-
 	#endif
 
 	ghostswap(oldGrid);
@@ -858,8 +856,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve for parallel tangents *
 			 * =========================== */
 
+			// Copy old values as initial guesses
+			for (int i=NC+NP-1; i<fields(newGrid)-1; i++)
+				newGridN[i] = oldGridN[i];
+
 			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(newGrid, n);
+			double res = parallelTangentSolver.solve(newGridN);
 
 			if (res>root_tol) {
 				#pragma omp critical
@@ -870,22 +872,21 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				// If guesses are invalid, this may cause errors.
 				#pragma omp critical
 				{
-					guessGamma(newGrid, n, mt_rand, real_gen, noise_amp);
+					guessGamma(newGridN, mt_rand, real_gen, noise_amp);
 				}
 				#pragma omp critical
 				{
-					guessDelta(newGrid, n, mt_rand, real_gen, noise_amp);
+					guessDelta(newGridN, mt_rand, real_gen, noise_amp);
 				}
 				#pragma omp critical
 				{
-					guessMu(   newGrid, n, mt_rand, real_gen, noise_amp);
+					guessMu(   newGridN, mt_rand, real_gen, noise_amp);
 				}
 				#pragma omp critical
 				{
-					guessLaves(newGrid, n, mt_rand, real_gen, noise_amp);
+					guessLaves(newGridN, mt_rand, real_gen, noise_amp);
 				}
 			}
-
 
 			/* ======= *
 			 * ~ fin ~ *
@@ -953,62 +954,62 @@ double bellCurve(double x, double m, double s)
 
 
 // Initial guesses for gamma, mu, and delta equilibrium compositions
-template<int dim,typename T>
-void guessGamma(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
+template<typename T>
+void guessGamma(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
 	// Coarsely approximate gamma using a line compound with x_Nb = 0.015
 
-	const T xcr = GRID(n)[0];
-	//const T xnb = GRID(n)[1];
+	const T xcr = GRIDN[0];
+	//const T xnb = GRIDN[1];
 	const T xnb = 0.015;
-	const T xni = std::max(epsilon, 1.0 - xcr - GRID(n)[1]);
+	const T xni = std::max(epsilon, 1.0 - xcr - GRIDN[1]);
 
-	GRID(n)[5] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
-	GRID(n)[6] = xnb + amp*real_gen(mt_rand);
+	GRIDN[5] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
+	GRIDN[6] = xnb + amp*real_gen(mt_rand);
 }
 
 
-template<int dim,typename T>
-void guessDelta(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
+template<typename T>
+void guessDelta(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
 	// Coarsely approximate delta using a line compound with x_Ni = 0.75
 
-	const T xcr = GRID(n)[0];
-	const T xnb = GRID(n)[1];
+	const T xcr = GRIDN[0];
+	const T xnb = GRIDN[1];
 	const T xni = 0.75;
 
-	GRID(n)[7] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
-	GRID(n)[8] = xnb/(xcr + xnb + xni) + amp*real_gen(mt_rand);
+	GRIDN[7] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
+	GRIDN[8] = xnb/(xcr + xnb + xni) + amp*real_gen(mt_rand);
 }
 
 
-template<int dim,typename T>
-void guessMu(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
+template<typename T>
+void guessMu(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
 	// Coarsely approximate mu using a line compound with x_Nb=52.5%
 
-	const T xcr = GRID(n)[0];
-	//const T xnb = GRID(n)[1];
+	const T xcr = GRIDN[0];
+	//const T xnb = GRIDN[1];
 	const T xnb = 0.525;
-	const T xni = std::max(epsilon, 1.0 - xcr - GRID(n)[1]);
+	const T xni = std::max(epsilon, 1.0 - xcr - GRIDN[1]);
 
-	GRID(n)[9] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
-	GRID(n)[10] = xnb + amp*real_gen(mt_rand);
+	GRIDN[9] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
+	GRIDN[10] = xnb + amp*real_gen(mt_rand);
 }
 
 
-template<int dim,typename T>
-void guessLaves(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
+template<typename T>
+void guessLaves(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
 {
 	// Coarsely approximate Laves using a line compound with x_Nb = 30.0%
 
-	const T xcr = GRID(n)[0];
-	//const T xnb = GRID(n)[1];
+	const T xcr = GRIDN[0];
+	//const T xnb = GRIDN[1];
 	const T xnb = 0.30;
-	const T xni = std::max(epsilon, 1.0 - xcr - GRID(n)[1]);
+	const T xni = std::max(epsilon, 1.0 - xcr - GRIDN[1]);
 
-	GRID(n)[11] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
-	GRID(n)[12] = xnb + amp*real_gen(mt_rand);
+	GRIDN[11] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
+	GRIDN[12] = xnb + amp*real_gen(mt_rand);
 }
 
 
@@ -1409,35 +1410,32 @@ rootsolver::rootsolver() :
 }
 
 
-template<int dim,typename T> double
-rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
+template<typename T> double
+rootsolver::solve(MMSP::vector<T>& GRIDN)
 {
 	int status;
 	size_t iter = 0;
 
-	// copy fixed values from grid
-	MMSP::vector<T>& gridN = GRID(n);
+	par.x_Cr = GRIDN[0];
+	par.x_Nb = GRIDN[1];
 
-	par.x_Cr = gridN[0];
-	par.x_Nb = gridN[1];
-
-	par.n_del = h(fabs(gridN[2]));
-	par.n_mu =  h(fabs(gridN[3]));
-	par.n_lav = h(fabs(gridN[4]));
+	par.n_del = h(fabs(GRIDN[2]));
+	par.n_mu =  h(fabs(GRIDN[3]));
+	par.n_lav = h(fabs(GRIDN[4]));
 
 	// copy initial guesses from grid
 
-	gsl_vector_set(x, 0, static_cast<double>(gridN[5]));  // gamma Cr
-	gsl_vector_set(x, 1, static_cast<double>(gridN[6]));  //       Nb
+	gsl_vector_set(x, 0, static_cast<double>(GRIDN[5]));  // gamma Cr
+	gsl_vector_set(x, 1, static_cast<double>(GRIDN[6]));  //       Nb
 
-	gsl_vector_set(x, 2, static_cast<double>(gridN[7]));  // delta Cr
-	gsl_vector_set(x, 3, static_cast<double>(gridN[8]));  //       Nb
+	gsl_vector_set(x, 2, static_cast<double>(GRIDN[7]));  // delta Cr
+	gsl_vector_set(x, 3, static_cast<double>(GRIDN[8]));  //       Nb
 
-	gsl_vector_set(x, 4, static_cast<double>(gridN[9]));  // mu    Cr
-	gsl_vector_set(x, 5, static_cast<double>(gridN[10])); //       Nb
+	gsl_vector_set(x, 4, static_cast<double>(GRIDN[9]));  // mu    Cr
+	gsl_vector_set(x, 5, static_cast<double>(GRIDN[10])); //       Nb
 
-	gsl_vector_set(x, 6, static_cast<double>(gridN[11])); // Laves Cr
-	gsl_vector_set(x, 7, static_cast<double>(gridN[12])); //       Nb
+	gsl_vector_set(x, 6, static_cast<double>(GRIDN[11])); // Laves Cr
+	gsl_vector_set(x, 7, static_cast<double>(GRIDN[12])); //       Nb
 
 
 	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
@@ -1453,17 +1451,17 @@ rootsolver::solve(MMSP::grid<dim,MMSP::vector<T> >& GRID, int n)
 	double residual = gsl_blas_dnrm2(solver->f);
 
 	if (status == GSL_SUCCESS) {
-		gridN[5]  = static_cast<T>(gsl_vector_get(solver->x, 0)); // gamma Cr
-		gridN[6]  = static_cast<T>(gsl_vector_get(solver->x, 1)); //       Nb
+		GRIDN[5]  = static_cast<T>(gsl_vector_get(solver->x, 0)); // gamma Cr
+		GRIDN[6]  = static_cast<T>(gsl_vector_get(solver->x, 1)); //       Nb
 
-		gridN[7]  = static_cast<T>(gsl_vector_get(solver->x, 2)); // delta Cr
-		gridN[8]  = static_cast<T>(gsl_vector_get(solver->x, 3)); //       Nb
+		GRIDN[7]  = static_cast<T>(gsl_vector_get(solver->x, 2)); // delta Cr
+		GRIDN[8]  = static_cast<T>(gsl_vector_get(solver->x, 3)); //       Nb
 
-		gridN[9]  = static_cast<T>(gsl_vector_get(solver->x, 4)); // mu    Cr
-		gridN[10] = static_cast<T>(gsl_vector_get(solver->x, 5)); //       Nb
+		GRIDN[9]  = static_cast<T>(gsl_vector_get(solver->x, 4)); // mu    Cr
+		GRIDN[10] = static_cast<T>(gsl_vector_get(solver->x, 5)); //       Nb
 
-		gridN[11] = static_cast<T>(gsl_vector_get(solver->x, 6)); // Laves Cr
-		gridN[12] = static_cast<T>(gsl_vector_get(solver->x, 7)); //       Nb
+		GRIDN[11] = static_cast<T>(gsl_vector_get(solver->x, 6)); // Laves Cr
+		GRIDN[12] = static_cast<T>(gsl_vector_get(solver->x, 7)); //       Nb
 	}
 
 	return residual;
