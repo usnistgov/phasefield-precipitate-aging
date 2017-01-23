@@ -25,7 +25,6 @@
 #ifndef ALLOY625_UPDATE
 #define ALLOY625_UPDATE
 #include<cmath>
-#include<random>
 #include<cassert>
 
 #include<gsl/gsl_blas.h>
@@ -167,8 +166,6 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
-const double noise_amp = 1.0e-5; // amplitude of noise in replacement compositions for failed parallel tangents
-const double init_amp = 0.0;     // amplitude of noise in initial parallel tangent compositions
 
 const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
@@ -191,10 +188,6 @@ void generate(int dim, const char* filename)
 	#ifdef MPI_VERSION
 	rank = MPI::COMM_WORLD.Get_rank();
  	#endif
-
-	// Utilize Mersenne Twister from C++11 standard
-	std::mt19937_64 mt_rand(time(NULL)+rank);
-	std::uniform_real_distribution<double> real_gen(-1,1);
 
 	FILE* cfile = NULL;
 	if (rank==0)
@@ -334,22 +327,10 @@ void generate(int dim, const char* filename)
 			}
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-			#pragma omp critical
-			{
-				guessGamma<double>(initGridN, mt_rand, real_gen, init_amp);
-			}
-			#pragma omp critical
-			{
-				guessDelta<double>(initGridN, mt_rand, real_gen, init_amp);
-			}
-			#pragma omp critical
-			{
-				guessMu<double>(   initGridN, mt_rand, real_gen, init_amp);
-			}
-			#pragma omp critical
-			{
-				guessLaves<double>(initGridN, mt_rand, real_gen, init_amp);
-			}
+			guessGamma<double>(initGridN);
+			guessDelta<double>(initGridN);
+			guessMu<double>(   initGridN);
+			guessLaves<double>(initGridN);
 
 			/* =========================== *
 			 * Solve for parallel tangents *
@@ -361,26 +342,14 @@ void generate(int dim, const char* filename)
 			if (res>root_tol) {
 				#pragma omp critical
 				{
-				totBadTangents += 1.0;
+					totBadTangents += 1.0;
 				}
 
 				// If guesses are invalid, this may cause errors.
-				#pragma omp critical
-				{
-					guessGamma<double>(initGridN, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessDelta<double>(initGridN, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessMu<double>(   initGridN, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessLaves<double>(initGridN, mt_rand, real_gen, noise_amp);
-				}
+				guessGamma<double>(initGridN);
+				guessDelta<double>(initGridN);
+				guessMu<double>(   initGridN);
+				guessLaves<double>(initGridN);
 			}
 		}
 
@@ -625,22 +594,10 @@ void generate(int dim, const char* filename)
 			}
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-			#pragma omp critical
-			{
-				guessGamma(initGridN, mt_rand, real_gen, init_amp);
-			}
-			#pragma omp critical
-			{
-				guessDelta(initGridN, mt_rand, real_gen, init_amp);
-			}
-			#pragma omp critical
-			{
-				guessMu(   initGridN, mt_rand, real_gen, init_amp);
-			}
-			#pragma omp critical
-			{
-				guessLaves(initGridN, mt_rand, real_gen, init_amp);
-			}
+			guessGamma(initGridN);
+			guessDelta(initGridN);
+			guessMu(   initGridN);
+			guessLaves(initGridN);
 
 
 			/* =========================== *
@@ -653,26 +610,14 @@ void generate(int dim, const char* filename)
 			if (res>root_tol) {
 				#pragma omp critical
 				{
-				totBadTangents += 1.0;
+					totBadTangents += 1.0;
 				}
 
 				// If guesses are invalid, this may cause errors.
-				#pragma omp critical
-				{
-					guessGamma(initGridN, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessDelta(initGridN, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessMu(   initGridN, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessLaves(initGridN, mt_rand, real_gen, noise_amp);
-				}
+				guessGamma(initGridN);
+				guessDelta(initGridN);
+				guessMu(   initGridN);
+				guessLaves(initGridN);
 			}
 		}
 
@@ -717,10 +662,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
 	const double dt = LinStab * std::min(dtp, dtc);
 
-	// Construct the parallel tangent solver
-	std::mt19937_64 mt_rand(time(NULL)+rank);
-	std::uniform_real_distribution<double> real_gen(-1,1);
-
 	double dV = 1.0;
 	double Ntot = 1.0;
 	for (int d=0; d<dim; d++) {
@@ -757,8 +698,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ============================================== */
 
 			vector<int> x = position(oldGrid,n);
-			vector<T>& oldGridN = oldGrid(x);
-			vector<T>& newGridN = newGrid(x);
+			vector<T>& oldGridN = oldGrid(n);
+			vector<T>& newGridN = newGrid(n);
 
 			/* ================= *
 			 * Collect Constants *
@@ -866,26 +807,14 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			if (res>root_tol) {
 				#pragma omp critical
 				{
-				totBadTangents += 1.0;
+					totBadTangents += 1.0;
 				}
 
 				// If guesses are invalid, this may cause errors.
-				#pragma omp critical
-				{
-					guessGamma(newGridN, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessDelta(newGridN, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessMu(   newGridN, mt_rand, real_gen, noise_amp);
-				}
-				#pragma omp critical
-				{
-					guessLaves(newGridN, mt_rand, real_gen, noise_amp);
-				}
+				guessGamma(newGridN);
+				guessDelta(newGridN);
+				guessMu(   newGridN);
+				guessLaves(newGridN);
 			}
 
 			/* ======= *
@@ -955,7 +884,7 @@ double bellCurve(double x, double m, double s)
 
 // Initial guesses for gamma, mu, and delta equilibrium compositions
 template<typename T>
-void guessGamma(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
+void guessGamma(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate gamma using a line compound with x_Nb = 0.015
 
@@ -964,13 +893,13 @@ void guessGamma(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_r
 	const T xnb = 0.015;
 	const T xni = std::max(epsilon, 1.0 - xcr - GRIDN[1]);
 
-	GRIDN[5] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
-	GRIDN[6] = xnb + amp*real_gen(mt_rand);
+	GRIDN[5] = xcr/(xcr + xnb + xni);
+	GRIDN[6] = xnb;
 }
 
 
 template<typename T>
-void guessDelta(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
+void guessDelta(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate delta using a line compound with x_Ni = 0.75
 
@@ -978,13 +907,13 @@ void guessDelta(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_r
 	const T xnb = GRIDN[1];
 	const T xni = 0.75;
 
-	GRIDN[7] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
-	GRIDN[8] = xnb/(xcr + xnb + xni) + amp*real_gen(mt_rand);
+	GRIDN[7] = xcr/(xcr + xnb + xni);
+	GRIDN[8] = xnb/(xcr + xnb + xni);
 }
 
 
 template<typename T>
-void guessMu(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
+void guessMu(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate mu using a line compound with x_Nb=52.5%
 
@@ -993,13 +922,13 @@ void guessMu(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real
 	const T xnb = 0.525;
 	const T xni = std::max(epsilon, 1.0 - xcr - GRIDN[1]);
 
-	GRIDN[9] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
-	GRIDN[10] = xnb + amp*real_gen(mt_rand);
+	GRIDN[9] = xcr/(xcr + xnb + xni);
+	GRIDN[10] = xnb;
 }
 
 
 template<typename T>
-void guessLaves(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp)
+void guessLaves(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate Laves using a line compound with x_Nb = 30.0%
 
@@ -1008,8 +937,8 @@ void guessLaves(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_r
 	const T xnb = 0.30;
 	const T xni = std::max(epsilon, 1.0 - xcr - GRIDN[1]);
 
-	GRIDN[11] = xcr/(xcr + xnb + xni) + amp*real_gen(mt_rand);
-	GRIDN[12] = xnb + amp*real_gen(mt_rand);
+	GRIDN[11] = xcr/(xcr + xnb + xni);
+	GRIDN[12] = xnb;
 }
 
 

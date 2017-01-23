@@ -128,16 +128,16 @@ double bellCurve(double x, double m, double s);
 // Guess values for parallel tangent solver: gamma, mu, and delta equilibrium compositions
 
 template<typename T>
-void guessGamma(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+void guessGamma(MMSP::vector<T>& GRIDN);
 
 template<typename T>
-void guessDelta(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+void guessDelta(MMSP::vector<T>& GRIDN);
 
 template<typename T>
-void guessMu(   MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+void guessMu(   MMSP::vector<T>& GRIDN);
 
 template<typename T>
-void guessLaves(MMSP::vector<T>& GRIDN, std::mt19937_64& mt_rand, std::uniform_real_distribution<T>& real_gen, const T& amp);
+void guessLaves(MMSP::vector<T>& GRIDN);
 
 
 // Cookie cutter functions to insert features into initial condition
