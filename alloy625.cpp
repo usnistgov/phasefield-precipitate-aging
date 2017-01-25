@@ -170,7 +170,7 @@ const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explos
 const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
-const int logstep = 1000;         // steps between logging status
+const int logstep = 100;         // steps between logging status
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifdef PARABOLIC
@@ -304,7 +304,7 @@ void generate(int dim, const char* filename)
 
 		const vector<double> blank(fields(initGrid), 0.0);
 
-		double totBadTangents = 0.0;
+		unsigned int totBadTangents = 0;
 
 		#ifdef _OPENMP
 		#pragma omp parallel for
@@ -348,7 +348,7 @@ void generate(int dim, const char* filename)
 				#pragma omp critical
 				#endif
 				{
-					totBadTangents += 1.0;
+					totBadTangents++;
 				}
 
 				guessGamma(initGridN);
@@ -360,11 +360,16 @@ void generate(int dim, const char* filename)
 
 		ghostswap(initGrid);
 
+		#ifdef MPI_VERSION
+		unsigned int myBad(totBadTangents);
+		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+		#endif
+
 		vector<double> summary = summarize(initGrid, dt, initGrid);
 
 		if (rank==0)
-			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
-			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
+			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9e\t%11u\n",
+			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[7], totBadTangents);
 
 		if (rank==0) {
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
@@ -582,7 +587,7 @@ void generate(int dim, const char* filename)
 		matCr /= Nmat;
 		matNb /= Nmat;
 
-		double totBadTangents = 0.0;
+		unsigned int totBadTangents = 0;
 
 		#ifdef _OPENMP
 		#pragma omp parallel for
@@ -619,7 +624,7 @@ void generate(int dim, const char* filename)
 				#pragma omp critical
 				#endif
 				{
-					totBadTangents += 1.0;
+					totBadTangents++;
 				}
 
 				guessGamma(initGridN);
@@ -631,11 +636,16 @@ void generate(int dim, const char* filename)
 
 		ghostswap(initGrid);
 
+		#ifdef MPI_VERSION
+		unsigned int myBad(totBadTangents);
+		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+		#endif
+
 		vector<double> summary = summarize(initGrid, dt, initGrid);
 
 		if (rank==0)
-			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
-			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
+			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9e\t%11u\n",
+			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[7], totBadTangents);
 
 		if (rank==0) {
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
@@ -676,7 +686,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		dx(oldGrid,d) = meshres;
 		dx(newGrid,d) = meshres;
 		dV *= dx(oldGrid,d);
-		Ntot *= g1(oldGrid, d) - g0(oldGrid, d);
+		Ntot *= double(g1(oldGrid, d) - g0(oldGrid, d));
 		if (useNeumann && x0(oldGrid,d) == g0(oldGrid,d)) {
 			b0(oldGrid,d) = Neumann;
 			b0(newGrid,d) = Neumann;
@@ -697,7 +707,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (rank==0)
 			print_progress(step, steps);
 
-		double totBadTangents = 0.0;
+		unsigned int totBadTangents = 0;
 
 		#ifdef _OPENMP
 		#pragma omp parallel for
@@ -820,7 +830,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				#pragma omp critical
 				#endif
 				{
-					totBadTangents += 1.0;
+					totBadTangents++;
 				}
 
 				guessGamma(newGridN);
@@ -846,15 +856,15 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			logcount = 0;
 
 			#ifdef MPI_VERSION
-			double myBad(totBadTangents);
-			MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_DOUBLE, MPI_SUM, 0);
+			unsigned int myBad(totBadTangents);
+			MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
 			#endif
 
 			vector<double> summary = summarize(newGrid, dt, oldGrid);
 
 			if (rank==0)
-				fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\n",
-				summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[6], totBadTangents);
+				fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9e\t%11u\n",
+				summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[7], totBadTangents);
 
 		}
 
@@ -1423,53 +1433,52 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 	double Ntot = 1.0;
 	double dV = 1.0;
 	for (int d=0; d<dim; d++) {
-		Ntot *= MMSP::g1(newGrid, d) - MMSP::g0(newGrid, d);
+		Ntot *= double(MMSP::g1(newGrid, d) - MMSP::g0(newGrid, d));
 		dV *= MMSP::dx(newGrid, d);
 	}
-	MMSP::vector<double> summary(7, 0.0);
+	MMSP::vector<double> summary(8, 0.0);
 
 	#ifdef _OPENMP
-	#pragma omp parallel
-	#endif
-	{
-	MMSP::vector<double> mySummary(7, 0.0);
-	#ifdef _OPENMP
-	#pragma omp for
+	#pragma omp parallel for shared(summary)
 	#endif
 	for (int n=0; n<MMSP::nodes(newGrid); n++) {
 		MMSP::vector<int> x = MMSP::position(newGrid,n);
 		MMSP::vector<T>& gridN = newGrid(n);
+		MMSP::vector<double> mySummary(8, 0.0);
+		double myVelocity(-1.0);
 
 		MMSP::vector<double> gradPhi_del = MMSP::gradient(newGrid, x, 2);
 		MMSP::vector<double> gradPhi_mu  = MMSP::gradient(newGrid, x, 3);
 		MMSP::vector<double> gradPhi_lav = MMSP::gradient(newGrid, x, 4);
 
-		mySummary[0] = gridN[0]; // x_Cr
-		mySummary[1] = gridN[1]; // x_Nb
-		mySummary[3] = h(fabs(gridN[2])); // p_del
-		mySummary[4] = h(fabs(gridN[3])); // p_mu
-		mySummary[5] = h(fabs(gridN[4])); // p_lav
-		mySummary[2] = 1.0 - mySummary[3] - mySummary[4] - mySummary[5]; // p_gam
-		mySummary[6] = 0.0; //dV*(gibbs(gridN) + kappa_del * (gradPhi_del * gradPhi_del)
-		                    //            + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
-		                    //            + kappa_lav * (gradPhi_lav * gradPhi_lav));
+		mySummary[0] = dV * gridN[0]; // x_Cr
+		mySummary[1] = dV * gridN[1]; // x_Nb
+		mySummary[3] = dV * h(fabs(gridN[2])); // p_del
+		mySummary[4] = dV * h(fabs(gridN[3])); // p_mu
+		mySummary[5] = dV * h(fabs(gridN[4])); // p_lav
+		mySummary[2] = dV - mySummary[3] - mySummary[4] - mySummary[5]; // p_gam
+		// free energy density:
+		mySummary[6] = dV * (gibbs(gridN) + kappa_del * (gradPhi_del * gradPhi_del)
+		                                  + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
+		                                  + kappa_lav * (gradPhi_lav * gradPhi_lav));
 
 		double magGrad[NP] = {std::sqrt(gradPhi_del * gradPhi_del),
 		                      std::sqrt(gradPhi_mu  * gradPhi_mu ),
 		                      std::sqrt(gradPhi_lav * gradPhi_lav)
 		                     };
 
+		// calculate velocity
 		for (int i=0; i<NP; i++) {
-			if (magGrad[i] > 0.1 && magGrad[i] < 0.9) {
+			if (magGrad[i] > 0.05 && magGrad[i] < 0.95) {
 				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
-				double myv = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
-				mySummary[6] = std::max(mySummary[6], myv);
+				double v = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
+				myVelocity = std::max(myVelocity, v);
 			}
 		}
-		gridN[fields(newGrid)-1] = static_cast<T>(mySummary[6]);
+		// Record local velocity
+		gridN[fields(newGrid)-1] = static_cast<T>(myVelocity);
 
-	}
-		// Sum up mass and phase fraction
+		// Sum up mass and phase fractions
 		#ifdef _OPENMP
 		#pragma omp critical
 		#endif
@@ -1482,29 +1491,22 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		#pragma omp critical
 		#endif
 		{
-			summary[6] = std::max(mySummary[6], summary[6]);
+			summary[7] = std::max(myVelocity, summary[7]);
 		}
 	}
 
-	summary[0] /= Ntot;
-	summary[1] /= Ntot;
-	summary[2] /= Ntot;
-	summary[3] /= Ntot;
-	summary[4] /= Ntot;
-	summary[5] /= Ntot;
-
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
-	MMSP::vector<double> mySummary(summary);
+	MMSP::vector<double> tmpSummary(summary);
 
-	MPI::COMM_WORLD.Reduce(&mySummary[0], &summary[0], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&mySummary[1], &summary[1], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&mySummary[2], &summary[2], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&mySummary[3], &summary[3], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&mySummary[4], &summary[4], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&mySummary[5], &summary[5], 1, MPI_DOUBLE, MPI_SUM, 0);
-	//MPI::COMM_WORLD.Reduce(&mySummary[6], &summary[6], 1, MPI_DOUBLE, MPI_SUM, 0); // total free energy
-	MPI::COMM_WORLD.Reduce(&mySummary[6], &summary[6], 1, MPI_DOUBLE, MPI_MAX, 0); // maximum velocity
+	MPI::COMM_WORLD.Reduce(&tmpSummary[0], &summary[0], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&tmpSummary[1], &summary[1], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&tmpSummary[2], &summary[2], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&tmpSummary[3], &summary[3], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&tmpSummary[4], &summary[4], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&tmpSummary[5], &summary[5], 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI::COMM_WORLD.Reduce(&tmpSummary[6], &summary[6], 1, MPI_DOUBLE, MPI_SUM, 0); // total free energy
+	MPI::COMM_WORLD.Reduce(&tmpSummary[7], &summary[7], 1, MPI_DOUBLE, MPI_MAX, 0); // maximum velocity
 
 	MPI::COMM_WORLD.Barrier();
 	#endif
