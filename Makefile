@@ -10,7 +10,7 @@ icompiler = icc
 gcompiler = /usr/bin/g++
 pcompiler = mpic++
 
-fflags = -O3 $(boiler) -DPARABOLIC
+fflags = -O3 $(boiler)
 gflags = -pg $(boiler)
 pflags = -O3 $(boiler) -include mpi.h
 

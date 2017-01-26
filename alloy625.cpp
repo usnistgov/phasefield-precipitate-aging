@@ -32,13 +32,16 @@
 #include<gsl/gsl_roots.h>
 #include<gsl/gsl_vector.h>
 #include<gsl/gsl_multiroots.h>
-
 #include"MMSP.hpp"
 #include"alloy625.hpp"
-#ifdef PARABOLIC
-#include"taylor625.c"
-#else
+
+// Taylor series is your best bet.
+#if defined PARABOLIC
+#include"parabola625.c"
+#elif defined calphad
 #include"energy625.c"
+#else
+#include"taylor625.c"
 #endif
 
 // Note: alloy625.hpp contains important declarations and comments. Have a look.
@@ -104,24 +107,6 @@ const double meshres = 5.0e-9; //1.25e-9;    // grid spacing (m)
 //const double Vm = 1.0e-5;         // molar volume (m^3/mol)
 const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 
-//#ifndef PARABOLIC
-//// Zhou's numbers (Al/Nb)
-//const double M_Cr = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
-//const double M_Nb = 2.42e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
-///*
-//const double M_Cr = 1.6e-17;      // mobility in FCC Ni (mol^2/Nsm^2)
-//const double M_Nb = 1.7e-18;      // mobility in FCC Ni (mol^2/Nsm^2)
-//*/
-//
-//const double D_Cr = Vm*Vm*M_Cr;   // diffusivity in FCC Ni (m^4/Ns)
-//const double D_Nb = Vm*Vm*M_Nb;   // diffusivity in FCC Ni (m^4/Ns)
-//#else
-/*
-// Diffusion constant from Karunaratne and Reed
-const double D_Nb = 1.582202e-16; // diffusivity in FCC Ni (m^2/s)
-const double D_Cr = D_Nb;         // diffusivity in FCC Ni (m^2/s)
-*/
-
 // Diffusion constants from Xu
 const double D_CrCr = 2.42e-15; // diffusivity in FCC Ni (m^2/s)
 const double D_CrNb = 2.47e-15; // diffusivity in FCC Ni (m^2/s)
@@ -173,7 +158,7 @@ const int root_max_iter = 500000; // default is 1000, increasing probably won't 
 const int logstep = 100;         // steps between logging status
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
-#ifdef PARABOLIC
+#ifndef CALPHAD
 const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
 #else
 const double LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
@@ -313,7 +298,7 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(initGrid, n);
 			vector<double>& initGridN = initGrid(n);
 
-			initGridN = blank;
+			initGrid(n) = blank;
 
 			// Initialize gamma to satisfy system composition
 			initGridN[0] = matCr;
@@ -329,32 +314,33 @@ void generate(int dim, const char* filename)
 			}
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-			guessGamma(initGridN);
-			guessDelta(initGridN);
-			guessMu(   initGridN);
-			guessLaves(initGridN);
+			guessGamma(initGrid(n));
+			guessDelta(initGrid(n));
+			guessMu(   initGrid(n));
+			guessLaves(initGrid(n));
 
 			/* =========================== *
 			 * Solve for parallel tangents *
 			 * =========================== */
 
 			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(initGridN);
+			//double res = parallelTangentSolver.solve(initGridN);
+			double res = parallelTangentSolver.solve(initGrid(n));
 
 			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
 
 				#ifdef _OPENMP
-				#pragma omp critical
+				#pragma omp critical (iniCrit1)
 				#endif
 				{
 					totBadTangents++;
 				}
 
-				guessGamma(initGridN);
-				guessDelta(initGridN);
-				guessMu(   initGridN);
-				guessLaves(initGridN);
+				guessGamma(initGrid(n));
+				guessDelta(initGrid(n));
+				guessMu(   initGrid(n));
+				guessLaves(initGrid(n));
 			}
 		}
 
@@ -605,10 +591,10 @@ void generate(int dim, const char* filename)
 			}
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-			guessGamma(initGridN);
-			guessDelta(initGridN);
-			guessMu(   initGridN);
-			guessLaves(initGridN);
+			guessGamma(initGrid(n));
+			guessDelta(initGrid(n));
+			guessMu(   initGrid(n));
+			guessLaves(initGrid(n));
 
 
 			/* =========================== *
@@ -616,21 +602,22 @@ void generate(int dim, const char* filename)
 			 * =========================== */
 
 			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(initGridN);
+			//double res = parallelTangentSolver.solve(initGridN);
+			double res = parallelTangentSolver.solve(initGrid(n));
 
 			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
 				#ifdef _OPENMP
-				#pragma omp critical
+				#pragma omp critical (iniCrit2)
 				#endif
 				{
 					totBadTangents++;
 				}
 
-				guessGamma(initGridN);
-				guessDelta(initGridN);
-				guessMu(   initGridN);
-				guessLaves(initGridN);
+				guessGamma(initGrid(n));
+				guessDelta(initGrid(n));
+				guessMu(   initGrid(n));
+				guessLaves(initGrid(n));
 			}
 		}
 
@@ -822,21 +809,22 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				newGridN[i] = oldGridN[i];
 
 			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(newGridN);
+			//double res = parallelTangentSolver.solve(newGridN);
+			double res = parallelTangentSolver.solve(newGrid(n));
 
 			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
 				#ifdef _OPENMP
-				#pragma omp critical
+				#pragma omp critical (updCrit1)
 				#endif
 				{
 					totBadTangents++;
 				}
 
-				guessGamma(newGridN);
-				guessDelta(newGridN);
-				guessMu(   newGridN);
-				guessLaves(newGridN);
+				guessGamma(newGrid(n));
+				guessDelta(newGrid(n));
+				guessMu(   newGrid(n));
+				guessLaves(newGrid(n));
 			}
 
 			/* ======= *
@@ -1208,7 +1196,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	const double n_gam = 1.0 - n_del - n_mu - n_lav;
 
 	// Prepare variables
-	#ifndef PARABOLIC
+	#ifdef CALPHAD
 	const double C_gam_Cr = gsl_vector_get(x, 0);
 	const double C_gam_Nb = gsl_vector_get(x, 1);
 
@@ -1240,7 +1228,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 	// Equal chemical potential involving gamma phase (Cr, Nb, Ni)
 	// Cross-derivatives must needs be equal, d2G_dxCrNb == d2G_dxNbCr. Cf. Arfken Sec. 1.9.
-	#ifdef PARABOLIC
+	#ifndef CALPHAD
 	const double jac_gam_CrCr = d2g_gam_dxCrCr();
 	const double jac_gam_CrNb = d2g_gam_dxCrNb();
 	const double jac_gam_NbCr = jac_gam_CrNb;
@@ -1269,7 +1257,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving delta phase (Cr, Nb)
-	#ifdef PARABOLIC
+	#ifndef CALPHAD
 	const double jac_del_CrCr = d2g_del_dxCrCr();
 	const double jac_del_CrNb = d2g_del_dxCrNb();
 	const double jac_del_NbCr = jac_del_CrNb;
@@ -1288,7 +1276,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving mu phase (Cr, Ni)
-	#ifdef PARABOLIC
+	#ifndef CALPHAD
 	const double jac_mu_CrCr = d2g_mu_dxCrCr();
 	const double jac_mu_CrNb = d2g_mu_dxCrNb();
 	const double jac_mu_NbCr = jac_mu_CrNb;
@@ -1307,7 +1295,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving Laves phase (Nb, Ni)
-	#ifdef PARABOLIC
+	#ifndef CALPHAD
 	const double jac_lav_CrCr = d2g_lav_dxCrCr();
 	const double jac_lav_CrNb = d2g_lav_dxCrNb();
 	const double jac_lav_NbCr = jac_lav_CrNb;
@@ -1445,7 +1433,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		MMSP::vector<int> x = MMSP::position(newGrid,n);
 		MMSP::vector<T>& gridN = newGrid(n);
 		MMSP::vector<double> mySummary(8, 0.0);
-		double myVelocity(-1.0);
+		double myVelocity(epsilon);
 
 		MMSP::vector<double> gradPhi_del = MMSP::gradient(newGrid, x, 2);
 		MMSP::vector<double> gradPhi_mu  = MMSP::gradient(newGrid, x, 3);
@@ -1480,7 +1468,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 
 		// Sum up mass and phase fractions
 		#ifdef _OPENMP
-		#pragma omp critical
+		#pragma omp critical (sumCrit1)
 		#endif
 		{
 			summary += mySummary;
@@ -1488,7 +1476,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 
 		// Get maximum interfacial velocity
 		#ifdef _OPENMP
-		#pragma omp critical
+		#pragma omp critical (sumCrit2)
 		#endif
 		{
 			summary[7] = std::max(myVelocity, summary[7]);
@@ -1499,16 +1487,11 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 	MPI::COMM_WORLD.Barrier();
 	MMSP::vector<double> tmpSummary(summary);
 
-	MPI::COMM_WORLD.Reduce(&tmpSummary[0], &summary[0], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&tmpSummary[1], &summary[1], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&tmpSummary[2], &summary[2], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&tmpSummary[3], &summary[3], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&tmpSummary[4], &summary[4], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&tmpSummary[5], &summary[5], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&tmpSummary[6], &summary[6], 1, MPI_DOUBLE, MPI_SUM, 0); // total free energy
-	MPI::COMM_WORLD.Reduce(&tmpSummary[7], &summary[7], 1, MPI_DOUBLE, MPI_MAX, 0); // maximum velocity
-
-	MPI::COMM_WORLD.Barrier();
+	for (int i=0; i<summary.length()-1; i++) {
+		MPI::COMM_WORLD.Reduce(&tmpSummary[i], &summary[i], 1, MPI_DOUBLE, MPI_SUM, 0);
+		MPI::COMM_WORLD.Barrier(); // probably not necessary
+	}
+	MPI::COMM_WORLD.Allreduce(&tmpSummary[7], &summary[7], 1, MPI_DOUBLE, MPI_MAX); // maximum velocity
 	#endif
 
 	return summary;
