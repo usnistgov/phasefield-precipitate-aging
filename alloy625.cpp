@@ -149,17 +149,19 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
+const bool adaptStep = false;     // apply adaptive time-stepping?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
 
 const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
-const int logstep = 100;         // steps between logging status
+const int logstep = 1000;         // steps between logging status
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifndef CALPHAD
-const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
+//const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 10;  // threshold of linear stability (von Neumann stability condition)
 #else
 const double LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
@@ -175,8 +177,13 @@ void generate(int dim, const char* filename)
  	#endif
 
 	FILE* cfile = NULL;
-	if (rank==0)
+	FILE* tfile = NULL;
+
+	if (rank==0) {
 		cfile = fopen("c.log", "w"); // existing log will be overwritten
+		if (adaptStep)
+			tfile = fopen("t.log", "w"); // existing log will be overwritten
+	}
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * L_del*kappa_del); // transformation-limited timestep
 	//const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
@@ -353,11 +360,14 @@ void generate(int dim, const char* filename)
 
 		vector<double> summary = summarize(initGrid, dt, initGrid);
 
-		if (rank==0)
-			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9e\t%11u\n",
-			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[7], totBadTangents);
-
 		if (rank==0) {
+
+			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11u\n",
+			dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[7], totBadTangents);
+
+			if (adaptStep)
+				fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", 0.0, 1.0, dt);
+
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
 			printf("%11.9g %11.9g %11.9g %11.9g %11.9g %11.9g %11.9g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
 			                                                             summary[2], summary[3], summary[4], summary[5]);
@@ -630,11 +640,14 @@ void generate(int dim, const char* filename)
 
 		vector<double> summary = summarize(initGrid, dt, initGrid);
 
-		if (rank==0)
-			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9e\t%11u\n",
-			summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[7], totBadTangents);
-
 		if (rank==0) {
+
+			fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11u\n",
+			dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[7], totBadTangents);
+
+			if (adaptStep)
+				fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", 0.0, 1.0, dt);
+
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
 			printf("%11.9g %11.9g %11.9g %11.9g %11.9g %11.9g %11.9g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
 			                                                             summary[2], summary[3], summary[4], summary[5]);
@@ -647,10 +660,17 @@ void generate(int dim, const char* filename)
 	} else
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
 
-	if (rank == 0)
+	if (rank == 0) {
 		fclose(cfile);
+		if (adaptStep)
+			fclose(tfile);
+	}
 
 }
+
+
+
+
 
 template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int steps)
 {
@@ -686,13 +706,35 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	static int logcount = 1;
 
 	FILE* cfile = NULL;
+	FILE* tfile = NULL;
 
-	if (rank==0)
+	if (rank==0) {
 		cfile = fopen("c.log", "a"); // new results will be appended
+		if (adaptStep)
+			tfile = fopen("t.log", "a"); // new results will be appended
+	}
 
-	for (int step=0; step<steps; step++) {
+
+	// Prepare reference and live values for adaptive timestepper
+	double current_time = 0.0;
+	double current_dt = dt;
+
+	const double run_time = dt * steps;
+	const double timelimit = std::min(dtp, dtc) / 8;
+	const double speedlimit = meshres / 10;
+	const double scaleup = 1.1; // how fast to raise dt when stable
+	const double scaledn = 0.8; // how fast to drop dt when unstable
+
+
+	while (current_time < run_time && current_dt > 0.0) {
+	//for (int step = 0; step < steps; step++) {
+		if (adaptStep)
+			current_dt = std::min(current_dt, run_time - current_time);
+
 		if (rank==0)
-			print_progress(step, steps);
+			//print_progress(step, steps);
+			print_progress(floor(current_time / current_dt), ceil(run_time / current_dt));
+			//std::cout<<'('<<current_time / current_dt<<','<<run_time / current_dt<<')'<<std::endl;
 
 		unsigned int totBadTangents = 0;
 
@@ -787,18 +829,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			newGridN[0] = xCr + dt * D_CrCr * lapxCr_gam + dt * D_CrNb * lapxNb_gam;
-			newGridN[1] = xNb + dt * D_NbCr * lapxCr_gam + dt * D_NbNb * lapxNb_gam;
+			newGridN[0] = xCr + current_dt * (D_CrCr * lapxCr_gam + D_CrNb * lapxNb_gam);
+			newGridN[1] = xNb + current_dt * (D_NbCr * lapxCr_gam + D_NbNb * lapxNb_gam);
 
 
 			/* ======================================== *
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
 
-			newGridN[2] = phi_del - dt * L_del * delF_delPhi_del;
-			newGridN[3] = phi_mu  - dt * L_mu  * delF_delPhi_mu ;
-			newGridN[4] = phi_lav - dt * L_lav * delF_delPhi_lav;
-
+			newGridN[2] = phi_del - current_dt * L_del * delF_delPhi_del;
+			newGridN[3] = phi_mu  - current_dt * L_mu  * delF_delPhi_mu ;
+			newGridN[4] = phi_lav - current_dt * L_lav * delF_delPhi_lav;
 
 			/* =========================== *
 			 * Solve for parallel tangents *
@@ -832,45 +873,79 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ======= */
 		}
 
-		swap(oldGrid, newGrid);
-		ghostswap(oldGrid);
+		ghostswap(newGrid);
 
+		// Update timestep based on interfacial velocity
+		const double interfacialVelocity = maxVelocity(oldGrid, current_dt, newGrid);
 
-		/* ====================================================================== *
-		 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
-		 * ====================================================================== */
+		if (interfacialVelocity < speedlimit) {
+			// Update succeeded: process solution
+			current_time += current_dt; // increment before output block
 
-		if (logcount == logstep) {
-			logcount = 0;
+			/* ====================================================================== *
+			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
+			 * ====================================================================== */
 
-			#ifdef MPI_VERSION
-			unsigned int myBad(totBadTangents);
-			MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
-			#endif
+			if (logcount == logstep) {
+				logcount = 0;
 
-			vector<double> summary = summarize(newGrid, dt, oldGrid);
+				#ifdef MPI_VERSION
+				unsigned int myBad(totBadTangents);
+				MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+				#endif
 
-			if (rank==0)
-				fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9e\t%11u\n",
-				summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[7], totBadTangents);
+				vector<double> summary = summarize(oldGrid, current_dt, newGrid);
 
+				if (rank==0)
+					fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11u\n",
+					current_time, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], interfacialVelocity, totBadTangents);
+
+			}
+
+			logcount++; // increment after output block
+
+			if (adaptStep) {
+				// Adapt timestep
+				if (rank==0)
+					fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
+
+				if (interfacialVelocity > 0.0) {
+					current_dt *= scaleup;
+					current_dt = std::min(current_dt, timelimit);
+				}
+			}
+
+			swap(oldGrid, newGrid);
+
+		} else {
+			// Update failed: solution is unstable
+			if (adaptStep) {
+				current_dt *= scaledn;
+				//step--;
+			} else {
+				if (rank==0) {
+					std::cerr<<"ERROR: Interfacial velocity exceeded speed limit, timestep is too aggressive!"<<std::endl;
+					fclose(cfile);
+					if (adaptStep)
+						fclose(tfile);
+				}
+				MMSP::Abort(-1);
+			}
 		}
-
-		logcount++;
-
 	}
 
-	if (rank==0)
+	if (rank==0) {
 		fclose(cfile);
+		if (adaptStep) {
+			fclose(tfile);
+			print_progress(steps-1, steps);
+		}
+	}
 
 }
 
 
 } // namespace MMSP
-
-
-
-
 
 
 
@@ -1415,7 +1490,48 @@ rootsolver::~rootsolver()
 
 
 template<int dim,class T>
-MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double dt,
+double maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
+                   MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
+{
+	double vmax = -epsilon;
+	#ifdef _OPENMP
+	#pragma omp parallel for
+	#endif
+	for (int n=0; n<MMSP::nodes(newGrid); n++) {
+		MMSP::vector<int> x = MMSP::position(newGrid,n);
+		MMSP::vector<T>& gridN = newGrid(n);
+
+		const double phFrac[NP] = {h(fabs(gridN[2])), h(fabs(gridN[3])), h(fabs(gridN[4]))};
+
+		for (int i=0; i<NP; i++) {
+			if (phFrac[i] > 0.05 && phFrac[i] < 0.95) {
+				MMSP::vector<double> gradPhi = MMSP::gradient(newGrid, x, i+NC);
+
+				const double magGrad = std::sqrt(gradPhi * gradPhi);
+				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
+				double myv = (dphidt>epsilon && magGrad>epsilon) ? dphidt / magGrad : 0.0;
+				#ifdef _OPENMP
+				#pragma omp critical
+				#endif
+				{
+					vmax = std::max(vmax, myv);
+				}
+			}
+		}
+
+	}
+
+	#ifdef MPI_VERSION
+	double myv(vmax);
+	MPI::COMM_WORLD.Allreduce(&myv, &vmax, 1, MPI_DOUBLE, MPI_MAX);
+	#endif
+
+	return std::max(0.0, vmax);
+}
+
+
+template<int dim,class T>
+MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
                                MMSP::grid<dim, MMSP::vector<T> >& newGrid)
 {
 	double Ntot = 1.0;
@@ -1433,18 +1549,20 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		MMSP::vector<int> x = MMSP::position(newGrid,n);
 		MMSP::vector<T>& gridN = newGrid(n);
 		MMSP::vector<double> mySummary(8, 0.0);
-		double myVelocity(epsilon);
+		const double phi_del = h(fabs(gridN[2]));
+		const double phi_mu  = h(fabs(gridN[3]));
+		const double phi_lav = h(fabs(gridN[4]));
 
 		MMSP::vector<double> gradPhi_del = MMSP::gradient(newGrid, x, 2);
 		MMSP::vector<double> gradPhi_mu  = MMSP::gradient(newGrid, x, 3);
 		MMSP::vector<double> gradPhi_lav = MMSP::gradient(newGrid, x, 4);
 
-		mySummary[0] = dV * gridN[0]; // x_Cr
-		mySummary[1] = dV * gridN[1]; // x_Nb
-		mySummary[3] = dV * h(fabs(gridN[2])); // p_del
-		mySummary[4] = dV * h(fabs(gridN[3])); // p_mu
-		mySummary[5] = dV * h(fabs(gridN[4])); // p_lav
-		mySummary[2] = dV - mySummary[3] - mySummary[4] - mySummary[5]; // p_gam
+		mySummary[0] = gridN[0]; // x_Cr
+		mySummary[1] = gridN[1]; // x_Nb
+		mySummary[2] = 1.0 - phi_del - phi_mu - phi_lav; // phi_gam
+		mySummary[3] = phi_del;
+		mySummary[4] = phi_mu;
+		mySummary[5] = phi_lav;
 		// free energy density:
 		mySummary[6] = dV * (gibbs(gridN) + kappa_del * (gradPhi_del * gradPhi_del)
 		                                  + kappa_mu  * (gradPhi_mu  * gradPhi_mu )
@@ -1455,12 +1573,14 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		                      std::sqrt(gradPhi_lav * gradPhi_lav)
 		                     };
 
-		// calculate velocity
+		double myVelocity = 0.0;
+		double secondaries = 1.0 / (phi_del + phi_mu + phi_lav);
 		for (int i=0; i<NP; i++) {
 			if (magGrad[i] > 0.05 && magGrad[i] < 0.95) {
 				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
 				double v = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
-				myVelocity = std::max(myVelocity, v);
+				myVelocity += v * mySummary[NC+1+i] * secondaries;
+				//myVelocity = std::max(myVelocity, v);
 			}
 		}
 		// Record local velocity
@@ -1483,14 +1603,18 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		}
 	}
 
+	for (int i=0; i<summary.length()-2; i++)
+		summary[i] /= Ntot;
+
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
 	MMSP::vector<double> tmpSummary(summary);
 
-	for (int i=0; i<summary.length()-1; i++) {
+	for (int i=0; i<summary.length()-2; i++) {
 		MPI::COMM_WORLD.Reduce(&tmpSummary[i], &summary[i], 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Barrier(); // probably not necessary
 	}
+	MPI::COMM_WORLD.Reduce(&tmpSummary[6], &summary[6], 1, MPI_DOUBLE, MPI_SUM); // free energy
 	MPI::COMM_WORLD.Allreduce(&tmpSummary[7], &summary[7], 1, MPI_DOUBLE, MPI_MAX); // maximum velocity
 	#endif
 
