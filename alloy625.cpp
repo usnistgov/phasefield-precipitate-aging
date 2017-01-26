@@ -25,7 +25,6 @@
 #ifndef ALLOY625_UPDATE
 #define ALLOY625_UPDATE
 #include<cmath>
-#include<cassert>
 
 #include<gsl/gsl_blas.h>
 #include<gsl/gsl_math.h>
@@ -149,7 +148,7 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
-const bool adaptStep = false;     // apply adaptive time-stepping?
+const bool adaptStep = true;     // apply adaptive time-stepping?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
 
@@ -160,8 +159,7 @@ const int logstep = 1000;         // steps between logging status
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifndef CALPHAD
-//const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
-const double LinStab = 1.0 / 10;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
 #else
 const double LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
@@ -720,10 +718,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	double current_dt = dt;
 
 	const double run_time = dt * steps;
-	const double timelimit = std::min(dtp, dtc) / 8;
-	const double speedlimit = meshres / 10;
+	const double timelimit = std::min(dtp, dtc) / 5.0;
+	const double speedlimit = meshres / 8.0;
 	const double scaleup = 1.1; // how fast to raise dt when stable
 	const double scaledn = 0.8; // how fast to drop dt when unstable
+	int timeratchet = 0;
 
 
 	while (current_time < run_time && current_dt > 0.0) {
@@ -731,10 +730,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (adaptStep)
 			current_dt = std::min(current_dt, run_time - current_time);
 
-		if (rank==0)
+		// Bug: when dt increases, progress bar reprints step zero
+		if (rank==0) {
+			timeratchet = std::max(timeratchet, int(floor(current_time / current_dt)));
 			//print_progress(step, steps);
-			print_progress(floor(current_time / current_dt), ceil(run_time / current_dt));
+			print_progress(timeratchet, ceil(run_time / current_dt));
 			//std::cout<<'('<<current_time / current_dt<<','<<run_time / current_dt<<')'<<std::endl;
+		}
 
 		unsigned int totBadTangents = 0;
 
@@ -892,20 +894,20 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				#ifdef MPI_VERSION
 				unsigned int myBad(totBadTangents);
 				MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+				MPI::COMM_WORLD.Barrier();
 				#endif
 
 				vector<double> summary = summarize(oldGrid, current_dt, newGrid);
 
 				if (rank==0)
 					fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11u\n",
-					current_time, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], interfacialVelocity, totBadTangents);
+					current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], interfacialVelocity, totBadTangents);
 
 			}
 
 			logcount++; // increment after output block
 
 			if (adaptStep) {
-				// Adapt timestep
 				if (rank==0)
 					fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
 
@@ -921,7 +923,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			// Update failed: solution is unstable
 			if (adaptStep) {
 				current_dt *= scaledn;
-				//step--;
 			} else {
 				if (rank==0) {
 					std::cerr<<"ERROR: Interfacial velocity exceeded speed limit, timestep is too aggressive!"<<std::endl;
@@ -1614,7 +1615,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		MPI::COMM_WORLD.Reduce(&tmpSummary[i], &summary[i], 1, MPI_DOUBLE, MPI_SUM, 0);
 		MPI::COMM_WORLD.Barrier(); // probably not necessary
 	}
-	MPI::COMM_WORLD.Reduce(&tmpSummary[6], &summary[6], 1, MPI_DOUBLE, MPI_SUM); // free energy
+	MPI::COMM_WORLD.Reduce(&tmpSummary[6], &summary[6], 1, MPI_DOUBLE, MPI_SUM, 0); // free energy
 	MPI::COMM_WORLD.Allreduce(&tmpSummary[7], &summary[7], 1, MPI_DOUBLE, MPI_MAX); // maximum velocity
 	#endif
 
