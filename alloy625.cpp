@@ -159,7 +159,7 @@ const int logstep = 1000;         // steps between logging status
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifndef CALPHAD
-const double LinStab = 1.0 / 15.06022;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 60.24088;  // threshold of linear stability (von Neumann stability condition)
 #else
 const double LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
@@ -719,9 +719,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	const double run_time = dt * steps;
 	const double timelimit = std::min(dtp, dtc) / 7.53011;
-	const double speedlimit = meshres / 10.0;
-	const double scaleup = 1.05; // how fast to raise dt when stable
-	const double scaledn = 0.9;  // how fast to drop dt when unstable
+	const double scaleup = 1.1; // how fast will dt rise when stable
+	const double scaledn = 0.8; // how fast will dt fall when unstable
 	int timeratchet = 0;
 
 
@@ -882,8 +881,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		// Update timestep based on interfacial velocity
 		const double interfacialVelocity = maxVelocity(oldGrid, current_dt, newGrid);
+		const double ideal_dt = (interfacialVelocity>epsilon) ? meshres / (10.0 * interfacialVelocity) : 2.0 * current_dt;
 
-		if (interfacialVelocity < speedlimit) {
+		if (current_dt < ideal_dt) {
 			// Update succeeded: process solution
 			current_time += current_dt; // increment before output block
 
@@ -906,26 +906,27 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 					fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11u\n",
 					current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], interfacialVelocity, totBadTangents);
 
+				if (adaptStep)
+					if (rank==0)
+						fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
+
 			}
 
 			logcount++; // increment after output block
 
-			if (adaptStep) {
-				if (rank==0)
-					fprintf(tfile, "%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
-
-				if (interfacialVelocity > 0.0) {
-					current_dt *= scaleup;
-					current_dt = std::min(current_dt, timelimit);
-				}
-			}
+			if (adaptStep)
+				if (interfacialVelocity > epsilon)
+					current_dt = std::min(current_dt*scaleup, timelimit);
 
 			swap(oldGrid, newGrid);
 
 		} else {
 			// Update failed: solution is unstable
 			if (adaptStep) {
-				current_dt *= scaledn;
+				if (rank==0)
+					fprintf(tfile, "\t%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
+
+				current_dt = ideal_dt * scaledn;
 			} else {
 				if (rank==0) {
 					std::cerr<<"ERROR: Interfacial velocity exceeded speed limit, timestep is too aggressive!"<<std::endl;
@@ -1511,15 +1512,18 @@ double maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double con
 		double secondaries = 0.0;
 		for (int i=0; i<NP; i++)
 			secondaries += phFrac[i];
-		secondaries = 1.0 / secondaries;
+		secondaries = (secondaries>epsilon) ? 1.0 / secondaries : 0.0;
 
-		for (int i=0; i<NP; i++) {
-			if (phFrac[i] > 0.05 && phFrac[i] < 0.95) {
+		for (int i=0; secondaries>epsilon && i<NP; i++) {
+			if (phFrac[i] > 0.3 && phFrac[i] < 0.7) {
 				MMSP::vector<double> gradPhi = MMSP::gradient(newGrid, x, i+NC);
 				const double magGrad = std::sqrt(gradPhi * gradPhi);
-				double dphidt = std::fabs(phFrac[i] - h(fabs(oldGrid(n)[i+NC]))) / dt;
-				double v = (magGrad>epsilon) ? dphidt / magGrad : 0.0;
-				myVelocity += v * phFrac[i] * secondaries;
+				if (magGrad > epsilon) {
+					double dphidt = std::fabs(phFrac[i] - h(fabs(oldGrid(n)[i+NC]))) / dt;
+					double v = dphidt / magGrad;
+					myVelocity += v * phFrac[i] * secondaries;
+					//myVelocity = std::max(myVelocity, v);
+				}
 			}
 		}
 		#ifdef _OPENMP
@@ -1583,11 +1587,12 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		                     };
 
 		double myVelocity = 0.0;
-		double secondaries = 1.0 / (phi_del + phi_mu + phi_lav);
-		for (int i=0; i<NP; i++) {
-			if (mySummary[NC+1+i] > 0.05 && mySummary[NC+1+i] < 0.95) {
+		double secondaries = phi_del + phi_mu + phi_lav;
+		secondaries = (secondaries>epsilon) ? 1.0 / secondaries : 0.0;
+		for (int i=0; secondaries>epsilon && i<NP; i++) {
+			if (magGrad[i] > epsilon && mySummary[NC+1+i] > 0.3 && mySummary[NC+1+i] < 0.7) {
 				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
-				double v = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
+				double v = dphidt / magGrad[i];
 				myVelocity += v * mySummary[NC+1+i] * secondaries;
 				//myVelocity = std::max(myVelocity, v);
 			}
