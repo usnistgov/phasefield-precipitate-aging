@@ -150,9 +150,9 @@ const double omega_lav = 3.0 * width_factor * sigma_lav / ifce_width; // 9.5e8; 
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
 const bool adaptStep = true;     // apply adaptive time-stepping?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
-const double epsilon = 1.0e-10;  // what to consider zero to avoid log(c) explosions
+const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explosions
 
-const double root_tol = 1.0e-3;   // residual tolerance (default is 1e-7)
+const double root_tol = 1.0e-4;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 const int logstep = 1000;         // steps between logging status
@@ -718,10 +718,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	double current_dt = dt;
 
 	const double run_time = dt * steps;
-	const double timelimit = std::min(dtp, dtc) / 5.0;
-	const double speedlimit = meshres / 8.0;
-	const double scaleup = 1.1; // how fast to raise dt when stable
-	const double scaledn = 0.8; // how fast to drop dt when unstable
+	const double timelimit = std::min(dtp, dtc) / 7.53011;
+	const double speedlimit = meshres / 10.0;
+	const double scaleup = 1.05; // how fast to raise dt when stable
+	const double scaledn = 0.9;  // how fast to drop dt when unstable
 	int timeratchet = 0;
 
 
@@ -751,6 +751,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			vector<int> x = position(oldGrid,n);
 			vector<T>& oldGridN = oldGrid(n);
 			vector<T>& newGridN = newGrid(n);
+
 
 			/* ================= *
 			 * Collect Constants *
@@ -783,6 +784,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const double Gdel = g_del(C_del_Cr, C_del_Nb);
 			const double Gmu  = g_mu( C_mu_Cr,  C_mu_Nb );
 			const double Glav = g_lav(C_lav_Cr, C_lav_Nb);
+
 
 			/* =================== *
 			 * Compute Derivatives *
@@ -842,6 +844,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			newGridN[2] = phi_del - current_dt * L_del * delF_delPhi_del;
 			newGridN[3] = phi_mu  - current_dt * L_mu  * delF_delPhi_mu ;
 			newGridN[4] = phi_lav - current_dt * L_lav * delF_delPhi_lav;
+
 
 			/* =========================== *
 			 * Solve for parallel tangents *
@@ -1504,22 +1507,27 @@ double maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double con
 
 		const double phFrac[NP] = {h(fabs(gridN[2])), h(fabs(gridN[3])), h(fabs(gridN[4]))};
 
+		double myVelocity = 0.0;
+		double secondaries = 0.0;
+		for (int i=0; i<NP; i++)
+			secondaries += phFrac[i];
+		secondaries = 1.0 / secondaries;
+
 		for (int i=0; i<NP; i++) {
 			if (phFrac[i] > 0.05 && phFrac[i] < 0.95) {
 				MMSP::vector<double> gradPhi = MMSP::gradient(newGrid, x, i+NC);
-
 				const double magGrad = std::sqrt(gradPhi * gradPhi);
-				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
-				double myv = (dphidt>epsilon && magGrad>epsilon) ? dphidt / magGrad : 0.0;
-				#ifdef _OPENMP
-				#pragma omp critical
-				#endif
-				{
-					vmax = std::max(vmax, myv);
-				}
+				double dphidt = std::fabs(phFrac[i] - h(fabs(oldGrid(n)[i+NC]))) / dt;
+				double v = (magGrad>epsilon) ? dphidt / magGrad : 0.0;
+				myVelocity += v * phFrac[i] * secondaries;
 			}
 		}
-
+		#ifdef _OPENMP
+		#pragma omp critical
+		#endif
+		{
+			vmax = std::max(vmax, myVelocity);
+		}
 	}
 
 	#ifdef MPI_VERSION
@@ -1527,7 +1535,7 @@ double maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double con
 	MPI::COMM_WORLD.Allreduce(&myv, &vmax, 1, MPI_DOUBLE, MPI_MAX);
 	#endif
 
-	return std::max(0.0, vmax);
+	return vmax;
 }
 
 
@@ -1577,7 +1585,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		double myVelocity = 0.0;
 		double secondaries = 1.0 / (phi_del + phi_mu + phi_lav);
 		for (int i=0; i<NP; i++) {
-			if (magGrad[i] > 0.05 && magGrad[i] < 0.95) {
+			if (mySummary[NC+1+i] > 0.05 && mySummary[NC+1+i] < 0.95) {
 				double dphidt = std::fabs(gridN[i+NC] - oldGrid(n)[i+NC]) / dt;
 				double v = (magGrad[i]>epsilon) ? dphidt / magGrad[i] : 0.0;
 				myVelocity += v * mySummary[NC+1+i] * secondaries;
