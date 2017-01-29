@@ -37,7 +37,7 @@
 // Taylor series is your best bet.
 #if defined PARABOLIC
 #include"parabola625.c"
-#elif defined calphad
+#elif defined CALPHAD
 #include"energy625.c"
 #else
 #include"taylor625.c"
@@ -155,11 +155,9 @@ const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explos
 const double root_tol = 1.0e-4;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
-const int logstep = 1000;         // steps between logging status
-
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifndef CALPHAD
-const double LinStab = 1.0 / 60.24088;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 30.12044;  // threshold of linear stability (von Neumann stability condition)
 #else
 const double LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
@@ -208,12 +206,12 @@ void generate(int dim, const char* filename)
 		if (rank==0)
 			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
-		/*
 		const double Csstm[2] = {0.1500, 0.1500}; // gamma-delta system Cr, Nb composition
 		const double Cprcp[2] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
 		const int mid = 0;    // matrix phase
 		const int pid = NC+0; // delta phase
 
+		/*
 		const double Csstm[2] = {0.0500, 0.3500}; // gamma-mu system Cr, Nb composition
 		const double Cprcp[2] = {0.0500, 0.4500}; // mu  precipitate Cr, Nb composition
 		const int mid = 0;    // matrix phase
@@ -238,7 +236,6 @@ void generate(int dim, const char* filename)
 		 * test of diffusion and phase equations        *
 		 * ============================================ */
 
-		/*
 		const int Nprcp = Nx / 3;
 		const int Nmtrx = Nx - Nprcp;
 		const vector<double> blank(fields(initGrid), 0.0);
@@ -265,13 +262,13 @@ void generate(int dim, const char* filename)
 			}
 
 		}
-		*/
 
 
 		/* ============================= *
 		 * Four-phase test configuration *
 		 * ============================= */
 
+		/*
 		const int Nprcp[NP] = {Nx / 8, Nx / 8, Nx / 8}; // grid points per seed
 		const int Noff = Nx / NP; // grid points between seeds
 		int Nmtrx = Nx; // grid points of matrix phase
@@ -294,8 +291,6 @@ void generate(int dim, const char* filename)
 
 		const vector<double> blank(fields(initGrid), 0.0);
 
-		unsigned int totBadTangents = 0;
-
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
@@ -303,7 +298,7 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(initGrid, n);
 			vector<double>& initGridN = initGrid(n);
 
-			initGrid(n) = blank;
+			initGridN = blank;
 
 			// Initialize gamma to satisfy system composition
 			initGridN[0] = matCr;
@@ -317,20 +312,29 @@ void generate(int dim, const char* filename)
 					initGridN[NC+pid] = 1.0 - epsilon;
 				}
 			}
+		}
+		*/
+
+		unsigned int totBadTangents = 0;
+
+		#ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
+		for (int n=0; n<nodes(initGrid); n++) {
+			vector<double>& initGridN = initGrid(n);
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-			guessGamma(initGrid(n));
-			guessDelta(initGrid(n));
-			guessMu(   initGrid(n));
-			guessLaves(initGrid(n));
+			guessGamma(initGridN);
+			guessDelta(initGridN);
+			guessMu(   initGridN);
+			guessLaves(initGridN);
 
 			/* =========================== *
 			 * Solve for parallel tangents *
 			 * =========================== */
 
 			rootsolver parallelTangentSolver;
-			//double res = parallelTangentSolver.solve(initGridN);
-			double res = parallelTangentSolver.solve(initGrid(n));
+			double res = parallelTangentSolver.solve(initGridN);
 
 			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
@@ -342,10 +346,10 @@ void generate(int dim, const char* filename)
 					totBadTangents++;
 				}
 
-				guessGamma(initGrid(n));
-				guessDelta(initGrid(n));
-				guessMu(   initGrid(n));
-				guessLaves(initGrid(n));
+				guessGamma(initGridN);
+				guessDelta(initGridN);
+				guessMu(   initGridN);
+				guessLaves(initGridN);
 			}
 		}
 
@@ -599,10 +603,10 @@ void generate(int dim, const char* filename)
 			}
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-			guessGamma(initGrid(n));
-			guessDelta(initGrid(n));
-			guessMu(   initGrid(n));
-			guessLaves(initGrid(n));
+			guessGamma(initGridN);
+			guessDelta(initGridN);
+			guessMu(   initGridN);
+			guessLaves(initGridN);
 
 
 			/* =========================== *
@@ -610,8 +614,7 @@ void generate(int dim, const char* filename)
 			 * =========================== */
 
 			rootsolver parallelTangentSolver;
-			//double res = parallelTangentSolver.solve(initGridN);
-			double res = parallelTangentSolver.solve(initGrid(n));
+			double res = parallelTangentSolver.solve(initGridN);
 
 			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
@@ -622,10 +625,10 @@ void generate(int dim, const char* filename)
 					totBadTangents++;
 				}
 
-				guessGamma(initGrid(n));
-				guessDelta(initGrid(n));
-				guessMu(   initGrid(n));
-				guessLaves(initGrid(n));
+				guessGamma(initGridN);
+				guessDelta(initGridN);
+				guessMu(   initGridN);
+				guessLaves(initGridN);
 			}
 		}
 
@@ -681,7 +684,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	grid<dim,vector<T> > newGrid(oldGrid);
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * L_del*kappa_del); // transformation-limited timestep
-	//const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
 	const double dt = LinStab * std::min(dtp, dtc);
 
@@ -701,8 +703,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		}
 	}
 
-	static int logcount = 1;
-
 	FILE* cfile = NULL;
 	FILE* tfile = NULL;
 
@@ -715,27 +715,29 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	// Prepare reference and live values for adaptive timestepper
 	double current_time = 0.0;
-	double current_dt = dt;
+	double current_dt = dt; // encourage a stable first step
+	static int logcount = 1;
 
 	const double run_time = dt * steps;
-	const double timelimit = std::min(dtp, dtc) / 7.53011;
+	const double timelimit = std::min(dtp, dtc) / 10; //7.53011;
+	const double advectionlimit = 0.125 * meshres;
 	const double scaleup = 1.1; // how fast will dt rise when stable
 	const double scaledn = 0.8; // how fast will dt fall when unstable
-	int timeratchet = 0;
+	const int logstep = std::min(100000, steps); // steps between logging status
 
+
+	//if (rank==0)
+	//	print_progress(0, ceil(run_time / current_dt));
 
 	while (current_time < run_time && current_dt > 0.0) {
-	//for (int step = 0; step < steps; step++) {
-		if (adaptStep)
-			current_dt = std::min(current_dt, run_time - current_time);
-
-		// Bug: when dt increases, progress bar reprints step zero
 		if (rank==0) {
-			timeratchet = std::max(timeratchet, int(floor(current_time / current_dt)));
-			//print_progress(step, steps);
-			print_progress(timeratchet, ceil(run_time / current_dt));
+			print_progress(current_time / current_dt, ceil(run_time / current_dt));
+			//print_progress(floor(current_time / current_dt), ceil(run_time / current_dt));
 			//std::cout<<'('<<current_time / current_dt<<','<<run_time / current_dt<<')'<<std::endl;
 		}
+
+		if (adaptStep)
+			current_dt = std::min(current_dt, run_time - current_time);
 
 		unsigned int totBadTangents = 0;
 
@@ -854,8 +856,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				newGridN[i] = oldGridN[i];
 
 			rootsolver parallelTangentSolver;
-			//double res = parallelTangentSolver.solve(newGridN);
-			double res = parallelTangentSolver.solve(newGrid(n));
+			double res = parallelTangentSolver.solve(newGridN);
 
 			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
@@ -866,10 +867,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 					totBadTangents++;
 				}
 
-				guessGamma(newGrid(n));
-				guessDelta(newGrid(n));
-				guessMu(   newGrid(n));
-				guessLaves(newGrid(n));
+				guessGamma(newGridN);
+				guessDelta(newGridN);
+				guessMu(   newGridN);
+				guessLaves(newGridN);
 			}
 
 			/* ======= *
@@ -881,7 +882,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		// Update timestep based on interfacial velocity
 		const double interfacialVelocity = maxVelocity(oldGrid, current_dt, newGrid);
-		const double ideal_dt = (interfacialVelocity>epsilon) ? meshres / (10.0 * interfacialVelocity) : 2.0 * current_dt;
+		const double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : 2.0 * current_dt;
 
 		if (current_dt < ideal_dt) {
 			// Update succeeded: process solution
@@ -914,11 +915,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			logcount++; // increment after output block
 
+			swap(oldGrid, newGrid);
+
 			if (adaptStep)
 				if (interfacialVelocity > epsilon)
 					current_dt = std::min(current_dt*scaleup, timelimit);
-
-			swap(oldGrid, newGrid);
 
 		} else {
 			// Update failed: solution is unstable
@@ -929,7 +930,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				current_dt = ideal_dt * scaledn;
 			} else {
 				if (rank==0) {
-					std::cerr<<"ERROR: Interfacial velocity exceeded speed limit, timestep is too aggressive!"<<std::endl;
+					std::cerr<<"ERROR: Interface swept more than ("<<meshres/advectionlimit<<")dx, timestep is too aggressive!"<<std::endl;
 					fclose(cfile);
 					if (adaptStep)
 						fclose(tfile);
@@ -941,10 +942,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	if (rank==0) {
 		fclose(cfile);
-		if (adaptStep) {
+		if (adaptStep)
 			fclose(tfile);
-			print_progress(steps-1, steps);
-		}
 	}
 
 }
