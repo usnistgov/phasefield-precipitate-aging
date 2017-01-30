@@ -10,9 +10,9 @@ icompiler = icc
 gcompiler = /usr/bin/g++
 pcompiler = mpic++
 
-fflags = -O3 $(boiler)
-gflags = -pg $(boiler)
-pflags = -O3 $(boiler) -include mpi.h
+fflags = -O3 -DADAPTIVE_TIMESTEPS $(boiler)
+gflags = -pg -DADAPTIVE_TIMESTEPS $(boiler)
+pflags = -O3 -DADAPTIVE_TIMESTEPS $(boiler) -include mpi.h
 
 
 # WORKSTATION
