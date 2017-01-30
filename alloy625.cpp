@@ -44,7 +44,14 @@
 #endif
 
 // Note: alloy625.hpp contains important declarations and comments. Have a look.
-//       energy625.c is generated from CALPHAD using pycalphad and SymPy, in CALPHAD_extraction.ipynb.
+
+/* Free energy expressions are generated from CALPHAD using pycalphad and SymPy
+ * by the Python script CALPHAD_energy.py. It produces three versions:
+ * * energy625.c:   pure CALPHAD expression with derivatives; neither smooth nor continuously differentiable
+ * * taylor625.c:   Taylor series expansion of CALPHAD surface about invariant points on phase diagram, RECOMMENDED
+ * * parabola625.c: parabolic approximation to CALPHAD surface at centroid of phase fields, not especially useful.
+ */
+
 
 /* =============================================== *
  * Implement MMSP kernels: generate() and update() *
@@ -54,32 +61,26 @@
  *
  * X0.  molar fraction of Cr + Mo
  * X1.  molar fraction of Nb
- * bal. molar fraction of Ni
  *
  * P2.  phase fraction of delta
  * P3.  phase fraction of mu
  * P4.  phase fraction of Laves
- * bal. phase fraction of gamma
  *
  * C5.  Cr molar fraction in pure gamma
  * C6.  Nb molar fraction in pure gamma
- * bal. Ni molar fraction in pure gamma
  *
  * C7.  Cr molar fraction in pure delta
  * C8.  Nb molar fraction in pure delta
- * bal. Ni molar fraction in pure delta
  *
  * C9.  Cr molar fraction in pure mu
  * C10. Nb molar fraction in pure mu
- * bal. Ni molar fraction in pure mu
  *
  * C11. Cr molar fraction in pure Laves
  * C12. Nb molar fraction in pure Laves
- * bal. Ni molar fraction in pure Laves
  */
 
-/* Based on experiments (EDS) and simulations (DICTRA), additively manufactured
- * IN625 has the following compositions:
+/* Based on experiments (EDS) and simulations (DICTRA),
+ * additively manufactured IN625 has these compositions:
  *
  * Element  Nominal  Interdendritic (mol %)
  * Cr+Mo      30%      31%
@@ -102,33 +103,28 @@ const double xNb[NP+2] = {0.02,     0.2500,  0.50,  0.2500,  0.13-0.02};
 const double bell[NC] = {150.0e-9, 50.0e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
-const double meshres = 5.0e-9; //1.25e-9;    // grid spacing (m)
-//const double Vm = 1.0e-5;         // molar volume (m^3/mol)
-const double alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
+const double meshres = 5.0e-9; // grid spacing (m)
+const double alpha = 1.07e11;  // three-phase coexistence coefficient (J/m^3)
 
-// Diffusion constants from Xu
-const double D_CrCr = 2.42e-15; // diffusivity in FCC Ni (m^2/s)
-const double D_CrNb = 2.47e-15; // diffusivity in FCC Ni (m^2/s)
-const double D_NbCr = 0.43e-15; // diffusivity in FCC Ni (m^2/s)
-const double D_NbNb = 3.32e-15; // diffusivity in FCC Ni (m^2/s)
+// Diffusion constants in FCC Ni from Xu (m^2/s)
+//                       Cr        Nb
+const double D_Cr[NC] = {2.42e-15, 0.43e-15}; // impurity in Cr
+const double D_Nb[NC] = {2.47e-15, 3.32e-15}; // impurity in Nb
 
 //                        delta    mu       Laves
 const double kappa[NP] = {1.24e-8, 1.24e-8, 1.24e-8}; // gradient energy coefficient (J/m)
 
 // Choose numerical diffusivity to lock chemical and transformational timescales
 //                       delta      mu         Laves
-// Zhou's numbers
-const double Lmob[NP] = {2.904e-11, 2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
-// ...'s numbers
-//const double Lmob[NP] = {1.92e-12, 1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns)
+const double Lmob[NP] = {2.904e-11, 2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns), Zhou's numbers
+//const double Lmob[NP] = {1.92e-12, 1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns), Xu's numbers
 
 //                        delta  mu   Laves
 const double sigma[NP] = {1.01, 1.01, 1.01}; // J/m^2
 
+// Interfacial width
+//const double omega[NP] = {9.5e8, 9.5e8, 9.5e8}; // multiwell height (m^2/Nsm^2), Zhou's numbers
 // Note that ifce width was not considered in Zhou's model, but is in vanilla KKS
-// Zhou's numbers
-//const double omega[NP] = {9.5e8, 9.5e8, 9.5e8}; // multiwell height (m^2/Nsm^2)
-
 const double width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const double ifce_width = 10.0*meshres; // ensure at least 7 points through the interface
 const double omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
@@ -138,7 +134,7 @@ const double omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
-const bool adaptStep = true;     // apply adaptive time-stepping?
+const bool adaptStep = false;     // apply adaptive time-stepping?
 const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explosions
 
@@ -147,7 +143,7 @@ const int root_max_iter = 500000; // default is 1000, increasing probably won't 
 
 //const double LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifndef CALPHAD
-const double LinStab = 1.0 / 30.12044;  // threshold of linear stability (von Neumann stability condition)
+const double LinStab = 1.0 / 30.12044; // threshold of linear stability (von Neumann stability condition)
 #else
 const double LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
@@ -172,8 +168,7 @@ void generate(int dim, const char* filename)
 	}
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
-	//const double dtc = (meshres*meshres)/(8.0 * Vm*Vm * std::max(M_Cr*d2g_gam_dxCrCr(xe_gam_Cr(), xe_gam_Nb()), M_Nb*d2g_gam_dxNbNb()))); // diffusion-limited timestep
-	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
+	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
 	const double dt = LinStab * std::min(dtp, dtc);
 
 	if (dim==1) {
@@ -196,12 +191,12 @@ void generate(int dim, const char* filename)
 		if (rank==0)
 			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
+		/*
 		const double Csstm[2] = {0.1500, 0.1500}; // gamma-delta system Cr, Nb composition
 		const double Cprcp[2] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
 		const int mid = 0;    // matrix phase
 		const int pid = NC+0; // delta phase
 
-		/*
 		const double Csstm[2] = {0.0500, 0.3500}; // gamma-mu system Cr, Nb composition
 		const double Cprcp[2] = {0.0500, 0.4500}; // mu  precipitate Cr, Nb composition
 		const int mid = 0;    // matrix phase
@@ -226,6 +221,7 @@ void generate(int dim, const char* filename)
 		 * test of diffusion and phase equations        *
 		 * ============================================ */
 
+		/*
 		const int Nprcp = Nx / 3;
 		const int Nmtrx = Nx - Nprcp;
 		const vector<double> blank(fields(initGrid), 0.0);
@@ -252,13 +248,13 @@ void generate(int dim, const char* filename)
 			}
 
 		}
+		*/
 
 
 		/* ============================= *
 		 * Four-phase test configuration *
 		 * ============================= */
 
-		/*
 		const int Nprcp[NP] = {Nx / 8, Nx / 8, Nx / 8}; // grid points per seed
 		const int Noff = Nx / NP; // grid points between seeds
 		int Nmtrx = Nx; // grid points of matrix phase
@@ -303,7 +299,6 @@ void generate(int dim, const char* filename)
 				}
 			}
 		}
-		*/
 
 		unsigned int totBadTangents = 0;
 
@@ -674,7 +669,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	grid<dim,vector<T> > newGrid(oldGrid);
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
-	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_CrCr, D_NbNb)); // diffusion-limited timestep
+	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
 	const double dt = LinStab * std::min(dtp, dtc);
 
 	double dV = 1.0;
@@ -716,15 +711,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	const int logstep = std::min(100000, steps); // steps between logging status
 
 
-	//if (rank==0)
-	//	print_progress(0, ceil(run_time / current_dt));
-
 	while (current_time < run_time && current_dt > 0.0) {
-		if (rank==0) {
+		if (rank==0)
 			print_progress(current_time / current_dt, ceil(run_time / current_dt));
-			//print_progress(floor(current_time / current_dt), ceil(run_time / current_dt));
-			//std::cout<<'('<<current_time / current_dt<<','<<run_time / current_dt<<')'<<std::endl;
-		}
 
 		if (adaptStep)
 			current_dt = std::min(current_dt, run_time - current_time);
@@ -748,66 +737,52 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Collect Constants *
 			 * ================= */
 
-			const T absPhi[NP] = {fabs(oldGridN[2]), fabs(oldGridN[3]), fabs(oldGridN[4])};
-
-			const double PhaseEnergy[NP+1] = {g_gam(oldGridN[5],  oldGridN[6]),
-			                                  g_del(oldGridN[7],  oldGridN[8]),
+			const double PhaseEnergy[NP+1] = {g_del(oldGridN[7],  oldGridN[8]),
 			                                  g_mu( oldGridN[9],  oldGridN[10]),
-			                                  g_lav(oldGridN[11], oldGridN[12])
+			                                  g_lav(oldGridN[11], oldGridN[12]),
+			                                  g_gam(oldGridN[5],  oldGridN[6])
 			                                 };
 
-			/* =================== *
-			 * Compute Derivatives *
-			 * =================== */
+			// Diffusion potential in matrix (will equal chemical potential at equilibrium)
+			const double chempot[NC] = {dg_gam_dxCr(oldGridN[5], oldGridN[6]), dg_gam_dxNb(oldGridN[5], oldGridN[6])};
+
+			// sum of phase fractions-squared
+			double sumPhiSq = 0.0;
+			for (int j=NC; j<NC+NP; j++)
+				sumPhiSq += oldGridN[j] * oldGridN[j];
 
 			// Laplacians of field variables
 			const vector<double> laplac = laplacian(oldGrid, x);
-
-			// Diffusion potentials (at equilibrium, equal to chemical potentials)
-			const double chempot[NC] = {dg_gam_dxCr(oldGridN[5], oldGridN[6]),
-			                            dg_gam_dxNb(oldGridN[5], oldGridN[6])
-			                           };
-
-			// "Pressures" between matrix and precipitate phases
-			//                           Matrix           Precipitate       delta(Cr comp)               mu Cr        delta(Nb comp)                mu Nb
-			const double Pressure[NP] = {PhaseEnergy[0] - PhaseEnergy[1] - (oldGridN[5] - oldGridN[7]) * chempot[0] - (oldGridN[6] - oldGridN[8]) * chempot[1], // delta
-			                             PhaseEnergy[0] - PhaseEnergy[2] - (oldGridN[5] - oldGridN[9]) * chempot[0] - (oldGridN[6] - oldGridN[10])* chempot[1], // mu
-			                             PhaseEnergy[0] - PhaseEnergy[3] - (oldGridN[5] - oldGridN[11])* chempot[0] - (oldGridN[6] - oldGridN[12])* chempot[1]  // Laves
-			                            };
-
-			// Variational derivatives (scalar minus gradient term in Euler-Lagrange eqn)
-			double delF_delPhi[NP] = {-sign(oldGridN[2]) * hprime(absPhi[0]) * Pressure[0], // delta
-			                          -sign(oldGridN[3]) * hprime(absPhi[1]) * Pressure[1], // mu
-			                          -sign(oldGridN[4]) * hprime(absPhi[2]) * Pressure[2]  // Laves
-			                         };
-			delF_delPhi[0] += 2.0 * omega[0] * oldGridN[2] * (1.0 - absPhi[0]) * (1.0 - absPhi[0] - sign(oldGridN[2]) * oldGridN[2]);
-			delF_delPhi[1] += 2.0 * omega[1] * oldGridN[3] * (1.0 - absPhi[1]) * (1.0 - absPhi[1] - sign(oldGridN[3]) * oldGridN[3]);
-			delF_delPhi[2] += 2.0 * omega[2] * oldGridN[4] * (1.0 - absPhi[2]) * (1.0 - absPhi[2] - sign(oldGridN[4]) * oldGridN[4]);
-
-			delF_delPhi[0] += 4.0 * alpha * oldGridN[2] * (oldGridN[3] * oldGridN[3] + oldGridN[4] * oldGridN[4]);
-			delF_delPhi[1] += 4.0 * alpha * oldGridN[3] * (oldGridN[2] * oldGridN[2] + oldGridN[4] * oldGridN[4]);
-			delF_delPhi[2] += 4.0 * alpha * oldGridN[4] * (oldGridN[2] * oldGridN[2] + oldGridN[3] * oldGridN[3]);
-
-			delF_delPhi[0] -= kappa[0] * laplac[2];
-			delF_delPhi[1] -= kappa[1] * laplac[3];
-			delF_delPhi[2] -= kappa[2] * laplac[4];
 
 
 			/* ============================================= *
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			newGridN[0] = oldGridN[0] + current_dt * (D_CrCr * laplac[5] + D_CrNb * laplac[6]);
-			newGridN[1] = oldGridN[1] + current_dt * (D_NbCr * laplac[5] + D_NbNb * laplac[6]);
+			for (int i=0; i<NC; i++) //                D(x in Cr) * lap(x_Cr) + D(x in Nb) * lap(x_Nb)
+				newGridN[i] = oldGridN[i] + current_dt * (D_Cr[i] * laplac[5] + D_Nb[i] * laplac[6]);
 
 
 			/* ======================================== *
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
 
-			newGridN[2] = oldGridN[2] - current_dt * Lmob[0] * delF_delPhi[0];
-			newGridN[3] = oldGridN[3] - current_dt * Lmob[1] * delF_delPhi[1];
-			newGridN[4] = oldGridN[4] - current_dt * Lmob[2] * delF_delPhi[2];
+			for (int j=0; j<NP; j++) {
+				const double absPhi = fabs(oldGridN[j+NC]);
+
+				// "Pressure" between matrix and precipitate phase
+				double Pressure = PhaseEnergy[NP] - PhaseEnergy[j];
+				for (int i=0; i<NC; i++)
+					Pressure -= (oldGridN[i+5] - oldGridN[i+2*j+7]) * chempot[i];
+
+				// Variational derivatives (scalar minus gradient term in Euler-Lagrange eqn)
+				double delF_delPhi = -sign(oldGridN[j+NC]) * hprime(absPhi) * Pressure;
+				delF_delPhi += 2.0 * omega[j] * oldGridN[j+NC] * (1.0 - absPhi) * (1.0 - absPhi - sign(oldGridN[j+NC]) * oldGridN[j+NC]);
+				delF_delPhi += 4.0 * alpha * oldGridN[j+NC] * (sumPhiSq - oldGridN[j+NC] * oldGridN[j+NC]);
+				delF_delPhi -= kappa[j] * laplac[j+NC];
+
+				newGridN[j+NC] = oldGridN[j+NC] - current_dt * Lmob[j] * delF_delPhi;
+			}
 
 
 			/* =========================== *
@@ -815,8 +790,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * =========================== */
 
 			// Copy old values as initial guesses
-			for (int i=NC+NP; i<fields(newGrid)-1; i++)
-				newGridN[i] = oldGridN[i];
+			for (int k=NC+NP; k<fields(newGrid)-1; k++)
+				newGridN[k] = oldGridN[k];
 
 			rootsolver parallelTangentSolver;
 			double res = parallelTangentSolver.solve(newGridN);
@@ -841,10 +816,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ======= */
 		}
 
-		ghostswap(newGrid);
+		swap(oldGrid, newGrid);
+		ghostswap(oldGrid);
 
 		// Update timestep based on interfacial velocity
-		const double interfacialVelocity = maxVelocity(oldGrid, current_dt, newGrid);
+		const double interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
 		const double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : 2.0 * current_dt;
 
 		if (current_dt < ideal_dt) {
@@ -864,7 +840,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				MPI::COMM_WORLD.Barrier();
 				#endif
 
-				vector<double> summary = summarize(oldGrid, current_dt, newGrid);
+				vector<double> summary = summarize(newGrid, current_dt, oldGrid);
 
 				if (rank==0)
 					fprintf(cfile, "%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11.9g\t%11u\n",
@@ -878,8 +854,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			logcount++; // increment after output block
 
-			swap(oldGrid, newGrid);
-
 			if (adaptStep)
 				if (interfacialVelocity > epsilon)
 					current_dt = std::min(current_dt*scaleup, timelimit);
@@ -889,8 +863,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			if (adaptStep) {
 				if (rank==0)
 					fprintf(tfile, "\t%11.9g\t%11.9g\t%11.9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
-
 				current_dt = ideal_dt * scaledn;
+
+				swap(oldGrid, newGrid);
+				ghostswap(oldGrid);
 			} else {
 				if (rank==0) {
 					std::cerr<<"ERROR: Interface swept more than ("<<meshres/advectionlimit<<")dx, timestep is too aggressive!"<<std::endl;
@@ -1540,7 +1516,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		mySummary[5] = phi_lav;
 		// free energy density:
 		mySummary[6] = dV * (gibbs(gridN) + kappa[0] * (gradPhi_del * gradPhi_del)
-		                                  + kappa[1]  * (gradPhi_mu  * gradPhi_mu )
+		                                  + kappa[1] * (gradPhi_mu  * gradPhi_mu )
 		                                  + kappa[2] * (gradPhi_lav * gradPhi_lav));
 
 		double magGrad[NP] = {std::sqrt(gradPhi_del * gradPhi_del),
@@ -1560,7 +1536,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 			}
 		}
 		// Record local velocity
-		gridN[fields(newGrid)-1] = static_cast<T>(myVelocity);
+		gridN[fields(newGrid)-1] = 0; //static_cast<T>(myVelocity);
 
 		// Sum up mass and phase fractions
 		#ifdef _OPENMP
