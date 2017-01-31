@@ -709,22 +709,22 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 
 	double current_time = 0.0;
-	double current_dt = dt; // encourage a stable first step
+	static double current_dt = dt;
 	static int logcount = 1;
+
 	const int logstep = std::min(100000, steps); // steps between logging status
 	const double advectionlimit = 0.125 * meshres;
 
 	#ifdef ADAPTIVE_TIMESTEPS
 	// reference values for adaptive timestepper
 	const double run_time = dt * steps;
-	const double timelimit = std::min(dtp, dtc) / 10; //7.53011;
-	const double scaleup = 1.1; // how fast will dt rise when stable
-	const double scaledn = 0.8; // how fast will dt fall when unstable
+	const double timelimit = std::min(dtp, dtc) / 7.53011;
+	const double scaleup = 1.005; // how fast will dt rise when stable
+	const double scaledn = 0.9; // how fast will dt fall when unstable
 
+	print_progress(0, steps);
 
 	while (current_time < run_time && current_dt > 0.0) {
-		if (rank==0)
-			print_progress(current_time / current_dt, ceil(run_time / current_dt));
 
 		current_dt = std::min(current_dt, run_time - current_time);
 
@@ -902,6 +902,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		fclose(cfile);
 		#ifdef ADAPTIVE_TIMESTEPS
 		fclose(tfile);
+		print_progress(steps-1, steps); // floating-point comparison misses the endpoint
 		#endif
 	}
 
