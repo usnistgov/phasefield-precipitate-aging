@@ -45,7 +45,7 @@
 			            &+ \omega_\delta(\phi_\delta)^2(1-|\phi_\delta|)^2
 			             + \omega_\mu(\phi_\mu)^2(1-|\phi_\mu|)^2
 			             + \omega_\ce{L}(\phi_\ce{L})^2(1-|\phi_\ce{L}|)^2
-			             + \alpha\sum\sum\phi_i^2\phi_j^2
+			             + \alpha\sum_{i}\sum_{j\neq i}\phi_i^2\phi_j^2
 			            \label{eqn:density}
 		\end{align}
 
@@ -266,17 +266,33 @@
 		\begin{equation}
 			\frac{\partial x_{\ell}}{\partial t} = 2V_m^2 \nabla\cdot M_{\ell}C_{\ell}^{\gamma}\nabla x_{\ell}^{\gamma},\label{eqn:interdiff}
 		\end{equation}
-		with curvature $C_{\ell}^{\gamma}=\frac{1}{2}\frac{\partial^2 f_{\gamma}}{\partial \left({x_{\ell}^{\gamma}}\right)^2}$. We can also use the definition of diffusivity:
+		with curvature $C_{\ell}^{\gamma}=\frac{1}{2}\frac{\partial^2 f_{\gamma}}{\partial \left({x_{\ell}^{\gamma}}\right)^2}$.
+		
+		We can also use the definition of diffusivity:
 		\begin{align}
 			D_{\ell j}^{\nu} &= \sum_k M_{\ell k}^{\nu}\frac{\partial^2 f_{\gamma}}{\partial x_{\ell}^{\nu} \partial x_j^{\nu}}\\
 			\frac{\partial x_{\ell}}{\partial t} &= \nabla\cdot\sum_j D_{\ell j}^{\gamma} \nabla x_j^{\gamma}.
 		\end{align}
-		For this particular system, we only have a diffusivity expression for \ce{Nb} in pure fcc Ni (\emph{i.e.}, $\gamma$ phase)
-		\cite{Karunaratne2005},	$D_{\ce{Nb}}^{\gamma}(T)$.
-		Assuming similar diffusivities of \ce{Cr} and \ce{Nb} in \ce{Ni}, our final isothermal diffusion equation becomes
-		\begin{equation}
-			\frac{\partial x_{\ell}}{\partial t} = D_{\ce{Nb}}^{\gamma}\nabla^2 x_{\ell}^{\gamma}.\label{eqn:diffusion}
+
+		For Cr--Nb--Ni, we have diffusivity data at \SI{1273}{\kelvin} \cite{Xu2016};
+		for a matrix of Ni--\SI{26.4}{\percent} Cr--\SI{1.3}{\percent} Nb,
+		\begin{equation}\label{eqn:diffusion}
+			\tilde{D}^{\ce{Ni}} = \left[\begin{array}{cc}
+			                            \tilde{D}_{\mathrm{CrCr}} & \tilde{D}_{\mathrm{CrNb}}\\
+			                            \tilde{D}_{\mathrm{NbCr}} & \tilde{D}_{\mathrm{NbNb}}
+		                                \end{array}
+		                          \right]
+			                    = \left[\begin{array}{cc}
+			                            2.16 & 2.97\\
+			                            0.56 & 4.29
+		                                \end{array}
+		                          \right] \times \SI{e-15}{\meter\squared\per\second}.
 		\end{equation}
+		If we treat diffusivity as temperature-independent, then
+		\begin{equation}
+			\frac{\partial x_{\ell}}{\partial t} = D_{\ell\ce{Cr}}^{\gamma}\nabla^2 x_{\ce{Cr}}^{\gamma} + D_{\ell\ce{Nb}}^{\gamma}\nabla^2 x_{\ce{Nb}}^{\gamma}.
+		\end{equation}
+		
 		
 
 
@@ -497,6 +513,10 @@
 		                       Wiley-VCH: Weinheim, 2010.
 		                       ISBN:~978-3-527-40747-7.
 
+		\bibitem{Xu2016} Xu, G. and Liu, Y. and Kang, Z.
+		                          ``Atomic Mobilities and Interdiffusivities for fcc Ni-Cr-Nb Alloys.''
+		                          \emph{Met. Trans. B} \textbf{47B} (2016) 3126--3131.
+		                          DOI:~10.1007/s11663-016-0726-6.
 		\bibitem{Zhou2014} Zhou, N.; Lv, D.; Zhang, H.; McAllister, D.; Zhang, F.; Mills, M. and Wang, Y.
 		                   ``Computer simulation of phase transformation and plastic deformation in IN718 superalloy: Microstructural evolution during precipitation.''
 		                   \emph{Acta Mater.} \textbf{65} (2014) 270--286.
