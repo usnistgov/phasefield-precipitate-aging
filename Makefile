@@ -2,17 +2,20 @@
 # GNU makefile for Ni-base superalloy decomposition
 # Questions/comments to trevor.keller@nist.gov (Trevor Keller)
 
-# includes and boilerplate
+# includes and common flags
 incdir = $(MMSP_PATH)/include
-boiler = -Wall -std=c++11 -I $(incdir)
+stdflags = -Wall -std=c++11 -I $(incdir)
 links = -lz -lgsl -lgslcblas
 icompiler = icc -xCORE-AVX2
 gcompiler = /usr/bin/g++
 pcompiler = mpic++
 
-fflags = -O3 -DADAPTIVE_TIMESTEPS $(boiler)
-gflags = -pg -O0 -DADAPTIVE_TIMESTEPS $(boiler)
-pflags = -O3 -DADAPTIVE_TIMESTEPS $(boiler) -include mpi.h
+# Performance and energy switches
+directives = -DADAPTIVE_TIMESTEPS -DNDEBUG -DGSL_RANGE_CHECK_OFF
+
+fflags = -O3     $(directives) $(stdflags)
+gflags = -O1 -pg $(directives) $(stdflags)
+pflags = -O3     $(directives) $(stdflags) -include mpi.h
 
 
 # WORKSTATION

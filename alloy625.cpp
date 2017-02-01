@@ -769,8 +769,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			// sum of phase fractions-squared
 			field_t sumPhiSq = 0.0;
-			for (int j=NC; j<NC+NP; j++)
-				sumPhiSq += oldGridN[j] * oldGridN[j];
+			for (int i=NC; i<NC+NP; i++)
+				sumPhiSq += oldGridN[i] * oldGridN[i];
 
 			// Laplacians of field variables
 			const vector<field_t> laplac = laplacian(oldGrid, x);
@@ -812,8 +812,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * =========================== */
 
 			// Copy old values as initial guesses
-			for (int k=NC+NP; k<fields(newGrid)-1; k++)
-				newGridN[k] = oldGridN[k];
+			for (int i=NC+NP; i<fields(newGrid)-1; i++)
+				newGridN[i] = oldGridN[i];
 
 			rootsolver parallelTangentSolver;
 			double res = parallelTangentSolver.solve(newGridN);
@@ -1407,20 +1407,10 @@ rootsolver::solve(MMSP::vector<T>& GRIDN)
 	par.n_mu =  h(fabs(GRIDN[3]));
 	par.n_lav = h(fabs(GRIDN[4]));
 
+
 	// copy initial guesses from grid
-
-	gsl_vector_set(x, 0, static_cast<double>(GRIDN[5]));  // gamma Cr
-	gsl_vector_set(x, 1, static_cast<double>(GRIDN[6]));  //       Nb
-
-	gsl_vector_set(x, 2, static_cast<double>(GRIDN[7]));  // delta Cr
-	gsl_vector_set(x, 3, static_cast<double>(GRIDN[8]));  //       Nb
-
-	gsl_vector_set(x, 4, static_cast<double>(GRIDN[9]));  // mu    Cr
-	gsl_vector_set(x, 5, static_cast<double>(GRIDN[10])); //       Nb
-
-	gsl_vector_set(x, 6, static_cast<double>(GRIDN[11])); // Laves Cr
-	gsl_vector_set(x, 7, static_cast<double>(GRIDN[12])); //       Nb
-
+	for (int i=0; i<2*(NP+1); i++)
+		gsl_vector_set(x, i, static_cast<double>(GRIDN[NC+NP+i]));
 
 	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
 
@@ -1434,19 +1424,9 @@ rootsolver::solve(MMSP::vector<T>& GRIDN)
 
 	double residual = gsl_blas_dnrm2(solver->f);
 
-	if (status == GSL_SUCCESS) {
-		GRIDN[5]  = static_cast<T>(gsl_vector_get(solver->x, 0)); // gamma Cr
-		GRIDN[6]  = static_cast<T>(gsl_vector_get(solver->x, 1)); //       Nb
-
-		GRIDN[7]  = static_cast<T>(gsl_vector_get(solver->x, 2)); // delta Cr
-		GRIDN[8]  = static_cast<T>(gsl_vector_get(solver->x, 3)); //       Nb
-
-		GRIDN[9]  = static_cast<T>(gsl_vector_get(solver->x, 4)); // mu    Cr
-		GRIDN[10] = static_cast<T>(gsl_vector_get(solver->x, 5)); //       Nb
-
-		GRIDN[11] = static_cast<T>(gsl_vector_get(solver->x, 6)); // Laves Cr
-		GRIDN[12] = static_cast<T>(gsl_vector_get(solver->x, 7)); //       Nb
-	}
+	if (status == GSL_SUCCESS)
+		for (int i=0; i<2*(NP+1); i++)
+			GRIDN[NC+NP+i]  = static_cast<T>(gsl_vector_get(solver->x, i));
 
 	return residual;
 }
@@ -1535,8 +1515,9 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		MMSP::vector<double> mySummary(8, 0.0);
 		T myVelocity = 0.0;
 
-		mySummary[0] = newGridN[0];          // x_Cr
-		mySummary[1] = newGridN[1];          // x_Nb
+		for (int i=0; i<NP; i++)
+			mySummary[i] = newGridN[i];      // compositions
+
 		mySummary[2] = 1.0;                  // gamma fraction init
 		mySummary[6] = dV * gibbs(newGridN); // energy density init
 		// fields 3, 4, 5, 7 are initialized to zero
