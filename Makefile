@@ -43,5 +43,5 @@ pgparallel: alloy625.cpp
 	$(pcompiler) -fastsse -Minfo -std=c++11 -I $(incdir) -include mpi.h $< -o $@ $(links) -mp
 
 clean:
-	rm -f alloy625 parallel pgparallel smp
+	rm -f alloy625 ibtest parallel pgparallel serial smp
 

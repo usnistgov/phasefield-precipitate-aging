@@ -24,9 +24,10 @@
 std::string PROGRAM = "alloy625";
 std::string MESSAGE = "Isotropic Cr-Nb-Ni alloy phase transformation code";
 
-typedef MMSP::grid<1,MMSP::vector<double> > GRID1D;
-typedef MMSP::grid<2,MMSP::vector<double> > GRID2D;
-typedef MMSP::grid<3,MMSP::vector<double> > GRID3D;
+typedef double field_t;
+typedef MMSP::grid<1,MMSP::vector<field_t> > GRID1D;
+typedef MMSP::grid<2,MMSP::vector<field_t> > GRID2D;
+typedef MMSP::grid<3,MMSP::vector<field_t> > GRID3D;
 
 
 /* =========================== Composition Class =========================== */
@@ -108,15 +109,19 @@ private:
 
 
 // Interface interpolation function and derivatives
-double h(const double p);
+template<typename T>
+T h(const T& p);
 
-double hprime(const double p);
+template<typename T>
+T hprime(const T& p);
 
-double sign(const double& x) {return (x<0) ? -1.0 : 1.0;}
+template<typename T>
+T sign(const T& x) {return (x<0) ? -1.0 : 1.0;}
 
 
 // Gibbs free energy density
-double gibbs(const MMSP::vector<double>& v);
+template<typename T>
+T gibbs(const MMSP::vector<T>& v);
 
 
 // Geometric helpers for initial conditions
@@ -162,10 +167,10 @@ Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
 
 
 template<int dim,typename T>
-double maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
-                   MMSP::grid<dim, MMSP::vector<T> > const & newGrid);
+T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& dt,
+              MMSP::grid<dim, MMSP::vector<T> > const & newGrid);
 
 
 template<int dim,typename T>
-MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
+MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& dt,
                                MMSP::grid<dim, MMSP::vector<T> >& newGrid);
