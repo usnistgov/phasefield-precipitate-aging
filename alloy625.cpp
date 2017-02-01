@@ -108,8 +108,8 @@ const double alpha = 1.07e11;  // three-phase coexistence coefficient (J/m^3)
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                       Cr        Nb
-const double D_Cr[NC] = {2.42e-15, 0.43e-15}; // impurity in Cr
-const double D_Nb[NC] = {2.47e-15, 3.32e-15}; // impurity in Nb
+const double D_Cr[NC] = {2.16e-15, 0.56e-15}; // first column of diffusivity matrix
+const double D_Nb[NC] = {2.97e-15, 4.29e-15}; // second column of diffusivity matrix
 
 //                        delta    mu       Laves
 const double kappa[NP] = {1.24e-8, 1.24e-8, 1.24e-8}; // gradient energy coefficient (J/m)
@@ -133,10 +133,10 @@ const double omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
                          }; // multiwell height (J/m^3)
 
 // Numerical considerations
-const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
-const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
-const double x_min = 1.0e-8;  // what to consider zero to avoid log(c) explosions
-const double epsilon = 1.0e-12;  // what to consider zero to avoid log(c) explosions
+const bool useNeumann = true;   // apply zero-flux boundaries (Neumann type)?
+const bool tanh_init = false;   // apply tanh profile to initial profile of composition and phase
+const double x_min = 1.0e-8;    // what to consider zero to avoid log(c) explosions
+const double epsilon = 1.0e-14; // what to consider zero to avoid log(c) explosions
 
 const double root_tol = 1.0e-4;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
@@ -715,11 +715,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	const int logstep = std::min(100000, steps); // steps between logging status
 	const double advectionlimit = 0.125 * meshres;
 
+	double vrange[2] = {1.0, -1.0};
+
 	#ifdef ADAPTIVE_TIMESTEPS
 	// reference values for adaptive timestepper
 	const double run_time = dt * steps;
 	const double timelimit = std::min(dtp, dtc) / 7.53011;
-	const double scaleup = 1.005; // how fast will dt rise when stable
+	const double scaleup = 1.0001; // how fast will dt rise when stable
 	const double scaledn = 0.9; // how fast will dt fall when unstable
 
 	print_progress(0, steps);
@@ -776,7 +778,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			for (int i=0; i<NC; i++) //                D(x in Cr) * lap(x_Cr) + D(x in Nb) * lap(x_Nb)
+			for (int i=0; i<NC; i++) // Recall that D_Cr and D_Nb are columns of diffusivity matrix
 				newGridN[i] = oldGridN[i] + current_dt * (D_Cr[i] * laplac[5] + D_Nb[i] * laplac[6]);
 
 
@@ -837,13 +839,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		swap(oldGrid, newGrid);
 		ghostswap(oldGrid);
 
-		// Update timestep based on interfacial velocity
+		// Update timestep based on interfacial velocity. If v=0, there's no interface: march ahead with current dt.
 		const double interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
-		const double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : 2.0 * current_dt;
+		const double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
 
-		if (current_dt < ideal_dt) {
+		if (current_dt < ideal_dt + epsilon) {
 			// Update succeeded: process solution
 			current_time += current_dt; // increment before output block
+			if (interfacialVelocity < vrange[0])
+				vrange[0] = interfacialVelocity;
+			else if (interfacialVelocity > vrange[1])
+				vrange[1] = interfacialVelocity;
 
 			/* ====================================================================== *
 			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
@@ -861,8 +867,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				vector<double> summary = summarize(newGrid, current_dt, oldGrid);
 
 				if (rank==0)
-					fprintf(cfile, "%11.8g %11.8g %11.8g %11.8g %11.8g %11.8g %11.8g %11.8g %11u\n",
-					current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], interfacialVelocity, totBadTangents);
+					fprintf(cfile, "%11.8g %11.8g %11.8g %11.8g %11.8g %11.8g %11.8g %11.8g %11u (%11.8g, %11.8g)\n",
+					current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], summary[7], totBadTangents, vrange[0], vrange[1]);
 
 				#ifdef ADAPTIVE_TIMESTEPS
 				if (rank==0)
@@ -881,7 +887,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			// Update failed: solution is unstable
 			#ifdef ADAPTIVE_TIMESTEPS
 			if (rank==0)
-				fprintf(tfile, " %11.8g %11.8g %11.8g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
+				fprintf(tfile, "%11.8g %11.8g %11.8g F\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
 
 			current_dt = ideal_dt * scaledn;
 
@@ -1129,12 +1135,9 @@ double gibbs(const MMSP::vector<double>& v)
 	double n_gam = 1.0 - n_del - n_mu - n_lav;
 
 	MMSP::vector<double> vsq(NP);
-	double diagonal = 0.0;
 
-	for (int i=0; i<NP; i++) {
+	for (int i=0; i<NP; i++)
 		vsq[i] = v[NC+i]*v[NC+i];
-		diagonal += vsq[i];
-	}
 
 	double g  = n_gam * g_gam(v[5],  v[6]);
 	       g += n_del * g_del(v[7],  v[8]);
@@ -1144,8 +1147,10 @@ double gibbs(const MMSP::vector<double>& v)
 	       g += omega[1] * vsq[3-NC] * pow(1.0 - fabs(v[3]), 2);
 	       g += omega[2] * vsq[4-NC] * pow(1.0 - fabs(v[4]), 2);
 
-	// Trijunction penalty, using dot product
-	g += alpha * (vsq*vsq - diagonal);
+	// Trijunction penalty
+	for (int i=0; i<NP-1; i++)
+		for (int j=i+1; j<NP; j++)
+			g += 2.0 * alpha * vsq[i] *vsq[j];
 
 	return g;
 }
@@ -1454,30 +1459,27 @@ template<int dim,class T>
 double maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
                    MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
 {
-	double vmax = -x_min;
+	double vmax = 0.0;
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
 	for (int n=0; n<MMSP::nodes(newGrid); n++) {
 		MMSP::vector<int> x = MMSP::position(newGrid,n);
-		MMSP::vector<T>& gridN = newGrid(n);
 
-		const double phFrac[NP] = {h(fabs(gridN[2])), h(fabs(gridN[3])), h(fabs(gridN[4]))};
+		const MMSP::vector<T>& oldGridN = oldGrid(n);
+		MMSP::vector<T>& newGridN = newGrid(n);
 
 		double myVelocity = 0.0;
-		double secondaries = 0.0;
-		for (int i=0; i<NP; i++)
-			secondaries += phFrac[i];
-		secondaries = (secondaries>epsilon) ? 1.0 / secondaries : 0.0;
 
-		for (int i=0; secondaries>epsilon && i<NP; i++) {
-			if (phFrac[i] > 0.1 && phFrac[i] < 0.9) {
-				MMSP::vector<double> gradPhi = MMSP::gradient(newGrid, x, i+NC);
+		for (int i=0; i<NP; i++) {
+			const double newPhaseFrac = h(fabs(newGridN[i+NC]));
+			if (newPhaseFrac > 0.1 && newPhaseFrac < 0.9) {
+				MMSP::vector<T> gradPhi = MMSP::gradient(newGrid, x, i+NC);
 				const double magGrad = std::sqrt(gradPhi * gradPhi);
 				if (magGrad > epsilon) {
-					double dphidt = std::fabs(phFrac[i] - h(fabs(oldGrid(n)[i+NC]))) / dt;
-					double v = dphidt / magGrad;
-					//myVelocity += v * phFrac[i] * secondaries;
+					const double oldPhaseFrac = h(fabs(oldGridN[i+NC]));
+					double dphidt = std::fabs(newPhaseFrac - oldPhaseFrac) / dt;
+					double v = (dphidt>epsilon) ? dphidt / magGrad : epsilon;
 					myVelocity = std::max(myVelocity, v);
 				}
 			}
@@ -1503,6 +1505,13 @@ template<int dim,class T>
 MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double const dt,
                                MMSP::grid<dim, MMSP::vector<T> >& newGrid)
 {
+	/* =========================================================================== *
+	 * Integrate composition, phase fractions, and free energy over the whole grid *
+	 * to make sure mass is conserved, phase transformations are sane, and energy  *
+	 * decreases with time. Store either energy-density _or_ interfacial velocity  *
+	 * in the field of each grid point for analysis.                               *
+	 * =========================================================================== */
+
 	double Ntot = 1.0;
 	double dV = 1.0;
 	for (int d=0; d<dim; d++) {
@@ -1517,47 +1526,38 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 	for (int n=0; n<MMSP::nodes(newGrid); n++) {
 		MMSP::vector<int> x = MMSP::position(newGrid,n);
 		MMSP::vector<T>& newGridN = newGrid(n);
+		const MMSP::vector<T>& oldGridN = oldGrid(n);
 		MMSP::vector<double> mySummary(8, 0.0);
-		const double phi_del = h(fabs(newGridN[2]));
-		const double phi_mu  = h(fabs(newGridN[3]));
-		const double phi_lav = h(fabs(newGridN[4]));
-
-		MMSP::vector<double> gradPhi_del = MMSP::gradient(newGrid, x, 2);
-		MMSP::vector<double> gradPhi_mu  = MMSP::gradient(newGrid, x, 3);
-		MMSP::vector<double> gradPhi_lav = MMSP::gradient(newGrid, x, 4);
+		double myVelocity = 0.0;
 
 		mySummary[0] = newGridN[0]; // x_Cr
 		mySummary[1] = newGridN[1]; // x_Nb
-		mySummary[2] = 1.0 - phi_del - phi_mu - phi_lav; // phi_gam
-		mySummary[3] = phi_del;
-		mySummary[4] = phi_mu;
-		mySummary[5] = phi_lav;
+		mySummary[2] = 1.0; // - newPhaseFrac[0] - newPhaseFrac[1] - newPhaseFrac[2]; // phi_gam
 		// free energy density:
-		mySummary[6] = dV * (gibbs(newGridN) + kappa[0] * (gradPhi_del * gradPhi_del)
-		                                     + kappa[1] * (gradPhi_mu  * gradPhi_mu )
-		                                     + kappa[2] * (gradPhi_lav * gradPhi_lav));
+		mySummary[6] = dV * gibbs(newGridN);
 
-		double magGrad[NP] = {std::sqrt(gradPhi_del * gradPhi_del),
-		                      std::sqrt(gradPhi_mu  * gradPhi_mu ),
-		                      std::sqrt(gradPhi_lav * gradPhi_lav)
-		                     };
+		for (int i=0; i<NP; i++) {
+			const MMSP::vector<T> gradPhi = MMSP::gradient(newGrid, x, i+NC);
+			const double magGrad = std::sqrt(gradPhi * gradPhi);
+			const double newPhaseFrac = h(fabs(newGridN[i+NC]));
 
-		double myVelocity = -x_min;
-		double secondaries = phi_del + phi_mu + phi_lav;
-		secondaries = (secondaries>epsilon) ? 1.0 / secondaries : 0.0;
-		for (int i=0; secondaries>epsilon && i<NP; i++) {
-			if (magGrad[i]>epsilon && mySummary[NC+1+i] > 0.1 && mySummary[NC+1+i] < 0.9) {
-				double dphidt = std::fabs(newGridN[i+NC] - oldGrid(n)[i+NC]) / dt;
-				double v = dphidt / magGrad[i];
-				//myVelocity += v * mySummary[NC+1+i] * secondaries;
+			mySummary[2] -= newPhaseFrac; // contribution to gamma phase
+			mySummary[i+NC+1] = newPhaseFrac;
+			mySummary[6] += dV * kappa[i] * magGrad * magGrad;
+
+			if (magGrad>epsilon && newPhaseFrac>0.1 && newPhaseFrac<0.9) {
+				const double oldPhaseFrac = h(fabs(oldGridN[i+NC]));
+				double dphidt = std::fabs(newPhaseFrac - oldPhaseFrac) / dt;
+				double v = (dphidt>epsilon) ? dphidt / magGrad : epsilon;
 				myVelocity = std::max(myVelocity, v);
 			}
 		}
 
+
 		// Record local velocity
 		newGridN[fields(newGrid)-1] = static_cast<T>(myVelocity);
 
-		// Sum up mass and phase fractions
+		// Sum up mass and phase fractions. Note that mySummary[7]=0, so it is not acumulated.
 		#ifdef _OPENMP
 		#pragma omp critical (sumCrit1)
 		#endif
@@ -1565,7 +1565,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 			summary += mySummary;
 		}
 
-		// Get maximum interfacial velocity
+		// Get maximum interfacial velocity from separate variable
 		#ifdef _OPENMP
 		#pragma omp critical (sumCrit2)
 		#endif
