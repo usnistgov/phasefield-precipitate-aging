@@ -1,4 +1,4 @@
-# ternary-phasefield-precipitate-aging-model
+# Phase field precipitate aging model
 
 > Phase field model for precipitate aging in ternary analogues to Ni-based superalloys
 
