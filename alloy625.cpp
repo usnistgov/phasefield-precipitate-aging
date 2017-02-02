@@ -17,14 +17,15 @@
  *                                                                                   *
  * This software can be redistributed and/or modified freely provided that any       *
  * derivative works bear some notice that they are derived from it, and any modified *
- * versions bear some notice that they have been modified.                           *
- *                                                                                   *
+ * versions bear some notice that they have been modified. Derivative works that     *
+ * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
  *************************************************************************************/
 
 
 #ifndef ALLOY625_UPDATE
 #define ALLOY625_UPDATE
 #include<cmath>
+#include<cfenv>
 
 #include<gsl/gsl_blas.h>
 #include<gsl/gsl_math.h>
@@ -42,6 +43,7 @@
 #else
 #include"taylor625.c"
 #endif
+
 
 // Note: alloy625.hpp contains important declarations and comments. Have a look.
 
@@ -723,7 +725,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	// reference values for adaptive timestepper
 	const field_t run_time = dt * steps;
 	const field_t timelimit = std::min(dtp, dtc) / 7.53011;
-	const field_t scaleup = 1.0001; // how fast will dt rise when stable
+	const field_t scaleup = 1.00001; // how fast will dt rise when stable
 	const field_t scaledn = 0.9; // how fast will dt fall when unstable
 
 	print_progress(0, steps);
@@ -1038,7 +1040,7 @@ Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID,
                           const T phi)
 {
 	MMSP::vector<int> x(origin);
-	double R = rprcp; //std::max(rdpltCr, rdpltNb);
+	const int R = rprcp; //std::max(rdpltCr, rdpltNb);
 	Composition comp;
 
 	for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
@@ -1072,7 +1074,7 @@ Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
                         const T phi)
 {
 	MMSP::vector<int> x(origin);
-	int R(rprcp); //std::max(rdpltCr, rdpltNb);
+	const int R(rprcp); //std::max(rdpltCr, rdpltNb);
 	Composition comp;
 
 	for (x[0] = origin[0] - R; x[0] < origin[0] + R; x[0]++) {
@@ -1120,10 +1122,10 @@ Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
 template <typename T>
 T gibbs(const MMSP::vector<T>& v)
 {
-	T n_del = h(fabs(v[2]));
-	T n_mu  = h(fabs(v[3]));
-	T n_lav = h(fabs(v[4]));
-	T n_gam = 1.0 - n_del - n_mu - n_lav;
+	const T n_del = h(fabs(v[2]));
+	const T n_mu  = h(fabs(v[3]));
+	const T n_lav = h(fabs(v[4]));
+	const T n_gam = 1.0 - n_del - n_mu - n_lav;
 
 	MMSP::vector<T> vsq(NP);
 
@@ -1148,7 +1150,7 @@ T gibbs(const MMSP::vector<T>& v)
 
 
 template <int dim, typename T>
-MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int& N)
+MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N)
 {
 	// Compute Laplacian of first N fields, ignore the rest
 	MMSP::vector<T> laplacian(N, 0.0);
@@ -1163,7 +1165,7 @@ MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, c
 		const MMSP::vector<T>& yl = GRID(s);
 		s[i] += 1;
 
-		double weight = 1.0 / (MMSP::dx(GRID, i) * MMSP::dx(GRID, i));
+		const double weight = 1.0 / (MMSP::dx(GRID, i) * MMSP::dx(GRID, i));
 		for (int j=0; j<N; j++)
 			laplacian[j] += weight * (yh[j] - 2.0 * y[j] + yl[j]);
 	}
@@ -1454,6 +1456,7 @@ template<int dim,class T>
 T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& dt,
                    MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
 {
+	feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 	double vmax = 0.0;
 	#ifdef _OPENMP
 	#pragma omp parallel for
@@ -1467,12 +1470,12 @@ T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& 
 		T myVelocity = 0.0;
 
 		for (int i=0; i<NP; i++) {
-			const T newPhaseFrac = h(fabs(newGridN[i+NC]));
+			const T newPhaseFrac = fabs(newGridN[i+NC]);
 			if (newPhaseFrac > 0.1 && newPhaseFrac < 0.9) {
-				MMSP::vector<T> gradPhi = MMSP::gradient(newGrid, x, i+NC);
+				const MMSP::vector<T> gradPhi = MMSP::gradient(newGrid, x, i+NC);
 				const T magGrad = std::sqrt(gradPhi * gradPhi);
 				if (magGrad > epsilon) {
-					const T oldPhaseFrac = h(fabs(oldGridN[i+NC]));
+					const T oldPhaseFrac = fabs(oldGridN[i+NC]);
 					T dphidt = std::fabs(newPhaseFrac - oldPhaseFrac) / dt;
 					T v = (dphidt>epsilon) ? dphidt / magGrad : epsilon;
 					myVelocity = std::max(myVelocity, v);
@@ -1508,6 +1511,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 	 * in the field of each grid point for analysis.                               *
 	 * =========================================================================== */
 
+	feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 	double Ntot = 1.0;
 	double dV = 1.0;
 	for (int d=0; d<dim; d++) {
@@ -1536,14 +1540,14 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		for (int i=0; i<NP; i++) {
 			const MMSP::vector<T> gradPhi = MMSP::gradient(newGrid, x, i+NC);
 			const T gradSq = (gradPhi * gradPhi); // vector inner product
-			const T newPhaseFrac = h(fabs(newGridN[i+NC]));
+			const T newPhaseFrac = fabs(newGridN[i+NC]);
 
-			mySummary[i+NC+1] = newPhaseFrac;       // secondary phase fraction
-			mySummary[2] -= newPhaseFrac;           // contributes to gamma phase;
+			mySummary[i+NC+1] = h(newPhaseFrac);       // secondary phase fraction
+			mySummary[2] -= h(newPhaseFrac);           // contributes to gamma phase;
 			mySummary[6] += dV * kappa[i] * gradSq; // gradient contributes to energy
 
 			if (std::sqrt(gradSq)>epsilon && newPhaseFrac>0.1 && newPhaseFrac<0.9) {
-				const T oldPhaseFrac = h(fabs(oldGridN[i+NC]));
+				const T oldPhaseFrac = fabs(oldGridN[i+NC]);
 				T dphidt = std::fabs(newPhaseFrac - oldPhaseFrac) / dt;
 				T v = (dphidt>epsilon) ? dphidt / std::sqrt(gradSq) : epsilon;
 				myVelocity = std::max(myVelocity, v);
@@ -1552,7 +1556,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 
 
 		// Record local velocity
-		newGridN[fields(newGrid)-1] = static_cast<T>(myVelocity);
+		newGridN[fields(newGrid)-1] = mySummary[6]; //myVelocity;
 
 		// Sum up mass and phase fractions. Since mySummary[7]=0, it is not acumulated.
 		#ifdef _OPENMP

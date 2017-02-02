@@ -14,7 +14,8 @@
  *                                                                                   *
  * This software can be redistributed and/or modified freely provided that any       *
  * derivative works bear some notice that they are derived from it, and any modified *
- * versions bear some notice that they have been modified.                           *
+ * versions bear some notice that they have been modified. Derivative works that     *
+ * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
  *************************************************************************************/
 
 // Number of precipitates and components (for array allocation)
@@ -123,7 +124,7 @@ T gibbs(const MMSP::vector<T>& v);
 
 // Compute Laplacian of first N fields, ignore the rest
 template <int dim, typename T>
-MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int& N);
+MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
 
 // Geometric helpers for initial conditions
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx);

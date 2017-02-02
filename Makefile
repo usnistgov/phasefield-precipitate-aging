@@ -14,7 +14,7 @@ pcompiler = mpic++
 directives = -DADAPTIVE_TIMESTEPS -DNDEBUG -DGSL_RANGE_CHECK_OFF
 
 fflags = -O3     $(directives) $(stdflags)
-gflags = -O1 -pg $(directives) $(stdflags)
+gflags = -O2 -g $(directives) $(stdflags)
 pflags = -O3     $(directives) $(stdflags) -include mpi.h
 
 
