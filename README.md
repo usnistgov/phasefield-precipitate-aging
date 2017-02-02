@@ -99,35 +99,36 @@ Pull requests are invited. Comments are welcome through issues and by e-mail.
 
 ## References
 
-[Du2005]:  Du, Y.; Liu, S.; Chang, Y.; and Yang, Y.
-          "A thermodynamic modeling of the Cr–Nb–Ni system."
-          *Calphad* **29** (2005) 140–148.
-          DOI: [10.1016/j.calphad.2005.06.001](http://dx.doi.org/10.1016/j.calphad.2005.06.001).
+[Du2005]: http://dx.doi.org/10.1016/j.calphad.2005.06.001
+  Du, Y.; Liu, S.; Chang, Y.; and Yang, Y.
+  "A thermodynamic modeling of the Cr–Nb–Ni system."
+  *Calphad* **29** (2005) 140–148.
 
-[Kim1999]: Kim, S. G.; Kim, W. T. and Suzuki, T.
-		  "Phase-field model for binary alloys."
-		  *Phys. Rev. E* **60** (1999) 7186–7197.
-		  DOI: [10.1103/PhysRevE.60.7186](http://dx.doi.org/10.1103/PhysRevE.60.7186).
+[Kim1999]: http://dx.doi.org/10.1103/PhysRevE.60.7186
+  Kim, S. G.; Kim, W. T. and Suzuki, T.
+  "Phase-field model for binary alloys."
+  *Phys. Rev. E* **60** (1999) 7186–7197.
 
-[Karunaratne2005]: Karunaratne, M. S. A. and Reed, R. C.
-		          "Interdiffusion of Niobium and Molybdenum in Nickel between 900 - 1300&deg;C."
-		          *Defect and Diffusion Forum* **237-240** (2005) 420–425.
-		          DOI: [10.4028/www.scientific.net/DDF.237-240.420](http://dx.doi.org/10.4028/www.scientific.net/DDF.237-240.420).
+[Karunaratne2005]: http://dx.doi.org/10.4028/www.scientific.net/DDF.237-240.420
+  Karunaratne, M. S. A. and Reed, R. C.
+  "Interdiffusion of Niobium and Molybdenum in Nickel between 900 - 1300&deg;C."
+  *Defect and Diffusion Forum* **237-240** (2005) 420–425.
 
-[Provatas2010]: Provatas, N. and Elder, K.
-		       *Phase-Field Methods in Materials Science and Engineering.*
-		       Wiley-VCH: Weinheim, 2010.
-		       ISBN: 978-3-527-40747-7.
+[Provatas2010]: http://www.wiley.com/WileyCDA/WileyTitle/productCd-3527407472.html
+  Provatas, N. and Elder, K.
+  *Phase-Field Methods in Materials Science and Engineering.*
+  Wiley-VCH: Weinheim, 2010.
+  ISBN: 978-3-527-40747-7.
 
-[Xu2016]: Xu, G.; Liu, Y.; and Kang, Z.
-		 "Atomic Mobilities and Interdiffusivities for fcc Ni-Cr-Nb Alloys."
-		 *Met. Trans. B* **47B** (2016) 3126–3131.
-		 DOI: [10.1007/s11663-016-0726-6](http://dx.doi.org/10.1007/s11663-016-0726-6).
+[Xu2016]: http://dx.doi.org/10.1007/s11663-016-0726-6
+  Xu, G.; Liu, Y.; and Kang, Z.
+  "Atomic Mobilities and Interdiffusivities for fcc Ni-Cr-Nb Alloys."
+  *Met. Trans. B* **47B** (2016) 3126–3131.
 
-[Zhou2014]: Zhou, N.; Lv, D.; Zhang, H.; McAllister, D.; Zhang, F.; Mills, M. and Wang, Y.
-		   "Computer simulation of phase transformation and plastic deformation in IN718 superalloy: Microstructural evolution during precipitation."
-		   *Acta Mater.* **65** (2014) 270–286.
-		   DOI: [10.1016/j.actamat.2013.10.069](http://dx.doi.org/10.1016/j.actamat.2013.10.069).
+[Zhou2014]: http://dx.doi.org/10.1016/j.actamat.2013.10.069
+  Zhou, N.; Lv, D.; Zhang, H.; McAllister, D.; Zhang, F.; Mills, M. and Wang, Y.
+  "Computer simulation of phase transformation and plastic deformation in IN718 superalloy: Microstructural evolution during precipitation."
+  *Acta Mater.* **65** (2014) 270–286.
 
 
 ## License
