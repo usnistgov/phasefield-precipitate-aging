@@ -109,20 +109,21 @@ private:
 
 
 // Interface interpolation function and derivatives
-template<typename T>
-T h(const T& p);
+inline field_t h(const field_t& p) {return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);}
 
-template<typename T>
-T hprime(const T& p);
+inline field_t hprime(const field_t& p) {return 30.0 * p * p * (1.0 - p) * (1.0 - p);}
 
-template<typename T>
-T sign(const T& x) {return (x<0) ? -1.0 : 1.0;}
+inline field_t sign(const field_t& x) {return (x<0) ? -1.0 : 1.0;}
 
 
 // Gibbs free energy density
 template<typename T>
 T gibbs(const MMSP::vector<T>& v);
 
+
+// Compute Laplacian of first N fields, ignore the rest
+template <int dim, typename T>
+MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int& N);
 
 // Geometric helpers for initial conditions
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx);

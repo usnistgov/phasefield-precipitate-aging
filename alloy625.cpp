@@ -759,9 +759,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ================= */
 
 			const field_t PhaseEnergy[NP+1] = {g_del(oldGridN[7],  oldGridN[8]),
-			                                  g_mu( oldGridN[9],  oldGridN[10]),
-			                                  g_lav(oldGridN[11], oldGridN[12]),
-			                                  g_gam(oldGridN[5],  oldGridN[6])
+			                                   g_mu( oldGridN[9],  oldGridN[10]),
+			                                   g_lav(oldGridN[11], oldGridN[12]),
+			                                   g_gam(oldGridN[5],  oldGridN[6])
 			                                 };
 
 			// Diffusion potential in matrix (will equal chemical potential at equilibrium)
@@ -773,7 +773,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				sumPhiSq += oldGridN[i] * oldGridN[i];
 
 			// Laplacians of field variables
-			const vector<field_t> laplac = laplacian(oldGrid, x);
+			const vector<field_t> laplac = maskedlaplacian(oldGrid, x, 7);
 
 
 			/* ============================================= *
@@ -1118,20 +1118,6 @@ Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
 
 
 template <typename T>
-T h(const T& p)
-{
-	return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);
-}
-
-
-template <typename T>
-T hprime(const T& p)
-{
-	return 30.0 * p * p * (1.0 - p) * (1.0 - p);
-}
-
-
-template <typename T>
 T gibbs(const MMSP::vector<T>& v)
 {
 	T n_del = h(fabs(v[2]));
@@ -1158,6 +1144,30 @@ T gibbs(const MMSP::vector<T>& v)
 			g += 2.0 * alpha * vsq[i] *vsq[j];
 
 	return g;
+}
+
+
+template <int dim, typename T>
+MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int& N)
+{
+	// Compute Laplacian of first N fields, ignore the rest
+	MMSP::vector<T> laplacian(N, 0.0);
+	MMSP::vector<int> s = x;
+
+	const MMSP::vector<T>& y = GRID(x);
+
+	for (int i=0; i<dim; i++) {
+		s[i] += 1;
+		const MMSP::vector<T>& yh = GRID(s);
+		s[i] -= 2;
+		const MMSP::vector<T>& yl = GRID(s);
+		s[i] += 1;
+
+		double weight = 1.0 / (MMSP::dx(GRID, i) * MMSP::dx(GRID, i));
+		for (int j=0; j<N; j++)
+			laplacian[j] += weight * (yh[j] - 2.0 * y[j] + yl[j]);
+	}
+	return laplacian;
 }
 
 
@@ -1469,6 +1479,7 @@ T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& 
 				}
 			}
 		}
+
 		#ifdef _OPENMP
 		#pragma omp critical
 		#endif
