@@ -25,7 +25,6 @@
 #ifndef ALLOY625_UPDATE
 #define ALLOY625_UPDATE
 #include<cmath>
-#include<cfenv>
 
 #include<gsl/gsl_blas.h>
 #include<gsl/gsl_math.h>
@@ -145,7 +144,7 @@ const int root_max_iter = 500000; // default is 1000, increasing probably won't 
 
 //const field_t LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifndef CALPHAD
-const field_t LinStab = 1.0 / 37.65055; //15.06022; // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 15.06022; // threshold of linear stability (von Neumann stability condition)
 #else
 const field_t LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
@@ -716,15 +715,15 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	static field_t current_dt = dt;
 	static int logcount = 1;
 
-	const int logstep = std::min(100000, steps); // steps between logging status
-	const field_t advectionlimit = 0.125 * meshres;
+	const int logstep = std::min(10000, steps); // steps between logging status
+	const field_t advectionlimit = 0.1 * meshres;
 
 	field_t velocity_range[2] = {1.0, -1.0};
 
 	#ifdef ADAPTIVE_TIMESTEPS
 	// reference values for adaptive timestepper
 	const field_t run_time = dt * steps;
-	const field_t timelimit = std::min(dtp, dtc) / 7.53011;
+	const field_t timelimit = std::min(dtp, dtc) / 5.020073;
 	const field_t scaleup = 1.00001; // how fast will dt rise when stable
 	const field_t scaledn = 0.9; // how fast will dt fall when unstable
 
@@ -816,6 +815,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			// Copy old values as initial guesses
 			for (int i=NC+NP; i<fields(newGrid)-1; i++)
 				newGridN[i] = oldGridN[i];
+			newGridN[fields(newGrid)-1] = 0; // avoid propagating garbage values in diagnostic field
 
 			rootsolver parallelTangentSolver;
 			double res = parallelTangentSolver.solve(newGridN);
@@ -907,6 +907,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			#endif
 		}
 	}
+
+	vector<field_t> summary = summarize(newGrid, current_dt, oldGrid);
 
 	if (rank==0) {
 		fclose(cfile);
@@ -1456,7 +1458,6 @@ template<int dim,class T>
 T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& dt,
                    MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
 {
-	feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 	double vmax = 0.0;
 	#ifdef _OPENMP
 	#pragma omp parallel for
@@ -1511,7 +1512,6 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 	 * in the field of each grid point for analysis.                               *
 	 * =========================================================================== */
 
-	feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 	double Ntot = 1.0;
 	double dV = 1.0;
 	for (int d=0; d<dim; d++) {
@@ -1556,7 +1556,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 
 
 		// Record local velocity
-		newGridN[fields(newGrid)-1] = mySummary[6]; //myVelocity;
+		newGridN[fields(newGrid)-1] = myVelocity;
 
 		// Sum up mass and phase fractions. Since mySummary[7]=0, it is not acumulated.
 		#ifdef _OPENMP

@@ -13,9 +13,9 @@ pcompiler = mpic++
 # Performance and energy switches
 directives = -DADAPTIVE_TIMESTEPS -DNDEBUG -DGSL_RANGE_CHECK_OFF
 
-fflags = -O3     $(directives) $(stdflags)
-gflags = -O2 -g $(directives) $(stdflags)
-pflags = -O3     $(directives) $(stdflags) -include mpi.h
+fflags = -O3 $(directives) $(stdflags)
+gflags = -O1 $(directives) $(stdflags) -pg
+pflags = -O3 $(directives) $(stdflags) -include mpi.h
 
 
 # WORKSTATION
