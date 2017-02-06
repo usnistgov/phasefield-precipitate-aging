@@ -45,6 +45,9 @@ ibtest: alloy625.cpp
 pgparallel: alloy625.cpp
 	$(pcompiler) -fastsse -Minfo -std=c++11 -I $(incdir) -include mpi.h $< -o $@ $(links) -mp
 
+mmsp2comp: mmsp2comp.cpp
+	$(gcompiler) $(stdflags) $< -o $@ -lz
+
 clean:
-	rm -f alloy625 ibtest parallel pgparallel serial smp
+	rm -f alloy625 ibtest mmsp2comp parallel pgparallel serial smp
 
