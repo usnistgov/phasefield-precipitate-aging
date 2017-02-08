@@ -723,7 +723,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	#ifdef ADAPTIVE_TIMESTEPS
 	// reference values for adaptive timestepper
 	const field_t run_time = dt * steps;
-	const field_t timelimit = std::min(dtp, dtc) / 5.020073;
+	const field_t timelimit = std::min(dtp, dtc) / 2.0;
 	const field_t scaleup = 1.00001; // how fast will dt rise when stable
 	const field_t scaledn = 0.9; // how fast will dt fall when unstable
 

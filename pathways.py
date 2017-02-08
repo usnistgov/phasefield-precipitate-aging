@@ -125,7 +125,7 @@ for pair in ('collapse', 'gamma-delta', 'gamma-mu', 'gamma-laves', 'fourphase'):
     # Add composition pathways
     fnames = glob.glob("data/alloy625/run1/{0}/*.xy".format(pair))
     n = len(fnames)
-    for i in np.logspace(0, np.log10(n), 20, endpoint=False, dtype=int):
+    for i in np.logspace(0, np.log10(n), 10, endpoint=False, dtype=int):
         xcr, xnb = np.loadtxt(fnames[i], delimiter=',', unpack=True)
         plt.plot(simX(xnb, xcr), simY(xcr), '.-', markersize=2, linewidth=1)
     
