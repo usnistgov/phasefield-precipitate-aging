@@ -345,6 +345,7 @@ void generate(int dim, const char* filename)
 		ghostswap(initGrid);
 
 		#ifdef MPI_VERSION
+		MPI::COMM_WORLD.Barrier();
 		unsigned int myBad(totBadTangents);
 		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
 		#endif
@@ -554,6 +555,7 @@ void generate(int dim, const char* filename)
 		myComp += comp;
 
 		#ifdef MPI_VERSION
+		MPI::COMM_WORLD.Barrier();
 		// Caution: Primitive. Will not scale to large MPI systems.
 		for (int j=0; j<NP+1; j++) {
 			MPI::COMM_WORLD.Allreduce(&myComp.N[j], &comp.N[j], 1, MPI_INT, MPI_SUM);
@@ -626,6 +628,7 @@ void generate(int dim, const char* filename)
 		ghostswap(initGrid);
 
 		#ifdef MPI_VERSION
+		MPI::COMM_WORLD.Barrier();
 		unsigned int myBad(totBadTangents);
 		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
 		#endif
@@ -723,7 +726,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	#ifdef ADAPTIVE_TIMESTEPS
 	// reference values for adaptive timestepper
 	const field_t run_time = dt * steps;
-	const field_t timelimit = std::min(dtp, dtc) / 2.0;
+	const field_t timelimit = std::min(dtp, dtc) / 4.0;
 	const field_t scaleup = 1.00001; // how fast will dt rise when stable
 	const field_t scaledn = 0.9; // how fast will dt fall when unstable
 
@@ -815,7 +818,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			// Copy old values as initial guesses
 			for (int i=NC+NP; i<fields(newGrid)-1; i++)
 				newGridN[i] = oldGridN[i];
+
 			newGridN[fields(newGrid)-1] = 0; // avoid propagating garbage values in diagnostic field
+			for (int i=0; i<NC+NP; i++)
+				newGridN[fields(newGrid)-1] += fabs(newGridN[i] - oldGridN[i]); // look into local deviations
 
 			rootsolver parallelTangentSolver;
 			double res = parallelTangentSolver.solve(newGridN);
@@ -863,9 +869,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				logcount = 0;
 
 				#ifdef MPI_VERSION
+				MPI::COMM_WORLD.Barrier();
 				unsigned int myBad(totBadTangents);
 				MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
-				MPI::COMM_WORLD.Barrier();
 				#endif
 
 				vector<field_t> summary = summarize(newGrid, current_dt, oldGrid);
@@ -1493,6 +1499,7 @@ T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& 
 	}
 
 	#ifdef MPI_VERSION
+	MPI::COMM_WORLD.Barrier();
 	double myv(vmax);
 	MPI::COMM_WORLD.Allreduce(&myv, &vmax, 1, MPI_DOUBLE, MPI_MAX);
 	#endif
@@ -1503,7 +1510,7 @@ T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& 
 
 template<int dim,class T>
 MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& dt,
-                               MMSP::grid<dim, MMSP::vector<T> >& newGrid)
+                               MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
 {
 	/* =========================================================================== *
 	 * Integrate composition, phase fractions, and free energy over the whole grid *
@@ -1556,9 +1563,9 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 
 
 		// Record local velocity
-		newGridN[fields(newGrid)-1] = myVelocity;
+		//newGridN[fields(newGrid)-1] = myVelocity;
 
-		// Sum up mass and phase fractions. Since mySummary[7]=0, it is not acumulated.
+		// Sum up mass and phase fractions. Since mySummary[7]=0, it is not accumulated.
 		#ifdef _OPENMP
 		#pragma omp critical (sumCrit1)
 		#endif
@@ -1582,10 +1589,8 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 	MPI::COMM_WORLD.Barrier();
 	MMSP::vector<double> tmpSummary(summary);
 
-	for (int i=0; i<summary.length()-2; i++) {
+	for (int i=0; i<summary.length()-2; i++)
 		MPI::COMM_WORLD.Reduce(&tmpSummary[i], &summary[i], 1, MPI_DOUBLE, MPI_SUM, 0);
-		MPI::COMM_WORLD.Barrier(); // probably not necessary
-	}
 	MPI::COMM_WORLD.Reduce(&tmpSummary[6], &summary[6], 1, MPI_DOUBLE, MPI_SUM, 0); // free energy
 	MPI::COMM_WORLD.Allreduce(&tmpSummary[7], &summary[7], 1, MPI_DOUBLE, MPI_MAX); // maximum velocity
 	#endif

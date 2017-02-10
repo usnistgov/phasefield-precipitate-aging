@@ -47,6 +47,9 @@ smp: alloy625.cpp
 parallel: alloy625.cpp
 	$(pcompiler) $(pflags) $< -o $@ $(links)
 
+smpi: alloy625.cpp
+	$(pcompiler) $(pflags) $< -o $@ $(links) -fopenmp
+
 ibtest: alloy625.cpp
 	/usr/local/bin/mpicxx $(pflags) $< -o $@ $(links)
 
@@ -65,5 +68,4 @@ adsorption: adsorption.cpp
 	$(gcompiler) $(stdflags) $< -o $@ -lz
 
 clean:
-	rm -f adsorption alloy625 ibtest iserial mmsp2comp parallel pgparallel serial smp
-
+	rm -f adsorption alloy625 ibtest iserial mmsp2comp parallel pgparallel serial smp smpi
