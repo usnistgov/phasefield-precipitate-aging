@@ -129,8 +129,8 @@ const field_t sigma[NP] = {1.01, 1.01, 1.01}; // J/m^2
 const field_t width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const field_t ifce_width = 10.0*meshres; // ensure at least 7 points through the interface
 const field_t omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
-                          3.0 * width_factor * sigma[1] / ifce_width, // mu
-                          3.0 * width_factor * sigma[2] / ifce_width  // Laves
+                           3.0 * width_factor * sigma[1] / ifce_width, // mu
+                           3.0 * width_factor * sigma[2] / ifce_width  // Laves
                          }; // multiwell height (J/m^3)
 
 // Numerical considerations
@@ -186,8 +186,10 @@ void generate(int dim, const char* filename)
 			dV *= meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
 			if (useNeumann) {
-				b0(initGrid, d) = Neumann;
-				b1(initGrid, d) = Neumann;
+				if (x0(initGrid, d) == g0(initGrid, d))
+					b0(initGrid, d) = Neumann;
+				if (x1(initGrid, d) == g1(initGrid, d))
+					b1(initGrid, d) = Neumann;
 			}
 		}
 
@@ -363,8 +365,8 @@ void generate(int dim, const char* filename)
 			#endif
 
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
-			printf("%11g %11g %11g %11g %11g %11g %11g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
-			                                                             summary[2], summary[3], summary[4], summary[5]);
+			printf("%11g %11g %11g %11g %11g %11g %11g\n",
+			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4], summary[5]);
 		}
 
 		output(initGrid,filename);
@@ -388,16 +390,18 @@ void generate(int dim, const char* filename)
 			dV *= meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
 			if (useNeumann) {
-				b0(initGrid, d) = Neumann;
-				b1(initGrid, d) = Neumann;
+				if (x0(initGrid, d) == g0(initGrid, d))
+					b0(initGrid, d) = Neumann;
+				if (x1(initGrid, d) == g1(initGrid, d))
+					b1(initGrid, d) = Neumann;
 			}
 		}
 
 		// Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
 		//                    minimum for numerical stability is 14*dx (due to interface width).
-		const field_t rPrecip[NP] = {3.0*7.5e-9 / dx(initGrid,0),  // delta
-		                            3.0*7.5e-9 / dx(initGrid,0),  // mu
-		                            3.0*7.5e-9 / dx(initGrid,0)}; // Laves
+		const field_t rPrecip[NP] = {5.0*7.5e-9 / dx(initGrid,0),  // delta
+		                             5.0*7.5e-9 / dx(initGrid,0),  // mu
+		                             5.0*7.5e-9 / dx(initGrid,0)}; // Laves
 
 
 		// Sanity check on system size and  particle spacing
@@ -690,12 +694,15 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		dx(newGrid,d) = meshres;
 		dV *= dx(oldGrid,d);
 		Ntot *= double(g1(oldGrid, d) - g0(oldGrid, d));
-		if (useNeumann && x0(oldGrid,d) == g0(oldGrid,d)) {
-			b0(oldGrid,d) = Neumann;
-			b0(newGrid,d) = Neumann;
-		} else if (useNeumann && x1(oldGrid,d) == g1(oldGrid,d)) {
-			b1(oldGrid,d) = Neumann;
-			b1(newGrid,d) = Neumann;
+		if (useNeumann) {
+			if (x0(oldGrid, d) == g0(oldGrid, d)) {
+				b0(oldGrid, d) = Neumann;
+				b0(newGrid, d) = Neumann;
+			}
+			if (x1(oldGrid, d) == g1(oldGrid, d)) {
+				b1(oldGrid, d) = Neumann;
+				b1(newGrid, d) = Neumann;
+			}
 		}
 	}
 
@@ -915,7 +922,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		}
 	}
 
-	vector<field_t> summary = summarize(newGrid, current_dt, oldGrid);
+	// vector<field_t> summary = summarize(newGrid, current_dt, oldGrid);
 
 	if (rank==0) {
 		fclose(cfile);
