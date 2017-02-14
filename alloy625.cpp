@@ -730,7 +730,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	const field_t scaleup = 1.00001; // how fast will dt rise when stable
 	const field_t scaledn = 0.9; // how fast will dt fall when unstable
 
-	print_progress(0, steps);
+	if (rank==0)
+		print_progress(0, steps);
 
 	while (current_time < run_time && current_dt > 0.0) {
 

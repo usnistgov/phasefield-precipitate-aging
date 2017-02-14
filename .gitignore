@@ -17,9 +17,17 @@
 
 .ipynb_checkpoints
 
+adsorption
 alloy625
 data
 debug
+ibtest
+iserial
+mmsp2comp
+omp
+ompi
 parallel
 pgparallel
 serial
+smp
+smpi
