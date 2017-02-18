@@ -349,7 +349,7 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
 		unsigned int myBad(totBadTangents);
-		MPI_Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
 		#endif
 
 		vector<field_t> summary = summarize(initGrid, dt, initGrid);
@@ -631,7 +631,7 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
 		unsigned int myBad(totBadTangents);
-		MPI_Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
 		#endif
 
 		vector<field_t> summary = summarize(initGrid, dt, initGrid);
@@ -856,7 +856,17 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		// Update timestep based on interfacial velocity. If v=0, there's no interface: march ahead with current dt.
 		const field_t interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
-		const double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
+		double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
+
+		#ifdef MPI_VERSION
+		MPI::COMM_WORLD.Barrier();
+		unsigned int myBad(totBadTangents);
+		double myt(ideal_dt);
+		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+		MPI::COMM_WORLD.Allreduce(&myt, &ideal_dt, 1, MPI_DOUBLE, MPI_MIN);
+		#endif
+
+		vector<field_t> summary = summarize(newGrid, current_dt, oldGrid);
 
 		if (current_dt < ideal_dt + epsilon) {
 			// Update succeeded: process solution
@@ -873,14 +883,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			if (logcount >= logstep) {
 				logcount = 0;
-
-				#ifdef MPI_VERSION
-				MPI::COMM_WORLD.Barrier();
-				unsigned int myBad(totBadTangents);
-				MPI_Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-				#endif
-
-				vector<field_t> summary = summarize(newGrid, current_dt, oldGrid);
 
 				if (rank == 0)
 					fprintf(cfile, "%11g %11g %11g %11g %11g %11g %11g %11u %11g %11g (%11g, %11g)\n",
@@ -1480,6 +1482,7 @@ T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double& dt,
               MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
 {
 	double vmax = 0.0;
+
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
@@ -1609,7 +1612,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 	for (int i = 0; i < NC + NP + NC*(NP+1); i++)
 		tmpSummary[i] = summary[i];
 
-	MPI_Reduce(&(tmpSummary[0]), &(summary[0]), NC + NP + NC*(NP+1) - 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI::COMM_WORLD.Reduce(tmpSummary, summary, NC + NP + NC*(NP+1) - 1, MPI_DOUBLE, MPI_SUM, 0);
 	MPI::COMM_WORLD.Allreduce(&(tmpSummary[7]), &(summary[7]), 1, MPI_DOUBLE, MPI_MAX); // maximum velocity
 	#endif
 

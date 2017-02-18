@@ -15,11 +15,12 @@ directives = -DADAPTIVE_TIMESTEPS -DNDEBUG -DGSL_RANGE_CHECK_OFF
 
 # Compiler flags: common, debug, Intel, GNU, and MPI
 stdflags = -Wall -std=c++11 -I $(mmspdir) $(directives)
-dbgflags = $(stdflags) -pg -O1
+dbgflags = $(stdflags) -O0 -g
 idbgflags = $(stdflags) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
 
 iflags = $(stdflags) -O3 -xCORE-AVX2 -unroll-aggressive -opt-prefetch
 gflags = $(stdflags) -O3 -ffast-math -funroll-loops
+
 pflags = $(gflags) -include mpi.h
 
 
@@ -51,7 +52,7 @@ smpi: alloy625.cpp
 	$(pcompiler) $(pflags) $< -o $@ $(links) -fopenmp
 
 ibtest: alloy625.cpp
-	/usr/local/bin/mpicxx $(pflags) $< -o $@ $(links)
+	/usr/local/bin/mpicxx $(pflags) $< -o $@ $(links) -fopenmp
 
 
 # PGI compiler
