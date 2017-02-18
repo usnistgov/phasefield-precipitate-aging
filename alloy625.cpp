@@ -154,7 +154,7 @@ namespace MMSP
 
 void generate(int dim, const char* filename)
 {
-	int rank=0;
+	int rank = 0;
 	#ifdef MPI_VERSION
 	rank = MPI::COMM_WORLD.Get_rank();
  	#endif
@@ -164,16 +164,16 @@ void generate(int dim, const char* filename)
 	FILE* tfile = NULL;
 	#endif
 
-	if (rank==0) {
+	if (rank == 0) {
 		cfile = fopen("c.log", "w"); // existing log will be overwritten
 		#ifdef ADAPTIVE_TIMESTEPS
 		tfile = fopen("t.log", "w"); // existing log will be overwritten
 		#endif
 	}
 
-	const field_t dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
-	const field_t dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
-	const field_t dt = LinStab * std::min(dtp, dtc);
+	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
+	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
+	const double dt = LinStab * std::min(dtp, dtc) / double(dim);
 
 	if (dim==1) {
 		// Construct grid
@@ -181,7 +181,7 @@ void generate(int dim, const char* filename)
 		double dV = 1.0;
 		double Ntot = 1.0;
 		GRID1D initGrid(14, 0, Nx);
-		for (int d=0; d<dim; d++) {
+		for (int d = 0; d<dim; d++) {
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
@@ -194,7 +194,7 @@ void generate(int dim, const char* filename)
 		}
 
 		// Sanity check on system size and  particle spacing
-		if (rank==0)
+		if (rank == 0)
 			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
 		/*
@@ -232,7 +232,7 @@ void generate(int dim, const char* filename)
 		const int Nmtrx = Nx - Nprcp;
 		const vector<field_t> blank(fields(initGrid), 0.0);
 
-		for (int n=0; n<nodes(initGrid); n++) {
+		for (int n= 0; n<nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
 			vector<field_t>& initGridN = initGrid(n);
 
@@ -267,13 +267,13 @@ void generate(int dim, const char* filename)
 
 		const field_t Csstm[2] = {0.3000, 0.1625}; // system Cr, Nb composition
 		const field_t Cprcp[NP][2] = {{0.0125, 0.2500}, // delta
-		                             {0.0500, 0.4500}, // mu
-		                             {0.3625, 0.2750}  // Laves
+		                              {0.0500, 0.4500}, // mu
+		                              {0.3625, 0.2750}  // Laves
 		                            }; // precipitate  Cr, Nb composition
 
 		field_t matCr = Csstm[0] * Nx;
 		field_t matNb = Csstm[1] * Nx;
-		for (int pid=0; pid < NP; pid++) {
+		for (int pid = 0; pid < NP; pid++) {
 			matCr -= Cprcp[pid][0] * Nprcp[pid];
 			matNb -= Cprcp[pid][1] * Nprcp[pid];
 			Nmtrx -= Nprcp[pid];
@@ -286,7 +286,7 @@ void generate(int dim, const char* filename)
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
-		for (int n=0; n<nodes(initGrid); n++) {
+		for (int n = 0; n<nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
 			vector<field_t>& initGridN = initGrid(n);
 
@@ -296,7 +296,7 @@ void generate(int dim, const char* filename)
 			initGridN[0] = matCr;
 			initGridN[1] = matNb;
 
-			for (int pid=0; pid < NP; pid++) {
+			for (int pid = 0; pid < NP; pid++) {
 				if (x[0]>= pid*Noff && x[0] < pid*Noff + Nprcp[pid]) {
 					// Initialize precipitate with equilibrium composition (from phase diagram)
 					initGridN[0] = Cprcp[pid][0];
@@ -311,7 +311,7 @@ void generate(int dim, const char* filename)
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
-		for (int n=0; n<nodes(initGrid); n++) {
+		for (int n = 0; n<nodes(initGrid); n++) {
 			vector<field_t>& initGridN = initGrid(n);
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
@@ -349,12 +349,12 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
 		unsigned int myBad(totBadTangents);
-		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+		MPI_Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 		#endif
 
 		vector<field_t> summary = summarize(initGrid, dt, initGrid);
 
-		if (rank==0) {
+		if (rank == 0) {
 			fprintf(cfile, "%11s %11s %11s %11s %11s %11s %11s %11s %11s %11s\n",
 			"timestep", "x_Cr", "x_Nb", "gamma", "delta", "mu", "Laves", "bad_roots", "free_energy", "velocity");
 			fprintf(cfile, "%11g %11g %11g %11g %11g %11g %11g %11u %11g %11g\n",
@@ -385,7 +385,7 @@ void generate(int dim, const char* filename)
 		double dV = 1.0;
 		double Ntot = 1.0;
 		GRID2D initGrid(14, 0, Nx, 0, Ny);
-		for (int d=0; d<dim; d++) {
+		for (int d = 0; d<dim; d++) {
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
@@ -405,18 +405,18 @@ void generate(int dim, const char* filename)
 
 
 		// Sanity check on system size and  particle spacing
-		if (rank==0)
+		if (rank == 0)
 			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
-		for (int i=0; i<NP; i++) {
+		for (int i = 0; i < NP; i++) {
 			if (rPrecip[i] > Ny/2)
 				std::cerr << "Warning: domain too small to accommodate phase " << i << ", expand beyond " << 2.0*rPrecip[i] << " pixels." << std::endl;
 		}
 
 		// Zero initial condition
-		for (int n=0; n<nodes(initGrid); n++) {
+		for (int n = 0; n<nodes(initGrid); n++) {
 			vector<field_t>& initGridN = initGrid(n);
-			for (int i=NC; i<fields(initGrid); i++)
+			for (int i =NC; i < fields(initGrid); i++)
 				initGridN[i] = 0.0;
 		}
 
@@ -443,46 +443,46 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 5*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 3*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 6*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
 
 			// Initialize mu precipitates
 			j = 1;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - 2*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 4*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 3*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 5*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
 
 			// Initialize Laves precipitates
 			j = 2;
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 4*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 2*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 6*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], -1.0 + x_min);
 		} else if (0) {
 			/* =============================================== *
 			 * Three-phase Particle Growth test configuration  *
@@ -496,17 +496,17 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny / 2;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 
 			// Initialize mu precipitates
 			j = 1;
 			origin[0] = Nx / 2 - xoffset;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 
 			// Initialize Laves precipitates
 			j = 2;
 			origin[0] = Nx / 2 + xoffset;
-			comp += embedParticle(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 		} else if (0) {
 			/* ============================================= *
 			 * Three-phase Stripe Growth test configuration  *
@@ -520,17 +520,17 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny / 2;
-			comp += embedStripe(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 
 			// Initialize mu stripe
 			j = 1;
 			origin[0] = Nx / 2 - xoffset;
-			comp += embedStripe(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 
 			// Initialize Laves stripe
 			j = 2;
 			origin[0] = Nx / 2 + xoffset;
-			comp += embedStripe(initGrid, origin, j+2, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
+			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1],  1.0 - x_min);
 
 		} else if (0) {
 			/* ============================================= *
@@ -549,7 +549,7 @@ void generate(int dim, const char* filename)
 			const field_t delNb = 0.15;
 			comp += embedStripe(initGrid, origin, 2, Nx/4, delCr, delNb,  1.0-x_min);
 		} else {
-			if (rank==0)
+			if (rank == 0)
 				std::cerr<<"Error: specify an initial condition!"<<std::endl;
 			MMSP::Abort(-1);
 		}
@@ -561,12 +561,9 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
 		// Caution: Primitive. Will not scale to large MPI systems.
-		for (int j=0; j<NP+1; j++) {
-			MPI::COMM_WORLD.Allreduce(&myComp.N[j], &comp.N[j], 1, MPI_INT, MPI_SUM);
-			for (int i=0; i<NC; i++) {
-				MPI::COMM_WORLD.Allreduce(&myComp.x[j][i], &comp.x[j][i], 1, MPI_DOUBLE, MPI_SUM);
-			}
-		}
+		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
+		for (int j = 0; j<NP+1; j++)
+			MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
 		#endif
 
 
@@ -574,7 +571,7 @@ void generate(int dim, const char* filename)
 		field_t matCr = Ntot * xCr[0];
 		field_t matNb = Ntot * xNb[0];
 		field_t Nmat  = Ntot;
-		for (int i=0; i<NP+1; i++) {
+		for (int i = 0; i < NP+1; i++) {
 			Nmat  -= comp.N[i];
 			matCr -= comp.x[i][0];
 			matNb -= comp.x[i][1];
@@ -587,11 +584,11 @@ void generate(int dim, const char* filename)
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
-		for (int n=0; n<nodes(initGrid); n++) {
+		for (int n = 0; n<nodes(initGrid); n++) {
 			field_t nx = 0.0;
 			vector<field_t>& initGridN = initGrid(n);
 
-			for (int i=NC; i<NC+NP; i++)
+			for (int i =NC; i < NC+NP; i++)
 				nx += h(fabs(initGridN[i]));
 
 			if (1.01 * nx < NP*x_min) { // pure gamma
@@ -634,12 +631,12 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
 		unsigned int myBad(totBadTangents);
-		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+		MPI_Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 		#endif
 
 		vector<field_t> summary = summarize(initGrid, dt, initGrid);
 
-		if (rank==0) {
+		if (rank == 0) {
 			fprintf(cfile, "%11s %11s %11s %11s %11s %11s %11s %11s %11s %11s\n",
 			"timestep", "x_Cr", "x_Nb", "gamma", "delta", "mu", "Laves", "bad_roots", "free_energy", "velocity");
 			fprintf(cfile, "%11g %11g %11g %11g %11g %11g %11g %11u %11g %11g\n",
@@ -676,20 +673,20 @@ void generate(int dim, const char* filename)
 
 template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int steps)
 {
-	int rank=0;
+	int rank = 0;
 	#ifdef MPI_VERSION
 	rank = MPI::COMM_WORLD.Get_rank();
 	#endif
 
 	grid<dim,vector<T> > newGrid(oldGrid);
 
-	const field_t dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
-	const field_t dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
-	const field_t dt = LinStab * std::min(dtp, dtc);
+	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
+	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
+	const double dt = LinStab * std::min(dtp, dtc) / double(dim);
 
 	double dV = 1.0;
 	double Ntot = 1.0;
-	for (int d=0; d<dim; d++) {
+	for (int d = 0; d<dim; d++) {
 		dx(oldGrid,d) = meshres;
 		dx(newGrid,d) = meshres;
 		dV *= dx(oldGrid,d);
@@ -713,7 +710,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	FILE* tfile = NULL;
 	#endif
 
-	if (rank==0) {
+	if (rank == 0) {
 		cfile = fopen("c.log", "a"); // new results will be appended
 		#ifdef ADAPTIVE_TIMESTEPS
 		tfile = fopen("t.log", "a"); // new results will be appended
@@ -721,8 +718,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	}
 
 
-	field_t current_time = 0.0;
-	static field_t current_dt = dt;
+	double current_time = 0.0;
+	static double current_dt = dt;
 	static int logcount = 1;
 
 	const int logstep = std::min(10000, steps); // steps between logging status
@@ -732,12 +729,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	#ifdef ADAPTIVE_TIMESTEPS
 	// reference values for adaptive timestepper
-	const field_t run_time = dt * steps;
-	const field_t timelimit = std::min(dtp, dtc) / 4.0;
+	const double run_time = dt * steps;
+	const double timelimit = std::min(dtp, dtc) / (4.0 * dim);
 	const field_t scaleup = 1.00001; // how fast will dt rise when stable
 	const field_t scaledn = 0.9; // how fast will dt fall when unstable
 
-	if (rank==0)
+	if (rank == 0)
 		print_progress(0, steps);
 
 	while (current_time < run_time && current_dt > 0.0) {
@@ -745,8 +742,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		current_dt = std::min(current_dt, run_time - current_time);
 
 	#else
-	for (int step=0; step<steps; step++) {
-		if (rank==0)
+	for (int step = 0; step<steps; step++) {
+		if (rank == 0)
 			print_progress(step, steps);
 
 	#endif
@@ -756,7 +753,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
-		for (int n=0; n<nodes(oldGrid); n++) {
+		for (int n = 0; n<nodes(oldGrid); n++) {
 			/* ============================================== *
 			 * Point-wise kernel for parallel PDE integration *
 			 * ============================================== */
@@ -781,7 +778,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			// sum of phase fractions-squared
 			field_t sumPhiSq = 0.0;
-			for (int i=NC; i<NC+NP; i++)
+			for (int i =NC; i < NC+NP; i++)
 				sumPhiSq += oldGridN[i] * oldGridN[i];
 
 			// Laplacians of field variables
@@ -792,7 +789,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
-			for (int i=0; i<NC; i++) // Recall that D_Cr and D_Nb are columns of diffusivity matrix
+			for (int i = 0; i < NC; i++) // Recall that D_Cr and D_Nb are columns of diffusivity matrix
 				newGridN[i] = oldGridN[i] + current_dt * (D_Cr[i] * laplac[5] + D_Nb[i] * laplac[6]);
 
 
@@ -800,13 +797,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
 
-			for (int j=0; j<NP; j++) {
+			for (int j = 0; j<NP; j++) {
 				const T& phiOld = oldGridN[j+NC];
 				const field_t absPhi = fabs(phiOld);
 
 				// "Pressure" between matrix and precipitate phase
 				field_t Pressure = PhaseEnergy[NP] - PhaseEnergy[j];
-				for (int i=0; i<NC; i++)
+				for (int i = 0; i < NC; i++)
 					Pressure -= (oldGridN[i+5] - oldGridN[i+2*j+7]) * chempot[i];
 
 				// Variational derivatives (scalar minus gradient term in Euler-Lagrange eqn)
@@ -824,11 +821,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * =========================== */
 
 			// Copy old values as initial guesses
-			for (int i=NC+NP; i<fields(newGrid)-1; i++)
+			for (int i =NC+NP; i < fields(newGrid)-1; i++)
 				newGridN[i] = oldGridN[i];
 
 			newGridN[fields(newGrid)-1] = 0; // avoid propagating garbage values in diagnostic field
-			for (int i=0; i<NC+NP; i++)
+			for (int i = 0; i < NC+NP; i++)
 				newGridN[fields(newGrid)-1] += fabs(newGridN[i] - oldGridN[i]); // look into local deviations
 
 			rootsolver parallelTangentSolver;
@@ -859,11 +856,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		// Update timestep based on interfacial velocity. If v=0, there's no interface: march ahead with current dt.
 		const field_t interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
-		const field_t ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
+		const double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
 
 		if (current_dt < ideal_dt + epsilon) {
 			// Update succeeded: process solution
 			current_time += current_dt; // increment before output block
+
 			if (interfacialVelocity < velocity_range[0])
 				velocity_range[0] = interfacialVelocity;
 			else if (interfacialVelocity > velocity_range[1])
@@ -873,29 +871,27 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 			 * ====================================================================== */
 
-			if (logcount == logstep) {
+			if (logcount >= logstep) {
 				logcount = 0;
 
 				#ifdef MPI_VERSION
 				MPI::COMM_WORLD.Barrier();
 				unsigned int myBad(totBadTangents);
-				MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+				MPI_Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 				#endif
 
 				vector<field_t> summary = summarize(newGrid, current_dt, oldGrid);
 
-				if (rank==0)
+				if (rank == 0)
 					fprintf(cfile, "%11g %11g %11g %11g %11g %11g %11g %11u %11g %11g (%11g, %11g)\n",
 					current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], totBadTangents, summary[6], summary[7], velocity_range[0], velocity_range[1]);
 
 				#ifdef ADAPTIVE_TIMESTEPS
-				if (rank==0)
+				if (rank == 0)
 					fprintf(tfile, "%11g %11g %11g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
 				#endif
 
 			}
-
-			logcount++; // increment after output block
 
 			#ifdef ADAPTIVE_TIMESTEPS
 			current_dt = std::min(std::min(ideal_dt, current_dt*scaleup), timelimit);
@@ -904,7 +900,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		} else {
 			// Update failed: solution is unstable
 			#ifdef ADAPTIVE_TIMESTEPS
-			if (rank==0)
+			if (rank == 0)
 				fprintf(tfile, "%11g %11g %11g F\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, current_dt);
 
 			current_dt = ideal_dt * scaledn;
@@ -912,7 +908,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			swap(oldGrid, newGrid);
 			ghostswap(oldGrid);
 			#else
-			if (rank==0) {
+			if (rank == 0) {
 				std::cerr<<"ERROR: Interface swept more than ("<<meshres/advectionlimit<<")dx, timestep is too aggressive!"<<std::endl;
 				fclose(cfile);
 			}
@@ -920,11 +916,22 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			MMSP::Abort(-1);
 			#endif
 		}
+
+		logcount++; // increment after output block
+
+		#ifdef MPI_VERSION
+		// Synchronize watches
+		MPI::COMM_WORLD.Barrier();
+		int myL(logcount);
+		int mydt(current_dt);
+		MPI::COMM_WORLD.Allreduce(&myL, &logcount, 1, MPI_INT, MPI_MAX);
+		MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
+		#endif
 	}
 
 	// vector<field_t> summary = summarize(newGrid, current_dt, oldGrid);
 
-	if (rank==0) {
+	if (rank == 0) {
 		fclose(cfile);
 		#ifdef ADAPTIVE_TIMESTEPS
 		fclose(tfile);
@@ -944,7 +951,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx)
 {
 	double r = 0.0;
-	for (int i=0; i<a.length() && i<b.length(); i++)
+	for (int i = 0; i < a.length() && i < b.length(); i++)
 		r += std::pow(a[i]-b[i],2.0);
 	return dx*std::sqrt(r);
 }
@@ -1027,7 +1034,7 @@ Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double be
 	const double h = MMSP::dx(GRID, 0);
 	Composition comp;
 
-	for (int n=0; n<MMSP::nodes(GRID); n++) {
+	for (int n = 0; n<MMSP::nodes(GRID); n++) {
 		MMSP::vector<int> x = MMSP::position(GRID, n);
 		field_t matrixCr = xCr[4] * bellCurve(h*x[0], h*(Nx/2), bellCr); // centerline
 		//    matrixCr += xCr[4] * bellCurve(h*x[0], 0,        bellCr); // left wall
@@ -1145,7 +1152,7 @@ T gibbs(const MMSP::vector<T>& v)
 
 	MMSP::vector<T> vsq(NP);
 
-	for (int i=0; i<NP; i++)
+	for (int i = 0; i < NP; i++)
 		vsq[i] = v[NC+i]*v[NC+i];
 
 	T g  = n_gam * g_gam(v[5],  v[6]);
@@ -1157,7 +1164,7 @@ T gibbs(const MMSP::vector<T>& v)
 	       g += omega[2] * vsq[4-NC] * pow(1.0 - fabs(v[4]), 2);
 
 	// Trijunction penalty
-	for (int i=0; i<NP-1; i++)
+	for (int i = 0; i < NP-1; i++)
 		for (int j=i+1; j<NP; j++)
 			g += 2.0 * alpha * vsq[i] *vsq[j];
 
@@ -1174,7 +1181,7 @@ MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, c
 
 	const MMSP::vector<T>& y = GRID(x);
 
-	for (int i=0; i<dim; i++) {
+	for (int i = 0; i < dim; i++) {
 		s[i] += 1;
 		const MMSP::vector<T>& yh = GRID(s);
 		s[i] -= 2;
@@ -1182,7 +1189,7 @@ MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, c
 		s[i] += 1;
 
 		const double weight = 1.0 / (MMSP::dx(GRID, i) * MMSP::dx(GRID, i));
-		for (int j=0; j<N; j++)
+		for (int j = 0; j<N; j++)
 			laplacian[j] += weight * (yh[j] - 2.0 * y[j] + yl[j]);
 	}
 	return laplacian;
@@ -1437,7 +1444,7 @@ rootsolver::solve(MMSP::vector<T>& GRIDN)
 
 
 	// copy initial guesses from grid
-	for (int i=0; i<2*(NP+1); i++)
+	for (int i = 0; i < 2*(NP+1); i++)
 		gsl_vector_set(x, i, static_cast<double>(GRIDN[NC+NP+i]));
 
 	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
@@ -1453,7 +1460,7 @@ rootsolver::solve(MMSP::vector<T>& GRIDN)
 	double residual = gsl_blas_dnrm2(solver->f);
 
 	if (status == GSL_SUCCESS)
-		for (int i=0; i<2*(NP+1); i++)
+		for (int i = 0; i < 2*(NP+1); i++)
 			GRIDN[NC+NP+i]  = static_cast<T>(gsl_vector_get(solver->x, i));
 
 	return residual;
@@ -1469,14 +1476,14 @@ rootsolver::~rootsolver()
 
 
 template<int dim,class T>
-T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& dt,
-                   MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
+T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double& dt,
+              MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
 {
 	double vmax = 0.0;
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (int n=0; n<MMSP::nodes(newGrid); n++) {
+	for (int n = 0; n<MMSP::nodes(newGrid); n++) {
 		MMSP::vector<int> x = MMSP::position(newGrid,n);
 
 		const MMSP::vector<T>& oldGridN = oldGrid(n);
@@ -1484,7 +1491,7 @@ T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& 
 
 		T myVelocity = 0.0;
 
-		for (int i=0; i<NP; i++) {
+		for (int i = 0; i < NP; i++) {
 			const T newPhaseFrac = fabs(newGridN[i+NC]);
 			if (newPhaseFrac > 0.1 && newPhaseFrac < 0.9) {
 				const MMSP::vector<T> gradPhi = MMSP::gradient(newGrid, x, i+NC);
@@ -1509,7 +1516,9 @@ T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
 	double myv(vmax);
+	double myt(dt);
 	MPI::COMM_WORLD.Allreduce(&myv, &vmax, 1, MPI_DOUBLE, MPI_MAX);
+	MPI::COMM_WORLD.Allreduce(&myt, &dt,   1, MPI_DOUBLE, MPI_MIN);
 	#endif
 
 	return vmax;
@@ -1529,30 +1538,30 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 
 	double Ntot = 1.0;
 	double dV = 1.0;
-	for (int d=0; d<dim; d++) {
+	for (int d = 0; d<dim; d++) {
 		Ntot *= double(MMSP::g1(newGrid, d) - MMSP::g0(newGrid, d));
 		dV *= MMSP::dx(newGrid, d);
 	}
-	MMSP::vector<double> summary(8, 0.0);
+	double summary[NC + NP + NC*(NP+1)] = {0.0};
 
 	#ifdef _OPENMP
 	#pragma omp parallel for shared(summary)
 	#endif
-	for (int n=0; n<MMSP::nodes(newGrid); n++) {
+	for (int n = 0; n<MMSP::nodes(newGrid); n++) {
 		MMSP::vector<int> x = MMSP::position(newGrid,n);
 		MMSP::vector<T>& newGridN = newGrid(n);
 		const MMSP::vector<T>& oldGridN = oldGrid(n);
-		MMSP::vector<double> mySummary(8, 0.0);
+		double mySummary[NC + NP + NC*(NP+1)] = {0.0};
 		T myVelocity = 0.0;
 
-		for (int i=0; i<NP; i++)
+		for (int i = 0; i < NP; i++)
 			mySummary[i] = newGridN[i];      // compositions
 
 		mySummary[2] = 1.0;                  // gamma fraction init
 		mySummary[6] = dV * gibbs(newGridN); // energy density init
 		// fields 3, 4, 5, 7 are initialized to zero
 
-		for (int i=0; i<NP; i++) {
+		for (int i = 0; i < NP; i++) {
 			const MMSP::vector<T> gradPhi = MMSP::gradient(newGrid, x, i+NC);
 			const T gradSq = (gradPhi * gradPhi); // vector inner product
 			const T newPhaseFrac = fabs(newGridN[i+NC]);
@@ -1578,7 +1587,8 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		#pragma omp critical (sumCrit1)
 		#endif
 		{
-			summary += mySummary;
+			for (int i = 0; i < NC + NP + NC*(NP+1); i++)
+				summary[i] += mySummary[i];
 		}
 
 		// Get maximum interfacial velocity from separate variable
@@ -1590,20 +1600,24 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		}
 	}
 
-	for (int i=0; i<summary.length()-2; i++)
+	for (int i = 0; i < NC + NP + NC*(NP+1)-2; i++)
 		summary[i] /= Ntot;
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
-	MMSP::vector<double> tmpSummary(summary);
+	double tmpSummary[NC + NP + NC*(NP+1)] = {0.0};
+	for (int i = 0; i < NC + NP + NC*(NP+1); i++)
+		tmpSummary[i] = summary[i];
 
-	for (int i=0; i<summary.length()-2; i++)
-		MPI::COMM_WORLD.Reduce(&tmpSummary[i], &summary[i], 1, MPI_DOUBLE, MPI_SUM, 0);
-	MPI::COMM_WORLD.Reduce(&tmpSummary[6], &summary[6], 1, MPI_DOUBLE, MPI_SUM, 0); // free energy
-	MPI::COMM_WORLD.Allreduce(&tmpSummary[7], &summary[7], 1, MPI_DOUBLE, MPI_MAX); // maximum velocity
+	MPI_Reduce(&(tmpSummary[0]), &(summary[0]), NC + NP + NC*(NP+1) - 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI::COMM_WORLD.Allreduce(&(tmpSummary[7]), &(summary[7]), 1, MPI_DOUBLE, MPI_MAX); // maximum velocity
 	#endif
 
-	return summary;
+	MMSP::vector<double> s(NC + NP + NC*(NP+1));
+	for (int i = 0; i < NC + NP + NC*(NP+1); i++)
+		s[i] = summary[i];
+
+	return s;
 }
 
 #endif

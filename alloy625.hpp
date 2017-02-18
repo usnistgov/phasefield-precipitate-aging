@@ -169,7 +169,7 @@ Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
 
 
 template<int dim,typename T>
-T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& dt,
+T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, double& dt,
               MMSP::grid<dim, MMSP::vector<T> > const & newGrid);
 
 
