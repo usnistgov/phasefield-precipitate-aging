@@ -15,7 +15,7 @@ directives = -DADAPTIVE_TIMESTEPS -DNDEBUG -DGSL_RANGE_CHECK_OFF
 
 # Compiler flags: common, debug, Intel, GNU, and MPI
 stdflags = -Wall -std=c++11 -I $(mmspdir) $(directives)
-dbgflags = $(stdflags) -O0 -g
+dbgflags = $(stdflags) -O1 -pg
 idbgflags = $(stdflags) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
 
 iflags = $(stdflags) -O3 -xCORE-AVX2 -unroll-aggressive -opt-prefetch
