@@ -143,7 +143,7 @@ const field_t root_tol = 1.0e-4;  // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 #ifndef CALPHAD
-const field_t LinStab = 1.0 / 15.06022; // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 14.56875; // threshold of linear stability (von Neumann stability condition)
 #else
 const field_t LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
 #endif
@@ -172,7 +172,7 @@ void generate(int dim, const char* filename)
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
-	double dt = LinStab * std::min(dtp, dtc) / double(dim);
+	double dt = LinStab * std::min(dtp, dtc);
 
 	if (dim==1) {
 		// Construct grid
@@ -261,10 +261,11 @@ void generate(int dim, const char* filename)
 		 * ============================= */
 
 		const int Nprcp[NP] = {Nx / 8, Nx / 8, Nx / 8}; // grid points per seed
-		const int Noff = Nx / NP; // grid points between seeds
+		const int Noff = Nx / 8 + 2 * ifce_width / meshres; // grid points between seeds
 		int Nmtrx = Nx; // grid points of matrix phase
 
-		const field_t Csstm[2] = {0.3000, 0.1625}; // system Cr, Nb composition
+		//const field_t Csstm[2] = {0.3000, 0.1625}; // system Cr, Nb composition
+		const field_t Csstm[2] = {0.15, 0.15}; // system Cr, Nb composition
 		const field_t Cprcp[NP][2] = {{0.0125, 0.2500}, // delta
 		                              {0.0500, 0.4500}, // mu
 		                              {0.3625, 0.2750}  // Laves
@@ -296,7 +297,8 @@ void generate(int dim, const char* filename)
 			initGridN[1] = matNb;
 
 			for (int pid = 0; pid < NP; pid++) {
-				if (x[0]>= pid*Noff && x[0] < pid*Noff + Nprcp[pid]) {
+				const int Nstart = Nx / 4 + pid*Noff;
+				if (x[0]>= Nstart && x[0] < Nstart + Nprcp[pid]) {
 					// Initialize precipitate with equilibrium composition (from phase diagram)
 					initGridN[0] = Cprcp[pid][0];
 					initGridN[1] = Cprcp[pid][1];
@@ -340,6 +342,7 @@ void generate(int dim, const char* filename)
 				guessDelta(initGridN);
 				guessMu(   initGridN);
 				guessLaves(initGridN);
+				initGridN[fields(initGrid)-1] = 1.0;
 			}
 		}
 
@@ -357,17 +360,18 @@ void generate(int dim, const char* filename)
 		vector<double> summary = summarize(initGrid, dt, initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%11s\t%11s\t%11s\t%11s\t%11s\t%11s\t%11s\t%11s\t%11s\t%11s\n",
-			"timestep", "x_Cr", "x_Nb", "gamma", "delta", "mu", "Laves", "bad_roots", "free_energy", "velocity");
-			fprintf(cfile, "%11g\t%11g\t%11g\t%11g\t%11g\t%11g\t%11g\t%11u\t%11g\t%11g\n",
-			dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], totBadTangents, summary[6], summary[7]);
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+			"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "mu", "Laves", "bad_roots", "free_energy", "velocity");
+			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\n",
+			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], totBadTangents, summary[6], summary[7]);
 
 			#ifdef ADAPTIVE_TIMESTEPS
-			fprintf(tfile, "%11g\t%11g\t%11g\n", 0.0, 1.0, dt);
+			fprintf(tfile, "%9g\t%9g\t%9g\n", 0.0, 1.0, dt);
 			#endif
 
-			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
-			printf("%11g %11g %11g %11g %11g %11g %11g\n",
+			printf("%9s %9s %9s %9s %9s %9s %9s\n",
+			"x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", " p_m", " p_l");
+			printf("%9g %9g %9g %9g %9g %9g %9g\n",
 			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4], summary[5]);
 		}
 
@@ -626,6 +630,7 @@ void generate(int dim, const char* filename)
 				guessDelta(initGridN);
 				guessMu(   initGridN);
 				guessLaves(initGridN);
+				initGridN[fields(initGrid)-1] = 1.0;
 			}
 		}
 
@@ -640,17 +645,18 @@ void generate(int dim, const char* filename)
 		vector<double> summary = summarize(initGrid, dt, initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%11s\t%11s\t%11s\t%11s\t%11s\t%11s\t%11s\t%11s\t%11s\t%11s\n",
-			"timestep", "x_Cr", "x_Nb", "gamma", "delta", "mu", "Laves", "bad_roots", "free_energy", "velocity");
-			fprintf(cfile, "%11g\t%11g\t%11g\t%11g\t%11g\t%11g\t%11g\t%11u\t%11g\t%11g\n",
-			dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], totBadTangents, summary[6], summary[7]);
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+			"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "mu", "Laves", "bad_roots", "free_energy", "velocity");
+			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\n",
+			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], summary[5], totBadTangents, summary[6], summary[7]);
 
 			#ifdef ADAPTIVE_TIMESTEPS
-			fprintf(tfile, "%11g\t%11g\t%11g\n", 0.0, 1.0, dt);
+			fprintf(tfile, "%9g\t%9g\t%9g\n", 0.0, 1.0, dt);
 			#endif
 
-			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
-			printf("%11g %11g %11g %11g %11g %11g %11g\n",
+			printf("%9s %9s %9s %9s %9s %9s %9s\n",
+			"x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", " p_m", " p_l");
+			printf("%9g %9g %9g %9g %9g %9g %9g\n",
 			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4], summary[5]);
 		}
 
@@ -685,7 +691,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
-	const double dt = LinStab * std::min(dtp, dtc) / double(dim);
+	const double dt = LinStab * std::min(dtp, dtc);
 
 	double dV = 1.0;
 	double Ntot = 1.0;
@@ -747,7 +753,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	while (current_time < run_time && current_dt > 0.0) {
 
-		/* Partial timestep appears to trip up MPI jobs.
+		/* Partial timestep trips up parallel jobs.
 		current_dt = std::min(current_dt, run_time - current_time);
 		*/
 
@@ -835,7 +841,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			for (int i = NC+NP; i < fields(newGrid)-1; i++)
 				newGridN[i] = oldGridN[i];
 
-			newGridN[fields(newGrid)-1] = 0; // avoid propagating garbage values in diagnostic field
+			newGridN[fields(newGrid)-1] = 0.0; // avoid propagating garbage values in diagnostic field
 			for (int i = 0; i < NC+NP; i++)
 				newGridN[fields(newGrid)-1] += fabs(newGridN[i] - oldGridN[i]); // look into local deviations
 
@@ -855,6 +861,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				guessDelta(newGridN);
 				guessMu(   newGridN);
 				guessLaves(newGridN);
+				newGridN[fields(newGrid)-1] = 1.0;
 			}
 
 			/* ======= *
@@ -924,7 +931,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			if (rank == 0)
 				fprintf(tfile, "%9g\t%9g\t%9g\t%9g F\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, ideal_dt, current_dt);
 
-			current_dt = ideal_dt * scaledn;
+			current_dt *= scaledn;
 
 			swap(oldGrid, newGrid);
 			ghostswap(oldGrid);
@@ -1542,7 +1549,7 @@ T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& d
 				const MMSP::vector<T> gradPhi = MMSP::gradient(newGrid, x, i+NC);
 				const T magGrad = std::sqrt(gradPhi * gradPhi);
 				if (magGrad > epsilon) {
-					const T oldPhaseFrac = fabs(oldGridN[i+NC]);
+					const T oldPhaseFrac = h(fabs(oldGridN[i+NC]));
 					T dphidt = std::fabs(newPhaseFrac - oldPhaseFrac) / dt;
 					T v = (dphidt > epsilon) ? dphidt / magGrad : 0.0;
 					myVelocity = std::max(myVelocity, v);
@@ -1616,7 +1623,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 			mySummary[NC + NP + 3 - 2] += dV * kappa[i] * gradSq; // gradient contributes to energy
 
 			if (std::sqrt(gradSq) > epsilon && newPhaseFrac > 0.1 && newPhaseFrac < 0.9) {
-				const T oldPhaseFrac = fabs(oldGridN[i+NC]);
+				const T oldPhaseFrac = h(fabs(oldGridN[i+NC]));
 				const T dphidt = std::fabs(newPhaseFrac - oldPhaseFrac) / dt;
 				const T v = (dphidt > epsilon) ? dphidt / std::sqrt(gradSq) : 0.0;
 				myVelocity = std::max(myVelocity, v);
