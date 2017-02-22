@@ -172,7 +172,7 @@ void generate(int dim, const char* filename)
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
-	double dt = LinStab * std::min(dtp, dtc) / double(dim * dim);
+	double dt = LinStab * std::min(dtp, dtc) / double(dim);
 
 	if (dim==1) {
 		// Construct grid
@@ -685,7 +685,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
-	const double dt = LinStab * std::min(dtp, dtc) / double(dim * dim);
+	const double dt = LinStab * std::min(dtp, dtc) / double(dim);
 
 	double dV = 1.0;
 	double Ntot = 1.0;
@@ -725,7 +725,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	static double current_dt = dt;
 	static int logcount = 1;
 
-	const int logstep = 1; //std::min(1000, steps); // steps between logging status
+	const int logstep = std::min(1000, steps); // steps between logging status
 	const field_t advectionlimit = 0.1 * meshres;
 
 	field_t velocity_range[2] = {1.0, -1.0};
