@@ -19,7 +19,7 @@ dbgflags = $(stdflags) -O1 -pg
 idbgflags = $(stdflags) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
 
 iflags = $(stdflags) -O3 -xCORE-AVX2 -unroll-aggressive -opt-prefetch
-gflags = $(stdflags) -O3 -ffast-math -funroll-loops
+gflags = $(stdflags) -O2 -ffast-math -funroll-loops
 
 pflags = $(gflags) -include mpi.h
 

@@ -135,14 +135,13 @@ const field_t omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
 
 // Numerical considerations
 const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
-const bool tanh_init = true;    // apply tanh profile to initial profile of composition and phase
-const field_t x_min = 1.0e-6;    // what to consider zero to avoid log(c) explosions
+const bool tanh_init = false;     // apply tanh profile to initial profile of composition and phase
+const field_t x_min = 1.0e-8;    // what to consider zero to avoid log(c) explosions
 const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explosions
 
-const field_t root_tol = 1.0e-4;   // residual tolerance (default is 1e-7)
+const field_t root_tol = 1.0e-4;  // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
-//const field_t LinStab = 0.00125; // threshold of linear stability (von Neumann stability condition)
 #ifndef CALPHAD
 const field_t LinStab = 1.0 / 15.06022; // threshold of linear stability (von Neumann stability condition)
 #else
@@ -349,8 +348,9 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
 		unsigned int myBad(totBadTangents);
-		double mydt(dt);
 		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+		MPI::COMM_WORLD.Barrier();
+		double mydt(dt);
 		MPI::COMM_WORLD.Allreduce(&mydt, &dt, 1, MPI_DOUBLE, MPI_MIN);
 		#endif
 
@@ -563,15 +563,17 @@ void generate(int dim, const char* filename)
 		MPI::COMM_WORLD.Barrier();
 		// Caution: Primitive. Will not scale to large MPI systems.
 		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
-		for (int j = 0; j < NP+1; j++)
+		for (int j = 0; j < NP+1; j++) {
+			MPI::COMM_WORLD.Barrier();
 			MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
+		}
 		#endif
 
 
 		// Initialize matrix to achieve specified system composition
 		field_t matCr = Ntot * xCr[0];
 		field_t matNb = Ntot * xNb[0];
-		field_t Nmat  = Ntot;
+		double Nmat  = Ntot;
 		for (int i = 0; i < NP+1; i++) {
 			Nmat  -= comp.N[i];
 			matCr -= comp.x[i][0];
@@ -648,8 +650,8 @@ void generate(int dim, const char* filename)
 			#endif
 
 			std::cout << "       x_Cr        x_Nb        x_Ni         p_g         p_d         p_m         p_l\n";
-			printf("%11g %11g %11g %11g %11g %11g %11g\n", summary[0], summary[1], 1.0-summary[0]-summary[1],
-			                                                             summary[2], summary[3], summary[4], summary[5]);
+			printf("%11g %11g %11g %11g %11g %11g %11g\n",
+			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4], summary[5]);
 		}
 
 		output(initGrid,filename);
@@ -735,12 +737,19 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	const field_t scaleup = 1.00001; // how fast will dt rise when stable
 	const field_t scaledn = 0.9; // how fast will dt fall when unstable
 
+	#ifdef MPI_VERSION
+	double mydt(current_dt);
+	MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
+	#endif
+
 	if (rank == 0)
 		print_progress(0, steps);
 
 	while (current_time < run_time && current_dt > 0.0) {
 
+		/* Partial timestep appears to trip up MPI jobs.
 		current_dt = std::min(current_dt, run_time - current_time);
+		*/
 
 	#else
 	for (int step = 0; step<steps; step++) {
@@ -863,9 +872,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
 		double myt(ideal_dt);
-		double myv(interfacialVelocity);
 		MPI::COMM_WORLD.Allreduce(&myt, &ideal_dt, 1, MPI_DOUBLE, MPI_MIN);
-		MPI::COMM_WORLD.Allreduce(&myv, &interfacialVelocity, 1, MPI_DOUBLE, MPI_MAX);
 		#endif
 
 		if (current_dt < ideal_dt + epsilon) {
@@ -937,9 +944,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		// Synchronize watches
 		MPI::COMM_WORLD.Barrier();
 		int myL(logcount);
-		double mydt(current_dt);
 		MPI::COMM_WORLD.Allreduce(&myL, &logcount, 1, MPI_INT, MPI_MAX);
 		MPI::COMM_WORLD.Barrier();
+		double mydt(current_dt);
 		MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
 		#endif
 
@@ -1103,19 +1110,19 @@ Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID,
 
 	if (tanh_init) {
 		// Create a tanh profile in composition surrounding the precipitate to reduce initial Laplacian
-		double del = std::max(1.0+epsilon, 4.3875e-9 / meshres); // empirically determined tanh profile thickness
+		double del = 3.0 + epsilon;
 		for (x[0] = origin[0] - R - 2*del; x[0] <= origin[0] + R + 2*del; x[0]++) {
 			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 				continue;
-			for (x[1] = origin[1] - R; x[1] <= origin[1] + R; x[1]++) {
+			for (x[1] = origin[1] - R - 2*del; x[1] <= origin[1] + R + 2*del; x[1]++) {
 				if (x[1] < y0(GRID) || x[1] >= y1(GRID))
 					continue;
 				const double r = radius(origin, x, 1);
-				if (r > R - del && r < R + del) {
+				if (r >= R - del && r < R + del) {
 					field_t tanhprof = 0.5*(1.0 + std::tanh(double(r - R - del)/(del)));
-					GRID(x)[0] = GRID(x)[0] - tanhprof*GRID(x)[0];
-					GRID(x)[1] = GRID(x)[1] - tanhprof*GRID(x)[1];
-					GRID(x)[pid] = GRID(x)[pid] - tanhprof*GRID(x)[pid];
+					GRID(x)[0]  -=  tanhprof*GRID(x)[0];//  -  GRID(origin)[0]);
+					GRID(x)[1]  -=  tanhprof*GRID(x)[1];//  -  GRID(origin)[1]);
+					GRID(x)[pid] -= tanhprof*GRID(x)[pid];// - GRID(origin)[pid]);
 				}
 			}
 		}
@@ -1564,7 +1571,7 @@ T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& d
 
 
 template<int dim,class T>
-MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const field_t& dt,
+MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& dt,
                                MMSP::grid<dim, MMSP::vector<T> > const & newGrid)
 {
 	/* =========================================================================== *
@@ -1596,7 +1603,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 			mySummary[i] = newGridN[i];      // compositions
 
 		mySummary[NC] = 1.0;                 // gamma fraction init
-		mySummary[6] = dV * gibbs(newGridN); // energy density init
+		mySummary[NC + NP + 3 - 2] = dV * gibbs(newGridN); // energy density init
 		// fields 3, 4, 5, 7 are initialized to zero
 
 		for (int i = 0; i < NP; i++) {
@@ -1606,7 +1613,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 
 			mySummary[i+NC+1] = newPhaseFrac;       // secondary phase fraction
 			mySummary[NC] -= newPhaseFrac;           // contributes to gamma phase;
-			mySummary[6] += dV * kappa[i] * gradSq; // gradient contributes to energy
+			mySummary[NC + NP + 3 - 2] += dV * kappa[i] * gradSq; // gradient contributes to energy
 
 			if (std::sqrt(gradSq) > epsilon && newPhaseFrac > 0.1 && newPhaseFrac < 0.9) {
 				const T oldPhaseFrac = fabs(oldGridN[i+NC]);
@@ -1632,7 +1639,7 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		#pragma omp critical (sumCrit2)
 		{
 		#endif
-		summary[7] = std::max(myVelocity, summary[7]);
+		summary[NC + NP + 3 - 1] = std::max(myVelocity, summary[NC + NP + 3 - 1]);
 		#ifdef _OPENMP
 		}
 		#endif
@@ -1642,7 +1649,6 @@ MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid
 		summary[i] /= Ntot;
 
 	#ifdef MPI_VERSION
-	MPI::COMM_WORLD.Barrier();
 	MMSP::vector<double> tmpSummary(summary);
 	MPI::COMM_WORLD.Reduce(&(tmpSummary[0]), &(summary[0]), NC + NP + 3 - 1, MPI_DOUBLE, MPI_SUM, 0);
 	MPI::COMM_WORLD.Allreduce(&(tmpSummary[NC + NP + 3 - 1]), &(summary[NC + NP + 3 - 1]), 1, MPI_DOUBLE, MPI_MAX); // maximum velocity
