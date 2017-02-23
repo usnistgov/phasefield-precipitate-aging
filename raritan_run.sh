@@ -33,7 +33,7 @@ ALLTIME=10000000
 CHKTIME=100000
 
 # OpenMPI reads SLURM variables directly, so no flags are needed.
-mpirun $SRCDIR/./$SCRIPT --example 2 $WRKDIR/superalloy.dat
-mpirun $SRCDIR/./$SCRIPT $WRKDIR/superalloy.dat $ALLTIME $CHKTIME
+mpirun --contiguous --bind-to core $SRCDIR/./$SCRIPT --example 2 $WRKDIR/superalloy.dat
+mpirun --contiguous --bind-to core $SRCDIR/./$SCRIPT $WRKDIR/superalloy.dat $ALLTIME $CHKTIME
 
 # PS: Don't use srun with OpenMPI.

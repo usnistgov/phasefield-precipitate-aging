@@ -209,24 +209,24 @@ LAVES_XCR, LAVES_XNB, LAVES_XNI = symbols('LAVES_XCR LAVES_XNB LAVES_XNI')
 BCC_XCR, BCC_XNB, BCC_XNI = symbols('BCC_XCR BCC_XNB BCC_XNI')
 
 # Specify equilibrium points for phase field
-xe_gam_Cr = 0.15
-xe_gam_Nb = 0.0525
-xe_gam_Ni = 1.0 - xe_gam_Cr - xe_gam_Nb
+xe_gam_Cr= 0.3333
+xe_gam_Nb= 0.0333
+xe_gam_Ni= 1.0 - xe_gam_Cr - xe_gam_Nb
 
 xe_del_Cr = 0.0125
-xe_del_Nb = 0.245
+xe_del_Nb = 0.2475
 
-xe_mu_Cr = 0.02
-xe_mu_Nb = 0.5
-xe_mu_Ni = 1.0 - xe_mu_Cr - xe_mu_Nb
+xe_mu_Cr  = 0.0250
+xe_mu_Nb  = 0.5250
+xe_mu_Ni  = 1.0 - xe_mu_Cr - xe_mu_Nb
 
-xe_lav_Cr = 0.34
-xe_lav_Nb = 0.29
+xe_lav_Cr = 0.3500
+xe_lav_Nb = 0.2750
 xe_lav_Ni = 1.0 - xe_lav_Cr - xe_lav_Nb
 
 # Anchor points for Taylor series
-X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_mu_Nb, xe_mu_Cr), simX(xe_lav_Nb, 1-xe_lav_Nb-xe_lav_Ni)]
-Y0 = [simY(xe_gam_Cr), simY(xe_del_Cr), simY(xe_mu_Cr), simY(1-xe_lav_Nb-xe_lav_Ni)]
+X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_mu_Nb, xe_mu_Cr), simX(xe_lav_Nb, xe_lav_Cr)]
+Y0 = [simY(xe_gam_Cr), simY(xe_del_Cr), simY(xe_mu_Cr), simY(xe_lav_Cr)]
 
 
 # Make sublattice -> system substitutions
