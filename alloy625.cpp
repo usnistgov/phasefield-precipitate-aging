@@ -96,8 +96,8 @@
 // of the secondary phases to maintain the system's nominal composition.
 //                        Nominal |     phase diagram      | Enriched
 //                        gamma   | delta    mu     laves  | gamma (Excess)
-const field_t xCr[NP+2] = {0.30,    0.0125,  0.04,  0.3875,  0.31-0.30};
-const field_t xNb[NP+2] = {0.04,    0.2500,  0.50,  0.2500,  0.13-0.04};
+const field_t xCr[NP+2] = {0.30,     0.0125,  0.04,  0.3875,  0.31-0.30};
+const field_t xNb[NP+2] = {0.02,     0.2500,  0.50,  0.2500,  0.13-0.02};
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                         Cr      Nb
@@ -265,7 +265,7 @@ void generate(int dim, const char* filename)
 		int Nmtrx = Nx; // grid points of matrix phase
 
 		//const field_t Csstm[2] = {0.3000, 0.1625}; // system Cr, Nb composition
-		const field_t Csstm[2] = {0.20, 0.15}; // system Cr, Nb composition
+		const field_t Csstm[2] = {0.15, 0.15}; // system Cr, Nb composition
 		const field_t Cprcp[NP][2] = {{0.0125, 0.2500}, // delta
 		                              {0.0500, 0.4500}, // mu
 		                              {0.3625, 0.2750}  // Laves
@@ -432,7 +432,7 @@ void generate(int dim, const char* filename)
 
 
 		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
-		const int xoffset = 18 * (5.0e-9 / meshres); //  80 nm
+		const int xoffset = 16 * (5.0e-9 / meshres); //  80 nm
 		const int yoffset = 32 * (5.0e-9 / meshres); // 160 nm
 		vector<int> origin(2, 0);
 
