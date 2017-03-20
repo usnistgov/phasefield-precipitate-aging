@@ -1,6 +1,6 @@
 \documentclass[10pt]{article}
-\usepackage{amsmath,amssymb,mathtools,siunitx}
-\usepackage[letterpaper,top=1.25in,bottom=1.25in,left=1in,right=1in]{geometry}
+\usepackage{amsmath,amssymb,graphicx,mathtools,siunitx}
+\usepackage[letterpaper,top=1.0in,bottom=1.0in,left=1.0in,right=1.0in]{geometry}
 \usepackage[version=3]{mhchem}
 
 \DeclareMathOperator{\sgn}{sgn}
@@ -15,6 +15,7 @@
 	The interdendritic regions in additive manufacturing get enriched to Ni--\SI{31}{\percent} Cr--\SI{13}{\percent} Nb.
 	The four-phase three-component model is represented using two composition fields $\left(x_{\ce{Cr}}, x_{\ce{Nb}}\right)$
 	and three phase fields $\left(\phi_\delta, \phi_\mu, \phi_{\mathrm{Laves}}\right)$.
+	The CALPHAD database was modified from Du \emph{et al.} \cite{Du2005} to make $\delta$ a line compound.
 
 
 
@@ -34,6 +35,9 @@
  			             \label{eqn:consnb}\\
  			h(\phi)     &= \phi^3\left(6\phi^2 - 15\phi + 10\right)\label{eqn:interp}
 		\end{align}
+		Therefore, the ternary model is implemented with two ``real'' compositions $(x_{\ce{Cr}}, x_{\ce{Nb}})$ and
+		eight `fictitious'' compositions $(x_{\ce{Cr}}^{\gamma}, x_{\ce{Nb}}^{\gamma}, x_{\ce{Cr}}^{\delta}, x_{\ce{Nb}}^{\delta}, x_{\ce{Cr}}^{\mu}, x_{\ce{Nb}}^{\mu}, x_{\ce{Cr}}^{\mathrm{L}}, x_{\ce{Nb}}^{\mathrm{L}})$.
+
 		Zhou \emph{et al.} \cite{Zhou2014} defines the order parameter such that $\phi_i=\pm1$ indicates presence of the phase $i$, and $\phi_i=0$ indicates absence.
 		The matrix phase $\gamma$ exists where $\sum h(|\phi_i|)=0$. This allows for multiple discrete precipitates of the same phase, without unphysical coalescence.
 		The free energy density is
@@ -41,13 +45,17 @@
 			f(x,\phi,t) &= \left( 1-\sum h(|\phi_i|) \right) f_\gamma(x_{\ce{Cr}}^{\gamma},x_{\ce{Nb}}^{\gamma})
 			             + h(|\phi_{\delta}|) f_\delta(x_{\ce{Cr}}^{\delta},x_{\ce{Nb}}^{\delta})
 			             + h(|\phi_{\mu}|) f_\mu(x_{\ce{Cr}}^{\mu},x_\ce{Ni}^{\mu})
-			             + h(|\phi_{\ce{L}}|)f_\ce{L}(x_{\ce{Nb}}^\ce{L},x_\ce{Ni}^\ce{L})\\
+			             + h(|\phi_{\ce{L}}|)f_\ce{L}(x_{\ce{Nb}}^\ce{L},x_\ce{Ni}^\ce{L})\\\nonumber
 			            &+ \omega_\delta(\phi_\delta)^2(1-|\phi_\delta|)^2
 			             + \omega_\mu(\phi_\mu)^2(1-|\phi_\mu|)^2
-			             + \omega_\ce{L}(\phi_\ce{L})^2(1-|\phi_\ce{L}|)^2
-			             + \alpha\sum_{i}\sum_{j\neq i}\phi_i^2\phi_j^2
+			             + \omega_\ce{L}(\phi_\ce{L})^2(1-|\phi_\ce{L}|)^2\\
+			            &+ \alpha\left(\phi_{\delta}^2\phi_{\mu}^2 + \phi_{\delta}^2\phi_{\ce{L}}^2 + \phi_{\mu}^2\phi_{\ce{L}}^2\right)
 			            \label{eqn:density}
 		\end{align}
+		with the elastic energy of the Zhou model neglected here.
+		The first line weighs the single-phase free energy expressions by their respective phase fractions,
+		the second establishes double-well potentials between matrix ($\gamma$, $\phi=0$) and the precipitate phases ($\phi=\pm1)$,
+		and the third line penalizes triple junctions and coalescence of precipitate phases.
 
 		The KKS interface model \cite{Kim1999} assumes constant chemical potential through the interface, so
 		\begin{align}
@@ -63,7 +71,8 @@
 			                       = \frac{\partial f_\ce{L}}{\partial x_{\ce{Nb}}^\ce{L}}
 		\end{align}
 		The pure phase compositions $\left(x_j^i\right)$ are determined by solving the parallel tangent construction constrained by the
-		conservation of mass and equality of chemical potentials for each phase,
+		conservation of mass
+
 		\begin{align}
 			\label{eqn:Jf1}
 			0 &= x_{\ce{Cr}} - \left( 1-\sum h(|\phi_i|) \right)x_{\ce{Cr}}^{\gamma}
@@ -74,20 +83,33 @@
 			0 &= x_{\ce{Nb}} - \left( 1-\sum h(|\phi_i|) \right)x_{\ce{Nb}}^{\gamma}
 			                 - h(|\phi_{\delta}|)x_{\ce{Nb}}^{\delta}
 			                 - h(|\phi_{\mu}|)x_{\ce{Nb}}^{\mu}
-			                 - h(|\phi_{\ce{L}}|)x_{\ce{Nb}}^{\ce{L}}\\
+			                 - h(|\phi_{\ce{L}}|)x_{\ce{Nb}}^{\ce{L}}
+		\end{align}\\
+		and equality of chemical potentials for each phase,\\
+		\begin{minipage}{0.305\textwidth}
+		\begin{align}
 			\label{eqn:Jf3}
 			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}} - \frac{\partial f_{\delta}}{\partial x_{\ce{Cr}}^{\delta}}\\
 			\label{eqn:Jf4}
-			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\delta}}{\partial x_{\ce{Nb}}^{\delta}}\\
+			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\delta}}{\partial x_{\ce{Nb}}^{\delta}}
+		\end{align}
+		\end{minipage}\qquad
+		\begin{minipage}{0.305\textwidth}
+		\begin{align}
 			\label{eqn:Jf5}
 			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}} - \frac{\partial f_{\mu}}{\partial x_{\ce{Cr}}^{\mu}}\\
 			\label{eqn:Jf6}
-			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\mu}}{\partial x_{\ce{Nb}}^{\mu}}\\
+			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\mu}}{\partial x_{\ce{Nb}}^{\mu}}
+		\end{align}
+		\end{minipage}\qquad
+		\begin{minipage}{0.305\textwidth}
+		\begin{align}
 			\label{eqn:Jf7}
 			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}} - \frac{\partial f_{\ce{L}}}{\partial x_{\ce{Cr}}^{\ce{L}}}\\
 			\label{eqn:Jf8}
 			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\ce{L}}}{\partial x_{\ce{Nb}}^{\ce{L}}}
 		\end{align}
+		\end{minipage}\\
 		in which each partial derivative is evaluated at the pure phase composition $x_j^i$, not the system composition $x_j$.
 		This set of eight equations should uniquely solve for the eight unknown pure compositions at each point,
 		given that $x_\ce{Ni}^i = 1-x_{\ce{Cr}}^i-x_{\ce{Nb}}^i$.
@@ -99,9 +121,7 @@
 		                                                                     $x_{\ce{Cr}}^{\mu}$,
 		                                                                     $x_{\ce{Nb}}^{\mu}$,
 		                                                                     $x_{\ce{Cr}}^\ce{L}$, and
-		                                                                     $x_{\ce{Nb}}^\ce{L}$.\footnote{
-		The system compositions $x_{\ce{Cr}}$ and $x_{\ce{Nb}}$ depend on $x_{\ce{Cr}}^i$ and $x_{\ce{Nb}}^i$; these ten values are stored as field variables.
-		}
+		                                                                     $x_{\ce{Nb}}^\ce{L}$.
 		The complete Jacobian matrix is written in Appendix~\ref{app:jacobian}.
 
 		The first guess for each composition is made using line compound approximations for each phase,
@@ -113,7 +133,7 @@
 		                       $\phi_{\mu}$, and
 		                       $\phi_{\ce{L}}$ are held constant.
 		In the event that a valid solution cannot be found, at any time during the simulation,
-		the line compound guesses are applied with a small random offset.
+		the line compound guesses are applied.
 		Details are provided in Appendix~\ref{app:linecomp}.
 
 	
@@ -122,54 +142,34 @@
 
 	\section{Thermodynamic Model}
 		The pure phase free energies depend on Gibbs free energy expressions, divided by molar volume to convert from \si{\joule/\mole} to \si{\joule/\cubic\meter}.
-		The Gibbs free energy expressions are read from a CALPHAD database using pycalphad,
+		The Gibbs free energy expressions are read from a CALPHAD database (Du \emph{et al.} \cite{Du2005}) using pycalphad,
 		then manipulated using sympy to substitute sublattice compositions $y$ with system compositions $x$.
-		This substitution is not valid over the entire ternary composition space.
-		It is therefore necessary to build approximate free energies, which is done in one of two ways:
-		\begin{enumerate}
-			\item Paraboloid approximations for each phase: %$f\approx V_m^{-1}\sum C_j(x_j-x_j^e)^2$.
-			      \begin{align}
-			      f_{\gamma} &\approx \left.\frac{1}{2}\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}}\right|_{\prescript{e}{}{x}_{\ce{Cr}}^{\gamma}}
-			                          \left(x_{\ce{Cr}} - \prescript{e}{}{x}_{\ce{Cr}}^{\gamma}\right)
-			                        + \left.\frac{1}{2}\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}}\right|_{\prescript{e}{}{x}_{\ce{Nb}}^{\gamma}}
-			                          \left(x_{\ce{Nb}} - \prescript{e}{}{x}_{\ce{Nb}}^{\gamma}\right)
-			                        + f^0_{\gamma}\left(\prescript{e}{}{x}_{\ce{Cr}}^{\gamma}, \prescript{e}{}{x}_{\ce{Nb}}^{\gamma}\right)\\ 
-			      f_{\delta} &\approx \left.\frac{1}{2}\frac{\partial^2 f_{\delta}}{\partial x_{\ce{Cr}}^{\delta}}\right|_{\prescript{e}{}{x}_{\ce{Cr}}^{\delta}}
-			                          \left(x_{\ce{Cr}} - \prescript{e}{}{x}_{\ce{Cr}}^{\delta}\right)
-			                        + \left.\frac{1}{2}\frac{\partial^2 f_{\delta}}{\partial x_{\ce{Nb}}^{\delta}}\right|_{\prescript{e}{}{x}_{\ce{Nb}}^{\delta}}
-			                          \left(x_{\ce{Nb}} - \prescript{e}{}{x}_{\ce{Nb}}^{\delta}\right)
-			                        + f^0_{\delta}\left(\prescript{e}{}{x}_{\ce{Cr}}^{\delta}, \prescript{e}{}{x}_{\ce{Nb}}^{\delta}\right)\\ 
-			      f_{\mu} &\approx    \left.\frac{1}{2}\frac{\partial^2 f_{\mu}}{\partial x_{\ce{Cr}}^{\mu}}\right|_{\prescript{e}{}{x}_{\ce{Cr}}^{\mu}}
-			                          \left(x_{\ce{Cr}} - \prescript{e}{}{x}_{\ce{Cr}}^{\mu}\right)
-			                        + \left.\frac{1}{2}\frac{\partial^2 f_{\mu}}{\partial x_{\ce{Nb}}^{\mu}}\right|_{\prescript{e}{}{x}_{\ce{Nb}}^{\mu}}
-			                          \left(x_{\ce{Nb}} - \prescript{e}{}{x}_{\ce{Nb}}^{\mu}\right)
-			                        + f^0_{\mu}\left(\prescript{e}{}{x}_{\ce{Cr}}^{\mu}, \prescript{e}{}{x}_{\ce{Nb}}^{\mu}\right)\\ 
-			      f_{\ce{L}} &\approx \left.\frac{1}{2}\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Nb}}^{\ce{L}}}\right|_{\prescript{e}{}{x}_{\ce{Nb}}^{\ce{L}}}
-			                          \left(x_{\ce{Nb}} - \prescript{e}{}{x}_{\ce{Nb}}^{\ce{L}}\right)
-			                        + \left.\frac{1}{2}\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Ni}}^{\ce{L}}}\right|_{\prescript{e}{}{x}_{\ce{Ni}}^{\ce{L}}}
-			                          \left(1-x_{\ce{Cr}}-x_{\ce{Nb}} - \prescript{e}{}{x}_{\ce{Ni}}^{\ce{L}}\right)
-			                        + f^0_{\ce{L}}\left(\prescript{e}{}{x}_{\ce{Nb}}^{\ce{L}}, \prescript{e}{}{x}_{\ce{Ni}}^{\ce{L}}\right)
-			      \end{align}
-			      The curvature $C$ of free energy for each element,
-			      $C_j=\left.\frac{1}{2}\frac{\partial^2 f}{\partial {x_j}^2}\right|_{x_j=\prescript{e}{}{x}_j}$,
-			      and the minimum energy $f^0_{\nu}\left(\prescript{e}{}{x}_{i}^{\nu}, \prescript{e}{}{x}_{j}^{\nu}\right)$,
-			      are computed from the CALPHAD expression.\footnote{In the following exposition, $j$ is the index for elements and $i$ the index for phases.
-	              }
-			      The equilibrium value for each element $\prescript{e}{}{x}_j$ is taken from the constrained minimum
-			      of the CALPHAD free energy expression for each phase, within the valid region and within the ternary simplex.
-			\item Piecewise functions are constructed using the manipulated CALPHAD expression inside its defined range,
-			      and the paraboloid approximation outside that range.
-		\end{enumerate}
-		Phase diagrams constructed by the convex hull method show the pure phase fields from the paraboloid model are larger
-		and somewhat distorted relative to the CALPHAD model, but the two diagrams are similar.
-		To simplify the model as much as possible while troubleshooting numerics, the paraboloid approximation is used in the code.
-		Note that Zhou \emph{et al.} \cite{Zhou2014} sets $C_j=C_j^{\gamma}$ rather than specifying different curvatures for each phase,
-		while my code (at the moment) allows each phase its own curvature.
-	
+		This substitution is not valid over the entire ternary composition space, and sometimes incurs kinks.
+		Since smooth and continuously differentiable functions are needed, the single-phase free energies are approximated
+		by second-order Taylor series expansion about control compositions $\mathbf{a}=(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$ chosen empirically such that the phase diagram is qualitatively correct (Fig.~\ref{fig:taylor}).
+		For each phase $\alpha\in(\gamma,\delta,\mu,\ce{Laves})$,
+		\begin{align}\nonumber
+			f_{\alpha} &\approx f_{\alpha}\left(a_{\ce{Cr}}^{\alpha}, a_{\ce{Nb}}^{\alpha}\right)\\\nonumber
+	                            &+ \sum\limits_{i}\frac{\partial f_{\alpha}\left(a_{\ce{Cr}}^{\alpha}, a_{\ce{Nb}}^{\alpha}\right)}{\partial x_i^{\alpha}}
+	                              \left(x_i^{\alpha} - a_i^{\alpha}\right)\\
+	                            &+ \sum\limits_{i}\sum\limits_{j}\frac{1}{2}\frac{\partial^2 f_{\alpha}\left(a_{\ce{Cr}}^{\alpha}, a_{\ce{Nb}}^{\alpha}\right)}
+	                              {\partial x_i^{\alpha} \partial x_j^{\alpha}}
+	                              \left(x_i^{\alpha} - a_i^{\alpha}\right)\left(x_j^{\alpha} - a_j^{\alpha}\right)
+		\end{align}
+		with $i,j\in\ce{Cr},\ce{Nb},\ce{Ni}$. Note that, depending on the CALPHAD expression, some terms are null for each phase.
+
+		\begin{figure}[!ht]\centering
+			\includegraphics[width=\textwidth]{{taylor_phase_diagram}}
+			\caption{Phase diagram produced by a convex hull algorithm.
+			         Lines in coexistence regions are schematic, being edges of hull facets rather than thermodynamic tie lines.
+			         Black points inside the ternary simplex indicate control points $(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$ for the Taylor series expansions.
+			         The $\gamma-\delta-\ce{Laves}$ and $\delta-\mu-\ce{Laves}$ three-phase coexistence regions are qualitatively correct,
+			         but the phase boundaries are displaced and distorted relative to Du \emph{et al.} \cite{Du2005}.
+			}\label{fig:taylor}
+		\end{figure}
 
 
 
-	\newpage
 	\section{Equations of Motion for Phases $\{\phi\}$}
 		The $\{\phi_i\}$ are not conserved, so Allen-Cahn dynamics are assumed:
 		\begin{equation}
@@ -185,8 +185,8 @@
 		\end{align}
 		Invoking the multivariable chain rule and chemical potential (Eqns.~\ref{eqn:potcr}~and~\ref{eqn:potnb}),
 		\begin{align}\nonumber
-			\frac{\partial f_{\nu}}{\partial \phi_{\nu}} &= \sum_j \frac{\partial f_{\nu}}{\partial x_j^{\nu}}\frac{\partial x_j^{\nu}}{\partial \phi_{\nu}}
-			                                         = \sum_j\frac{\partial x_j^{\nu}}{\partial \phi_{\nu}}\tilde{\mu}_j\\
+			\frac{\partial f_{\alpha}}{\partial \phi_{\alpha}} &= \sum_j \frac{\partial f_{\alpha}}{\partial x_j^{\alpha}}\frac{\partial x_j^{\alpha}}{\partial \phi_{\alpha}}
+			                                         = \sum_j\frac{\partial x_j^{\alpha}}{\partial \phi_{\alpha}}\tilde{\mu}_j\\
 			\nonumber
 			\frac{\partial f}{\partial \phi_n} &= -\sgn(\phi_n)h'(|\phi_n|)\left[f_{\gamma}(x_{\ce{Cr}}^{\gamma},x_{\ce{Nb}}^{\gamma}) - f_n(x_{\ce{Cr}}^n,x_{\ce{Nb}}^n)\right]
 			                                    + \sum_j\left(\left[1 - \sum h(|\phi_i|)\right] \frac{\partial x_j^{\gamma}}{\partial \phi_n}
@@ -220,7 +220,6 @@
 
 
 
-	\newpage
 	\section{Equations of Motion for Compositions $\{x\}$}
 		Composition is conserved, so we choose Cahn-Hilliard dynamics for $x$:
 		\begin{equation}
@@ -230,18 +229,18 @@
 		
 		Differentiating Eqn.~\ref{eqn:density}, then applying the chain rule and the definition of chemical potential,
 		\begin{align}
-			\frac{\partial f}{\partial x_k} &= \left[1-\sum_{\nu}h(|\phi_{\nu}|)\right]\frac{\partial f_{\gamma}}{\partial x_k}
-			                                 + \sum_{\nu}h(|\phi_{\nu}|)\frac{\partial f_{\nu}}{\partial x_k}\\
-			                                &= \sum_j\left[1-\sum_{\nu}h(|\phi_{\nu}|)\right]\frac{\partial f_{\gamma}}{\partial x_j^{\gamma}}\frac{\partial x_j^{\gamma}}{\partial x_k}
-			                                 + \sum_j\sum_{\nu}h(|\phi_{\nu}|)\frac{\partial f_{\nu}}{\partial x_j^{\nu}}\frac{\partial x_j^{\nu}}{\partial x_k}\\
-			                                &= \sum_j\left(\left[1-\sum_{\nu}h(|\phi_{\nu}|)\right]\frac{\partial x_j^{\gamma}}{\partial x_k}\mu_j^{\gamma}
-			                                 + \sum_{\nu}h(|\phi_{\nu}|)\frac{\partial x_j^{\nu}}{\partial x_k}\mu_j^{\nu}\right).
+			\frac{\partial f}{\partial x_k} &= \left[1-\sum_{\alpha}h(|\phi_{\alpha}|)\right]\frac{\partial f_{\gamma}}{\partial x_k}
+			                                 + \sum_{\alpha}h(|\phi_{\alpha}|)\frac{\partial f_{\alpha}}{\partial x_k}\\
+			                                &= \sum_j\left[1-\sum_{\alpha}h(|\phi_{\alpha}|)\right]\frac{\partial f_{\gamma}}{\partial x_j^{\gamma}}\frac{\partial x_j^{\gamma}}{\partial x_k}
+			                                 + \sum_j\sum_{\alpha}h(|\phi_{\alpha}|)\frac{\partial f_{\alpha}}{\partial x_j^{\alpha}}\frac{\partial x_j^{\alpha}}{\partial x_k}\\
+			                                &= \sum_j\left(\left[1-\sum_{\alpha}h(|\phi_{\alpha}|)\right]\frac{\partial x_j^{\gamma}}{\partial x_k}\mu_j^{\gamma}
+			                                 + \sum_{\alpha}h(|\phi_{\alpha}|)\frac{\partial x_j^{\alpha}}{\partial x_k}\mu_j^{\alpha}\right).
 		\end{align}
-		Since the pure-phase composition $x_j^{\nu}$ depends only on $x_j$, $\frac{\partial x_j^{\nu}}{\partial x_k} = \delta_{jk}$, and
+		Since the pure-phase composition $x_j^{\alpha}$ depends only on $x_j$, $\frac{\partial x_j^{\alpha}}{\partial x_k} = \delta_{jk}$, and
 		\begin{equation}
-			\frac{\partial f}{\partial x_k} = \left[1-\sum_{\nu}h(|\phi_{\nu}|)\right]\mu_k^{\gamma} + \sum_{\nu}h(|\phi_{\nu}|)\mu_k^{\nu}.
+			\frac{\partial f}{\partial x_k} = \left[1-\sum_{\alpha}h(|\phi_{\alpha}|)\right]\mu_k^{\gamma} + \sum_{\alpha}h(|\phi_{\alpha}|)\mu_k^{\alpha}.
 		\end{equation}
-		In this phase field formulation, $\tilde{\mu}_k\equiv\mu_k^{\gamma}=\mu_k^{\nu}$ (Eqn.~\ref{eqn:potcr}) and
+		In this phase field formulation, $\tilde{\mu}_k\equiv\mu_k^{\gamma}=\mu_k^{\alpha}$ (Eqn.~\ref{eqn:potcr}) and
 		\begin{equation}
 			\frac{\partial f}{\partial x_k} = \tilde{\mu}_k.\label{eqn:potentc}
 		\end{equation}
@@ -270,7 +269,7 @@
 		
 		We can also use the definition of diffusivity:
 		\begin{align}
-			D_{\ell j}^{\nu} &= \sum_k M_{\ell k}^{\nu}\frac{\partial^2 f_{\gamma}}{\partial x_{\ell}^{\nu} \partial x_j^{\nu}}\\
+			D_{\ell j}^{\alpha} &= \sum_k M_{\ell k}^{\alpha}\frac{\partial^2 f_{\gamma}}{\partial x_{\ell}^{\alpha} \partial x_j^{\alpha}}\\
 			\frac{\partial x_{\ell}}{\partial t} &= \nabla\cdot\sum_j D_{\ell j}^{\gamma} \nabla x_j^{\gamma}.
 		\end{align}
 
@@ -295,6 +294,26 @@
 		
 		
 
+
+	\section{Timestep Adaptivity}
+		If the phase-field $\phi$ advances more than one mesh point in a given timestep, the solution is unstable.
+		In practice, $\phi$ should advance $0.1\Delta x$ or less.
+		Using the advection equation,
+		\begin{equation}
+			\frac{\Delta \phi}{\Delta t} = u|\nabla\phi|
+		\end{equation}
+		with velocity $u$ normal to the interface,
+		we can take a step $\Delta t << \frac{(\Delta x)^2}{4D}$
+		and solve for
+		\begin{equation}
+			\Delta t^* = \frac{0.1\Delta x}{u},
+		\end{equation}
+		the timestep we ``should'' have taken to move the interface as quickly as possible.
+		If the global maximum $\Delta t^*$ is smaller than the actual $\Delta t$, we can speed up for the next step.
+		Otherwise, if $\Delta t > \Delta t^*$, the current step is invalid and must be repeated with a smaller timestep.
+		Useful scaling factors were empirically found to be $1.00001 \Delta t$ to accelerate and $0.9 \Delta t$ to brake,
+		although braking is best avoided.
+		
 
 
 	\appendix
@@ -498,15 +517,20 @@
 		\end{align*}
 
 	\begin{thebibliography}{1}
-		\bibitem{Kim1999} Kim, S. G.; Kim, W. T. and Suzuki, T.
-		                  ``Phase-field model for binary alloys.''
-		                  \emph{Phys. Rev. E} \textbf{60} (1999) 7186--7197.
-		                  DOI:~10.1103/PhysRevE.60.7186.
+		\bibitem{Du2005} Du, Y.; Liu, S.; Chang, Y. A.; and Yang, Y.
+		                 ``A Thermodynamic Modeling of the Cr--Nb--Ni System.''
+		                 \emph{Calphad} \textbf{29} (2005) 140--148.
+		                 DOI:~10.1016/j.calphad.2005.06.001.
 
 		\bibitem{Karunaratne2005} Karunaratne, M. S. A. and Reed, R. C.
 		                          ``Interdiffusion of Niobium and Molybdenum in Nickel between 900 - \SI{1300}{\degreeCelsius}.''
 		                          \emph{Defect and Diffusion Forum} \textbf{237-240} (2005) 420--425.
 		                          DOI:~10.4028/www.scientific.net/DDF.237-240.420.
+
+		\bibitem{Kim1999} Kim, S. G.; Kim, W. T. and Suzuki, T.
+		                  ``Phase-field model for binary alloys.''
+		                  \emph{Phys. Rev. E} \textbf{60} (1999) 7186--7197.
+		                  DOI:~10.1103/PhysRevE.60.7186.
 
 		\bibitem{Provatas2010} Provatas, N. and Elder, K.
 		                       \emph{Phase-Field Methods in Materials Science and Engineering.}
@@ -517,6 +541,7 @@
 		                          ``Atomic Mobilities and Interdiffusivities for fcc Ni-Cr-Nb Alloys.''
 		                          \emph{Met. Trans. B} \textbf{47B} (2016) 3126--3131.
 		                          DOI:~10.1007/s11663-016-0726-6.
+
 		\bibitem{Zhou2014} Zhou, N.; Lv, D.; Zhang, H.; McAllister, D.; Zhang, F.; Mills, M. and Wang, Y.
 		                   ``Computer simulation of phase transformation and plastic deformation in IN718 superalloy: Microstructural evolution during precipitation.''
 		                   \emph{Acta Mater.} \textbf{65} (2014) 270--286.
