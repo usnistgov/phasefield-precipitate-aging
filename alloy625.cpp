@@ -78,6 +78,8 @@
  *
  * C11. Cr molar fraction in pure Laves
  * C12. Nb molar fraction in pure Laves
+ *
+ * D13. debugging information (deviation of field variables or max. field velocity normal to the interface)
  */
 
 /* Based on experiments (EDS) and simulations (DICTRA),
@@ -139,6 +141,7 @@ const bool tanh_init = false;     // apply tanh profile to initial profile of co
 const field_t x_min = 1.0e-8;    // what to consider zero to avoid log(c) explosions
 const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explosions
 
+const field_t devn_tol = 1.0e-6;  // deviation of field parameters above which parallel tangent needs evaluation
 const field_t root_tol = 1.0e-4;  // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
@@ -265,7 +268,7 @@ void generate(int dim, const char* filename)
 		int Nmtrx = Nx; // grid points of matrix phase
 
 		//const field_t Csstm[2] = {0.3000, 0.1625}; // system Cr, Nb composition
-		const field_t Csstm[2] = {0.15, 0.15}; // system Cr, Nb composition
+		const field_t Csstm[2] = {0.20, 0.15}; // system Cr, Nb composition
 		const field_t Cprcp[NP][2] = {{0.0125, 0.2500}, // delta
 		                              {0.0500, 0.4500}, // mu
 		                              {0.3625, 0.2750}  // Laves
@@ -841,27 +844,36 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			for (int i = NC+NP; i < fields(newGrid)-1; i++)
 				newGridN[i] = oldGridN[i];
 
-			newGridN[fields(newGrid)-1] = 0.0; // avoid propagating garbage values in diagnostic field
+			double deviation = 0.0;
+
+			// examine local deviation of the "real" field variables
 			for (int i = 0; i < NC+NP; i++)
-				newGridN[fields(newGrid)-1] += fabs(newGridN[i] - oldGridN[i]); // look into local deviations
+				deviation += fabs(newGridN[i] - oldGridN[i]);
 
-			rootsolver parallelTangentSolver;
-			double res = parallelTangentSolver.solve(newGridN);
+			// copy deviation into debugging slot
+			newGridN[fields(newGrid)-1] = deviation;
 
-			if (res>root_tol) {
-				// Invalid roots: substitute guesses.
-				#ifdef _OPENMP
-				#pragma omp critical (updCrit1)
-				#endif
-				{
-					totBadTangents++;
+			// evaluate parallel tangents if fields have changed
+			// Note: This creates a highly imbalanced workload!
+			if (deviation > devn_tol) {
+				rootsolver parallelTangentSolver;
+				double res = parallelTangentSolver.solve(newGridN);
+
+				if (res>root_tol) {
+					// Invalid roots: substitute guesses.
+					#ifdef _OPENMP
+					#pragma omp critical (updCrit1)
+					#endif
+					{
+						totBadTangents++;
+					}
+
+					guessGamma(newGridN);
+					guessDelta(newGridN);
+					guessMu(   newGridN);
+					guessLaves(newGridN);
+					newGridN[fields(newGrid)-1] = 1.0;
 				}
-
-				guessGamma(newGridN);
-				guessDelta(newGridN);
-				guessMu(   newGridN);
-				guessLaves(newGridN);
-				newGridN[fields(newGrid)-1] = 1.0;
 			}
 
 			/* ======= *

@@ -3,68 +3,73 @@
 # Questions/comments to trevor.keller@nist.gov (Trevor Keller)
 # Compiler optimizations after http://www.nersc.gov/users/computational-systems/retired-systems/hopper/performance-and-optimization/compiler-comparisons/
 
-# includes and locations
-mmspdir = $(MMSP_PATH)/include
-links = -lz -lgsl -lgslcblas
+# compilers: Intel, GCC, MPI
 icompiler = icc
 gcompiler = /usr/bin/g++
-pcompiler = mpic++
+pcompiler = /usr/bin/mpic++
 
-# Performance and energy switches
-directives = -DADAPTIVE_TIMESTEPS -DNDEBUG -DGSL_RANGE_CHECK_OFF
 
-# Compiler flags: common, debug, Intel, GNU, and MPI
-stdflags = -Wall -std=c++11 -I $(mmspdir) $(directives)
-dbgflags = $(stdflags) -O1 -pg
+# libraries: z, gsl, mpiP
+stdlinks = -lz -lgsl -lgslcblas
+mpilinks = -lmpiP -lbfd -liberty
+
+
+# precompiler directives
+directives = -DADAPTIVE_TIMESTEPS
+
+
+# flags: common, debug, Intel, GNU, and MPI
+stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include $(directives)
+dbgflags  = $(stdflags) -O1 -pg
 idbgflags = $(stdflags) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
 
 iflags = $(stdflags) -O3 -xCORE-AVX2 -unroll-aggressive -opt-prefetch
 gflags = $(stdflags) -O3 -ffast-math -funroll-loops
-
-pflags = $(gflags) -include mpi.h
+pflags = -include mpi.h $(dbgflags) $(mpilinks)
 
 
 # WORKSTATION
 
 # default program (shared memory, OpenMP)
 alloy625: alloy625.cpp
-	$(icompiler) $(iflags) $< -o $@ $(links) -fopenmp
+	$(icompiler) $< -o $@ $(iflags) $(stdlinks) -fopenmp
 
 # profiling program (no parallelism or optimization)
 serial: alloy625.cpp
-	$(gcompiler) $(dbgflags) $< -o $@ $(links)
+	$(gcompiler) $< -o $@ $(dbgflags) $(stdlinks)
 
 iserial: alloy625.cpp
-	$(icompiler) $(idbgflags) $< -o $@ $(links)
+	$(icompiler) $< -o $@ $(idbgflags) $(stdlinks)
 
 
 # CLUSTER
 
 # threaded program (shared memory, OpenMP)
 smp: alloy625.cpp
-	$(gcompiler) $(gflags) $< -o $@ $(links) -fopenmp
+	$(gcompiler) $< -o $@ $(dbgflags) $(stdlinks) -fopenmp
 
 # parallel program (distributed memory, MPI)
-parallel: alloy625.cpp
-	$(pcompiler) $(pflags) $< -o $@ $(links)
+parallel: alloy625.cpp $(core)
+	$(pcompiler) $< -o $@ $(pflags) $(stdlinks)
 
 smpi: alloy625.cpp
-	$(pcompiler) $(pflags) $< -o $@ $(links) -fopenmp
+	$(pcompiler) $< -o $@ $(pflags) $(stdlinks) -fopenmp
 
 ibtest: alloy625.cpp
-	/usr/local/bin/mpicxx $(pflags) $< -o $@ $(links) -fopenmp
-
+	/usr/local/bin/mpicxx $< -o $@ $(pflags) $(stdlinks) -fopenmp
 
 # PGI compiler
 pgparallel: alloy625.cpp
-	$(pcompiler) -fast -Mipa=fast -Mfprelaxed -std=c++11 -I $(mmspdir) -include mpi.h $< -o $@ $(links) -mp
+	$(pcompiler) -fast -Mipa=fast -Mfprelaxed -std=c++11 -I $(MMSP_PATH)/include -include mpi.h $< -o $@ $(stdlinks) -mp
 
 
+# UTILITIES
 
-# Utilities
+# extract composition from line profile
 mmsp2comp: mmsp2comp.cpp
 	$(gcompiler) $(stdflags) $< -o $@ -lz
 
+# check interfacial adsorption (should be zero)
 adsorption: adsorption.cpp
 	$(gcompiler) $(stdflags) $< -o $@ -lz
 
