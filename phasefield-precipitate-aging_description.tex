@@ -142,9 +142,68 @@
 
 	\section{Thermodynamic Model}
 		The pure phase free energies depend on Gibbs free energy expressions, divided by molar volume to convert from \si{\joule/\mole} to \si{\joule/\cubic\meter}.
-		The Gibbs free energy expressions are read from a CALPHAD database (Du \emph{et al.} \cite{Du2005}) using pycalphad,
-		then manipulated using sympy to substitute sublattice compositions $y$ with system compositions $x$.
+		The Gibbs free energy expressions are read from a CALPHAD database (Du \emph{et al.} \cite{Du2005}) using pycalphad.
 		This substitution is not valid over the entire ternary composition space, and sometimes incurs kinks.
+
+		CALPHAD represents phases in terms of sublattice compositions $y$, not system compositions $x$.
+		This is fundamental to CALPHAD.
+		Each sublattice has a site fraction $a$, similar to the subscripts in a molecular formula.
+		%For any phase with components $j$, sublattices $k$, and site fractions $a$,
+		%the sum of the sublattice compositions for each element $\sum y_j^k=1$.
+		The sublattice compositions are constrained by mass conservation:
+		\begin{align}
+			a' + a'' + \cdots &= 1\\\nonumber
+			a'y_A' + a''y_A'' + \cdots &= x_A\\\label{eqn:sublattice}
+			a'y_B' + a''y_B'' + \cdots &= x_B
+		\end{align}
+		where $'$ indicates the first sublattice, $''$ the second, etc.
+		The lattice fractions are also conserved:
+		\begin{align}\nonumber
+			y_A' + y_B' + \cdots &= 1\\
+			y_A'' + y_B'' + \cdots &= 1
+		\end{align}
+		These constraints can, for some phases, be used to map sublattice compositions directly into system compositions.
+		If all but one component appear on only one sublattice each, then $y$ maps into $x$ uniquely.
+
+		\begin{itemize}
+		\item $\gamma$ is represented with one sublattice \cite{Du2005}, \ce{(Cr{,}Nb{,}Ni)1}.
+			This maps trivially:
+			\begin{align*}
+				y_{\ce{Cr}}' &= x_{\ce{Cr}} & & & &\\
+				y_{\ce{Nb}}' &= x_{\ce{Nb}} & & & &\\
+				y_{\ce{Ni}}' &= x_{\ce{Ni}} & & & &
+			\end{align*}
+		
+		\item $\delta$ is represented with two sublattices \cite{Du2005}, \ce{(Nb{,}Ni)_{1/4}(Cr{,}Nb{,}Ni)_{3/4}}.
+			Since \ce{Nb} and \ce{Ni} appear on both, this cannot be mapped.
+			However, if we assume that \ce{Nb} partitions to the first sublattice,
+			\ce{(Nb{,}Ni)_{1/4}(Cr{,}Ni)_{3/4}} can be solved.
+			\begin{align*}
+				             &                   & y_{\ce{Cr}}'' &= \frac{4}{3}x_{\ce{Cr}}     & x_{\ce{Cr}}&<\frac{3}{4}\\
+				y_{\ce{Nb}}' &= 4x_{\ce{Nb}}     &               &                             & x_{\ce{Nb}}&<\frac{1}{4}\\
+				y_{\ce{Ni}}' &= 1 - 4x_{\ce{Nb}} & y_{\ce{Ni}}'' &= 1 - \frac{4}{3}x_{\ce{Cr}} &            &\\
+			\end{align*}
+		
+		\item $\mu$ is represented with two sublattices \cite{Du2005}, \ce{Nb_{6/13}(Cr{,}Nb{,}Ni)_{7/13}}.
+			This maps readily:
+			\begin{align*}
+				             &    & y_{\ce{Cr}}'' &= \frac{13}{7}x_{\ce{Cr}}               & x_{\ce{Cr}}&<\frac{7}{13}\\
+				y_{\ce{Nb}}' &= 1 & y_{\ce{Nb}}'' &= \frac{13}{7}x_{\ce{Nb}} - \frac{6}{7} & x_{\ce{Nb}}&>\frac{6}{13}\\
+				             &    & y_{\ce{Ni}}'' &= \frac{13}{7}x_{\ce{Ni}}               & x_{\ce{Ni}}&<\frac{7}{13}
+			\end{align*}
+		
+		\item Laves is represented with two sublattices, \ce{(Cr{,}Nb{,}Ni)_{2/3}(Cr{,}Nb)_{1/3}}.
+			Since \ce{Cr} and \ce{Nb} appear on both sublattices, this cannot be mapped.
+			Again, assuming that \ce{Nb} partitions to the second lattice,
+			\ce{(Cr{,}Ni)_{2/3}(Cr{,}Nb)_{1/3}} can be solved.
+			\begin{align*}
+				y_{\ce{Cr}}' &= 1 - \frac{3}{2}x_{\ce{Ni}} & y_{\ce{Cr}}'' &= 1 - 3x_{\ce{Nb}} &             &\\
+				             &                             & y_{\ce{Nb}}'' &= 3x_{\ce{Nb}}     & x_{\ce{Nb}} &< \frac{1}{3}\\
+				y_{\ce{Ni}}' &= \frac{3}{2}x_{\ce{Ni}}     &               &                   & x_{\ce{Ni}} &< \frac{2}{3}\\
+			\end{align*}
+		\end{itemize}		
+
+		\subsection{Taylor series approximation}
 		Since smooth and continuously differentiable functions are needed, the single-phase free energies are approximated
 		by second-order Taylor series expansion about control compositions $\mathbf{a}=(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$ chosen empirically such that the phase diagram is qualitatively correct (Fig.~\ref{fig:taylor}).
 		For each phase $\alpha\in(\gamma,\delta,\mu,\ce{Laves})$,
