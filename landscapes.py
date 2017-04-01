@@ -23,12 +23,12 @@ from pycalphad import variables as v
 # setup global variables
 
 Titles = (r'$\gamma$', r'$\delta$', r'$\mu$', r'Laves')
-npts = 201
+npts = 51
 nfun = 4
 #levels = 100
 #levels = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10, 100, 1000, 10000, 1e5, 1.0e10, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12]
-span = (-0.001, 1.001)
-yspan = (-0.001, rt3by2 + 0.001)
+span = (-0.1, 1.1)
+yspan = (-0.1, 0.9)
 x = np.linspace(span[0], span[1], npts)
 y = np.linspace(yspan[0], yspan[1], npts)
 z = np.ndarray(shape=(nfun,len(x)*len(y)), dtype=float)
@@ -52,14 +52,8 @@ q = np.zeros(len(x)*len(y))
 
 
 # Plot CALPHAD free energies using extracted equations
-gdatmin = 1.0e10
-gdatmax = -1.0e10
-ddatmin = 1.0e10
-ddatmax = -1.0e10
-mdatmin = 1.0e10
-mdatmax = -1.0e10
-ldatmin = 1.0e10
-ldatmax = -1.0e10
+datmin = 1.0e10 * np.ones(nfun)
+datmax = -1.0e10 * np.ones(nfun)
 n = 0
 z.fill(0.0)
 for j in tqdm(np.nditer(y)):
@@ -74,44 +68,19 @@ for j in tqdm(np.nditer(y)):
         z[1][n] = GD(xcr, xnb) #c_delta.subs({DELTA_XCR: xcr, DELTA_XNB: xnb, DELTA_XNI: xni}) #GD(xcr, xnb)
         z[2][n] = GU(xcr, xnb) #c_mu.subs({MU_XCR: xcr, MU_XNB: xnb, MU_XNI: xni}) #GU(xcr, xnb)
         z[3][n] = GL(xcr, xnb) #c_laves.subs({LAVES_XCR: xcr, LAVES_XNB: xnb, LAVES_XNI: xni}) #GL(xcr, xnb)
-        if xsum < 1 and xcr > 0 and xnb > 0 and xni > 0:
-            gdatmin = min(gdatmin, z[0][n])
-            gdatmax = max(gdatmax, z[0][n])
-        if xsum < 1 and xcr > 0 and xnb > 0 and xni > 0 and xnb < 0.25 and xcr < 0.75:
-            ddatmin = min(ddatmin, z[1][n])
-            ddatmax = max(ddatmax, z[1][n])
-        if xsum < 1 and xcr > 0 and xnb > 0 and xni > 0 and xnb > fr6by13:
-            mdatmin = min(mdatmin, z[2][n])
-            mdatmax = max(mdatmax, z[2][n])
-        if xsum < 1 and xcr > 0 and xnb > 0 and xni > 0 and xnb < fr1by3 and xni < fr2by3:
-            ldatmin = min(ldatmin, z[3][n])
-            ldatmax = max(ldatmax, z[3][n])
+        for k in range(nfun):
+        	datmin[k] = min(datmin[k], z[k][n])
+        	datmax[k] = max(datmax[k], z[k][n])
         n += 1
 
-datmin = 1.0e10
-datmax = -1.0e10
-for n in range(len(z)):
-    mymin = np.min(z[n])
-    mymax = np.max(z[n])
-    datmin = min(datmin, mymin)
-    datmax = max(datmax, mymax)
+print "Data spans [%.4g, %.4g]" % (np.amin(datmin), np.amax(datmax))
 
-datmin = float(datmin)
-datmax = float(datmax)
-
-print "Gamma spans [%.4g, %.4g]" % (gdatmin, gdatmax)
-print "Delta spans [%.4g, %.4g]" % (ddatmin, ddatmax)
-print "Mu    spans [%.4g, %.4g]" % (mdatmin, mdatmax)
-print "Laves spans [%.4g, %.4g]" % (ldatmin, ldatmax)
-
-print "Data spans [%.4g, %.4g]" % (datmin, datmax)
-
-levels = np.logspace(np.log2(datmin-1.01*datmin), np.log2(datmax-1.01*datmin), num=50, base=2.0)
 
 f, axarr = plt.subplots(nrows=2, ncols=2, sharex='col', sharey='row')
 f.suptitle("IN625 Ternary Potentials (Restricted)",fontsize=14)
 n=0
 for ax in axarr.reshape(-1):
+    levels = np.logspace(np.log2(datmin[n]-1.01*datmin[n]), np.log2(datmax[n]-1.01*datmin[n]), num=50, base=2.0)
     ax.set_title(Titles[n],fontsize=10)
     ax.axis('equal')
     ax.set_xlim(span)
@@ -119,7 +88,7 @@ for ax in axarr.reshape(-1):
     ax.axis('off')
     for a in range(len(XG)):
         ax.plot(XG[a], YG[a], ':w', linewidth=0.5)
-    ax.tricontourf(p, q, z[n]-1.01*datmin, levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
+    ax.tricontourf(p, q, z[n]-1.01*datmin[n], levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
     #ax.tricontourf(p, q, z[n], cmap=plt.cm.get_cmap('coolwarm'))
     ax.plot(XS, YS, 'k', linewidth=0.5)
     ax.scatter(X0[n], Y0[n], color='black', s=2.5)
@@ -131,13 +100,14 @@ plt.close()
 
 files = ['diagrams/gamma_parabola.png', 'diagrams/delta_parabola.png', 'diagrams/mu_parabola.png', 'diagrams/Laves_parabola.png']
 for n in range(len(z)):
+    levels = np.logspace(np.log2(datmin[n]-1.01*datmin[n]), np.log2(datmax[n]-1.01*datmin[n]), num=50, base=2.0)
     plt.axis('equal')
     plt.xlim(span)
     plt.ylim(yspan)
     plt.axis('off')
     for a in range(len(XG)):
         plt.plot(XG[a], YG[a], ':w', linewidth=0.5)
-    plt.tricontourf(p, q, z[n]-1.01*datmin, levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
+    plt.tricontourf(p, q, z[n]-1.01*datmin[n], levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
     #plt.tricontourf(p, q, z[n], cmap=plt.cm.get_cmap('coolwarm'))
     plt.plot(XS, YS, 'k', linewidth=0.5)
     plt.scatter(X0[n], Y0[n], color='black', s=2.5)
@@ -151,6 +121,8 @@ for n in range(len(z)):
 
 # Plot Taylor series approximate free energy landscapes
 
+datmin = 1.0e10 * np.ones(nfun)
+datmax = -1.0e10 * np.ones(nfun)
 n = 0
 z.fill(0.0)
 for j in tqdm(np.nditer(y)):
@@ -164,24 +136,19 @@ for j in tqdm(np.nditer(y)):
         z[1][n] = TD(xcr, xnb)
         z[2][n] = TU(xcr, xnb)
         z[3][n] = TL(xcr, xnb)
+        for k in range(nfun):
+        	datmin[k] = min(datmin[k], z[k][n])
+        	datmax[k] = max(datmax[k], z[k][n])
         n += 1
 
-datmin = 1.0e10
-datmax = -1.0e10
-for n in range(len(z)):
-    mymin = np.min(z[n])
-    mymax = np.max(z[n])
-    datmin = min(datmin, mymin)
-    datmax = max(datmax, mymax)
+print "Data spans [%.4g, %.4g]" % (np.amin(datmin), np.amax(datmax))
 
-print "Data spans [%.4g, %.4g]" % (datmin, datmax)
-
-levels = np.logspace(np.log2(datmin-1.01*datmin), np.log2(datmax-1.01*datmin), num=50, base=2.0)
 
 f, axarr = plt.subplots(nrows=2, ncols=2, sharex='col', sharey='row')
 f.suptitle("IN625 Ternary Potentials (Taylor)",fontsize=14)
 n=0
 for ax in axarr.reshape(-1):
+    levels = np.logspace(np.log2(datmin[n]-1.01*datmin[n]), np.log2(datmax[n]-1.01*datmin[n]), num=50, base=2.0)
     ax.set_title(Titles[n],fontsize=10)
     ax.axis('equal')
     ax.set_xlim(span)
@@ -189,7 +156,7 @@ for ax in axarr.reshape(-1):
     ax.axis('off')
     for a in range(len(XG)):
         ax.plot(XG[a], YG[a], ':w', linewidth=0.5)
-    ax.tricontourf(p, q, z[n]-1.01*datmin, levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
+    ax.tricontourf(p, q, z[n]-1.01*datmin[n], levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
     #ax.tricontourf(p, q, z[n], cmap=plt.cm.get_cmap('coolwarm'))
     ax.plot(XS, YS, 'k', linewidth=0.5)
     ax.scatter(X0[n], Y0[n], color='black', s=2.5)
@@ -201,13 +168,14 @@ plt.close()
 
 files = ['diagrams/gamma_taylor.png', 'diagrams/delta_taylor.png', 'diagrams/mu_taylor.png', 'diagrams/Laves_taylor.png']
 for n in range(len(z)):
+    levels = np.logspace(np.log2(datmin[n]-1.01*datmin[n]), np.log2(datmax[n]-1.01*datmin[n]), num=50, base=2.0)
     plt.axis('equal')
     plt.xlim(span)
     plt.ylim(yspan)
     plt.axis('off')
     for a in range(len(XG)):
         plt.plot(XG[a], YG[a], ':w', linewidth=0.5)
-    plt.tricontourf(p, q, z[n]-1.01*datmin, levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
+    plt.tricontourf(p, q, z[n]-1.01*datmin[n], levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
     #plt.tricontourf(p, q, z[n], cmap=plt.cm.get_cmap('coolwarm'))
     plt.plot(XS, YS, 'k', linewidth=0.5)
     plt.scatter(X0[n], Y0[n], color='black', s=2.5)

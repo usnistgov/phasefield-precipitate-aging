@@ -39,10 +39,10 @@ for phi in np.linspace(-1-dc, 1+dc, density):
         if  (xcr < 1  and xcr > -dc) \
         and (xnb < 1+dc  and xnb > -dc) \
         and (xni < 1+dc  and xni > -dc):
-            f = (TG(xcr, xnb),
-                 TD(xcr, xnb),
-                 TU(xcr, xnb),
-                 TL(xcr, xnb))
+            f = (GG(xcr, xnb),
+                 GD(xcr, xnb),
+                 GU(xcr, xnb),
+                 GL(xcr, xnb))
             for n in range(len(f)):
                 allX.append(simX(xnb,xcr))
                 allY.append(simY(xcr))

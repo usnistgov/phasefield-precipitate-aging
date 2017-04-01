@@ -93,8 +93,8 @@ from pycalphad import Database, calculate, Model
 from sympy.utilities.codegen import codegen
 from sympy.parsing.sympy_parser import parse_expr
 from sympy import And, Ge, Gt, Le, Lt, Or, Piecewise, true
-from sympy import Abs, cse, diff, logcombine, powsimp, simplify, symbols, sympify
-from sympy import exp
+from sympy import Abs, diff, symbols, sympify
+from sympy import exp, pi, tanh
 
 # Visualization libraries
 import matplotlib.pylab as plt
@@ -103,6 +103,7 @@ from matplotlib.colors import LogNorm
 # Constants
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
 temp = 870.0 + 273.15 # 1143 Kelvin
+alpha = 0.01 # exclusion zone at phase boundaries in which the spline applies
 
 RT = 8.3144598*temp # J/mol/K
 Vm = 1.0e-5 # m^3/mol
@@ -110,18 +111,21 @@ inVm = 1.0 / Vm # mol/m^3
 
 # Let's avoid integer arithmetic in fractions.
 fr13by7 = 13.0/7
+fr13by6 = 13.0/6
 fr13by3 = 13.0/3
 fr13by4 = 13.0/4
 fr6by7 = 6.0/7
 fr6by13 = 6.0/13
 fr7by13 = 7.0/13
-fr3by4 = 3.0/4
-fr3by2 = 3.0/2
+fr3by4 = 0.75
+fr3by2 = 1.5
 fr4by3 = 4.0/3
 fr2by3 = 2.0/3
+fr1by4 = 0.25
 fr1by3 = 1.0/3
-fr1by2 = 1.0/2
+fr1by2 = 0.5
 rt3by2 = np.sqrt(3.0)/2
+twopi = 2.0 * pi
 
 # Helper functions to convert compositions into (x,y) coordinates
 def simX(x2, x3):
@@ -253,12 +257,6 @@ g_laves = inVm * g_laves.subs({C14_LAVES0CR: 1.0 - fr3by2*LAVES_XNI,
                                C14_LAVES1CR: 1.0 - 3.0*LAVES_XNB,
                                C14_LAVES1NB: 3.0 * LAVES_XNB,
                                T: temp})
-
-g_lavesLT = inVm * g_lavesLT.subs({C15_LAVES0CR: 1.0 - fr3by2*LAVES_XNI,
-                                C15_LAVES0NI: fr3by2 * LAVES_XNI,
-                                C15_LAVES1CR: 1.0 - 3.0*LAVES_XNB,
-                                C15_LAVES1NB: 3.0 * LAVES_XNB,
-                                T: temp})
 
 # Create parabolic approximation functions
 p_gamma = g_gamma.subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni}) \
@@ -393,15 +391,6 @@ t_laves = g_laves.subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
                 + diff(g_laves, LAVES_XNI, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
                 ) * (LAVES_XNB - xe_lav_Nb) * (LAVES_XNI - xe_lav_Ni)
 
-t_lavesLT = g_lavesLT.subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
-        + 1.0 * diff(g_lavesLT, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) * (LAVES_XNB - xe_lav_Nb) \
-        + 1.0 * diff(g_lavesLT, LAVES_XNI).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) * (LAVES_XNI - xe_lav_Ni) \
-        + 0.5 * diff(g_lavesLT, LAVES_XNB, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) * (LAVES_XNB - xe_lav_Nb)**2 \
-        + 0.5 * diff(g_lavesLT, LAVES_XNI, LAVES_XNI).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) * (LAVES_XNI - xe_lav_Ni)**2 \
-        + 0.5 * ( diff(g_lavesLT, LAVES_XNB, LAVES_XNI).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
-                + diff(g_lavesLT, LAVES_XNI, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
-                ) * (LAVES_XNB - xe_lav_Nb) * (LAVES_XNI - xe_lav_Ni)
-
 # Generate first derivatives
 t_dGgam_dxCr = diff(t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
 t_dGgam_dxNb = diff(t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
@@ -465,36 +454,75 @@ codegen([# Gibbs energies
          ('d2g_lav_dxNbCr', t_d2Glav_dxNbCr), ('d2g_lav_dxNbNb', t_d2Glav_dxNbNb)],
         language='C', prefix='taylor625', project='ALLOY625', to_files=True)
 
+# Define slopes and intercepts for linear "funnel" functions
+gam_slope =  4.09e9 # gam range: [-7.97, -3.79]e9 J/m3
+gam_inter = -2.86e9
+
+del_slope =  4.46e9 # del range: [-8.54, -3.99]e9 J/m3
+del_inter = -2.93e9
+xcr_del_hi = fr3by4
+xnb_del_hi = fr1by4
+
+mu_slope  =  2.55e9 # mu  range: [-8.05, -5.44]e9 J/m3
+mu_inter  = -4.86e9
+xnb_mu_lo = fr6by13
+
+lav_slope =  12.1e9 # lav range: [-8.05, +4.61]e9 J/m3
+lav_inter =  7.10e9
+xnb_lav_hi = fr1by3
+xni_lav_hi = fr2by3
+
+# Define linear "funnel" functions
+f_gamma_Cr_lo = gam_inter - 4.0 * gam_slope * GAMMA_XCR
+f_gamma_Nb_lo = gam_inter - 4.0 * gam_slope * GAMMA_XNB
+f_gamma_Ni_lo = gam_inter - 4.0 * gam_slope * GAMMA_XNI
+
+f_delta_Cr_lo = del_inter - 4.0 * del_slope * DELTA_XCR
+f_delta_Nb_lo = del_inter - 4.0    * del_slope * DELTA_XNB
+f_delta_Cr_hi = del_inter - 4.0 * del_slope * (xcr_del_hi - DELTA_XCR)
+f_delta_Nb_hi = del_inter - 4.0    * del_slope * (xnb_del_hi - DELTA_XNB)
+
+f_mu_Cr_lo = mu_inter - 6.0 * mu_slope * MU_XCR
+f_mu_Nb_lo = mu_inter - 16.0 * mu_slope * (MU_XNB - fr6by13)
+f_mu_Ni_lo = mu_inter - 8.0 * mu_slope * MU_XNI
+
+f_laves_Nb_lo = lav_inter - 5.0 * lav_slope * LAVES_XNB
+f_laves_Ni_lo = lav_inter - 5.0 * lav_slope * LAVES_XNI
+f_laves_Nb_hi = lav_inter - 5.0 * lav_slope * (xnb_lav_hi - LAVES_XNB)
+f_laves_Ni_hi = lav_inter - 5.0 * lav_slope * (xni_lav_hi - LAVES_XNI)
+
 # Generate safe CALPHAD expressions
-c_gamma = Piecewise((g_gamma,
-                     Gt(GAMMA_XCR, 0) & Lt(GAMMA_XCR, 1) &
-                     Gt(GAMMA_XNB, 0) & Lt(GAMMA_XNB, 1) &
-                     Gt(GAMMA_XNI, 0) & Lt(GAMMA_XNI, 1)),
-                    (t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), True))
+c_gamma = fr1by2 * (-1.0- tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))
+                        - tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))
+                        - tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * g_gamma + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))) * f_gamma_Cr_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * f_gamma_Nb_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * f_gamma_Ni_lo
 
-c_delta = Piecewise((g_delta,
-                     Gt(DELTA_XCR, 0)             & Le(DELTA_XCR, 0.75)          &
-                     Gt(DELTA_XNB, 0)             & Le(DELTA_XNB, 0.25)          &
-                     Gt(1.0-DELTA_XCR-DELTA_XNB, 0) & Lt(1.0-DELTA_XCR-DELTA_XNB, 1)),
-                    (t_delta, True))
+c_delta = fr1by2 * (-2.0- tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))
+                        - tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))
+                        - tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))
+                        - tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * g_delta + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))) * f_delta_Cr_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * f_delta_Nb_lo + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * f_delta_Cr_hi + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * f_delta_Nb_hi
 
-c_mu    = Piecewise((g_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}),
-                     Gt(MU_XCR, 0)          & Le(MU_XCR, fr7by13)          &
-                     Ge(MU_XNB, fr6by13)    & Lt(MU_XNB, 1)                &
-                     Gt(1.0-MU_XCR-MU_XNB, 0) & Le(1.0-MU_XCR-MU_XNB, fr7by13)),
-                    (t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), True))
+c_mu    = fr1by2 * (-1.0- tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
+                        - tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))
+                        - tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * g_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB})+ \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))) * f_mu_Cr_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * f_mu_Nb_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * f_mu_Ni_lo
 
-c_laves = Piecewise((g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}),
-                     Gt(LAVES_XCR, 0) & Lt(LAVES_XCR, 1)             &
-                     Gt(LAVES_XNB, 0) & Le(LAVES_XNB, fr1by3)        &
-                     Gt(LAVES_XNI, 0) & Le(LAVES_XNI, fr2by3))       ,
-                    (t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), True))
-
-c_lavesLT = Piecewise((g_lavesLT.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}),
-                     Gt(LAVES_XCR, 0) & Lt(LAVES_XCR, 1)             &
-                     Gt(LAVES_XNB, 0) & Le(LAVES_XNB, fr1by3)        &
-                     Gt(LAVES_XNI, 0) & Le(LAVES_XNI, fr2by3))       ,
-                    (t_lavesLT.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), True))
+c_laves = fr1by2 * (-2.0- tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
+                        - tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))
+                        - tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))
+                        - tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))) * g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB})+ \
+          fr1by2 * tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)) * f_laves_Nb_lo + \
+          fr1by2 * tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha)) * f_laves_Ni_lo + \
+          fr1by2 * tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)) * f_laves_Nb_hi + \
+          fr1by2 * tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha)) * f_laves_Ni_hi
 
 # Generate first derivatives
 dGgam_dxCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
@@ -567,12 +595,10 @@ TG = lambdify([GAMMA_XCR, GAMMA_XNB], t_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA
 TD = lambdify([DELTA_XCR, DELTA_XNB], t_delta, modules='sympy')
 TU = lambdify([MU_XCR,    MU_XNB],    t_mu.subs({MU_XNI: 1-MU_XCR-MU_XNB}), modules='sympy')
 TL = lambdify([LAVES_XCR, LAVES_XNB], t_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
-TLL= lambdify([LAVES_XCR, LAVES_XNB], t_lavesLT.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
 
 GG = lambdify([GAMMA_XCR, GAMMA_XNB], c_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
 GD = lambdify([DELTA_XCR, DELTA_XNB], c_delta, modules='sympy')
 GU = lambdify([MU_XCR,    MU_XNB],    c_mu.subs({MU_XNI: 1-MU_XCR-MU_XNB}), modules='sympy')
 GL = lambdify([LAVES_XCR, LAVES_XNB], c_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
-GLL= lambdify([LAVES_XCR, LAVES_XNB], c_lavesLT.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
 
 print "Finished lambdifying Taylor series and CALPHAD energy functions."
