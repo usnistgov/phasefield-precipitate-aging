@@ -35,9 +35,7 @@
 #include"alloy625.hpp"
 
 // Taylor series is your best bet.
-#if defined PARABOLIC
-#include"parabola625.c"
-#elif defined CALPHAD
+#if defined CALPHAD
 #include"energy625.c"
 #else
 #include"taylor625.c"
@@ -50,7 +48,6 @@
  * by the Python script CALPHAD_energy.py. It produces three versions:
  * * energy625.c:   pure CALPHAD expression with derivatives; neither smooth nor continuously differentiable
  * * taylor625.c:   Taylor series expansion of CALPHAD surface about invariant points on phase diagram, RECOMMENDED
- * * parabola625.c: parabolic approximation to CALPHAD surface at centroid of phase fields, not especially useful.
  */
 
 
@@ -148,7 +145,7 @@ const int root_max_iter = 500000; // default is 1000, increasing probably won't 
 #ifndef CALPHAD
 const field_t LinStab = 1.0 / 14.56875; // threshold of linear stability (von Neumann stability condition)
 #else
-const field_t LinStab = 1.0 / 37650.55;  // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 37.65055;  // threshold of linear stability (von Neumann stability condition)
 #endif
 
 namespace MMSP
@@ -742,7 +739,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	#ifdef ADAPTIVE_TIMESTEPS
 	// reference values for adaptive timestepper
 	const double run_time = dt * steps;
-	const double timelimit = std::min(dtp, dtc) / double(4.0 * dim);
+	const double timelimit = 4.0 * LinStab * std::min(dtp, dtc) / dim;
 	const field_t scaleup = 1.00001; // how fast will dt rise when stable
 	const field_t scaledn = 0.9; // how fast will dt fall when unstable
 
