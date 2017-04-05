@@ -415,8 +415,8 @@ c_mu    = fr1by2 * (-1. - tanh(-twopi / alpha * (MU_XCR             - fr1by2 * a
                         - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
           ) * f_mu_Nb_lo + \
           fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
-                        - fr1by4 * fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                        - fr1by4 * fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
           ) * f_mu_Ni_lo
 
 c_laves = fr1by2 * (-2. - tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
@@ -509,8 +509,8 @@ t_mu    = fr1by2 * (-1. - tanh(-twopi / alpha * (MU_XCR             - fr1by2 * a
                         - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
           ) * f_mu_Nb_lo + \
           fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
-                        - fr1by4 * fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                        - fr1by4 * fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
           ) * f_mu_Ni_lo
 
 t_laves = fr1by2 * (-2. - tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))

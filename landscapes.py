@@ -23,9 +23,9 @@ from pycalphad import variables as v
 # setup global variables
 
 Titles = (r'$\gamma$', r'$\delta$', r'$\mu$', r'Laves')
-npts = 30
+npts = 100
 nfun = 4
-span = (-0.01, 1.01)
+span = (-0.1, 1.1)
 yspan = (-0.1, 0.9)
 x = np.linspace(span[0], span[1], npts)
 y = np.linspace(yspan[0], yspan[1], npts)

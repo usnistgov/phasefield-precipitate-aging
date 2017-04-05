@@ -22,7 +22,7 @@ colors = ['red', 'green', 'blue', 'cyan']
 
 # Generate ternary phase diagram
 
-density = 1001
+density = 101
 
 allY = []
 allX = []
