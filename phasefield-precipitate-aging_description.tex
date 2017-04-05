@@ -205,7 +205,8 @@
 
 		\subsection{Taylor series approximation}
 		Since smooth and continuously differentiable functions are needed, the single-phase free energies are approximated
-		by second-order Taylor series expansion about control compositions $\mathbf{a}=(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$ chosen empirically such that the phase diagram is qualitatively correct (Fig.~\ref{fig:taylor}).
+		by second-order Taylor series expansion about control compositions $\mathbf{a}=(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$
+		chosen empirically such that the phase diagram is qualitatively correct (Fig.~\ref{fig:taylor}).
 		For each phase $\alpha\in(\gamma,\delta,\mu,\ce{Laves})$,
 		\begin{align}\nonumber
 			f_{\alpha} &\approx f_{\alpha}\left(a_{\ce{Cr}}^{\alpha}, a_{\ce{Nb}}^{\alpha}\right)\\\nonumber
@@ -228,6 +229,49 @@
 		\end{figure}
 
 
+		\subsection{Continuous and Differentiable Boundaries}
+			The KKS interface model \cite{Kim1999} requires the free energy landscape for each phase to be smooth, continuous, and differentiable everywhere.
+			In the CALPHAD database, however, the sublattice description introduces bounds on the valid domain for each phase,
+			outside of which the free energy is undefined.
+			We therefore construct a ``funnel'' around each CALPHAD free energy to help numerical methods gone astray to find their way back inside the valid domain.
+			For simplicity, the funnels are constructed using independent linear functions of one composition each, stitched together using hyperbolic tangent ($\tanh$) functions.
+			These interpolate through an exclusion zone of width $\alpha$ around the border of each valid domain, guaranteeing continuity and differentiability.
+			
+			For an arbitrary CALPHAD model with a constraint on only one composition, the free energy landscape is stitched together from
+			the CALPHAD expression $G(x)$ and the funnel expression $V(x)$ with critical composition $x^*$.
+			Considering Fig.~\ref{fig:interp}, a $\tanh$ function is applied to interpolate between $G$ (parabolic, on the left) and $V$ (linear, on the right) as follows:
+			\begin{align}\nonumber
+				\xi &= \frac{2\pi}{\alpha}\left(x-x^*-\frac{\alpha}{2}\right)\\
+				V(x) &= \max(G(x)) + \frac{1}{4}\left(\max(G(x))-\min(G(x))\right)\left(x - x^*\right)\\\nonumber
+				F(x) &= G(x) + \frac{1}{2}\left(V(x)-G(x)\right)\left[1 + \tanh\xi\right]\\
+				     &= \frac{1}{2}\left[1 - \tanh\xi\right]G(x) + \frac{1}{2}\left[1 + \tanh\xi\right]V(x).
+			\end{align}
+			\begin{figure}[!ht]\centering
+				\includegraphics[width=\textwidth]{interpolation}
+				\caption{Schematic interpolation between the CALPHAD free energy $G(x)$ and a funnel potential $V(x)$
+				         using a hyperbolic tangent function over a finite composition $\Delta x = \alpha$,
+				         shown between the vertical lines.
+				         The splined function $F(x)$ is smooth, continuous, and differentiable everywhere.}
+				\label{fig:interp}
+			\end{figure}
+			With constraints on two compositions,
+			\begin{align}\label{eqn:xi}
+				\xi_i &= \frac{2\pi}{\alpha}\left(x_i-x^*_i-\frac{\alpha}{2}\right)\\\nonumber
+				F(x_1,x_2) &= G(x_1,x_2) + \frac{1}{2}\left(V(x_1)-G(x_1,x_2)\right)\left[1 + \tanh\xi_1\right] + \frac{1}{2}\left(V(x_2)-G(x_1,x_2)\right)\left[1 + \tanh\xi_2\right]\\
+				           &= \frac{1}{2}\left[-\tanh\xi_1 -\tanh\xi_2\right]G(x_1,x_2) + \frac{1}{2}\left[1 + \tanh\xi_1\right]V(x_1) + \frac{1}{2}\left[1 + \tanh\xi_2\right]V(x_2).
+			\end{align}
+
+			Generalizing to constraints on $N$ compositions, and adding terms to cancel undesirable contributions in regions where more than one funnel function is active,\footnote{
+			The double-summation in the coefficient of $G(\vec{x})$ removes an extraneous term of $-G(\vec{x})$ in ``corners'',
+			while the sum over $j$ in the coefficient of $V(x_i)$ produces the average $\frac{1}{2}[V(x_i)+V(x_j)]$ instead of the full sum of $V(x_i)+V(x_j)$ in those regions.}
+			\begin{align}\nonumber
+				F(\vec{x}) &= \frac{1}{2}\left[2-N-\sum\limits_{i=1}^N\tanh\xi_i + \frac{1}{2}\sum\limits_{i=1}^N\sum\limits_{j>i}\left(1+\tanh\xi_i\right)\left(1+\tanh\xi_j\right)\right]G(\vec{x})\\
+				           &+ \frac{1}{2}\sum\limits_{i=1}^N\left[\left(1 + \tanh\xi_i\right) - \frac{1}{4}\sum\limits_{j>i}\left(1+\tanh\xi_i\right)\left(1+\tanh\xi_j\right)\right]V(x_i).
+			\end{align}
+			For a ``high-side'' constraint, e.g. approaching $x^*_{\ce{Cr}}=1$ from inside the simplex, $\alpha$ should be positive in the definition of $\xi$ (Eqn.~\ref{eqn:xi}).
+			For a ``low-side'' constraint, e.g. approaching $x^*_{\ce{Cr}}=0$ from inside the simplex, $\alpha$ should be negative.
+			No other changes are necessary to reverse directionality of the $\tanh$ profiles.
+			
 
 	\section{Equations of Motion for Phases $\{\phi\}$}
 		The $\{\phi_i\}$ are not conserved, so Allen-Cahn dynamics are assumed:
