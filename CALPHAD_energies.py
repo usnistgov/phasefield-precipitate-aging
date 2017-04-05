@@ -122,6 +122,7 @@ fr3by2 = 1.5
 fr4by3 = 4.0/3
 fr2by3 = 2.0/3
 fr1by8 = 0.125
+fr1by5 = 1.0/5
 fr1by4 = 0.25
 fr1by3 = 1.0/3
 fr1by2 = 0.5
@@ -233,19 +234,19 @@ xe_lav_Ni = 1.0 - xe_lav_Cr - xe_lav_Nb
 # from range of CALPHAD landscapes at 1143 K
 # TODO: Automate range computation
 gam_slope =  1.0e9 * (-3.79 + 7.97) # gam range: [-7.97, -3.79]e9 J/m3
-gam_inter = -3.79e9 + 0.125 * gam_slope
+gam_inter = -3.79e9 + 0.25 * gam_slope
 
 del_slope =  1.0e9 * (-3.99 + 8.54) # del range: [-8.54, -3.99]e9 J/m3
-del_inter = -3.99e9 + 0.125 * del_slope
+del_inter = -3.99e9 + 0.25 * del_slope
 xcr_del_hi = fr3by4
 xnb_del_hi = fr1by4
 
 mu_slope  =  1.0e9 * (-5.44 + 8.05) # mu  range: [-8.05, -5.44]e9 J/m3
-mu_inter  = -5.44e9 + 0.125 * mu_slope
+mu_inter  = -5.44e9 + 0.25 * mu_slope
 xnb_mu_lo = fr6by13
 
 lav_slope =  1.0e9 * (4.61 + 8.05) # lav range: [-8.05, +4.61]e9 J/m3
-lav_inter =  4.61e9 + 0.125 * lav_slope
+lav_inter =  4.61e9 + 0.25 * lav_slope
 xnb_lav_hi = fr1by3
 xni_lav_hi = fr2by3
 
@@ -352,78 +353,191 @@ t_laves = g_laves.subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
 
 
 # Generate safe CALPHAD expressions
-c_gamma = fr1by2 * (1.0 - tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))
+c_gamma = fr1by2 * (-1. - tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
                    ) * g_gamma + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(twopi / alpha * (GAMMA_XNB + fr1by2 * alpha))) * f_gamma_Cr_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(twopi / alpha * (GAMMA_XNI + fr1by2 * alpha))) * f_gamma_Nb_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(twopi / alpha * (GAMMA_XCR + fr1by2 * alpha))) * f_gamma_Ni_lo
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+          ) * f_gamma_Cr_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha)))
+          ) * f_gamma_Nb_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha)))
+          ) * f_gamma_Ni_lo
 
-c_delta = fr1by2 * (1.0 - tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))
+c_delta = fr1by2 * (-2. - tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))
                         - tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))
                         - tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha)))
                    ) * g_delta + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XNB              + fr1by2 * alpha))) * f_delta_Cr_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XCR - xcr_del_hi - fr1by2 * alpha))) * f_delta_Nb_lo + \
-          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB - xnb_del_hi - fr1by2 * alpha))) * f_delta_Cr_hi + \
-          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XCR              + fr1by2 * alpha))) * f_delta_Nb_hi
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+          ) * f_delta_Cr_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha)))
+          ) * f_delta_Nb_lo + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
+          ) * f_delta_Cr_hi + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
+          ) * f_delta_Nb_hi
 
-c_mu    = fr1by2 * (1.0 - tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
+c_mu    = fr1by2 * (-1. - tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
-                   ) * g_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB})+ \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (MU_XNB - xnb_mu_lo + fr1by2 * alpha))) * f_mu_Cr_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (MU_XNI             + fr1by2 * alpha))) * f_mu_Nb_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (MU_XCR             + fr1by2 * alpha))) * f_mu_Ni_lo
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                   ) * g_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}) + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+          ) * f_mu_Cr_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+          ) * f_mu_Nb_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
+                        - fr1by4 * fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                        - fr1by4 * fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
+          ) * f_mu_Ni_lo
 
-c_laves = fr1by2 * (1.0 - tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
+c_laves = fr1by2 * (-2. - tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))
                         - tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))
                         - tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))
-                   ) * g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB})+ \
-          fr1by2 * tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)) * fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNI              + fr1by2 * alpha))) * f_laves_Nb_lo + \
-          fr1by2 * tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha)) * fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNB - xnb_lav_hi - fr1by2 * alpha))) * f_laves_Ni_lo + \
-          fr1by2 * tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)) * fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI - xni_lav_hi - fr1by2 * alpha))) * f_laves_Nb_hi + \
-          fr1by2 * tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha)) * fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNB              + fr1by2 * alpha))) * f_laves_Ni_hi
+                        + fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+                   ) * g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}) + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+          ) * f_laves_Nb_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+          ) * f_laves_Ni_lo + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi - fr1by2 * alpha)))
+          ) * f_laves_Nb_hi + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi - fr1by2 * alpha)))
+          ) * f_laves_Ni_hi
+
 
 # Generate safe Taylor series expressions
-t_gamma = fr1by2 * (1.0 - tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))
+t_gamma = fr1by2 * (-1. - tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
                    ) * t_gamma + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(twopi / alpha * (GAMMA_XNB + fr1by2 * alpha))) * f_gamma_Cr_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(twopi / alpha * (GAMMA_XNI + fr1by2 * alpha))) * f_gamma_Nb_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(twopi / alpha * (GAMMA_XCR + fr1by2 * alpha))) * f_gamma_Ni_lo
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+          ) * f_gamma_Cr_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha)))
+          ) * f_gamma_Nb_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XCR - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (GAMMA_XNB - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (GAMMA_XNI - fr1by2 * alpha)))
+          ) * f_gamma_Ni_lo
 
-t_delta = fr1by2 * (1.0 - tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))
+t_delta = fr1by2 * (-2. - tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))
                         - tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))
                         - tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha)))
                    ) * t_delta + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XNB              + fr1by2 * alpha))) * f_delta_Cr_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XCR - xcr_del_hi - fr1by2 * alpha))) * f_delta_Nb_lo + \
-          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB - xnb_del_hi - fr1by2 * alpha))) * f_delta_Cr_hi + \
-          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XCR              + fr1by2 * alpha))) * f_delta_Nb_hi
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+          ) * f_delta_Cr_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha)))
+          ) * f_delta_Nb_lo + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (DELTA_XNB              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
+          ) * f_delta_Cr_hi + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
+          ) * f_delta_Nb_hi
 
-t_mu    = fr1by2 * (1.0 - tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
+t_mu    = fr1by2 * (-1. - tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
-                   ) * t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB})+ \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (MU_XNB - xnb_mu_lo + fr1by2 * alpha))) * f_mu_Cr_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (MU_XNI             + fr1by2 * alpha))) * f_mu_Nb_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * fr1by2 * (1.0 + tanh( twopi / alpha * (MU_XCR             + fr1by2 * alpha))) * f_mu_Ni_lo
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                   ) * t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}) + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+          ) * f_mu_Cr_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+          ) * f_mu_Nb_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
+                        - fr1by4 * fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
+                        - fr1by4 * fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
+          ) * f_mu_Ni_lo
 
-t_laves = fr1by2 * (1.0 - tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
+t_laves = fr1by2 * (-2. - tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))
                         - tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))
                         - tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))
-                   ) * t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB})+ \
-          fr1by2 * tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)) * fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNI              + fr1by2 * alpha))) * f_laves_Nb_lo + \
-          fr1by2 * tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha)) * fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNB - xnb_lav_hi - fr1by2 * alpha))) * f_laves_Ni_lo + \
-          fr1by2 * tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)) * fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI - xni_lav_hi - fr1by2 * alpha))) * f_laves_Nb_hi + \
-          fr1by2 * tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha)) * fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNB              + fr1by2 * alpha))) * f_laves_Ni_hi
+                        + fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+                        + fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+                   ) * t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}) + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+          ) * f_laves_Nb_lo + \
+          fr1by2 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+          ) * f_laves_Ni_lo + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi - fr1by2 * alpha)))
+          ) * f_laves_Nb_hi + \
+          fr1by2 * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha)))
+                        - fr1by4 * (1.0 + tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (LAVES_XNI - xni_lav_hi - fr1by2 * alpha)))
+          ) * f_laves_Ni_hi
 
 
 # Generate first derivatives of CALPHAD landscape
