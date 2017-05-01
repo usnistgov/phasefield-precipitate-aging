@@ -138,14 +138,14 @@ const bool tanh_init = false;     // apply tanh profile to initial profile of co
 const field_t x_min = 1.0e-8;    // what to consider zero to avoid log(c) explosions
 const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explosions
 
-const field_t devn_tol = 1.0e-6;  // deviation of field parameters above which parallel tangent needs evaluation
+//const field_t devn_tol = 1.0e-6;  // deviation of field parameters above which parallel tangent needs evaluation
 const field_t root_tol = 1.0e-4;  // residual tolerance (default is 1e-7)
 const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 #ifndef CALPHAD
 const field_t LinStab = 1.0 / 14.56875; // threshold of linear stability (von Neumann stability condition)
 #else
-const field_t LinStab = 1.0 / 37.65055;  // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 387.0;  // threshold of linear stability (von Neumann stability condition)
 #endif
 
 namespace MMSP
@@ -852,26 +852,25 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			// evaluate parallel tangents if fields have changed
 			// Note: This creates a highly imbalanced workload!
-			if (deviation > devn_tol) {
-				rootsolver parallelTangentSolver;
-				double res = parallelTangentSolver.solve(newGridN);
+			//if (deviation > devn_tol) {
+			rootsolver parallelTangentSolver;
+			double res = parallelTangentSolver.solve(newGridN);
 
-				if (res>root_tol) {
-					// Invalid roots: substitute guesses.
-					#ifdef _OPENMP
-					#pragma omp critical (updCrit1)
-					#endif
-					{
-						totBadTangents++;
-					}
-
-					guessGamma(newGridN);
-					guessDelta(newGridN);
-					guessMu(   newGridN);
-					guessLaves(newGridN);
-					newGridN[fields(newGrid)-1] = 1.0;
+			if (res>root_tol) {
+				// Invalid roots: substitute guesses.
+				#ifdef _OPENMP
+				#pragma omp critical (updCrit1)
+				#endif
+				{
+					totBadTangents++;
 				}
+					guessGamma(newGridN);
+				guessDelta(newGridN);
+				guessMu(   newGridN);
+				guessLaves(newGridN);
+				newGridN[fields(newGrid)-1] = 1.0;
 			}
+			//}
 
 			/* ======= *
 			 * ~ fin ~ *
