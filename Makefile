@@ -15,8 +15,9 @@ mpilinks = -lmpiP -lbfd -liberty
 
 
 # precompiler directives
-#directives = -DADAPTIVE_TIMESTEPS -DCALPHAD
-directives = -DCALPHAD
+directives = 
+#directives = -DADAPTIVE_TIMESTEPS
+#directives = -DCALPHAD
 
 
 # flags: common, debug, Intel, GNU, and MPI

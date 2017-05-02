@@ -19,7 +19,7 @@
  *************************************************************************************/
 
 // Number of precipitates and components (for array allocation)
-#define NP 3
+#define NP 2
 #define NC 2
 
 std::string PROGRAM = "alloy625";
@@ -68,7 +68,7 @@ Composition& Composition::operator+=(const Composition& c)
 
 /* ============================ rootsolver Class =========================== */
 
-/* Given const phase fractions (in gamma, mu, and delta) and concentrations of
+/* Given const phase fractions (in gamma, delta, and Laves) and concentrations of
  * Cr and Nb, iteratively determine the fictitious concentrations in each phase
  * that satisfy the constraints of equal chemical potential at equilibrium and
  * conservation of mass at all times. Pass constants (p and x) by const value,
@@ -83,7 +83,6 @@ struct rparams {
 
 	// Structure fields
 	double n_del;
-	double n_mu;
 	double n_lav;
 };
 
@@ -121,6 +120,8 @@ inline field_t sign(const field_t& x) {return (x<0) ? -1.0 : 1.0;}
 template<typename T>
 T gibbs(const MMSP::vector<T>& v);
 
+// Compute gradient of specified field, only
+template <int dim, typename T> MMSP::vector<T> maskedgradient(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
 
 // Compute Laplacian of first N fields, ignore the rest
 template <int dim, typename T>
@@ -132,16 +133,13 @@ double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const doub
 double bellCurve(double x, double m, double s);
 
 
-// Guess values for parallel tangent solver: gamma, mu, and delta equilibrium compositions
+// Guess values for parallel tangent solver: gamma, delta, and Laves equilibrium compositions
 
 template<typename T>
 void guessGamma(MMSP::vector<T>& GRIDN);
 
 template<typename T>
 void guessDelta(MMSP::vector<T>& GRIDN);
-
-template<typename T>
-void guessMu(   MMSP::vector<T>& GRIDN);
 
 template<typename T>
 void guessLaves(MMSP::vector<T>& GRIDN);
