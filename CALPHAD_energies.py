@@ -103,7 +103,7 @@ from matplotlib.colors import LogNorm
 # Constants
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
 temp = 870.0 + 273.15 # 1143 Kelvin
-alpha = 0.001 # exclusion zone at phase boundaries in which the spline applies
+alpha = 0.01 # exclusion zone at phase boundaries in which the spline applies
 
 RT = 8.3144598*temp # J/mol/K
 Vm = 1.0e-5 # m^3/mol
@@ -176,10 +176,6 @@ species = list(set([i for c in tdb.phases['D0A_NBNI3'].constituents for i in c])
 model = Model(tdb, species, 'D0A_NBNI3')
 g_delta = parse_expr(str(model.ast))
 
-species = list(set([i for c in tdb.phases['D85_NI7NB6'].constituents for i in c]))
-model = Model(tdb, species, 'D85_NI7NB6')
-g_mu = parse_expr(str(model.ast))
-
 species = list(set([i for c in tdb.phases['C14_LAVES'].constituents for i in c]))
 model = Model(tdb, species, 'C14_LAVES')
 g_laves = parse_expr(str(model.ast))
@@ -188,10 +184,6 @@ species = list(set([i for c in tdb.phases['C15_LAVES'].constituents for i in c])
 model = Model(tdb, species, 'C15_LAVES')
 g_lavesLT = parse_expr(str(model.ast))
 
-species = list(set([i for c in tdb.phases['BCC_A2'].constituents for i in c]))
-model = Model(tdb, species, 'BCC_A2')
-g_bcc = parse_expr(str(model.ast))
-
 
 # Convert sublattice to phase composition (y to x)
 # Declare sublattice variables used in Pycalphad expressions
@@ -199,8 +191,6 @@ g_bcc = parse_expr(str(model.ast))
 FCC_A10CR, FCC_A10NB, FCC_A10NI, FCC_A11VA = symbols('FCC_A10CR FCC_A10NB FCC_A10NI FCC_A11VA')
 # Delta
 D0A_NBNI30NI, D0A_NBNI30NB, D0A_NBNI31CR, D0A_NBNI31NI = symbols('D0A_NBNI30NI D0A_NBNI30NB D0A_NBNI31CR D0A_NBNI31NI')
-# Mu
-D85_NI7NB60NB, D85_NI7NB61CR, D85_NI7NB61NB, D85_NI7NB61NI = symbols('D85_NI7NB60NB D85_NI7NB61CR D85_NI7NB61NB D85_NI7NB61NI')
 # Laves
 C14_LAVES0CR, C14_LAVES0NI, C14_LAVES1CR, C14_LAVES1NB = symbols('C14_LAVES0CR C14_LAVES0NI C14_LAVES1CR C14_LAVES1NB') 
 C15_LAVES0CR, C15_LAVES0NI, C15_LAVES1CR, C15_LAVES1NB = symbols('C15_LAVES0CR C15_LAVES0NI C15_LAVES1CR C15_LAVES1NB') 
@@ -210,9 +200,7 @@ T = symbols('T')
 # Declare system variables for target expressions
 GAMMA_XCR, GAMMA_XNB, GAMMA_XNI = symbols('GAMMA_XCR GAMMA_XNB GAMMA_XNI')
 DELTA_XCR, DELTA_XNB, DELTA_XNI = symbols('DELTA_XCR DELTA_XNB DELTA_XNI')
-MU_XCR, MU_XNB, MU_XNI = symbols('MU_XCR MU_XNB MU_XNI')
 LAVES_XCR, LAVES_XNB, LAVES_XNI = symbols('LAVES_XCR LAVES_XNB LAVES_XNI')
-BCC_XCR, BCC_XNB, BCC_XNI = symbols('BCC_XCR BCC_XNB BCC_XNI')
 
 # Specify equilibrium points for phase field
 xe_gam_Cr = 0.15
@@ -221,10 +209,6 @@ xe_gam_Ni = 1.0 - xe_gam_Cr - xe_gam_Nb
 
 xe_del_Cr = 0.0125
 xe_del_Nb = 0.245
-
-xe_mu_Cr = 0.02
-xe_mu_Nb = 0.5
-xe_mu_Ni = 1.0 - xe_mu_Cr - xe_mu_Nb
 
 xe_lav_Cr = 0.34
 xe_lav_Nb = 0.29
@@ -241,10 +225,6 @@ del_inter = -3.99e9 + 0.25 * del_slope
 xcr_del_hi = fr3by4
 xnb_del_hi = fr1by4
 
-mu_slope  =  1.0e9 * (-5.44 + 8.05) # mu  range: [-8.05, -5.44]e9 J/m3
-mu_inter  = -5.44e9 + 0.25 * mu_slope
-xnb_mu_lo = fr6by13
-
 lav_slope =  1.0e9 * (4.61 + 8.05) # lav range: [-8.05, +4.61]e9 J/m3
 lav_inter =  4.61e9 + 0.25 * lav_slope
 xnb_lav_hi = fr1by3
@@ -260,18 +240,14 @@ f_delta_Nb_lo = del_inter - 1.0 * del_slope * DELTA_XNB
 f_delta_Cr_hi = del_inter + 1.0 * del_slope * (DELTA_XCR - xcr_del_hi)
 f_delta_Nb_hi = del_inter + 1.0 * del_slope * (DELTA_XNB - xnb_del_hi)
 
-f_mu_Cr_lo = mu_inter - 1.0 * mu_slope * MU_XCR
-f_mu_Nb_lo = mu_inter - 1.0 * mu_slope *(MU_XNB - fr6by13)
-f_mu_Ni_lo = mu_inter - 1.0 * mu_slope * MU_XNI
-
 f_laves_Nb_lo = lav_inter - 1.0 * lav_slope * LAVES_XNB
 f_laves_Ni_lo = lav_inter - 1.0 * lav_slope * LAVES_XNI
 f_laves_Nb_hi = lav_inter + 1.0 * lav_slope * (LAVES_XNB - xnb_lav_hi)
 f_laves_Ni_hi = lav_inter + 1.0 * lav_slope * (LAVES_XNI - xni_lav_hi)
 
 # Anchor points for Taylor series
-X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_mu_Nb, xe_mu_Cr), simX(xe_lav_Nb, 1-xe_lav_Nb-xe_lav_Ni)]
-Y0 = [simY(xe_gam_Cr), simY(xe_del_Cr), simY(xe_mu_Cr), simY(1-xe_lav_Nb-xe_lav_Ni)]
+X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_lav_Nb, 1-xe_lav_Nb-xe_lav_Ni)]
+Y0 = [simY(xe_gam_Cr), simY(xe_del_Cr), simY(1-xe_lav_Nb-xe_lav_Ni)]
 
 # Make sublattice -> system substitutions
 g_gamma = inVm * g_gamma.subs({FCC_A10CR: GAMMA_XCR,
@@ -285,12 +261,6 @@ g_delta = inVm * g_delta.subs({D0A_NBNI30NB: 4.0*DELTA_XNB,
                                D0A_NBNI31CR: fr4by3 * DELTA_XCR,
                                D0A_NBNI31NI: 1.0 - fr4by3 * DELTA_XCR,
                                T: temp})
-
-g_mu = inVm * g_mu.subs({D85_NI7NB60NB: 1,
-                         D85_NI7NB61CR: fr13by7*MU_XCR,
-                         D85_NI7NB61NB: fr13by7*MU_XNB - fr6by7,
-                         D85_NI7NB61NI: fr13by7*MU_XNI,
-                         T: temp})
 
 g_laves = inVm * g_laves.subs({C14_LAVES0CR: 1.0 - fr3by2*LAVES_XNI,
                                C14_LAVES0NI: fr3by2 * LAVES_XNI,
@@ -324,23 +294,6 @@ t_delta = g_delta.subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb}) \
         + 0.5 * ( diff(g_delta, DELTA_XCR, DELTA_XNB).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb}) \
                 + diff(g_delta, DELTA_XNB, DELTA_XCR).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb}) \
                 ) * (DELTA_XCR - xe_del_Cr) * (DELTA_XNB - xe_del_Nb)
-
-t_mu    = g_mu.subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) \
-        + 1.0 * diff(g_mu, MU_XCR).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) * (MU_XCR - xe_mu_Cr ) \
-        + 1.0 * diff(g_mu, MU_XNB).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) * (MU_XNB - xe_mu_Nb ) \
-        + 1.0 * diff(g_mu, MU_XNI).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) * (MU_XNI - xe_mu_Ni ) \
-        + 0.5 * diff(g_mu, MU_XCR, MU_XCR).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) * (MU_XCR - xe_mu_Cr )**2 \
-        + 0.5 * diff(g_mu, MU_XNB, MU_XNB).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) * (MU_XNB - xe_mu_Nb )**2 \
-        + 0.5 * diff(g_mu, MU_XNI, MU_XNI).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) * (MU_XNI - xe_mu_Ni )**2 \
-        + 0.5 * ( diff(g_mu, MU_XCR, MU_XNB).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) \
-                + diff(g_mu, MU_XNB, MU_XCR).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) \
-                ) * (MU_XCR - xe_mu_Cr) * (MU_XNB - xe_mu_Nb) \
-        + 0.5 * ( diff(g_mu, MU_XCR, MU_XNI).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) \
-                + diff(g_mu, MU_XNI, MU_XCR).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) \
-                ) * (MU_XCR - xe_mu_Cr) * (MU_XNI - xe_mu_Ni) \
-        + 0.5 * ( diff(g_mu, MU_XNB, MU_XNI).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) \
-                + diff(g_mu, MU_XNI, MU_XNB).subs({MU_XCR: xe_mu_Cr, MU_XNB: xe_mu_Nb, MU_XNI: xe_mu_Ni}) \
-                ) * (MU_XNB - xe_mu_Nb) * (MU_XNI - xe_mu_Ni)
 
 t_laves = g_laves.subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
         + 1.0 * diff(g_laves, LAVES_XNB).subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) * (LAVES_XNB - xe_lav_Nb) \
@@ -398,26 +351,6 @@ c_delta = fr1by2 * (-2. - tanh(-twopi / alpha * (DELTA_XCR              - fr1by2
                         - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (DELTA_XCR              - fr1by2 * alpha)))
                         - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
           ) * f_delta_Nb_hi
-
-c_mu    = fr1by2 * (-1. - tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
-                        - tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))
-                        - tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
-                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
-                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                   ) * g_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}) + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-          ) * f_mu_Cr_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-          ) * f_mu_Nb_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
-          ) * f_mu_Ni_lo
 
 c_laves = fr1by2 * (-2. - tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))
@@ -493,26 +426,6 @@ t_delta = fr1by2 * (-2. - tanh(-twopi / alpha * (DELTA_XCR              - fr1by2
                         - fr1by4 * (1.0 + tanh( twopi / alpha * (DELTA_XCR - xcr_del_hi + fr1by2 * alpha))) * (1.0 + tanh( twopi / alpha * (DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
           ) * f_delta_Nb_hi
 
-t_mu    = fr1by2 * (-1. - tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
-                        - tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))
-                        - tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
-                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
-                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                        + fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                   ) * t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}) + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-          ) * f_mu_Cr_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-          ) * f_mu_Nb_lo + \
-          fr1by2 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XCR             - fr1by2 * alpha)))
-                        - fr1by4 * (1.0 + tanh(-twopi / alpha * (MU_XNB - xnb_mu_lo - fr1by2 * alpha))) * (1.0 + tanh(-twopi / alpha * (MU_XNI             - fr1by2 * alpha)))
-          ) * f_mu_Ni_lo
-
 t_laves = fr1by2 * (-2. - tanh(-twopi / alpha * (LAVES_XNB              - fr1by2 * alpha))
                         - tanh(-twopi / alpha * (LAVES_XNI              - fr1by2 * alpha))
                         - tanh( twopi / alpha * (LAVES_XNB - xnb_lav_hi + fr1by2 * alpha))
@@ -548,9 +461,6 @@ dGgam_dxNi = diff(c_gamma, GAMMA_XNI)
 dGdel_dxCr = diff(c_delta, DELTA_XCR)
 dGdel_dxNb = diff(c_delta, DELTA_XNB)
 
-dGmu_dxCr = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR)
-dGmu_dxNb = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB)
-
 dGlav_dxCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
 dGlav_dxNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
 
@@ -561,9 +471,6 @@ t_dGgam_dxNi = diff(t_gamma, GAMMA_XNI)
 
 t_dGdel_dxCr = diff(t_delta, DELTA_XCR)
 t_dGdel_dxNb = diff(t_delta, DELTA_XNB)
-
-t_dGmu_dxCr = diff(t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR)
-t_dGmu_dxNb = diff(t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB)
 
 t_dGlav_dxCr = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
 t_dGlav_dxNb = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
@@ -579,11 +486,6 @@ d2Gdel_dxCrCr = diff(c_delta, DELTA_XCR, DELTA_XCR)
 d2Gdel_dxCrNb = diff(c_delta, DELTA_XCR, DELTA_XNB)
 d2Gdel_dxNbCr = diff(c_delta, DELTA_XNB, DELTA_XCR)
 d2Gdel_dxNbNb = diff(c_delta, DELTA_XNB, DELTA_XNB)
-
-d2Gmu_dxCrCr = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR, MU_XCR)
-d2Gmu_dxCrNb = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR, MU_XNB)
-d2Gmu_dxNbCr = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB, MU_XCR)
-d2Gmu_dxNbNb = diff(c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB, MU_XNB)
 
 d2Glav_dxCrCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XCR)
 d2Glav_dxCrNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XNB)
@@ -601,11 +503,6 @@ t_d2Gdel_dxCrNb = diff(t_delta, DELTA_XCR, DELTA_XNB)
 t_d2Gdel_dxNbCr = diff(t_delta, DELTA_XNB, DELTA_XCR)
 t_d2Gdel_dxNbNb = diff(t_delta, DELTA_XNB, DELTA_XNB)
 
-t_d2Gmu_dxCrCr = diff(t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR, MU_XCR)
-t_d2Gmu_dxCrNb = diff(t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XCR, MU_XNB)
-t_d2Gmu_dxNbCr = diff(t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB, MU_XCR)
-t_d2Gmu_dxNbNb = diff(t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB}), MU_XNB, MU_XNB)
-
 t_d2Glav_dxCrCr = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XCR)
 t_d2Glav_dxCrNb = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XNB)
 t_d2Glav_dxNbCr = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XCR)
@@ -616,27 +513,22 @@ t_d2Glav_dxNbNb = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES
 codegen([# Gibbs energies
          ('g_gam', c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
          ('g_del', c_delta),
-         ('g_mu',  c_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB})),
          ('g_lav', c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB})),
          # Constants
          ('xe_gam_Cr', xe_gam_Cr), ('xe_gam_Nb', xe_gam_Nb),
          ('xe_del_Cr', xe_del_Cr), ('xe_del_Nb', xe_del_Nb),
-         ('xe_mu_Cr',  xe_mu_Cr),  ('xe_mu_Nb',  xe_mu_Nb),
          ('xe_lav_Nb', xe_lav_Nb), ('xe_lav_Ni', xe_lav_Ni),
          # First derivatives
          ('dg_gam_dxCr', dGgam_dxCr.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
          ('dg_gam_dxNb', dGgam_dxNb.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
          ('dg_gam_dxNi', dGgam_dxNi.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
          ('dg_del_dxCr', dGdel_dxCr), ('dg_del_dxNb', dGdel_dxNb),
-         ('dg_mu_dxCr',  dGmu_dxCr),  ('dg_mu_dxNb',  dGmu_dxNb),
          ('dg_lav_dxCr', dGlav_dxCr), ('dg_lav_dxNb', dGlav_dxNb),
          # Second derivatives
          ('d2g_gam_dxCrCr', d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', d2Ggam_dxCrNb),
          ('d2g_gam_dxNbCr', d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', d2Ggam_dxNbNb),
          ('d2g_del_dxCrCr', d2Gdel_dxCrCr), ('d2g_del_dxCrNb', d2Gdel_dxCrNb),
          ('d2g_del_dxNbCr', d2Gdel_dxNbCr), ('d2g_del_dxNbNb', d2Gdel_dxNbNb),
-         ('d2g_mu_dxCrCr',  d2Gmu_dxCrCr),  ('d2g_mu_dxCrNb',  d2Gmu_dxCrNb),
-         ('d2g_mu_dxNbCr',  d2Gmu_dxNbCr),  ('d2g_mu_dxNbNb',  d2Gmu_dxNbNb),
          ('d2g_lav_dxCrCr', d2Glav_dxCrCr), ('d2g_lav_dxCrNb', d2Glav_dxCrNb),
          ('d2g_lav_dxNbCr', d2Glav_dxNbCr), ('d2g_lav_dxNbNb', d2Glav_dxNbNb)],
         language='C', prefix='energy625', project='ALLOY625', to_files=True)
@@ -645,26 +537,21 @@ codegen([# Gibbs energies
 codegen([# Gibbs energies
          ('g_gam', t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
          ('g_del', t_delta),
-         ('g_mu',  t_mu.subs({MU_XNI: 1.0-MU_XCR-MU_XNB})),
          ('g_lav', t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB})),
          # Constants
          ('xe_gam_Cr', xe_gam_Cr), ('xe_gam_Nb', xe_gam_Nb),
          ('xe_del_Cr', xe_del_Cr), ('xe_del_Nb', xe_del_Nb),
-         ('xe_mu_Cr',  xe_mu_Cr),  ('xe_mu_Nb',  xe_mu_Nb),
          ('xe_lav_Nb', xe_lav_Nb), ('xe_lav_Ni', xe_lav_Ni),
          # First derivatives
          ('dg_gam_dxCr', t_dGgam_dxCr), ('dg_gam_dxNb', t_dGgam_dxNb),
          ('dg_gam_dxNi', t_dGgam_dxNi.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
          ('dg_del_dxCr',    t_dGdel_dxCr), ('dg_del_dxNb', t_dGdel_dxNb),
-         ('dg_mu_dxCr',     t_dGmu_dxCr),  ('dg_mu_dxNb',  t_dGmu_dxNb),
          ('dg_lav_dxCr',    t_dGlav_dxCr), ('dg_lav_dxNb', t_dGlav_dxNb),
          # Second derivatives
          ('d2g_gam_dxCrCr', t_d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', t_d2Ggam_dxCrNb),
          ('d2g_gam_dxNbCr', t_d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', t_d2Ggam_dxNbNb),
          ('d2g_del_dxCrCr', t_d2Gdel_dxCrCr), ('d2g_del_dxCrNb', t_d2Gdel_dxCrNb),
          ('d2g_del_dxNbCr', t_d2Gdel_dxNbCr), ('d2g_del_dxNbNb', t_d2Gdel_dxNbNb),
-         ('d2g_mu_dxCrCr',  t_d2Gmu_dxCrCr),  ('d2g_mu_dxCrNb',  t_d2Gmu_dxCrNb),
-         ('d2g_mu_dxNbCr',  t_d2Gmu_dxNbCr),  ('d2g_mu_dxNbNb',  t_d2Gmu_dxNbNb),
          ('d2g_lav_dxCrCr', t_d2Glav_dxCrCr), ('d2g_lav_dxCrNb', t_d2Glav_dxCrNb),
          ('d2g_lav_dxNbCr', t_d2Glav_dxNbCr), ('d2g_lav_dxNbNb', t_d2Glav_dxNbNb)],
         language='C', prefix='taylor625', project='ALLOY625', to_files=True)
@@ -674,12 +561,10 @@ print "Finished writing Taylor series and CALPHAD energy functions to disk."
 # Generate numerically efficient system-composition expressions
 TG = lambdify([GAMMA_XCR, GAMMA_XNB], t_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
 TD = lambdify([DELTA_XCR, DELTA_XNB], t_delta, modules='sympy')
-TU = lambdify([MU_XCR,    MU_XNB],    t_mu.subs({MU_XNI: 1-MU_XCR-MU_XNB}), modules='sympy')
 TL = lambdify([LAVES_XCR, LAVES_XNB], t_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
 
 GG = lambdify([GAMMA_XCR, GAMMA_XNB], c_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
 GD = lambdify([DELTA_XCR, DELTA_XNB], c_delta, modules='sympy')
-GU = lambdify([MU_XCR,    MU_XNB],    c_mu.subs({MU_XNI: 1-MU_XCR-MU_XNB}), modules='sympy')
 GL = lambdify([LAVES_XCR, LAVES_XNB], c_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
 
 print "Finished lambdifying Taylor series and CALPHAD energy functions."
