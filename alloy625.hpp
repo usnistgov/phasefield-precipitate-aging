@@ -121,11 +121,11 @@ template<typename T>
 T gibbs(const MMSP::vector<T>& v);
 
 // Compute gradient of specified field, only
-template <int dim, typename T> MMSP::vector<T> maskedgradient(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
+template <int dim, typename T> MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
 
 // Compute Laplacian of first N fields, ignore the rest
 template <int dim, typename T>
-MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
+MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
 
 // Geometric helpers for initial conditions
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx);
@@ -167,10 +167,9 @@ Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
 
 
 template<int dim,typename T>
-T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& dt,
-              MMSP::grid<dim, MMSP::vector<T> > const & newGrid);
+T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt,
+              MMSP::grid<dim,MMSP::vector<T> > const & newGrid);
 
 
 template<int dim,typename T>
-MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& dt,
-                               MMSP::grid<dim, MMSP::vector<T> > const & newGrid);
+MMSP::vector<double> summarize(MMSP::grid<dim,MMSP::vector<T> > const & GRID);
