@@ -25,7 +25,8 @@ stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include $(directives)
 dbgflags  = $(stdflags) -O1 -pg
 idbgflags = $(stdflags) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
 
-iflags = $(stdflags) -O3 -xCORE-AVX2 -unroll-aggressive -opt-prefetch
+iflags = $(stdflags) -O0 -g
+#-O3 -xCORE-AVX2 -unroll-aggressive -opt-prefetch
 gflags = $(stdflags) -O3 -ffast-math -funroll-loops
 pflags = -include mpi.h $(dbgflags) $(mpilinks)
 
@@ -34,7 +35,7 @@ pflags = -include mpi.h $(dbgflags) $(mpilinks)
 
 # default program (shared memory, OpenMP)
 alloy625: alloy625.cpp
-	$(icompiler) $< -o $@ $(iflags) $(stdlinks) -fopenmp
+	$(icompiler) $< -o $@ $(iflags) $(stdlinks) -openmp
 
 # profiling program (no parallelism or optimization)
 serial: alloy625.cpp
@@ -48,7 +49,7 @@ iserial: alloy625.cpp
 
 # threaded program (shared memory, OpenMP)
 smp: alloy625.cpp
-	$(gcompiler) $< -o $@ $(dbgflags) $(stdlinks) -fopenmp
+	$(gcompiler) $< -o $@ $(gflags) $(stdlinks) -fopenmp
 
 # parallel program (distributed memory, MPI)
 parallel: alloy625.cpp $(core)

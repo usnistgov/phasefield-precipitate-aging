@@ -172,4 +172,7 @@ T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt
 
 
 template<int dim,typename T>
-MMSP::vector<double> summarize(MMSP::grid<dim,MMSP::vector<T> > const & GRID);
+MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const & GRID);
+
+template<int dim,typename T>
+double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const & GRID);
