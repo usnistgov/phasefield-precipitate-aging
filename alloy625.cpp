@@ -127,7 +127,7 @@ const field_t sigma[NP] = {1.01, 1.01}; // J/m^2
 const field_t width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const field_t ifce_width = 10.0*meshres; // ensure at least 7 points through the interface
 const field_t omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
-                           3.0 * width_factor * sigma[2] / ifce_width  // Laves
+                           3.0 * width_factor * sigma[1] / ifce_width  // Laves
                          }; // multiwell height (J/m^3)
 
 // Numerical considerations
@@ -304,10 +304,11 @@ void generate(int dim, const char* filename)
 			}
 		}
 
+		rootsolver parallelTangentSolver;
 		unsigned int totBadTangents = 0;
 
 		#ifdef _OPENMP
-		#pragma omp parallel for
+		#pragma omp parallel for private(parallelTangentSolver)
 		#endif
 		for (int n = 0; n<nodes(initGrid); n++) {
 			vector<field_t>& initGridN = initGrid(n);
@@ -321,7 +322,6 @@ void generate(int dim, const char* filename)
 			 * Solve for parallel tangents *
 			 * =========================== */
 
-			rootsolver parallelTangentSolver;
 			double res = parallelTangentSolver.solve(initGridN);
 
 			if (res>root_tol) {
@@ -562,10 +562,11 @@ void generate(int dim, const char* filename)
 		matCr /= Nmat;
 		matNb /= Nmat;
 
+		rootsolver parallelTangentSolver;
 		unsigned int totBadTangents = 0;
 
 		#ifdef _OPENMP
-		#pragma omp parallel for
+		#pragma omp parallel for private(parallelTangentSolver)
 		#endif
 		for (int n = 0; n<nodes(initGrid); n++) {
 			field_t nx = 0.0;
@@ -589,7 +590,6 @@ void generate(int dim, const char* filename)
 			 * Solve for parallel tangents *
 			 * =========================== */
 
-			rootsolver parallelTangentSolver;
 			double res = parallelTangentSolver.solve(initGridN);
 
 			if (res>root_tol) {
@@ -742,8 +742,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	#endif
 
-		unsigned int totBadTangents = 0;
 		rootsolver parallelTangentSolver;
+		unsigned int totBadTangents = 0;
 
 		#ifdef _OPENMP
 		#pragma omp parallel for private(parallelTangentSolver)
