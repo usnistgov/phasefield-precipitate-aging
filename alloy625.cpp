@@ -92,8 +92,7 @@
 // as defined in the first elements of the two following arrays. The generate() function
 // will adjust the initial gamma composition depending on the type, amount, and composition
 // of the secondary phases to maintain the system's nominal composition.
-//                        Nominal | phase diagram  | Enriched
-//                        gamma   | delta   laves  | gamma (Excess)
+//                        nominal   delta   laves    gamma-enrichment
 const field_t xCr[NP+2] = {0.30,    0.0125, 0.3875,  0.31-0.30};
 const field_t xNb[NP+2] = {0.02,    0.2500, 0.2500,  0.13-0.02};
 
@@ -327,11 +326,9 @@ void generate(int dim, const char* filename)
 			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
 				#ifdef _OPENMP
-				#pragma omp critical
+				#pragma omp atomic
 				#endif
-				{
-					totBadTangents++;
-				}
+				totBadTangents++;
 
 				guessGamma(initGridN);
 				guessDelta(initGridN);
@@ -595,11 +592,9 @@ void generate(int dim, const char* filename)
 			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
 				#ifdef _OPENMP
-				#pragma omp critical
+				#pragma omp atomic
 				#endif
-				{
-					totBadTangents++;
-				}
+				totBadTangents++;
 
 				guessGamma(initGridN);
 				guessDelta(initGridN);
@@ -840,11 +835,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
 				#ifdef _OPENMP
-				#pragma omp critical (updCrit1)
+				#pragma omp atomic
 				#endif
-				{
-					totBadTangents++;
-				}
+				totBadTangents++;
 
 				guessGamma(newGridN);
 				guessDelta(newGridN);
@@ -1514,21 +1507,10 @@ T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt
 {
 	double vmax = 0.0;
 
-	int nthreads = 1;
-	#ifdef _OPENMP
-	nthreads = 16;
-	#endif
-
-	MMSP::vector<double> thrVel(nthreads, 0.0);
-
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
 	for (int n = 0; n<MMSP::nodes(newGrid); n++) {
-		int thrID = 0;
-		#ifdef _OPENMP
-		thrID = omp_get_thread_num() % nthreads;
-		#endif
 
 		MMSP::vector<int> x = MMSP::position(newGrid,n);
 
@@ -1551,16 +1533,20 @@ T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt
 			}
 		}
 
-		thrVel[thrID] = std::max(thrVel[thrID], myVel);
+		#ifdef _OPENMP
+		#pragma omp critical (critVel)
+		{
+		#endif
+		vmax = std::max(vmax, myVel);
+		#ifdef _OPENMP
+		}
+		#endif
 	}
-
-	for (int i=0; i<nthreads; i++)
-		vmax = std::max(thrVel[i], vmax);
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
-	double myv(vmax);
-	MPI::COMM_WORLD.Allreduce(&myv, &vmax, 1, MPI_DOUBLE, MPI_MAX);
+	double temp(vmax);
+	MPI::COMM_WORLD.Allreduce(&temp, &vmax, 1, MPI_DOUBLE, MPI_MAX);
 	#endif
 
 	return vmax;
@@ -1579,22 +1565,12 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const & G
 	for (int d = 0; d<dim; d++)
 		Ntot *= double(MMSP::g1(GRID, d) - MMSP::g0(GRID, d));
 
-	int nthreads = 1;
-	#ifdef _OPENMP
-	nthreads = 16;
-	#endif
-
 	MMSP::vector<double> summary(NC+NP+1, 0.0);
-	MMSP::vector<MMSP::vector<double> > thrSummary(nthreads, summary);
 
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
 	for (int n = 0; n<MMSP::nodes(GRID); n++) {
-		int thrID = 0;
-		#ifdef _OPENMP
-		thrID = omp_get_thread_num() % nthreads;
-		#endif
 		MMSP::vector<int> x = MMSP::position(GRID,n);
 		MMSP::vector<T>& gridN = GRID(n);
 		MMSP::vector<double> mySummary(NC+NP+1, 0.0);
@@ -1611,20 +1587,22 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const & G
 			mySummary[NC    ] -= newPhaseFrac; // contributes to gamma phase;
 		}
 
-		thrSummary[thrID] += mySummary;
-	}
-
-	// Reduce summary data in serial
-	for (int i=0; i<nthreads; i++) {
-		summary += thrSummary[i];
+		#ifdef _OPENMP
+		#pragma omp critical (critSum)
+		{
+		#endif
+		summary += mySummary;
+		#ifdef _OPENMP
+		}
+		#endif
 	}
 
 	for (int i = 0; i < NC+NP+1; i++)
 		summary[i] /= Ntot;
 
 	#ifdef MPI_VERSION
-	MMSP::vector<double> tmpSummary(summary);
-	MPI::COMM_WORLD.Reduce(&(tmpSummary[0]), &(summary[0]), NC+NP+1, MPI_DOUBLE, MPI_SUM, 0);
+	MMSP::vector<double> temp(summary);
+	MPI::COMM_WORLD.Reduce(&(temp[0]), &(summary[0]), NC+NP+1, MPI_DOUBLE, MPI_SUM, 0);
 	#endif
 
 	return summary;
@@ -1641,49 +1619,37 @@ double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const & GRID)
 	for (int d = 0; d<dim; d++)
 		dV *= MMSP::dx(GRID, d);
 
-	int nthreads = 1;
-	#ifdef _OPENMP
-	nthreads = 16;
-	#endif
-
-	double summary = 0.0;
-	MMSP::vector<double> thrSummary(nthreads, 0.0);
+	double energy = 0.0;
 
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
 	for (int n = 0; n<MMSP::nodes(GRID); n++) {
-		int thrID = 0;
-		#ifdef _OPENMP
-		thrID = omp_get_thread_num() % nthreads;
-		#endif
 		MMSP::vector<int> x = MMSP::position(GRID,n);
 		MMSP::vector<T>& gridN = GRID(n);
 
-		double mySummary = dV * gibbs(gridN); // energy density init
+		double myEnergy = dV * gibbs(gridN); // energy density init
 
 		for (int i = 0; i < NP; i++) {
 			const MMSP::vector<T> gradPhi = maskedgradient(GRID, x, NC+i);
 			const T gradSq = (gradPhi * gradPhi); // vector inner product
 
-			mySummary += dV * kappa[i] * gradSq; // gradient contributes to energy
+			myEnergy += dV * kappa[i] * gradSq; // gradient contributes to energy
 
 		}
 
-		thrSummary[thrID] += mySummary;
-	}
-
-	// Reduce summary data in serial
-	for (int i=0; i<nthreads; i++) {
-		summary += thrSummary[i];
+		#ifdef _OPENMP
+		#pragma omp atomic
+		#endif
+		energy += myEnergy;
 	}
 
 	#ifdef MPI_VERSION
-	double tmpSummary(summary);
-	MPI::COMM_WORLD.Reduce(&tmpSummary, &summary, 1, MPI_DOUBLE, MPI_SUM, 0);
+	double temp(energy);
+	MPI::COMM_WORLD.Reduce(&temp, &energy, 1, MPI_DOUBLE, MPI_SUM, 0);
 	#endif
 
-	return summary;
+	return energy;
 }
 
 #endif
