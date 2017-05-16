@@ -119,7 +119,7 @@ const field_t Lmob[NP] = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns),
 //const field_t Lmob[NP] = {1.92e-12, 1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns), Xu's numbers
 
 //                        delta  Laves
-const field_t sigma[NP] = {1.01, 1.01}; // J/m^2
+const field_t sigma[NP] = {1.01, 1.01}; // (J/m^2)
 
 // Interfacial width
 //const field_t omega[NP] = {9.5e8, 9.5e8}; // multiwell height (m^2/Nsm^2), Zhou's numbers
@@ -137,8 +137,8 @@ const field_t x_min = 1.0e-8;    // what to consider zero to avoid log(c) explos
 const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explosions
 
 //const field_t devn_tol = 1.0e-6;  // deviation of field parameters above which parallel tangent needs evaluation
-const field_t root_tol = 1.0e-4;  // residual tolerance (default is 1e-7)
-const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
+const field_t root_tol  = 1.0e-4;  // residual tolerance (default is 1e-7)
+const int root_max_iter = 100000; // default is 1000, increasing probably won't change anything but your runtime
 
 /*
 #ifndef CALPHAD
@@ -762,9 +762,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * Collect Constants *
 			 * ================= */
 
-			const T PhaseEnergy[NP+1] = {g_del(oldGridN[NC+NP+2],  oldGridN[NC+NP+3]),
-			                             g_lav(oldGridN[NC+NP+4],  oldGridN[NC+NP+5]),
-			                             g_gam(oldGridN[NC+NP  ],  oldGridN[NC+NP+1]) // matrix phase last
+			const T PhaseEnergy[NP+1] = {g_del(oldGridN[2*NC+NP],  oldGridN[2*NC+NP+1]),
+			                             g_lav(oldGridN[3*NC+NP],  oldGridN[3*NC+NP+1]),
+			                             g_gam(oldGridN[  NC+NP],  oldGridN[  NC+NP+1]) // matrix phase last
 			                            };
 
 			// Diffusion potential in matrix (will equal chemical potential at equilibrium)
@@ -777,8 +777,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			for (int i = NC; i < NC+NP; i++)
 				sumPhiSq += oldGridN[i] * oldGridN[i];
 
-			// Laplacians of field variables
-			const vector<T> laplac = maskedlaplacian(oldGrid, x, NC+NP+2);
+			// Laplacians of field variables, including fictitious compositions of matrix phase
+			const vector<T> laplac = maskedlaplacian(oldGrid, x, 2*NC+NP);
 
 
 			/* ============================================= *
@@ -801,7 +801,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				// "Pressure" between matrix and precipitate phase
 				T Pressure = PhaseEnergy[NP] - PhaseEnergy[j];
 				for (int i = 0; i < NC; i++)
-					Pressure -= (oldGridN[NC+NP+i] - oldGridN[NC+NP+i+2*(j+1)]) * chempot[i];
+					Pressure -= (oldGridN[NC+NP+i] - oldGridN[NC+NP+i+NC*(j+1)]) * chempot[i];
 
 				// Variational derivatives (scalar minus gradient term in Euler-Lagrange eqn)
 				T delF_delPhi = -sign(phiOld) * hprime(absPhi) * Pressure;
@@ -869,10 +869,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		for (int n=0; n<nodes(oldGrid); n++) {
 			if (newGrid(n)[fields(newGrid)-1] > 0.9) {
 				fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-				oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[NC+NP+2], oldGrid(n)[NC+NP+3], oldGrid(n)[NC+NP+4], oldGrid(n)[NC+NP+5]);
+				oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[2*NC+NP], oldGrid(n)[2*NC+NP+1], oldGrid(n)[3*NC+NP], oldGrid(n)[3*NC+NP+1]);
 			} else {
 				fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-				oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[NC+NP+2], oldGrid(n)[NC+NP+3], oldGrid(n)[NC+NP+4], oldGrid(n)[NC+NP+5]);
+				oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[2*NC+NP], oldGrid(n)[2*NC+NP+1], oldGrid(n)[3*NC+NP], oldGrid(n)[3*NC+NP+1]);
 			}
 		}
 		fclose(badfile);
@@ -1015,7 +1015,7 @@ void guessGamma(MMSP::vector<T>& GRIDN)
 	const T  xni = std::max(x_min, 1.0 - xcr - GRIDN[1]);
 	const T weight = xcr+xni>x_min ? (1.0 - xnb) / (xcr + xni) : x_min;
 
-	GRIDN[NC+NP] = weight * xcr;
+	GRIDN[NC+NP  ] = weight * xcr;
 	GRIDN[NC+NP+1] = xnb;
 }
 
@@ -1029,8 +1029,8 @@ void guessDelta(MMSP::vector<T>& GRIDN)
 	const T& xnb = GRIDN[1];
 	const T weight = xcr+xnb>x_min ? 0.23 / (xcr + xnb) : x_min;
 
-	GRIDN[NC+NP+2] = weight * xcr;
-	GRIDN[NC+NP+3] = weight * xnb;
+	GRIDN[2*NC+NP  ] = weight * xcr;
+	GRIDN[2*NC+NP+1] = weight * xnb;
 }
 
 
@@ -1044,8 +1044,8 @@ void guessLaves(MMSP::vector<T>& GRIDN)
 	const T xni = std::max(x_min, 1.0 - xcr - GRIDN[1]);
 	const T weight = xcr+xni>x_min ? (1.0 - xnb) / (xcr + xni) : x_min;
 
-	GRIDN[NC+NP+4] = weight * xcr;
-	GRIDN[NC+NP+5] = xnb;
+	GRIDN[3*NC+NP  ] = weight * xcr;
+	GRIDN[3*NC+NP+1] = xnb;
 }
 
 
@@ -1206,9 +1206,9 @@ T gibbs(const MMSP::vector<T>& v)
 	for (int i = 0; i < NP; i++)
 		vsq[i] = v[NC+i]*v[NC+i];
 
-	T g  = n_gam * g_gam(v[NC+NP  ], v[NC+NP+1]);
-	  g += n_del * g_del(v[NC+NP+2], v[NC+NP+3]);
-	  g += n_lav * g_lav(v[NC+NP+4], v[NC+NP+5]);
+	T g  = n_gam * g_gam(v[  NC+NP], v[  NC+NP+1]);
+	  g += n_del * g_del(v[2*NC+NP], v[2*NC+NP+1]);
+	  g += n_lav * g_lav(v[3*NC+NP], v[3*NC+NP+1]);
 	  g += omega[0] * vsq[0] * pow(1.0 - fabs(v[NC  ]), 2);
 	  g += omega[1] * vsq[1] * pow(1.0 - fabs(v[NC+1]), 2);
 
@@ -1477,7 +1477,7 @@ rootsolver::solve(MMSP::vector<T>& GRIDN)
 
 
 	// copy initial guesses from grid
-	for (int i = 0; i < NC*(NP+1); i++)
+	for (int i = 0; i < int(n); i++)
 		gsl_vector_set(x, i, static_cast<double>(GRIDN[NC+NP+i]));
 
 	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
@@ -1493,7 +1493,7 @@ rootsolver::solve(MMSP::vector<T>& GRIDN)
 	double residual = gsl_blas_dnrm2(solver->f);
 
 	if (status == GSL_SUCCESS)
-		for (int i = 0; i < NC*(NP+1); i++)
+		for (int i = 0; i < int(n); i++)
 			GRIDN[NC+NP+i] = static_cast<T>(gsl_vector_get(solver->x, i));
 
 	return residual;
@@ -1663,7 +1663,7 @@ double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const & GRID)
 		double mySummary = dV * gibbs(gridN); // energy density init
 
 		for (int i = 0; i < NP; i++) {
-			const MMSP::vector<T> gradPhi = maskedgradient(GRID, x, i+NC);
+			const MMSP::vector<T> gradPhi = maskedgradient(GRID, x, NC+i);
 			const T gradSq = (gradPhi * gradPhi); // vector inner product
 
 			mySummary += dV * kappa[i] * gradSq; // gradient contributes to energy
