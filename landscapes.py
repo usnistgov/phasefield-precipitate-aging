@@ -22,9 +22,9 @@ from pycalphad import variables as v
 
 # setup global variables
 
-Titles = (r'$\gamma$', r'$\delta$', r'$\mu$', r'Laves')
+Titles = (r'$\gamma$', r'$\delta$', r'Laves')
 npts = 100
-nfun = 4
+nfun = 3
 span = (-0.1, 1.1)
 yspan = (-0.1, 0.9)
 x = np.linspace(span[0], span[1], npts)
@@ -61,8 +61,7 @@ for j in tqdm(np.nditer(y)):
         q[n] = j
         z[0][n] = GG(xcr, xnb)
         z[1][n] = GD(xcr, xnb)
-        z[2][n] = GU(xcr, xnb)
-        z[3][n] = GL(xcr, xnb)
+        z[2][n] = GL(xcr, xnb)
         for k in range(nfun):
         	datmin[k] = min(datmin[k], z[k][n])
         	datmax[k] = max(datmax[k], z[k][n])
@@ -71,11 +70,11 @@ for j in tqdm(np.nditer(y)):
 print "Data spans [%.4g, %.4g]" % (np.amin(datmin), np.amax(datmax))
 
 
-f, axarr = plt.subplots(nrows=2, ncols=2, sharex='col', sharey='row')
+f, axarr = plt.subplots(nrows=1, ncols=3, sharex='col', sharey='row')
 f.suptitle("IN625 Ternary Potentials (Restricted)",fontsize=14)
 n=0
 for ax in axarr.reshape(-1):
-    levels = np.logspace(np.log2(datmin[n]-1.01*datmin[n]), np.log2(datmax[n]-1.01*datmin[n]), num=50, base=2.0)
+    #levels = np.logspace(np.log2(datmin[n]-1.01*datmin[n]), np.log2(datmax[n]-1.01*datmin[n]), num=50, base=2.0)
     ax.set_title(Titles[n],fontsize=10)
     ax.axis('equal')
     ax.set_xlim(span)
@@ -83,8 +82,8 @@ for ax in axarr.reshape(-1):
     ax.axis('off')
     for a in range(len(XG)):
         ax.plot(XG[a], YG[a], ':w', linewidth=0.5)
-    ax.tricontourf(p, q, z[n]-1.011*datmin[n], levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
-    #ax.tricontourf(p, q, z[n], cmap=plt.cm.get_cmap('coolwarm'))
+    #ax.tricontourf(p, q, z[n]-1.011*datmin[n], levels, cmap=plt.cm.get_cmap('coolwarm'), norm=LogNorm())
+    ax.tricontourf(p, q, z[n], cmap=plt.cm.get_cmap('coolwarm'))
     ax.plot(XS, YS, 'k', linewidth=0.5)
     ax.scatter(X0[n], Y0[n], color='black', s=2.5)
     n+=1
@@ -93,8 +92,8 @@ plt.figtext(x=0.5, y=0.0625, ha='center', fontsize=8, \
 f.savefig('ternary.png', dpi=400, bbox_inches='tight')
 plt.close()
 
-images = ['diagrams/gamma_calphad.png', 'diagrams/delta_calphad.png', 'diagrams/mu_calphad.png', 'diagrams/Laves_calphad.png']
-files = ['diagrams/gamma_calphad.txt', 'diagrams/delta_calphad.txt', 'diagrams/mu_calphad.txt', 'diagrams/Laves_calphad.txt']
+images = ['diagrams/gamma_calphad.png', 'diagrams/delta_calphad.png', 'diagrams/Laves_calphad.png']
+# files  = ['diagrams/gamma_calphad.txt', 'diagrams/delta_calphad.txt', 'diagrams/Laves_calphad.txt']
 for n in range(nfun):
     levels = np.logspace(np.log2(datmin[n]-1.01*datmin[n]), np.log2(datmax[n]-1.01*datmin[n]), num=50, base=2.0)
     plt.axis('equal')
@@ -112,8 +111,8 @@ for n in range(nfun):
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
     plt.savefig(images[n], transparent=True, dpi=400, bbox_inches='tight', pad_inches=0)
     plt.close()
-    points = np.array([p, q, z[n]])
-    np.savetxt(files[n], points.T)
+    # points = np.array([p, q, z[n]])
+    # np.savetxt(files[n], points.T)
 
 
 # Plot Taylor series approximate free energy landscapes
@@ -131,8 +130,7 @@ for j in tqdm(np.nditer(y)):
         q[n] = j
         z[0][n] = TG(xcr, xnb)
         z[1][n] = TD(xcr, xnb)
-        z[2][n] = TU(xcr, xnb)
-        z[3][n] = TL(xcr, xnb)
+        z[2][n] = TL(xcr, xnb)
         for k in range(nfun):
         	datmin[k] = min(datmin[k], z[k][n])
         	datmax[k] = max(datmax[k], z[k][n])
@@ -141,7 +139,7 @@ for j in tqdm(np.nditer(y)):
 print "Data spans [%.4g, %.4g]" % (np.amin(datmin), np.amax(datmax))
 
 
-f, axarr = plt.subplots(nrows=2, ncols=2, sharex='col', sharey='row')
+f, axarr = plt.subplots(nrows=1, ncols=3, sharex='col', sharey='row')
 f.suptitle("IN625 Ternary Potentials (Taylor)",fontsize=14)
 n=0
 for ax in axarr.reshape(-1):
@@ -163,8 +161,8 @@ plt.figtext(x=0.5, y=0.0625, ha='center', fontsize=8, \
 f.savefig('ternary_taylor.png', dpi=400, bbox_inches='tight')
 plt.close()
 
-images = ['diagrams/gamma_taylor.png', 'diagrams/delta_taylor.png', 'diagrams/mu_taylor.png', 'diagrams/Laves_taylor.png']
-files = ['diagrams/gamma_taylor.txt', 'diagrams/delta_taylor.txt', 'diagrams/mu_taylor.txt', 'diagrams/Laves_taylor.txt']
+images = ['diagrams/gamma_taylor.png', 'diagrams/delta_taylor.png', 'diagrams/Laves_taylor.png']
+# files  = ['diagrams/gamma_taylor.txt', 'diagrams/delta_taylor.txt', 'diagrams/Laves_taylor.txt']
 for n in range(nfun):
     #levels = np.logspace(np.log2(datmin[n]-1.01*datmin[n]), np.log2(datmax[n]-1.01*datmin[n]), num=50, base=2.0)
     plt.axis('equal')
@@ -182,5 +180,5 @@ for n in range(nfun):
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
     plt.savefig(images[n], transparent=True, dpi=400, bbox_inches='tight', pad_inches=0)
     plt.close()
-    points = np.array([p, q, z[n]])
-    np.savetxt(files[n], points.T)
+    # points = np.array([p, q, z[n]])
+    # np.savetxt(files[n], points.T)

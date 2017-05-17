@@ -17,9 +17,11 @@
 from CALPHAD_energies import *
 
 # Generate ternary axes
-labels = [r'$\gamma$', r'$\delta$', r'$\mu$', 'Laves']
-colors = ['red', 'green', 'blue', 'cyan']
+labels = [r'$\gamma$', r'$\delta$', 'Laves']
+colors = ['red', 'green', 'blue']
 
+
+"""
 # Generate ternary phase diagram
 
 density = 101
@@ -41,7 +43,6 @@ for phi in np.linspace(-1-dc, 1+dc, density):
         and (xni < 1+dc  and xni > -dc):
             f = (GG(xcr, xnb),
                  GD(xcr, xnb),
-                 GU(xcr, xnb),
                  GL(xcr, xnb))
             for n in range(len(f)):
                 allX.append(simX(xnb,xcr))
@@ -87,73 +88,83 @@ plt.legend(loc='best')
 plt.savefig("taylor_phase_diagram.png", bbox_inches='tight', dpi=400)
 plt.close()
 
-# Compare CALPHAD and parabolic expressions (const. Cr)
+"""
+
+
+### LINESCANS
 stepsz = 0.005
+phases = ["gamma", "delta", "laves"]
+labels = [r"\gamma", r"\delta", "Laves"]
 
-# Plot phase diagram
-plt.figure()
-plt.title("Cr-Nb-Ni at %.0fK"%temp)
-plt.xlabel(r'$x_\mathrm{Nb}$')
-plt.ylabel(r'$\mathcal{F}$')
-plt.ylim([-1e10, 0])
+# Plot Nb linescans
 
-for xcr in (0.01, 0.3):
+pltgam = plt.figure(0)
+pltdel = plt.figure(1)
+pltlav = plt.figure(2)
+
+for j in range(len(phases)):
+	plt.figure(j)
+	plt.title("${0}$ linescan at {1}K".format(labels[j], temp))
+	plt.xlabel(r'$x_\mathrm{Nb}$')
+	plt.ylabel(r'Taylor $\mathcal{F}$')
+
+n = 0
+for xcr in (0.1, 0.2, 0.3):
     x = []
-
-    cgam = []
-    cdel = []
-    cmu  = []
-    clav = []
-
-    for xnb in np.arange(0.01, 0.98, stepsz):
+	
+    c = [[], [], []]
+	
+    for xnb in np.arange(-0.01, 1.01, stepsz):
         xni = 1-xcr-xnb
         x.append(xnb)
-        cgam.append(GG(xcr, xnb))
-        cdel.append(GD(xcr, xnb))
-        cmu.append( GU(xcr, xnb))
-        clav.append(GL(xcr, xnb))
+        c[0].append(TG(xcr, xnb))
+        c[1].append(TD(xcr, xnb))
+        c[2].append(TL(xcr, xnb))
+	
+    for j in range(len(phases)):
+    	plt.figure(j)
+    	plt.plot(x, c[j], color=colors[n], label=r'$x_{\mathrm{Cr}}=%.2f$'%xcr)
+    
+    n += 1
 
-    plt.plot(x, cgam, color=colors[0], label=r'$\gamma$, $x_{\mathrm{Cr}}=%.2f$'%xcr)
-    plt.plot(x, cdel, color=colors[1], label=r'$\delta$, $x_{\mathrm{Cr}}=%.2f$'%xcr)
-    plt.plot(x, cmu,  color=colors[2], label=r'$\mu$, $x_{\mathrm{Cr}}=%.2f$'%xcr)
-    plt.plot(x, clav, color=colors[3], label=r'L, $x_{\mathrm{Cr}}=%.2f$'%xcr)
+for j in range(len(phases)):
+	plt.figure(j)
+	plt.legend(loc='best', fontsize=6)
+	plt.savefig("linescan_{0}_Nb.png".format(phases[j]), bbox_inches='tight', dpi=400)
+	plt.close()
 
-# un-indent using for loops
-plt.legend(loc='best', fontsize=6)
-plt.savefig("linescan_Nb.png", bbox_inches='tight', dpi=400)
-plt.close()
+# Plot Cr linescans
 
+pltgam = plt.figure(0)
+pltdel = plt.figure(1)
+pltlav = plt.figure(2)
 
-# Compare CALPHAD and parabolic expressions (const. Nb)
+for j in range(len(phases)):
+	plt.figure(j)
+	plt.title("${0}$ linescan at {1}K".format(labels[j], temp))
+	plt.xlabel(r'$x_\mathrm{Cr}$')
+	plt.ylabel(r'Taylor $\mathcal{F}$')
 
-# Plot phase diagram
-plt.figure()
-plt.title("Cr-Nb-Ni at %.0fK"%temp)
-plt.xlabel(r'$x_\mathrm{Cr}$')
-plt.ylabel(r'$\mathcal{F}$')
-plt.ylim([-1e10, 0])
-
-for xnb in (0.02, 0.15):
+n = 0
+for xnb in (0.01, 0.05, 0.10):
     x = []
-
-    cgam = []
-    cdel = []
-    cmu  = []
-    clav = []
-
-    for xcr in np.arange(0.01, 0.6, stepsz):
+	
+    c = [[], [], []]
+	
+    for xcr in np.arange(-0.01, 1.01, stepsz):
         x.append(xcr)
-        cgam.append(GG(xcr, xnb))
-        cdel.append(GD(xcr, xnb))
-        cmu.append( GU(xcr, xnb))
-        clav.append(GL(xcr, xnb))
+        c[0].append(TG(xcr, xnb))
+        c[1].append(TD(xcr, xnb))
+        c[2].append(TL(xcr, xnb))
+	
+    for j in range(len(phases)):
+    	plt.figure(j)
+    	plt.plot(x, c[j], color=colors[n], label=r'$x_{\mathrm{Nb}}=%.2f$'%xnb)
+    
+    n += 1
 
-    plt.plot(x, cgam, color=colors[0], label=r'$\gamma$, $x_{\mathrm{Nb}}=%.2f$'%xnb)
-    plt.plot(x, cdel, color=colors[1], label=r'$\delta$, $x_{\mathrm{Nb}}=%.2f$'%xnb)
-    plt.plot(x, cmu,  color=colors[2], label=r'$\mu$, $x_{\mathrm{Nb}}=%.2f$'%xnb)
-    plt.plot(x, clav, color=colors[3], label=r'L, $x_{\mathrm{Nb}}=%.2f$'%xnb)
-
-# un-indent using for loops
-plt.legend(loc='best', fontsize=6)
-plt.savefig("linescan_Cr.png", bbox_inches='tight', dpi=400)
-plt.close()
+for j in range(len(phases)):
+	plt.figure(j)
+	plt.legend(loc='best', fontsize=6)
+	plt.savefig("linescan_{0}_Cr.png".format(phases[j]), bbox_inches='tight', dpi=400)
+	plt.close()
