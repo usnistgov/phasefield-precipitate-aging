@@ -235,10 +235,10 @@ xni_lav_hi = fr2by3
 
 # Taylor ranges
 gam_slope =  1.0e9 * (10 + 8) # gam range: [-8, 10]e9 J/m3
-gam_inter = 10e9 + 0.25*gam_slope
+gam_inter = 5e9 + 0.25*gam_slope
 
-del_slope =  1.0e9 * (150.0 + 8.0) # del range: [-8, 150]e9 J/m3
-del_inter = 50e9 + 0.25*del_slope
+del_slope =  1.0e9 * (20.0 + 8.0) # del range: [-8, 20]e9 J/m3
+del_inter = 20e9 + 0.25*del_slope
 
 lav_slope =  1.0e9 * (15.0 + 10.0) # lav range: [-10, 15]e9 J/m3
 lav_inter =  15e9 + 0.25 * lav_slope
@@ -318,166 +318,82 @@ t_laves = g_laves.subs({LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}) \
                 ) * (LAVES_XNB - xe_lav_Nb) * (LAVES_XNI - xe_lav_Ni)
 
 
-# Generate safe CALPHAD expressions
-xi_gam_lo_Cr = twopi / alpha * (-GAMMA_XCR + fr1by2 * alpha)
-xi_gam_lo_Nb = twopi / alpha * (-GAMMA_XNB + fr1by2 * alpha)
-xi_gam_lo_Ni = twopi / alpha * (-GAMMA_XNI + fr1by2 * alpha)
+# Generate interpolation functions using sublattice domain restrictions
+weight = fr1by2
 
-c_gamma = fr1by2 * (-1. - tanh(xi_gam_lo_Cr)
-                        - tanh(xi_gam_lo_Nb)
-                        - tanh(xi_gam_lo_Ni)
-                        + fr1by2 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Ni))
-                        + fr1by2 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Cr))
-                        + fr1by2 * (1.0 + tanh(xi_gam_lo_Ni)) * (1.0 + tanh(xi_gam_lo_Cr))
-                   ) * g_gamma + \
-          fr1by2 * (1.0 + tanh(xi_gam_lo_Cr)
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Ni)) * (1.0 + tanh(xi_gam_lo_Cr))
-          ) * f_gamma_Cr_lo + \
-          fr1by2 * (1.0 + tanh(xi_gam_lo_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Ni))
-          ) * f_gamma_Nb_lo + \
-          fr1by2 * (1.0 + tanh(xi_gam_lo_Ni)
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Ni)) * (1.0 + tanh(xi_gam_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Ni))
-          ) * f_gamma_Ni_lo
+psi_gam_lo_Cr = fr1by2 * (1.0 + tanh(twopi / alpha * (-GAMMA_XCR + fr1by2 * alpha)))
+psi_gam_lo_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * (-GAMMA_XNB + fr1by2 * alpha)))
+psi_gam_lo_Ni = fr1by2 * (1.0 + tanh(twopi / alpha * (-GAMMA_XNI + fr1by2 * alpha)))
 
-xi_del_lo_Cr = twopi / alpha * (-DELTA_XCR              + fr1by2 * alpha)
-xi_del_hi_Cr = twopi / alpha * ( DELTA_XCR - xcr_del_hi + fr1by2 * alpha)
-xi_del_lo_Nb = twopi / alpha * (-DELTA_XNB              + fr1by2 * alpha)
-xi_del_hi_Nb = twopi / alpha * ( DELTA_XNB - xnb_del_hi + fr1by2 * alpha)
+psi_del_lo_Cr = fr1by2 * (1.0 + tanh(twopi / alpha * (-DELTA_XCR              + fr1by2 * alpha)))
+psi_del_hi_Cr = fr1by2 * (1.0 + tanh(twopi / alpha * ( DELTA_XCR - xcr_del_hi + fr1by2 * alpha)))
+psi_del_lo_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * (-DELTA_XNB              + fr1by2 * alpha)))
+psi_del_hi_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * ( DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
 
-c_delta = fr1by2 * (-2. - tanh(xi_del_lo_Cr)
-                        - tanh(xi_del_lo_Nb)
-                        - tanh(xi_del_hi_Cr)
-                        - tanh(xi_del_hi_Nb)
-                        + fr1by2 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        + fr1by2 * (1.0 + tanh(xi_del_hi_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        + fr1by2 * (1.0 + tanh(xi_del_hi_Cr)) * (1.0 + tanh(xi_del_hi_Nb))
-                        + fr1by2 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_hi_Cr))
-                   ) * g_delta + \
-          fr1by2 * (1.0 + tanh(xi_del_lo_Cr)
-                        - fr1by4 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_del_hi_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-          ) * f_delta_Cr_lo + \
-          fr1by2 * (1.0 + tanh(xi_del_lo_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_hi_Cr))
-          ) * f_delta_Nb_lo + \
-          fr1by2 * (1.0 + tanh(xi_del_hi_Cr)
-                        - fr1by4 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_hi_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_del_hi_Cr)) * (1.0 + tanh(xi_del_hi_Nb))
-          ) * f_delta_Cr_hi + \
-          fr1by2 * (1.0 + tanh(xi_del_hi_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_del_hi_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_del_hi_Cr)) * (1.0 + tanh(xi_del_hi_Nb))
-          ) * f_delta_Nb_hi
-
-xi_lav_lo_Nb = twopi / alpha * (-LAVES_XNB              + fr1by2 * alpha)
-xi_lav_hi_Nb = twopi / alpha * ( LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)
-xi_lav_lo_Ni = twopi / alpha * (-LAVES_XNI              + fr1by2 * alpha)
-xi_lav_hi_Ni = twopi / alpha * ( LAVES_XNI - xni_lav_hi + fr1by2 * alpha)
-
-c_laves = fr1by2 * (-2. - tanh(xi_lav_lo_Nb)
-                        - tanh(xi_lav_lo_Ni)
-                        - tanh(xi_lav_hi_Nb)
-                        - tanh(xi_lav_hi_Ni)
-                        + fr1by2 * (1.0 + tanh(xi_lav_hi_Nb)) * (1.0 + tanh(xi_lav_hi_Ni))
-                        + fr1by2 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_hi_Nb))
-                        + fr1by2 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-                        + fr1by2 * (1.0 + tanh(xi_lav_hi_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-                   ) * g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}) + \
-          fr1by2 * (1.0 + tanh(xi_lav_lo_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-                        - fr1by4 * (1.0 + tanh(xi_lav_hi_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-          ) * f_laves_Nb_lo + \
-          fr1by2 * (1.0 + tanh(xi_lav_lo_Ni)
-                        - fr1by4 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_hi_Nb))
-                        - fr1by4 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-          ) * f_laves_Ni_lo + \
-          fr1by2 * (1.0 + tanh(xi_lav_hi_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_hi_Nb))
-                        - fr1by4 * (1.0 + tanh(xi_lav_hi_Nb)) * (1.0 + tanh(xi_lav_hi_Ni))
-          ) * f_laves_Nb_hi + \
-          fr1by2 * (1.0 + tanh(xi_lav_hi_Ni)
-                        - fr1by4 * (1.0 + tanh(xi_lav_hi_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-                        - fr1by4 * (1.0 + tanh(xi_lav_hi_Nb)) * (1.0 + tanh(xi_lav_hi_Ni))
-          ) * f_laves_Ni_hi
+psi_lav_lo_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * (-LAVES_XNB              + fr1by2 * alpha)))
+psi_lav_hi_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * ( LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)))
+psi_lav_lo_Ni = fr1by2 * (1.0 + tanh(twopi / alpha * (-LAVES_XNI              + fr1by2 * alpha)))
+psi_lav_hi_Ni = fr1by2 * (1.0 + tanh(twopi / alpha * ( LAVES_XNI - xni_lav_hi + fr1by2 * alpha)))
 
 
 # Generate safe Taylor series expressions
-t_gamma = fr1by2 * (-1. - tanh(xi_gam_lo_Cr)
-                        - tanh(xi_gam_lo_Nb)
-                        - tanh(xi_gam_lo_Ni)
-                        + fr1by2 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Ni))
-                        + fr1by2 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Cr))
-                        + fr1by2 * (1.0 + tanh(xi_gam_lo_Ni)) * (1.0 + tanh(xi_gam_lo_Cr))
-                   ) * t_gamma + \
-          fr1by2 * (1.0 + tanh(xi_gam_lo_Cr)
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Ni)) * (1.0 + tanh(xi_gam_lo_Cr))
-          ) * f_gamma_Cr_lo + \
-          fr1by2 * (1.0 + tanh(xi_gam_lo_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Ni))
-          ) * f_gamma_Nb_lo + \
-          fr1by2 * (1.0 + tanh(xi_gam_lo_Ni)
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Ni)) * (1.0 + tanh(xi_gam_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_gam_lo_Nb)) * (1.0 + tanh(xi_gam_lo_Ni))
-          ) * f_gamma_Ni_lo
+c_gamma = (1.0 - psi_gam_lo_Cr - psi_gam_lo_Nb - psi_gam_lo_Ni
+               + psi_gam_lo_Cr * psi_gam_lo_Nb
+               + psi_gam_lo_Cr * psi_gam_lo_Ni
+               + psi_gam_lo_Nb * psi_gam_lo_Ni) * g_gamma + \
+          psi_gam_lo_Cr * (1.0 - fr1by3 * psi_gam_lo_Nb - fr1by3 * psi_gam_lo_Ni) * f_gamma_Cr_lo + \
+          psi_gam_lo_Nb * (1.0 - fr1by3 * psi_gam_lo_Cr - fr1by3 * psi_gam_lo_Ni) * f_gamma_Nb_lo + \
+          psi_gam_lo_Ni * (1.0 - fr1by3 * psi_gam_lo_Cr - fr1by3 * psi_gam_lo_Nb) * f_gamma_Ni_lo
 
-t_delta = fr1by2 * (-2. - tanh(xi_del_lo_Cr)
-                        - tanh(xi_del_lo_Nb)
-                        - tanh(xi_del_hi_Cr)
-                        - tanh(xi_del_hi_Nb)
-                        + fr1by2 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        + fr1by2 * (1.0 + tanh(xi_del_hi_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        + fr1by2 * (1.0 + tanh(xi_del_hi_Cr)) * (1.0 + tanh(xi_del_hi_Nb))
-                        + fr1by2 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_hi_Cr))
-                   ) * t_delta + \
-          fr1by2 * (1.0 + tanh(xi_del_lo_Cr)
-                        - fr1by4 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_del_hi_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-          ) * f_delta_Cr_lo + \
-          fr1by2 * (1.0 + tanh(xi_del_lo_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_hi_Cr))
-          ) * f_delta_Nb_lo + \
-          fr1by2 * (1.0 + tanh(xi_del_hi_Cr)
-                        - fr1by4 * (1.0 + tanh(xi_del_lo_Nb)) * (1.0 + tanh(xi_del_hi_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_del_hi_Cr)) * (1.0 + tanh(xi_del_hi_Nb))
-          ) * f_delta_Cr_hi + \
-          fr1by2 * (1.0 + tanh(xi_del_hi_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_del_hi_Nb)) * (1.0 + tanh(xi_del_lo_Cr))
-                        - fr1by4 * (1.0 + tanh(xi_del_hi_Cr)) * (1.0 + tanh(xi_del_hi_Nb))
-          ) * f_delta_Nb_hi
+c_delta = (1.0 - psi_del_lo_Cr - psi_del_hi_Cr - psi_del_lo_Nb - psi_del_hi_Nb
+               + psi_del_lo_Cr * psi_del_lo_Nb
+               + psi_del_lo_Cr * psi_del_hi_Nb
+               + psi_del_hi_Cr * psi_del_lo_Nb
+               + psi_del_hi_Cr * psi_del_hi_Nb) * g_delta + \
+            psi_del_lo_Cr * (1.0 - fr1by3 * psi_del_lo_Nb - fr1by3 * psi_del_hi_Nb) * f_delta_Cr_lo + \
+            psi_del_hi_Cr * (1.0 - fr1by3 * psi_del_lo_Nb - fr1by3 * psi_del_hi_Nb) * f_delta_Cr_hi + \
+            psi_del_lo_Nb * (1.0 - fr1by3 * psi_del_lo_Cr - fr1by3 * psi_del_hi_Cr) * f_delta_Nb_lo + \
+            psi_del_hi_Nb * (1.0 - fr1by3 * psi_del_lo_Cr - fr1by3 * psi_del_hi_Cr) * f_delta_Nb_hi
 
-t_laves = fr1by2 * (-2. - tanh(xi_lav_lo_Nb)
-                        - tanh(xi_lav_lo_Ni)
-                        - tanh(xi_lav_hi_Nb)
-                        - tanh(xi_lav_hi_Ni)
-                        + fr1by2 * (1.0 + tanh(xi_lav_hi_Nb)) * (1.0 + tanh(xi_lav_hi_Ni))
-                        + fr1by2 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_hi_Nb))
-                        + fr1by2 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-                        + fr1by2 * (1.0 + tanh(xi_lav_hi_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-                   ) * t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}) + \
-          fr1by2 * (1.0 + tanh(xi_lav_lo_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-                        - fr1by4 * (1.0 + tanh(xi_lav_hi_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-          ) * f_laves_Nb_lo + \
-          fr1by2 * (1.0 + tanh(xi_lav_lo_Ni)
-                        - fr1by4 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_hi_Nb))
-                        - fr1by4 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-          ) * f_laves_Ni_lo + \
-          fr1by2 * (1.0 + tanh(xi_lav_hi_Nb)
-                        - fr1by4 * (1.0 + tanh(xi_lav_lo_Ni)) * (1.0 + tanh(xi_lav_hi_Nb))
-                        - fr1by4 * (1.0 + tanh(xi_lav_hi_Nb)) * (1.0 + tanh(xi_lav_hi_Ni))
-          ) * f_laves_Nb_hi + \
-          fr1by2 * (1.0 + tanh(xi_lav_hi_Ni)
-                        - fr1by4 * (1.0 + tanh(xi_lav_hi_Ni)) * (1.0 + tanh(xi_lav_lo_Nb))
-                        - fr1by4 * (1.0 + tanh(xi_lav_hi_Nb)) * (1.0 + tanh(xi_lav_hi_Ni))
-          ) * f_laves_Ni_hi
+c_laves = (1.0 - psi_lav_lo_Nb - psi_lav_hi_Nb - psi_lav_lo_Ni - psi_lav_hi_Ni
+               + psi_lav_lo_Nb * psi_lav_lo_Ni
+               + psi_lav_lo_Nb * psi_lav_hi_Ni
+               + psi_lav_hi_Nb * psi_lav_lo_Ni
+               + psi_lav_hi_Nb * psi_lav_hi_Ni) * g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}) + \
+           psi_lav_lo_Nb * (1.0 - fr1by3 * psi_lav_lo_Ni - fr1by3 * psi_lav_hi_Ni) * f_laves_Nb_lo + \
+           psi_lav_hi_Nb * (1.0 - fr1by3 * psi_lav_lo_Ni - fr1by3 * psi_lav_hi_Ni) * f_laves_Nb_hi + \
+           psi_lav_lo_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_lo + \
+           psi_lav_hi_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_hi
+
+
+# Generate safe Taylor series expressions
+t_gamma = (1.0 - psi_gam_lo_Cr - psi_gam_lo_Nb - psi_gam_lo_Ni
+               + psi_gam_lo_Cr * psi_gam_lo_Nb
+               + psi_gam_lo_Cr * psi_gam_lo_Ni
+               + psi_gam_lo_Nb * psi_gam_lo_Ni) * t_gamma + \
+          psi_gam_lo_Cr * (1.0 - fr1by3 * psi_gam_lo_Nb - fr1by3 * psi_gam_lo_Ni) * f_gamma_Cr_lo + \
+          psi_gam_lo_Nb * (1.0 - fr1by3 * psi_gam_lo_Cr - fr1by3 * psi_gam_lo_Ni) * f_gamma_Nb_lo + \
+          psi_gam_lo_Ni * (1.0 - fr1by3 * psi_gam_lo_Cr - fr1by3 * psi_gam_lo_Nb) * f_gamma_Ni_lo
+
+t_delta = (1.0 - psi_del_lo_Cr - psi_del_hi_Cr - psi_del_lo_Nb - psi_del_hi_Nb
+               + psi_del_lo_Cr * psi_del_lo_Nb
+               + psi_del_lo_Cr * psi_del_hi_Nb
+               + psi_del_hi_Cr * psi_del_lo_Nb
+               + psi_del_hi_Cr * psi_del_hi_Nb) * t_delta + \
+            psi_del_lo_Cr * (1.0 - fr1by3 * psi_del_lo_Nb - fr1by3 * psi_del_hi_Nb) * f_delta_Cr_lo + \
+            psi_del_hi_Cr * (1.0 - fr1by3 * psi_del_lo_Nb - fr1by3 * psi_del_hi_Nb) * f_delta_Cr_hi + \
+            psi_del_lo_Nb * (1.0 - fr1by3 * psi_del_lo_Cr - fr1by3 * psi_del_hi_Cr) * f_delta_Nb_lo + \
+            psi_del_hi_Nb * (1.0 - fr1by3 * psi_del_lo_Cr - fr1by3 * psi_del_hi_Cr) * f_delta_Nb_hi
+
+t_laves = (1.0 - psi_lav_lo_Nb - psi_lav_hi_Nb - psi_lav_lo_Ni - psi_lav_hi_Ni
+               + psi_lav_lo_Nb * psi_lav_lo_Ni
+               + psi_lav_lo_Nb * psi_lav_hi_Ni
+               + psi_lav_hi_Nb * psi_lav_lo_Ni
+               + psi_lav_hi_Nb * psi_lav_hi_Ni) * t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}) + \
+           psi_lav_lo_Nb * (1.0 - fr1by3 * psi_lav_lo_Ni - fr1by3 * psi_lav_hi_Ni) * f_laves_Nb_lo + \
+           psi_lav_hi_Nb * (1.0 - fr1by3 * psi_lav_lo_Ni - fr1by3 * psi_lav_hi_Ni) * f_laves_Nb_hi + \
+           psi_lav_lo_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_lo + \
+           psi_lav_hi_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_hi
 
 
 # Generate first derivatives of CALPHAD landscape
@@ -586,12 +502,20 @@ codegen([# Gibbs energies
 print "Finished writing Taylor series and CALPHAD energy functions to disk."
 
 # Generate numerically efficient system-composition expressions
+
+# Lambdify safe Taylor expressions
 TG = lambdify([GAMMA_XCR, GAMMA_XNB], t_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
 TD = lambdify([DELTA_XCR, DELTA_XNB], t_delta, modules='sympy')
 TL = lambdify([LAVES_XCR, LAVES_XNB], t_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
 
+# Lambdify safe CALPHAD expressions
 GG = lambdify([GAMMA_XCR, GAMMA_XNB], c_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
 GD = lambdify([DELTA_XCR, DELTA_XNB], c_delta, modules='sympy')
 GL = lambdify([LAVES_XCR, LAVES_XNB], c_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
+
+# Lambdify unsafe CALPHAD expressions
+CG = lambdify([GAMMA_XCR, GAMMA_XNB], g_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
+CD = lambdify([DELTA_XCR, DELTA_XNB], g_delta, modules='sympy')
+CL = lambdify([LAVES_XCR, LAVES_XNB], g_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
 
 print "Finished lambdifying Taylor series and CALPHAD energy functions."

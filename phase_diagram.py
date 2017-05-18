@@ -106,24 +106,29 @@ for j in range(len(phases)):
 	plt.figure(j)
 	plt.title("${0}$ linescan at {1}K".format(labels[j], temp))
 	plt.xlabel(r'$x_\mathrm{Nb}$')
-	plt.ylabel(r'Taylor $\mathcal{F}$')
+	plt.ylabel(r'$\mathcal{F}$')
 
 n = 0
 for xcr in (0.1, 0.2, 0.3):
     x = []
 	
+    t = [[], [], []]
     c = [[], [], []]
 	
     for xnb in np.arange(-0.01, 1.01, stepsz):
         xni = 1-xcr-xnb
         x.append(xnb)
-        c[0].append(TG(xcr, xnb))
-        c[1].append(TD(xcr, xnb))
-        c[2].append(TL(xcr, xnb))
+        t[0].append(GG(xcr, xnb))
+        t[1].append(GD(xcr, xnb))
+        t[2].append(GL(xcr, xnb))
+        c[0].append(CG(xcr, xnb))
+        c[1].append(CD(xcr, xnb))
+        c[2].append(CL(xcr, xnb))
 	
     for j in range(len(phases)):
     	plt.figure(j)
-    	plt.plot(x, c[j], color=colors[n], label=r'$x_{\mathrm{Cr}}=%.2f$'%xcr)
+    	plt.plot(x, t[j], color=colors[n], label=r'Safe $x_{\mathrm{Cr}}=%.2f$'%xcr)
+    	plt.plot(x, c[j], color=colors[n], ls=':', label=r'Raw $x_{\mathrm{Cr}}=%.2f$'%xcr)
     
     n += 1
 
@@ -143,23 +148,28 @@ for j in range(len(phases)):
 	plt.figure(j)
 	plt.title("${0}$ linescan at {1}K".format(labels[j], temp))
 	plt.xlabel(r'$x_\mathrm{Cr}$')
-	plt.ylabel(r'Taylor $\mathcal{F}$')
+	plt.ylabel(r'$\mathcal{F}$')
 
 n = 0
 for xnb in (0.01, 0.05, 0.10):
     x = []
 	
+    t = [[], [], []]
     c = [[], [], []]
 	
     for xcr in np.arange(-0.01, 1.01, stepsz):
         x.append(xcr)
-        c[0].append(TG(xcr, xnb))
-        c[1].append(TD(xcr, xnb))
-        c[2].append(TL(xcr, xnb))
+        t[0].append(GG(xcr, xnb))
+        t[1].append(GD(xcr, xnb))
+        t[2].append(GL(xcr, xnb))
+        c[0].append(CG(xcr, xnb))
+        c[1].append(CD(xcr, xnb))
+        c[2].append(CL(xcr, xnb))
 	
     for j in range(len(phases)):
     	plt.figure(j)
-    	plt.plot(x, c[j], color=colors[n], label=r'$x_{\mathrm{Nb}}=%.2f$'%xnb)
+    	plt.plot(x, t[j], color=colors[n], label=r'Safe $x_{\mathrm{Nb}}=%.2f$'%xnb)
+    	plt.plot(x, c[j], color=colors[n], ls=':', label=r'Raw $x_{\mathrm{Nb}}=%.2f$'%xnb)
     
     n += 1
 

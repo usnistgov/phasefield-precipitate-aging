@@ -15,7 +15,7 @@ mpilinks = -lmpiP -lbfd -liberty
 
 
 # precompiler directives
-directives = 
+directives =
 #directives = -DADAPTIVE_TIMESTEPS
 #directives = -DCALPHAD
 
@@ -63,6 +63,11 @@ ibtest: alloy625.cpp
 # PGI compiler
 pgparallel: alloy625.cpp
 	$(pcompiler) -fast -Mipa=fast -Mfprelaxed -std=c++11 -I $(MMSP_PATH)/include -include mpi.h $< -o $@ $(stdlinks) -mp
+
+
+# DESCRIPTION
+description: phasefield-precipitate-aging_description.tex
+	pdflatex -interaction=nonstopmode $<
 
 
 # UTILITIES
