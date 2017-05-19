@@ -37,7 +37,6 @@
 # This database models the phases of interest as follows:
 # - γ as $\mathrm{(Cr, Nb, Ni)}$
 # - δ as $\mathrm{(\mathbf{Nb}, Ni)_1(Cr, Nb, \mathbf{Ni})_3}$
-# - μ as $\mathrm{Nb_6(Cr, Nb, Ni)_7}$
 # - Laves as $\mathrm{(\mathbf{Cr}, Nb, Ni)_2(Cr, \mathbf{Nb})_1}$
 # 
 # The phase field model requires Gibbs free energies as functions of system
@@ -59,15 +58,6 @@
 #      * $y_\mathrm{Ni}'' = 1-\frac{4}{3}x_\mathrm{Cr}$
 #      * Constraints: $x_\mathrm{Nb}\leq\frac{1}{4}$
 #                     $x_\mathrm{Cr}\leq\frac{3}{4}$
-#
-# - μ: no changes necessary
-#      * $y_\mathrm{Nb}'  = 1$
-#      * $y_\mathrm{Cr}'' = x_\mathrm{Cr}$
-#      * $y_\mathrm{Nb}'' = \frac{13}{7}x_\mathrm{Nb}-\frac{6}{7}$
-#      * $y_\mathrm{Ni}'' = x_\mathrm{Ni}$
-#      * Constraints: $x_\mathrm{Cr}\leq\frac{7}{13}$ 
-#                     $x_\mathrm{Nb}\geq\frac{6}{13}$
-#                     $x_\mathrm{Ni}\leq\frac{7}{13}$
 #
 # - Laves: eliminate Nb from the first (Cr) sublattice, $\mathrm{(\mathbf{Cr}, Ni)_2(Cr, \mathbf{Nb})_1}$
 #      * $y_\mathrm{Cr}'  = 1-\frac{3}{2}x_\mathrm{Ni}$
@@ -103,11 +93,11 @@ from matplotlib.colors import LogNorm
 # Constants
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
 temp = 870.0 + 273.15 # 1143 Kelvin
-alpha = 0.01 # exclusion zone at phase boundaries in which the spline applies
+alpha = 0.005  # exclusion zone at phase boundaries in which the spline applies
 
 RT = 8.3144598*temp # J/mol/K
-Vm = 1.0e-5 # m^3/mol
-inVm = 1.0 / Vm # mol/m^3
+Vm = 1.0e-5         # m^3/mol
+inVm = 1.0 / Vm     # mol/m^3
 
 # Let's avoid integer arithmetic in fractions.
 fr13by7 = 13.0/7
@@ -180,10 +170,6 @@ species = list(set([i for c in tdb.phases['C14_LAVES'].constituents for i in c])
 model = Model(tdb, species, 'C14_LAVES')
 g_laves = parse_expr(str(model.ast))
 
-species = list(set([i for c in tdb.phases['C15_LAVES'].constituents for i in c]))
-model = Model(tdb, species, 'C15_LAVES')
-g_lavesLT = parse_expr(str(model.ast))
-
 
 # Convert sublattice to phase composition (y to x)
 # Declare sublattice variables used in Pycalphad expressions
@@ -193,7 +179,6 @@ FCC_A10CR, FCC_A10NB, FCC_A10NI, FCC_A11VA = symbols('FCC_A10CR FCC_A10NB FCC_A1
 D0A_NBNI30NI, D0A_NBNI30NB, D0A_NBNI31CR, D0A_NBNI31NI = symbols('D0A_NBNI30NI D0A_NBNI30NB D0A_NBNI31CR D0A_NBNI31NI')
 # Laves
 C14_LAVES0CR, C14_LAVES0NI, C14_LAVES1CR, C14_LAVES1NB = symbols('C14_LAVES0CR C14_LAVES0NI C14_LAVES1CR C14_LAVES1NB') 
-C15_LAVES0CR, C15_LAVES0NI, C15_LAVES1CR, C15_LAVES1NB = symbols('C15_LAVES0CR C15_LAVES0NI C15_LAVES1CR C15_LAVES1NB') 
 # Temperature
 T = symbols('T')
 
@@ -202,7 +187,7 @@ GAMMA_XCR, GAMMA_XNB, GAMMA_XNI = symbols('GAMMA_XCR GAMMA_XNB GAMMA_XNI')
 DELTA_XCR, DELTA_XNB, DELTA_XNI = symbols('DELTA_XCR DELTA_XNB DELTA_XNI')
 LAVES_XCR, LAVES_XNB, LAVES_XNI = symbols('LAVES_XCR LAVES_XNB LAVES_XNI')
 
-# Specify equilibrium points for phase field
+# Specify Taylor series expansion points
 xe_gam_Cr = 0.15
 xe_gam_Nb = 0.0525
 xe_gam_Ni = 1.0 - xe_gam_Cr - xe_gam_Nb
@@ -365,6 +350,33 @@ c_laves = (1.0 - psi_lav_lo_Nb - psi_lav_hi_Nb - psi_lav_lo_Ni - psi_lav_hi_Ni
            psi_lav_lo_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_lo + \
            psi_lav_hi_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_hi
 
+# Generate first derivatives of CALPHAD landscape
+dGgam_dxCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
+dGgam_dxNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
+dGgam_dxNi = diff(c_gamma, GAMMA_XNI)
+
+dGdel_dxCr = diff(c_delta, DELTA_XCR)
+dGdel_dxNb = diff(c_delta, DELTA_XNB)
+
+dGlav_dxCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
+dGlav_dxNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
+
+# Generate second derivatives of CALPHAD landscape
+d2Ggam_dxCrCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XCR)
+d2Ggam_dxCrNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XNB)
+d2Ggam_dxNbCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XCR)
+d2Ggam_dxNbNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XNB)
+
+d2Gdel_dxCrCr = diff(c_delta, DELTA_XCR, DELTA_XCR)
+d2Gdel_dxCrNb = diff(c_delta, DELTA_XCR, DELTA_XNB)
+d2Gdel_dxNbCr = diff(c_delta, DELTA_XNB, DELTA_XCR)
+d2Gdel_dxNbNb = diff(c_delta, DELTA_XNB, DELTA_XNB)
+
+d2Glav_dxCrCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XCR)
+d2Glav_dxCrNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XNB)
+d2Glav_dxNbCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XCR)
+d2Glav_dxNbNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XNB)
+
 
 # Generate safe Taylor series expressions
 t_gamma = (1.0 - psi_gam_lo_Cr - psi_gam_lo_Nb - psi_gam_lo_Ni
@@ -395,18 +407,6 @@ t_laves = (1.0 - psi_lav_lo_Nb - psi_lav_hi_Nb - psi_lav_lo_Ni - psi_lav_hi_Ni
            psi_lav_lo_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_lo + \
            psi_lav_hi_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_hi
 
-
-# Generate first derivatives of CALPHAD landscape
-dGgam_dxCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
-dGgam_dxNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
-dGgam_dxNi = diff(c_gamma, GAMMA_XNI)
-
-dGdel_dxCr = diff(c_delta, DELTA_XCR)
-dGdel_dxNb = diff(c_delta, DELTA_XNB)
-
-dGlav_dxCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
-dGlav_dxNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
-
 # Generate first derivatives of Taylor series landscape
 t_dGgam_dxCr = diff(t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
 t_dGgam_dxNb = diff(t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
@@ -417,23 +417,6 @@ t_dGdel_dxNb = diff(t_delta, DELTA_XNB)
 
 t_dGlav_dxCr = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
 t_dGlav_dxNb = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
-
-
-# Generate second derivatives of CALPHAD landscape
-d2Ggam_dxCrCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XCR)
-d2Ggam_dxCrNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XNB)
-d2Ggam_dxNbCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XCR)
-d2Ggam_dxNbNb = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XNB)
-
-d2Gdel_dxCrCr = diff(c_delta, DELTA_XCR, DELTA_XCR)
-d2Gdel_dxCrNb = diff(c_delta, DELTA_XCR, DELTA_XNB)
-d2Gdel_dxNbCr = diff(c_delta, DELTA_XNB, DELTA_XCR)
-d2Gdel_dxNbNb = diff(c_delta, DELTA_XNB, DELTA_XNB)
-
-d2Glav_dxCrCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XCR)
-d2Glav_dxCrNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XNB)
-d2Glav_dxNbCr = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XCR)
-d2Glav_dxNbNb = diff(c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XNB)
 
 # Generate second derivatives of Taylor series landscape
 t_d2Ggam_dxCrCr = diff(t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XCR)
@@ -452,28 +435,78 @@ t_d2Glav_dxNbCr = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES
 t_d2Glav_dxNbNb = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XNB)
 
 
+# Generate parabolic expressions (the crudest of approximations)
+C_Cr = d2Ggam_dxCrCr.subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
+C_Nb = d2Ggam_dxNbNb.subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
+
+p_gamma = C_Cr * (GAMMA_XCR - xe_gam_Cr)**2 + C_Nb * (GAMMA_XNB - xe_gam_Nb)**2
+p_delta = C_Cr * (DELTA_XCR - xe_del_Cr)**2 + C_Nb * (DELTA_XNB - xe_del_Nb)**2
+p_laves = C_Cr * (LAVES_XCR - xe_lav_Cr)**2 + C_Nb * (LAVES_XNB - xe_lav_Nb)**2
+
+# Generate first derivatives of Taylor series landscape
+p_dGgam_dxCr = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
+p_dGgam_dxNb = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
+p_dGgam_dxNi = diff(p_gamma, GAMMA_XNI)
+
+p_dGdel_dxCr = diff(p_delta, DELTA_XCR)
+p_dGdel_dxNb = diff(p_delta, DELTA_XNB)
+
+p_dGlav_dxCr = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
+p_dGlav_dxNb = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
+
+# Generate second derivatives of Taylor series landscape
+p_d2Ggam_dxCrCr = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XCR)
+p_d2Ggam_dxCrNb = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XNB)
+p_d2Ggam_dxNbCr = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XCR)
+p_d2Ggam_dxNbNb = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XNB)
+
+p_d2Gdel_dxCrCr = diff(p_delta, DELTA_XCR, DELTA_XCR)
+p_d2Gdel_dxCrNb = diff(p_delta, DELTA_XCR, DELTA_XNB)
+p_d2Gdel_dxNbCr = diff(p_delta, DELTA_XNB, DELTA_XCR)
+p_d2Gdel_dxNbNb = diff(p_delta, DELTA_XNB, DELTA_XNB)
+
+p_d2Glav_dxCrCr = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XCR)
+p_d2Glav_dxCrNb = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XNB)
+p_d2Glav_dxNbCr = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XCR)
+p_d2Glav_dxNbNb = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XNB)
+
+
+print "Finished generating CALPHAD, Taylor series, and parabolic energy functions."
+
+
 # Write CALPHAD functions as C code
 codegen([# Gibbs energies
          ('g_gam', c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
          ('g_del', c_delta),
          ('g_lav', c_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB})),
          # Constants
-         ('xe_gam_Cr', xe_gam_Cr), ('xe_gam_Nb', xe_gam_Nb),
-         ('xe_del_Cr', xe_del_Cr), ('xe_del_Nb', xe_del_Nb),
-         ('xe_lav_Nb', xe_lav_Nb), ('xe_lav_Ni', xe_lav_Ni),
+         ('xe_gam_Cr', xe_gam_Cr),
+         ('xe_gam_Nb', xe_gam_Nb),
+         ('xe_del_Cr', xe_del_Cr),
+         ('xe_del_Nb', xe_del_Nb),
+         ('xe_lav_Nb', xe_lav_Nb),
+         ('xe_lav_Ni', xe_lav_Ni),
          # First derivatives
          ('dg_gam_dxCr', dGgam_dxCr.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
          ('dg_gam_dxNb', dGgam_dxNb.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
          ('dg_gam_dxNi', dGgam_dxNi.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
-         ('dg_del_dxCr', dGdel_dxCr), ('dg_del_dxNb', dGdel_dxNb),
-         ('dg_lav_dxCr', dGlav_dxCr), ('dg_lav_dxNb', dGlav_dxNb),
+         ('dg_del_dxCr', dGdel_dxCr),
+         ('dg_del_dxNb', dGdel_dxNb),
+         ('dg_lav_dxCr', dGlav_dxCr),
+         ('dg_lav_dxNb', dGlav_dxNb),
          # Second derivatives
-         ('d2g_gam_dxCrCr', d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', d2Ggam_dxCrNb),
-         ('d2g_gam_dxNbCr', d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', d2Ggam_dxNbNb),
-         ('d2g_del_dxCrCr', d2Gdel_dxCrCr), ('d2g_del_dxCrNb', d2Gdel_dxCrNb),
-         ('d2g_del_dxNbCr', d2Gdel_dxNbCr), ('d2g_del_dxNbNb', d2Gdel_dxNbNb),
-         ('d2g_lav_dxCrCr', d2Glav_dxCrCr), ('d2g_lav_dxCrNb', d2Glav_dxCrNb),
-         ('d2g_lav_dxNbCr', d2Glav_dxNbCr), ('d2g_lav_dxNbNb', d2Glav_dxNbNb)],
+         ('d2g_gam_dxCrCr', d2Ggam_dxCrCr),
+         ('d2g_gam_dxCrNb', d2Ggam_dxCrNb),
+         ('d2g_gam_dxNbCr', d2Ggam_dxNbCr),
+         ('d2g_gam_dxNbNb', d2Ggam_dxNbNb),
+         ('d2g_del_dxCrCr', d2Gdel_dxCrCr),
+         ('d2g_del_dxCrNb', d2Gdel_dxCrNb),
+         ('d2g_del_dxNbCr', d2Gdel_dxNbCr),
+         ('d2g_del_dxNbNb', d2Gdel_dxNbNb),
+         ('d2g_lav_dxCrCr', d2Glav_dxCrCr),
+         ('d2g_lav_dxCrNb', d2Glav_dxCrNb),
+         ('d2g_lav_dxNbCr', d2Glav_dxNbCr),
+         ('d2g_lav_dxNbNb', d2Glav_dxNbNb)],
         language='C', prefix='energy625', project='ALLOY625', to_files=True)
 
 # Write Taylor series functions as C code
@@ -482,40 +515,92 @@ codegen([# Gibbs energies
          ('g_del', t_delta),
          ('g_lav', t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB})),
          # Constants
-         ('xe_gam_Cr', xe_gam_Cr), ('xe_gam_Nb', xe_gam_Nb),
-         ('xe_del_Cr', xe_del_Cr), ('xe_del_Nb', xe_del_Nb),
-         ('xe_lav_Nb', xe_lav_Nb), ('xe_lav_Ni', xe_lav_Ni),
+         ('xe_gam_Cr', xe_gam_Cr),
+         ('xe_gam_Nb', xe_gam_Nb),
+         ('xe_del_Cr', xe_del_Cr),
+         ('xe_del_Nb', xe_del_Nb),
+         ('xe_lav_Nb', xe_lav_Nb),
+         ('xe_lav_Ni', xe_lav_Ni),
          # First derivatives
-         ('dg_gam_dxCr', t_dGgam_dxCr), ('dg_gam_dxNb', t_dGgam_dxNb),
+         ('dg_gam_dxCr', t_dGgam_dxCr),
+         ('dg_gam_dxNb', t_dGgam_dxNb),
          ('dg_gam_dxNi', t_dGgam_dxNi.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB})),
-         ('dg_del_dxCr',    t_dGdel_dxCr), ('dg_del_dxNb', t_dGdel_dxNb),
-         ('dg_lav_dxCr',    t_dGlav_dxCr), ('dg_lav_dxNb', t_dGlav_dxNb),
+         ('dg_del_dxCr', t_dGdel_dxCr),
+         ('dg_del_dxNb', t_dGdel_dxNb),
+         ('dg_lav_dxCr', t_dGlav_dxCr),
+         ('dg_lav_dxNb', t_dGlav_dxNb),
          # Second derivatives
-         ('d2g_gam_dxCrCr', t_d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', t_d2Ggam_dxCrNb),
-         ('d2g_gam_dxNbCr', t_d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', t_d2Ggam_dxNbNb),
-         ('d2g_del_dxCrCr', t_d2Gdel_dxCrCr), ('d2g_del_dxCrNb', t_d2Gdel_dxCrNb),
-         ('d2g_del_dxNbCr', t_d2Gdel_dxNbCr), ('d2g_del_dxNbNb', t_d2Gdel_dxNbNb),
-         ('d2g_lav_dxCrCr', t_d2Glav_dxCrCr), ('d2g_lav_dxCrNb', t_d2Glav_dxCrNb),
-         ('d2g_lav_dxNbCr', t_d2Glav_dxNbCr), ('d2g_lav_dxNbNb', t_d2Glav_dxNbNb)],
+         ('d2g_gam_dxCrCr', t_d2Ggam_dxCrCr),
+         ('d2g_gam_dxCrNb', t_d2Ggam_dxCrNb),
+         ('d2g_gam_dxNbCr', t_d2Ggam_dxNbCr),
+         ('d2g_gam_dxNbNb', t_d2Ggam_dxNbNb),
+         ('d2g_del_dxCrCr', t_d2Gdel_dxCrCr),
+         ('d2g_del_dxCrNb', t_d2Gdel_dxCrNb),
+         ('d2g_del_dxNbCr', t_d2Gdel_dxNbCr),
+         ('d2g_del_dxNbNb', t_d2Gdel_dxNbNb),
+         ('d2g_lav_dxCrCr', t_d2Glav_dxCrCr),
+         ('d2g_lav_dxCrNb', t_d2Glav_dxCrNb),
+         ('d2g_lav_dxNbCr', t_d2Glav_dxNbCr),
+         ('d2g_lav_dxNbNb', t_d2Glav_dxNbNb)],
         language='C', prefix='taylor625', project='ALLOY625', to_files=True)
 
-print "Finished writing Taylor series and CALPHAD energy functions to disk."
+# Write parabolic functions as C code
+codegen([# Gibbs energies
+         ('g_gam', p_gamma),
+         ('g_del', p_delta),
+         ('g_lav', p_laves),
+         # Constants
+         ('xe_gam_Cr', xe_gam_Cr),
+         ('xe_gam_Nb', xe_gam_Nb),
+         ('xe_del_Cr', xe_del_Cr),
+         ('xe_del_Nb', xe_del_Nb),
+         ('xe_lav_Nb', xe_lav_Nb),
+         ('xe_lav_Ni', xe_lav_Ni),
+         # First derivatives
+         ('dg_gam_dxCr', p_dGgam_dxCr),
+         ('dg_gam_dxNb', p_dGgam_dxNb),
+         ('dg_del_dxCr', p_dGdel_dxCr),
+         ('dg_del_dxNb', p_dGdel_dxNb),
+         ('dg_lav_dxCr', p_dGlav_dxCr),
+         ('dg_lav_dxNb', p_dGlav_dxNb),
+         # Second derivatives
+         ('d2g_gam_dxCrCr', p_d2Ggam_dxCrCr),
+         ('d2g_gam_dxCrNb', p_d2Ggam_dxCrNb),
+         ('d2g_gam_dxNbCr', p_d2Ggam_dxNbCr),
+         ('d2g_gam_dxNbNb', p_d2Ggam_dxNbNb),
+         ('d2g_del_dxCrCr', p_d2Gdel_dxCrCr),
+         ('d2g_del_dxCrNb', p_d2Gdel_dxCrNb),
+         ('d2g_del_dxNbCr', p_d2Gdel_dxNbCr),
+         ('d2g_del_dxNbNb', p_d2Gdel_dxNbNb),
+         ('d2g_lav_dxCrCr', p_d2Glav_dxCrCr),
+         ('d2g_lav_dxCrNb', p_d2Glav_dxCrNb),
+         ('d2g_lav_dxNbCr', p_d2Glav_dxNbCr),
+         ('d2g_lav_dxNbNb', p_d2Glav_dxNbNb)],
+        language='C', prefix='parabola625', project='ALLOY625', to_files=True)
+
+print "Finished writing CALPHAD, Taylor series, and parabolic energy functions to disk."
+
 
 # Generate numerically efficient system-composition expressions
-
-# Lambdify safe Taylor expressions
-TG = lambdify([GAMMA_XCR, GAMMA_XNB], t_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
-TD = lambdify([DELTA_XCR, DELTA_XNB], t_delta, modules='sympy')
-TL = lambdify([LAVES_XCR, LAVES_XNB], t_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
-
-# Lambdify safe CALPHAD expressions
-GG = lambdify([GAMMA_XCR, GAMMA_XNB], c_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
-GD = lambdify([DELTA_XCR, DELTA_XNB], c_delta, modules='sympy')
-GL = lambdify([LAVES_XCR, LAVES_XNB], c_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
 
 # Lambdify unsafe CALPHAD expressions
 CG = lambdify([GAMMA_XCR, GAMMA_XNB], g_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
 CD = lambdify([DELTA_XCR, DELTA_XNB], g_delta, modules='sympy')
 CL = lambdify([LAVES_XCR, LAVES_XNB], g_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
 
-print "Finished lambdifying Taylor series and CALPHAD energy functions."
+# Lambdify safe CALPHAD expressions
+GG = lambdify([GAMMA_XCR, GAMMA_XNB], c_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
+GD = lambdify([DELTA_XCR, DELTA_XNB], c_delta, modules='sympy')
+GL = lambdify([LAVES_XCR, LAVES_XNB], c_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
+
+# Lambdify safe Taylor expressions
+TG = lambdify([GAMMA_XCR, GAMMA_XNB], t_gamma.subs({GAMMA_XNI: 1-GAMMA_XCR-GAMMA_XNB}), modules='sympy')
+TD = lambdify([DELTA_XCR, DELTA_XNB], t_delta, modules='sympy')
+TL = lambdify([LAVES_XCR, LAVES_XNB], t_laves.subs({LAVES_XNI: 1-LAVES_XCR-LAVES_XNB}), modules='sympy')
+
+# Lambdify parabolic expressions
+PG = lambdify([GAMMA_XCR, GAMMA_XNB], p_gamma, modules='sympy')
+PD = lambdify([DELTA_XCR, DELTA_XNB], p_delta, modules='sympy')
+PL = lambdify([LAVES_XCR, LAVES_XNB], p_laves, modules='sympy')
+
+print "Finished lambdifying CALPHAD, Taylor series, and parabolic energy functions."

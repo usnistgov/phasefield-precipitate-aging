@@ -15,7 +15,8 @@ mpilinks = -lmpiP -lbfd -liberty
 
 
 # precompiler directives
-directives =
+# Options: -DCALPHAD	-DPARABOLA	-DADAPTIVE_TIMESTEPS	-DNDEBUG
+directives = -DPARABOLA
 #directives = -DADAPTIVE_TIMESTEPS
 #directives = -DCALPHAD
 

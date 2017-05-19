@@ -39,9 +39,11 @@
 
 // Taylor series is your best bet.
 #if defined CALPHAD
-#include"energy625.c"
+	#include"energy625.c"
+#elif defined PARABOLA
+	#include"parabola625.c"
 #else
-#include"taylor625.c"
+	#include"taylor625.c"
 #endif
 
 
@@ -135,16 +137,15 @@ const bool tanh_init = false;    // apply tanh profile to initial profile of com
 const field_t x_min = 1.0e-8;    // what to consider zero to avoid log(c) explosions
 const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explosions
 
-//const field_t devn_tol = 1.0e-6;  // deviation of field parameters above which parallel tangent needs evaluation
-const field_t root_tol  = 1.0e-4;  // residual tolerance (default is 1e-7)
-const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
+const field_t root_tol  = 1.0e-3;// residual tolerance (default is 1e-7)
+const int root_max_iter = 5e5;   // default is 1000, increasing probably won't change anything but your runtime
 
 /*
 #ifndef CALPHAD
 const field_t LinStab = 1.0 / 1456.875; // threshold of linear stability (von Neumann stability condition)
 #else
 */
-const field_t LinStab = 1.0 / 1456.875; // 5827.508;  // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 11.65501; // threshold of linear stability (von Neumann stability condition)
 /* #endif */
 
 namespace MMSP
@@ -200,12 +201,16 @@ void generate(int dim, const char* filename)
 		const field_t Cprcp[NC] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
 		const int mid = 0;    // matrix phase
 		const int pid = NC+0; // delta phase
+		*/
 
+		/*
 		const field_t Csstm[NC] = {0.3625, 0.1625}; // gamma-Laves system Cr, Nb composition
 		const field_t Cprcp[NC] = {0.3625, 0.2750}; // Laves precipitate  Cr, Nb composition
 		const int mid = 0;    // matrix phase
 		const int pid = NC+1; // Laves phase
+		*/
 
+		/*
 		const field_t Csstm[NC] = {0.2500, 0.2500}; // delta-Laves system Cr, Nb composition
 		const field_t Cprcp[NC] = {0.0125, 0.2500}; // delta precipitate  Cr, Nb composition
 		const int mid = NC+1; // Laves phase
@@ -253,9 +258,9 @@ void generate(int dim, const char* filename)
 		*/
 
 
-		/* ============================= *
-		 * Four-phase test configuration *
-		 * ============================= */
+		/* ============================== *
+		 * Three-phase test configuration *
+		 * ============================== */
 
 		const int Nprcp[NP] = {Nx / 8, Nx / 8}; // grid points per seed
 		const int Noff = Nx / 8 + 2 * ifce_width / meshres; // grid points between seeds
@@ -303,6 +308,11 @@ void generate(int dim, const char* filename)
 			}
 		}
 
+
+		/* =========================== *
+		 * Solve for parallel tangents *
+		 * =========================== */
+
 		rootsolver parallelTangentSolver;
 		unsigned int totBadTangents = 0;
 
@@ -316,10 +326,6 @@ void generate(int dim, const char* filename)
 			guessGamma(initGridN);
 			guessDelta(initGridN);
 			guessLaves(initGridN);
-
-			/* =========================== *
-			 * Solve for parallel tangents *
-			 * =========================== */
 
 			double res = parallelTangentSolver.solve(initGridN);
 
@@ -578,6 +584,11 @@ void generate(int dim, const char* filename)
 		matCr /= Nmat;
 		matNb /= Nmat;
 
+
+		/* =========================== *
+		 * Solve for parallel tangents *
+		 * =========================== */
+
 		rootsolver parallelTangentSolver;
 		unsigned int totBadTangents = 0;
 
@@ -600,11 +611,6 @@ void generate(int dim, const char* filename)
 			guessGamma(initGridN);
 			guessDelta(initGridN);
 			guessLaves(initGridN);
-
-
-			/* =========================== *
-			 * Solve for parallel tangents *
-			 * =========================== */
 
 			double res = parallelTangentSolver.solve(initGridN);
 
@@ -801,9 +807,14 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			                            };
 
 			// Diffusion potential in matrix (will equal chemical potential at equilibrium)
-			const T chempot[NC] = {dg_gam_dxCr(oldGridN[NC+NP], oldGridN[NC+NP+1]),
-			                       dg_gam_dxNb(oldGridN[NC+NP], oldGridN[NC+NP+1])
-			                      };
+			#ifdef PARABOLA
+			const field_t dgGdxCr = dg_gam_dxCr(oldGridN[NC+NP]);
+			const field_t dgGdxNb = dg_gam_dxNb(oldGridN[NC+NP+1]);
+			#else
+			const field_t dgGdxCr = dg_gam_dxCr(oldGridN[NC+NP], oldGridN[NC+NP+1]);
+			const field_t dgGdxNb = dg_gam_dxNb(oldGridN[NC+NP], oldGridN[NC+NP+1]);
+			#endif
+			const T chempot[NC] = {dgGdxCr, dgGdxNb};
 
 			// sum of phase fractions-squared
 			T sumPhiSq = 0.0;
@@ -854,20 +865,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			for (int i = NC+NP; i < NC+NP+NC*(NP+1); i++)
 				newGridN[i] = oldGridN[i];
 
-			/*
-			double deviation = 0.0;
-
-			// examine local deviation of the "real" field variables
-			for (int i = 0; i < NC+NP; i++)
-				deviation += fabs(newGridN[i] - oldGridN[i]);
-
-			// copy deviation into debugging slot
-			newGridN[fields(newGrid)-1] = deviation;
-
-			// evaluate parallel tangents if fields have changed
-			// Note: This creates a highly imbalanced workload!
-			//if (deviation > devn_tol) {
-			*/
 			double res = parallelTangentSolver.solve(newGridN);
 
 			if (res > root_tol) {
@@ -884,7 +881,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			} else {
 				newGridN[fields(newGrid)-1] = 0.0;
 			}
-			//}
 
 			/* ======= *
 			 * ~ fin ~ *
@@ -1039,12 +1035,12 @@ template<typename T>
 void guessGamma(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate gamma using a line compound with x_Nb = 0.025
-	// Interpolate x_Cr from (-0.1, 1.1) into (0.2, 0.4)
+	// Interpolate x_Cr from (-0.01, 1.01) into (0.2, 0.4)
 
 	const T& xcr = GRIDN[0];
-	const T  xnb = 0.075;
+	const T  xnb = 0.10;
 
-	GRIDN[NC+NP  ] = 0.2 + (0.4 - 0.2)/1.2 * (xcr + 0.1);
+	GRIDN[NC+NP  ] = 0.2 + (0.4 - 0.2)/1.02 * (xcr + 0.01);
 	GRIDN[NC+NP+1] = xnb;
 }
 
@@ -1053,12 +1049,12 @@ template<typename T>
 void guessDelta(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate delta using a line compound with x_Nb = 0.225
-	// Interpolate x_Cr from (-0.1, 1.1) into (0.0, 0.05)
+	// Interpolate x_Cr from (-0.01, 1.01) into (0.0, 0.05)
 
 	const T& xcr = GRIDN[0];
 	const T  xnb = 0.225;
 
-	GRIDN[2*NC+NP  ] = 0.05/1.2 * (xcr + 0.1);
+	GRIDN[2*NC+NP  ] = 0.05/1.02 * (xcr + 0.01);
 	GRIDN[2*NC+NP+1] = xnb;
 }
 
@@ -1067,12 +1063,12 @@ template<typename T>
 void guessLaves(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate Laves using a line compound with x_Nb = 30.0%
-	// Interpolate x_Cr from (-0.1, 1.1) into (0.25, 0.50)
+	// Interpolate x_Cr from (-0.01, 1.01) into (0.25, 0.50)
 
 	const T& xcr = GRIDN[0];
 	const T  xnb = 0.25;
 
-	GRIDN[3*NC+NP  ] = 0.30 + (0.5 - 0.30)/1.2 * (xcr + 0.1);
+	GRIDN[3*NC+NP  ] = 0.30 + (0.5 - 0.30)/1.02 * (xcr + 0.01);
 	GRIDN[3*NC+NP+1] = xnb;
 }
 
@@ -1326,6 +1322,16 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 
 	// Prepare derivatives
+	#ifdef PARABOLA
+	const field_t dgGdxCr = dg_gam_dxCr(C_gam_Cr);
+	const field_t dgGdxNb = dg_gam_dxNb(C_gam_Nb);
+
+	const field_t dgDdxCr = dg_del_dxCr(C_del_Cr);
+	const field_t dgDdxNb = dg_del_dxNb(C_del_Nb);
+
+	const field_t dgLdxCr = dg_lav_dxCr(C_lav_Cr);
+	const field_t dgLdxNb = dg_lav_dxNb(C_lav_Nb);
+	#else
 	const field_t dgGdxCr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb);
 	const field_t dgGdxNb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb);
 
@@ -1334,6 +1340,7 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 	const field_t dgLdxCr = dg_lav_dxCr(C_lav_Cr, C_lav_Nb);
 	const field_t dgLdxNb = dg_lav_dxNb(C_lav_Cr, C_lav_Nb);
+	#endif
 
 
 	// Update vector
@@ -1363,7 +1370,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	const double n_gam = 1.0 - n_del - n_lav;
 
 	// Prepare variables
-	/* #ifdef CALPHAD */
+	#ifndef PARABOLA
 	const double C_gam_Cr = gsl_vector_get(x, 0);
 	const double C_gam_Nb = gsl_vector_get(x, 1);
 
@@ -1372,7 +1379,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 	const double C_lav_Cr = gsl_vector_get(x, 4);
 	const double C_lav_Nb = gsl_vector_get(x, 5);
-	/* #endif */
+	#endif
 
 	gsl_matrix_set_zero(J);
 
@@ -1389,19 +1396,17 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 	// Equal chemical potential involving gamma phase (Cr, Nb, Ni)
 	// Cross-derivatives must needs be equal, d2G_dxCrNb == d2G_dxNbCr. Cf. Arfken Sec. 1.9.
-	/*
-	#ifndef CALPHAD
+	#ifdef PARABOLA
 	const double jac_gam_CrCr = d2g_gam_dxCrCr();
 	const double jac_gam_CrNb = d2g_gam_dxCrNb();
 	const double jac_gam_NbCr = jac_gam_CrNb;
 	const double jac_gam_NbNb = d2g_gam_dxNbNb();
 	#else
-	*/
 	const double jac_gam_CrCr = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb);
 	const double jac_gam_CrNb = d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb);
 	const double jac_gam_NbCr = jac_gam_CrNb;
 	const double jac_gam_NbNb = d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb);
-	/* #endif */
+	#endif
 
 	gsl_matrix_set(J, 2, 0, jac_gam_CrCr);
 	gsl_matrix_set(J, 2, 1, jac_gam_CrNb);
@@ -1415,19 +1420,17 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving delta phase (Cr, Nb)
-	/*
-	#ifndef CALPHAD
+	#ifdef PARABOLA
 	const double jac_del_CrCr = d2g_del_dxCrCr();
 	const double jac_del_CrNb = d2g_del_dxCrNb();
 	const double jac_del_NbCr = jac_del_CrNb;
 	const double jac_del_NbNb = d2g_del_dxNbNb();
 	#else
-	*/
 	const double jac_del_CrCr = d2g_del_dxCrCr(C_del_Cr, C_del_Nb);
 	const double jac_del_CrNb = d2g_del_dxCrNb(C_del_Cr, C_del_Nb);
 	const double jac_del_NbCr = jac_del_CrNb;
 	const double jac_del_NbNb = d2g_del_dxNbNb(C_del_Cr, C_del_Nb);
-	/* #endif */
+	#endif
 
 	gsl_matrix_set(J, 2, 2, -jac_del_CrCr);
 	gsl_matrix_set(J, 2, 3, -jac_del_CrNb);
@@ -1436,19 +1439,17 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 
 	// Equal chemical potential involving Laves phase (Nb, Ni)
-	/*
-	#ifndef CALPHAD
+	#ifdef PARABOLA
 	const double jac_lav_CrCr = d2g_lav_dxCrCr();
 	const double jac_lav_CrNb = d2g_lav_dxCrNb();
 	const double jac_lav_NbCr = jac_lav_CrNb;
 	const double jac_lav_NbNb = d2g_lav_dxNbNb();
 	#else
-	*/
 	const double jac_lav_CrCr = d2g_lav_dxCrCr(C_lav_Cr, C_lav_Nb);
 	const double jac_lav_CrNb = d2g_lav_dxCrNb(C_lav_Cr, C_lav_Nb);
 	const double jac_lav_NbCr = jac_lav_CrNb;
 	const double jac_lav_NbNb = d2g_lav_dxNbNb(C_lav_Cr, C_lav_Nb);
-	/* #endif */
+	#endif
 
 	gsl_matrix_set(J, 4, 4, -jac_lav_CrCr);
 	gsl_matrix_set(J, 4, 5, -jac_lav_CrNb);
