@@ -137,14 +137,14 @@ const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explos
 
 //const field_t devn_tol = 1.0e-6;  // deviation of field parameters above which parallel tangent needs evaluation
 const field_t root_tol  = 1.0e-4;  // residual tolerance (default is 1e-7)
-const int root_max_iter = 100000; // default is 1000, increasing probably won't change anything but your runtime
+const int root_max_iter = 500000; // default is 1000, increasing probably won't change anything but your runtime
 
 /*
 #ifndef CALPHAD
 const field_t LinStab = 1.0 / 1456.875; // threshold of linear stability (von Neumann stability condition)
 #else
 */
-const field_t LinStab = 1.0 / 5827.508;  // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 1456.875; // 5827.508;  // threshold of linear stability (von Neumann stability condition)
 /* #endif */
 
 namespace MMSP
@@ -179,7 +179,7 @@ void generate(int dim, const char* filename)
 		double dV = 1.0;
 		double Ntot = 1.0;
 		GRID1D initGrid(NC+NP+NC*(NP+1)+1, 0, Nx);
-		for (int d = 0; d<dim; d++) {
+		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
@@ -228,7 +228,7 @@ void generate(int dim, const char* filename)
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
-		for (int n= 0; n<nodes(initGrid); n++) {
+		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
 			vector<field_t>& initGridN = initGrid(n);
 
@@ -282,7 +282,7 @@ void generate(int dim, const char* filename)
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
-		for (int n = 0; n<nodes(initGrid); n++) {
+		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
 			vector<field_t>& initGridN = initGrid(n);
 
@@ -309,7 +309,7 @@ void generate(int dim, const char* filename)
 		#ifdef _OPENMP
 		#pragma omp parallel for private(parallelTangentSolver)
 		#endif
-		for (int n = 0; n<nodes(initGrid); n++) {
+		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<field_t>& initGridN = initGrid(n);
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
@@ -333,7 +333,7 @@ void generate(int dim, const char* filename)
 				guessGamma(initGridN);
 				guessDelta(initGridN);
 				guessLaves(initGridN);
-				initGridN[fields(initGrid)-1] = 1.0;
+				initGridN[fields(initGrid)-1] = res;
 			} else {
 				initGridN[fields(initGrid)-1] = 0.0;
 			}
@@ -369,6 +369,25 @@ void generate(int dim, const char* filename)
 			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
 		}
 
+		#ifndef NDEBUG
+		// Output compositions where rootsolver failed
+		FILE* badfile = NULL;
+		FILE* gudfile = NULL;
+		badfile = fopen("badroots.log", "w"); // old results will be overwritten
+		gudfile = fopen("gudroots.log", "w"); // old results will be overwritten
+		for (int n = 0; n < nodes(initGrid); n++) {
+			if (initGrid(n)[fields(initGrid)-1] > root_tol) {
+				fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+				initGrid(n)[NC+NP], initGrid(n)[NC+NP+1], initGrid(n)[2*NC+NP], initGrid(n)[2*NC+NP+1], initGrid(n)[3*NC+NP], initGrid(n)[3*NC+NP+1]);
+			} else {
+				fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+				initGrid(n)[NC+NP], initGrid(n)[NC+NP+1], initGrid(n)[2*NC+NP], initGrid(n)[2*NC+NP+1], initGrid(n)[3*NC+NP], initGrid(n)[3*NC+NP+1]);
+			}
+		}
+		fclose(badfile);
+		fclose(gudfile);
+		#endif
+
 		output(initGrid,filename);
 
 
@@ -385,7 +404,7 @@ void generate(int dim, const char* filename)
 		double dV = 1.0;
 		double Ntot = 1.0;
 		GRID2D initGrid(NC+NP+NC*(NP+1)+1, 0, Nx, 0, Ny);
-		for (int d = 0; d<dim; d++) {
+		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
@@ -416,7 +435,7 @@ void generate(int dim, const char* filename)
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
-		for (int n = 0; n<nodes(initGrid); n++) {
+		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<field_t>& initGridN = initGrid(n);
 			for (int i = NC; i < fields(initGrid); i++)
 				initGridN[i] = 0.0;
@@ -565,7 +584,7 @@ void generate(int dim, const char* filename)
 		#ifdef _OPENMP
 		#pragma omp parallel for private(parallelTangentSolver)
 		#endif
-		for (int n = 0; n<nodes(initGrid); n++) {
+		for (int n = 0; n < nodes(initGrid); n++) {
 			field_t nx = 0.0;
 			vector<field_t>& initGridN = initGrid(n);
 
@@ -599,7 +618,7 @@ void generate(int dim, const char* filename)
 				guessGamma(initGridN);
 				guessDelta(initGridN);
 				guessLaves(initGridN);
-				initGridN[fields(initGrid)-1] = 1.0;
+				initGridN[fields(initGrid)-1] = res;
 			} else {
 				initGridN[fields(initGrid)-1] = 0.0;
 			}
@@ -631,6 +650,25 @@ void generate(int dim, const char* filename)
 			printf("%9g %9g %9g %9g %9g %9g\n",
 			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
 		}
+
+		#ifndef NDEBUG
+		// Output compositions where rootsolver failed
+		FILE* badfile = NULL;
+		FILE* gudfile = NULL;
+		badfile = fopen("badroots.log", "w"); // old results will be deleted
+		gudfile = fopen("gudroots.log", "w"); // old results will be deleted
+		for (int n = 0; n < nodes(initGrid); n++) {
+			if (initGrid(n)[fields(initGrid)-1] > root_tol) {
+				fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+				initGrid(n)[NC+NP], initGrid(n)[NC+NP+1], initGrid(n)[2*NC+NP], initGrid(n)[2*NC+NP+1], initGrid(n)[3*NC+NP], initGrid(n)[3*NC+NP+1]);
+			} else {
+				fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+				initGrid(n)[NC+NP], initGrid(n)[NC+NP+1], initGrid(n)[2*NC+NP], initGrid(n)[2*NC+NP+1], initGrid(n)[3*NC+NP], initGrid(n)[3*NC+NP+1]);
+			}
+		}
+		fclose(badfile);
+		fclose(gudfile);
+		#endif
 
 		output(initGrid,filename);
 
@@ -667,7 +705,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	double dV = 1.0;
 	double Ntot = 1.0;
-	for (int d = 0; d<dim; d++) {
+	for (int d = 0; d < dim; d++) {
 		dx(oldGrid,d) = meshres;
 		dx(newGrid,d) = meshres;
 		dV *= dx(oldGrid,d);
@@ -730,7 +768,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		*/
 
 	#else
-	for (int step = 0; step<steps; step++) {
+	for (int step = 0; step < steps; step++) {
 
 		if (rank == 0)
 			print_progress(step, steps);
@@ -743,7 +781,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		#ifdef _OPENMP
 		#pragma omp parallel for private(parallelTangentSolver)
 		#endif
-		for (int n = 0; n<nodes(oldGrid); n++) {
+		for (int n = 0; n < nodes(oldGrid); n++) {
 			/* ============================================== *
 			 * Point-wise kernel for parallel PDE integration *
 			 * ============================================== */
@@ -832,7 +870,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			*/
 			double res = parallelTangentSolver.solve(newGridN);
 
-			if (res>root_tol) {
+			if (res > root_tol) {
 				// Invalid roots: substitute guesses.
 				#ifdef _OPENMP
 				#pragma omp atomic
@@ -842,7 +880,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				guessGamma(newGridN);
 				guessDelta(newGridN);
 				guessLaves(newGridN);
-				newGridN[fields(newGrid)-1] = 1.0;
+				newGridN[fields(newGrid)-1] = res;
 			} else {
 				newGridN[fields(newGrid)-1] = 0.0;
 			}
@@ -852,25 +890,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			 * ~ fin ~ *
 			 * ======= */
 		}
-
-		#ifndef NDEBUG
-		// Output compositions where rootsolver failed
-		FILE* badfile = NULL;
-		FILE* gudfile = NULL;
-		badfile = fopen("badroots.log", "a"); // new results will be appended
-		gudfile = fopen("gudroots.log", "a"); // new results will be appended
-		for (int n=0; n<nodes(oldGrid); n++) {
-			if (newGrid(n)[fields(newGrid)-1] > 0.9) {
-				fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-				oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[2*NC+NP], oldGrid(n)[2*NC+NP+1], oldGrid(n)[3*NC+NP], oldGrid(n)[3*NC+NP+1]);
-			} else {
-				fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-				oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[2*NC+NP], oldGrid(n)[2*NC+NP+1], oldGrid(n)[3*NC+NP], oldGrid(n)[3*NC+NP+1]);
-			}
-		}
-		fclose(badfile);
-		fclose(gudfile);
-		#endif
 
 		swap(oldGrid, newGrid);
 		ghostswap(oldGrid);
@@ -965,6 +984,25 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		assert(current_dt > epsilon);
 	}
 
+	#ifndef NDEBUG
+	// Output compositions where rootsolver failed
+	FILE* badfile = NULL;
+	FILE* gudfile = NULL;
+	badfile = fopen("badroots.log", "a"); // new results will be appended
+	gudfile = fopen("gudroots.log", "a"); // new results will be appended
+	for (int n = 0; n < nodes(newGrid); n++) {
+		if (newGrid(n)[fields(newGrid)-1] > root_tol) {
+			fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+			oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[2*NC+NP], oldGrid(n)[2*NC+NP+1], oldGrid(n)[3*NC+NP], oldGrid(n)[3*NC+NP+1]);
+		} else {
+			fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+			oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[2*NC+NP], oldGrid(n)[2*NC+NP+1], oldGrid(n)[3*NC+NP], oldGrid(n)[3*NC+NP+1]);
+		}
+	}
+	fclose(badfile);
+	fclose(gudfile);
+	#endif
+
 	if (rank == 0) {
 		fclose(cfile);
 		#ifdef ADAPTIVE_TIMESTEPS
@@ -972,7 +1010,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		print_progress(steps-1, steps); // floating-point comparison misses the endpoint
 		#endif
 	}
-
 }
 
 
@@ -1059,7 +1096,7 @@ Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double be
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (int n = 0; n<MMSP::nodes(GRID); n++) {
+	for (int n = 0; n < MMSP::nodes(GRID); n++) {
 		MMSP::vector<int> x = MMSP::position(GRID, n);
 		T matrixCr = xCr[NP+1] * bellCurve(h*x[0], h*(Nx/2), bellCr); // centerline
 		//    matrixCr += xCr[4] * bellCurve(h*x[0], 0,        bellCr); // left wall
@@ -1207,7 +1244,7 @@ T gibbs(const MMSP::vector<T>& v)
 
 	// Trijunction penalty
 	for (int i = 0; i < NP-1; i++)
-		for (int j=i+1; j < NP; j++)
+		for (int j = i+1; j < NP; j++)
 			g += 2.0 * alpha * vsq[i] *vsq[j];
 
 	return g;
@@ -1220,7 +1257,7 @@ MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, con
     MMSP::vector<T> gradient(dim);
 	MMSP::vector<int> s = x;
 
-	for (int i=0; i<dim; i++) {
+	for (int i = 0; i < dim; i++) {
 		s[i] += 1;
 		const T& yh = GRID(s)[N];
 		s[i] -= 2;
@@ -1456,8 +1493,8 @@ rootsolver::rootsolver() :
 }
 
 
-template<typename T> double
-rootsolver::solve(MMSP::vector<T>& GRIDN)
+template<typename T>
+double rootsolver::solve(MMSP::vector<T>& GRIDN)
 {
 	int status;
 	size_t iter = 0;
