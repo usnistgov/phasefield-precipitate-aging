@@ -1039,13 +1039,12 @@ template<typename T>
 void guessGamma(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate gamma using a line compound with x_Nb = 0.025
+	// Interpolate x_Cr from (-0.1, 1.1) into (0.2, 0.4)
 
 	const T& xcr = GRIDN[0];
-	const T  xnb = 0.03;
-	const T  xni = std::max(x_min, 1.0 - xcr - GRIDN[1]);
-	const T weight = xcr+xni>x_min ? (1.0 - xnb) / (xcr + xni) : x_min;
+	const T  xnb = 0.075;
 
-	GRIDN[NC+NP  ] = weight * xcr;
+	GRIDN[NC+NP  ] = 0.2 + (0.4 - 0.2)/1.2 * (xcr + 0.1);
 	GRIDN[NC+NP+1] = xnb;
 }
 
@@ -1053,14 +1052,14 @@ void guessGamma(MMSP::vector<T>& GRIDN)
 template<typename T>
 void guessDelta(MMSP::vector<T>& GRIDN)
 {
-	// Coarsely approximate delta using a line compound with x_Ni = 0.75 (enforce xcr+xnb<0.25)
+	// Coarsely approximate delta using a line compound with x_Nb = 0.225
+	// Interpolate x_Cr from (-0.1, 1.1) into (0.0, 0.05)
 
 	const T& xcr = GRIDN[0];
-	const T& xnb = GRIDN[1];
-	const T weight = xcr+xnb>x_min ? 0.23 / (xcr + xnb) : x_min;
+	const T  xnb = 0.225;
 
-	GRIDN[2*NC+NP  ] = weight * xcr;
-	GRIDN[2*NC+NP+1] = weight * xnb;
+	GRIDN[2*NC+NP  ] = 0.05/1.2 * (xcr + 0.1);
+	GRIDN[2*NC+NP+1] = xnb;
 }
 
 
@@ -1068,13 +1067,12 @@ template<typename T>
 void guessLaves(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate Laves using a line compound with x_Nb = 30.0%
+	// Interpolate x_Cr from (-0.1, 1.1) into (0.25, 0.50)
 
-	const T xcr = std::max(0.25, GRIDN[0]);
-	const T xnb = 0.30;
-	const T xni = std::max(x_min, 1.0 - xcr - GRIDN[1]);
-	const T weight = xcr+xni>x_min ? (1.0 - xnb) / (xcr + xni) : x_min;
+	const T& xcr = GRIDN[0];
+	const T  xnb = 0.25;
 
-	GRIDN[3*NC+NP  ] = weight * xcr;
+	GRIDN[3*NC+NP  ] = 0.30 + (0.5 - 0.30)/1.2 * (xcr + 0.1);
 	GRIDN[3*NC+NP+1] = xnb;
 }
 
