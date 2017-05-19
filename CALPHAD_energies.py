@@ -436,39 +436,44 @@ t_d2Glav_dxNbNb = diff(t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES
 
 
 # Generate parabolic expressions (the crudest of approximations)
-C_Cr = d2Ggam_dxCrCr.subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
-C_Nb = d2Ggam_dxNbNb.subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni})
+C_gam_Cr = Abs(diff(g_gamma.subs({GAMMA_XNI:1-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XCR).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni}))
+C_gam_Nb = Abs(diff(g_gamma.subs({GAMMA_XNI:1-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XNB).subs({GAMMA_XCR: xe_gam_Cr, GAMMA_XNB: xe_gam_Nb, GAMMA_XNI: xe_gam_Ni}))
 
-p_gamma = C_Cr * (GAMMA_XCR - xe_gam_Cr)**2 + C_Nb * (GAMMA_XNB - xe_gam_Nb)**2
-p_delta = C_Cr * (DELTA_XCR - xe_del_Cr)**2 + C_Nb * (DELTA_XNB - xe_del_Nb)**2
-p_laves = C_Cr * (LAVES_XCR - xe_lav_Cr)**2 + C_Nb * (LAVES_XNB - xe_lav_Nb)**2
+C_del_Cr = Abs(diff(g_delta, DELTA_XCR, DELTA_XCR).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb}))
+C_del_Nb = Abs(diff(g_delta, DELTA_XNB, DELTA_XNB).subs({DELTA_XCR: xe_del_Cr, DELTA_XNB: xe_del_Nb}))
+
+C_lav_Cr = Abs(diff(g_laves.subs({LAVES_XNI:1-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XCR).subs({LAVES_XCR: xe_lav_Cr, LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}))
+C_lav_Nb = Abs(diff(g_laves.subs({LAVES_XNI:1-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XNB).subs({LAVES_XCR: xe_lav_Cr, LAVES_XNB: xe_lav_Nb, LAVES_XNI: xe_lav_Ni}))
+
+p_gamma = C_gam_Cr * (GAMMA_XCR - xe_gam_Cr)**2 + C_gam_Nb * (GAMMA_XNB - xe_gam_Nb)**2
+p_delta = C_del_Cr * (DELTA_XCR - xe_del_Cr)**2 + C_del_Nb * (DELTA_XNB - xe_del_Nb)**2
+p_laves = C_lav_Cr * (LAVES_XCR - xe_lav_Cr)**2 + C_lav_Nb * (LAVES_XNB - xe_lav_Nb)**2
 
 # Generate first derivatives of Taylor series landscape
-p_dGgam_dxCr = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
-p_dGgam_dxNb = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB)
-p_dGgam_dxNi = diff(p_gamma, GAMMA_XNI)
+p_dGgam_dxCr = diff(p_gamma, GAMMA_XCR)
+p_dGgam_dxNb = diff(p_gamma, GAMMA_XNB)
 
 p_dGdel_dxCr = diff(p_delta, DELTA_XCR)
 p_dGdel_dxNb = diff(p_delta, DELTA_XNB)
 
-p_dGlav_dxCr = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR)
-p_dGlav_dxNb = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB)
+p_dGlav_dxCr = diff(p_laves, LAVES_XCR)
+p_dGlav_dxNb = diff(p_laves, LAVES_XNB)
 
 # Generate second derivatives of Taylor series landscape
-p_d2Ggam_dxCrCr = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XCR)
-p_d2Ggam_dxCrNb = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR, GAMMA_XNB)
-p_d2Ggam_dxNbCr = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XCR)
-p_d2Ggam_dxNbNb = diff(p_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XNB, GAMMA_XNB)
+p_d2Ggam_dxCrCr = diff(p_gamma, GAMMA_XCR, GAMMA_XCR)
+p_d2Ggam_dxCrNb = diff(p_gamma, GAMMA_XCR, GAMMA_XNB)
+p_d2Ggam_dxNbCr = diff(p_gamma, GAMMA_XNB, GAMMA_XCR)
+p_d2Ggam_dxNbNb = diff(p_gamma, GAMMA_XNB, GAMMA_XNB)
 
 p_d2Gdel_dxCrCr = diff(p_delta, DELTA_XCR, DELTA_XCR)
 p_d2Gdel_dxCrNb = diff(p_delta, DELTA_XCR, DELTA_XNB)
 p_d2Gdel_dxNbCr = diff(p_delta, DELTA_XNB, DELTA_XCR)
 p_d2Gdel_dxNbNb = diff(p_delta, DELTA_XNB, DELTA_XNB)
 
-p_d2Glav_dxCrCr = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XCR)
-p_d2Glav_dxCrNb = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XCR, LAVES_XNB)
-p_d2Glav_dxNbCr = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XCR)
-p_d2Glav_dxNbNb = diff(p_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}), LAVES_XNB, LAVES_XNB)
+p_d2Glav_dxCrCr = diff(p_laves, LAVES_XCR, LAVES_XCR)
+p_d2Glav_dxCrNb = diff(p_laves, LAVES_XCR, LAVES_XNB)
+p_d2Glav_dxNbCr = diff(p_laves, LAVES_XNB, LAVES_XCR)
+p_d2Glav_dxNbNb = diff(p_laves, LAVES_XNB, LAVES_XNB)
 
 
 print "Finished generating CALPHAD, Taylor series, and parabolic energy functions."
