@@ -82,8 +82,8 @@ struct rparams {
 	double x_Nb;
 
 	// Structure fields
-	double n_del;
-	double n_lav;
+	double h_del;
+	double h_lav;
 };
 
 class rootsolver
@@ -112,8 +112,6 @@ private:
 inline field_t h(const field_t& p) {return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);}
 
 inline field_t hprime(const field_t& p) {return 30.0 * p * p * (1.0 - p) * (1.0 - p);}
-
-inline field_t sign(const field_t& x) {return (x<0) ? -1.0 : 1.0;}
 
 
 // Gibbs free energy density

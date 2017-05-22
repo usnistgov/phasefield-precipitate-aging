@@ -94,9 +94,9 @@ from matplotlib.colors import LogNorm
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
 temp = 870.0 + 273.15 # 1143 Kelvin
 
-alpha_gam = 0.0010  # exclusion zone at phase boundaries in which the spline applies
-alpha_del = 0.0125
-alpha_lav = 0.0125
+alpha_gam = 0.00001 # exclusion zone at phase boundaries in which the spline applies
+alpha_del = 0.00001
+alpha_lav = 0.00001
 
 RT = 8.3144598*temp # J/mol/K
 Vm = 1.0e-5         # m^3/mol
