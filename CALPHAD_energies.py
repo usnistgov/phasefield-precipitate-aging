@@ -93,7 +93,10 @@ from matplotlib.colors import LogNorm
 # Constants
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
 temp = 870.0 + 273.15 # 1143 Kelvin
-alpha = 0.005  # exclusion zone at phase boundaries in which the spline applies
+
+alpha_gam = 0.0010  # exclusion zone at phase boundaries in which the spline applies
+alpha_del = 0.0125
+alpha_lav = 0.0125
 
 RT = 8.3144598*temp # J/mol/K
 Vm = 1.0e-5         # m^3/mol
@@ -241,19 +244,22 @@ lav_slope = 25.0e9 # lav range: [-10, 15]e9 J/m3
 lav_inter = 15.0e9 + 0.25 * lav_slope
 
 # Define linear "funnel" functions
-f_gamma_Cr_lo = gam_inter - gam_slope * GAMMA_XCR
-f_gamma_Nb_lo = gam_inter - gam_slope * GAMMA_XNB
-f_gamma_Ni_lo = gam_inter - gam_slope * GAMMA_XNI
+par_off = 0.05
 
-f_delta_Cr_lo = del_inter - del_slope * DELTA_XCR
-f_delta_Nb_lo = del_inter - del_slope * DELTA_XNB
-f_delta_Cr_hi = del_inter + del_slope * (DELTA_XCR - xcr_del_hi)
-f_delta_Nb_hi = del_inter + del_slope * (DELTA_XNB - xnb_del_hi)
+f_gamma_Cr_lo = gam_inter + gam_slope * (GAMMA_XCR - par_off)**2
+f_gamma_Nb_lo = gam_inter + gam_slope * (GAMMA_XNB - par_off)**2
+f_gamma_Ni_lo = gam_inter + gam_slope * (GAMMA_XNI - par_off)**2
 
-f_laves_Nb_lo = lav_inter - lav_slope * LAVES_XNB
-f_laves_Ni_lo = lav_inter - lav_slope * LAVES_XNI
-f_laves_Nb_hi = lav_inter + lav_slope * (LAVES_XNB - xnb_lav_hi)
-f_laves_Ni_hi = lav_inter + lav_slope * (LAVES_XNI - xni_lav_hi)
+f_delta_Cr_lo = del_inter + del_slope * (DELTA_XCR - par_off)**2
+f_delta_Nb_lo = del_inter + del_slope * (DELTA_XNB - par_off)**2
+f_delta_Cr_hi = del_inter + del_slope * (DELTA_XCR - xcr_del_hi + par_off)**2
+f_delta_Nb_hi = del_inter + del_slope * (DELTA_XNB - xnb_del_hi + par_off)**2
+
+f_laves_Nb_lo = lav_inter + lav_slope * (LAVES_XNB - par_off)**2
+f_laves_Ni_lo = lav_inter + lav_slope * (LAVES_XNI - par_off)**2
+f_laves_Nb_hi = lav_inter + lav_slope * (LAVES_XNB - xnb_lav_hi + par_off)**2
+f_laves_Ni_hi = lav_inter + lav_slope * (LAVES_XNI - xni_lav_hi + par_off)**2
+
 
 # Anchor points for Taylor series
 X0 = [simX(xt_gam_Nb, xt_gam_Cr), simX(xt_del_Nb, xt_del_Cr), simX(xt_lav_Nb, 1-xt_lav_Nb-xt_lav_Ni)]
@@ -316,21 +322,20 @@ t_laves = g_laves.subs({LAVES_XNB: xt_lav_Nb, LAVES_XNI: xt_lav_Ni}) \
 
 
 # Generate interpolation functions using sublattice domain restrictions
-weight = fr1by2
 
-psi_gam_lo_Cr = fr1by2 * (1.0 + tanh(twopi / alpha * (-GAMMA_XCR + fr1by2 * alpha)))
-psi_gam_lo_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * (-GAMMA_XNB + fr1by2 * alpha)))
-psi_gam_lo_Ni = fr1by2 * (1.0 + tanh(twopi / alpha * (-GAMMA_XNI + fr1by2 * alpha)))
+psi_gam_lo_Cr = fr1by2 * (1.0 + tanh(twopi / alpha_gam * (-GAMMA_XCR + fr1by2 * alpha_gam)))
+psi_gam_lo_Nb = fr1by2 * (1.0 + tanh(twopi / alpha_gam * (-GAMMA_XNB + fr1by2 * alpha_gam)))
+psi_gam_lo_Ni = fr1by2 * (1.0 + tanh(twopi / alpha_gam * (-GAMMA_XNI + fr1by2 * alpha_gam)))
 
-psi_del_lo_Cr = fr1by2 * (1.0 + tanh(twopi / alpha * (-DELTA_XCR              + fr1by2 * alpha)))
-psi_del_hi_Cr = fr1by2 * (1.0 + tanh(twopi / alpha * ( DELTA_XCR - xcr_del_hi + fr1by2 * alpha)))
-psi_del_lo_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * (-DELTA_XNB              + fr1by2 * alpha)))
-psi_del_hi_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * ( DELTA_XNB - xnb_del_hi + fr1by2 * alpha)))
+psi_del_lo_Cr = fr1by2 * (1.0 + tanh(twopi / alpha_del * (-DELTA_XCR              + fr1by2 * alpha_del)))
+psi_del_hi_Cr = fr1by2 * (1.0 + tanh(twopi / alpha_del * ( DELTA_XCR - xcr_del_hi + fr1by2 * alpha_del)))
+psi_del_lo_Nb = fr1by2 * (1.0 + tanh(twopi / alpha_del * (-DELTA_XNB              + fr1by2 * alpha_del)))
+psi_del_hi_Nb = fr1by2 * (1.0 + tanh(twopi / alpha_del * ( DELTA_XNB - xnb_del_hi + fr1by2 * alpha_del)))
 
-psi_lav_lo_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * (-LAVES_XNB              + fr1by2 * alpha)))
-psi_lav_hi_Nb = fr1by2 * (1.0 + tanh(twopi / alpha * ( LAVES_XNB - xnb_lav_hi + fr1by2 * alpha)))
-psi_lav_lo_Ni = fr1by2 * (1.0 + tanh(twopi / alpha * (-LAVES_XNI              + fr1by2 * alpha)))
-psi_lav_hi_Ni = fr1by2 * (1.0 + tanh(twopi / alpha * ( LAVES_XNI - xni_lav_hi + fr1by2 * alpha)))
+psi_lav_lo_Nb = fr1by2 * (1.0 + tanh(twopi / alpha_lav * (-LAVES_XNB              + fr1by2 * alpha_lav)))
+psi_lav_hi_Nb = fr1by2 * (1.0 + tanh(twopi / alpha_lav * ( LAVES_XNB - xnb_lav_hi + fr1by2 * alpha_lav)))
+psi_lav_lo_Ni = fr1by2 * (1.0 + tanh(twopi / alpha_lav * (-LAVES_XNI              + fr1by2 * alpha_lav)))
+psi_lav_hi_Ni = fr1by2 * (1.0 + tanh(twopi / alpha_lav * ( LAVES_XNI - xni_lav_hi + fr1by2 * alpha_lav)))
 
 
 # Generate safe CALPHAD expressions
