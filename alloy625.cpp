@@ -140,13 +140,11 @@ const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explos
 const field_t root_tol  = 1.0e-3;// residual tolerance (default is 1e-7)
 const int root_max_iter = 5e5;   // default is 1000, increasing probably won't change anything but your runtime
 
-/*
-#ifndef CALPHAD
-const field_t LinStab = 1.0 / 1456.875; // threshold of linear stability (von Neumann stability condition)
+#ifdef PARABOLA
+const field_t LinStab = 1.0 / 5.827506; // threshold of linear stability (von Neumann stability condition)
 #else
-*/
-const field_t LinStab = 1.0 / 11.65501; // threshold of linear stability (von Neumann stability condition)
-/* #endif */
+const field_t LinStab = 1.0 / 1456.875; // threshold of linear stability (von Neumann stability condition)
+#endif
 
 namespace MMSP
 {
@@ -267,7 +265,7 @@ void generate(int dim, const char* filename)
 		int Nmtrx = Nx; // grid points of matrix phase
 
 		// Compositions:                Cr,   Nb
-		const field_t Csstm[NC]     =  {0.20, 0.15}; // system composition
+		const field_t Csstm[NC]     =  {0.30, 0.20}; // system composition
 		const field_t Cprcp[NP][NC] = {{0.0125, 0.2500}, // delta composition
 		                               {0.3625, 0.2750}  // Laves composition
 		                              };
@@ -1040,7 +1038,7 @@ void guessGamma(MMSP::vector<T>& GRIDN)
 	const T& xcr = GRIDN[0];
 	const T  xnb = 0.10;
 
-	GRIDN[NC+NP  ] = 0.2 + (0.4 - 0.2)/1.02 * (xcr + 0.01);
+	GRIDN[NC+NP  ] = 0.20 + 0.20/1.02 * (xcr + 0.01);
 	GRIDN[NC+NP+1] = xnb;
 }
 
@@ -1068,7 +1066,7 @@ void guessLaves(MMSP::vector<T>& GRIDN)
 	const T& xcr = GRIDN[0];
 	const T  xnb = 0.25;
 
-	GRIDN[3*NC+NP  ] = 0.30 + (0.5 - 0.30)/1.02 * (xcr + 0.01);
+	GRIDN[3*NC+NP  ] = 0.30 + 0.20/1.02 * (xcr + 0.01);
 	GRIDN[3*NC+NP+1] = xnb;
 }
 
