@@ -94,9 +94,9 @@ from matplotlib.colors import LogNorm
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
 temp = 870.0 + 273.15 # 1143 Kelvin
 
-alpha_gam = 0.00001 # exclusion zone at phase boundaries in which the spline applies
-alpha_del = 0.00001
-alpha_lav = 0.00001
+alpha_gam = 0.01 # exclusion zone at phase boundaries in which the spline applies
+alpha_del = 0.01
+alpha_lav = 0.01
 
 RT = 8.3144598*temp # J/mol/K
 Vm = 1.0e-5         # m^3/mol
@@ -114,6 +114,7 @@ fr3by4 = 0.75
 fr3by2 = 1.5
 fr4by3 = 4.0/3
 fr2by3 = 2.0/3
+fr3by8 = 0.375
 fr1by8 = 0.125
 fr1by5 = 1.0/5
 fr1by4 = 0.25
@@ -234,31 +235,31 @@ xni_lav_hi = fr2by3
 #lav_inter =  4.61e9 + 0.25 * lav_slope
 
 # Taylor ranges
-gam_slope = 18.0e9 # gam range: [-8, 10]e9 J/m3
-gam_inter =  5.0e9 + 0.25*gam_slope
+gam_slope = 18.0e11 # gam range: [-8, 10]e9 J/m3
+gam_inter = 10.0e9 # + 0.25*gam_slope
 
-del_slope = 28.0e9 # del range: [-8, 20]e9 J/m3
-del_inter = 20.0e9 + 0.25*del_slope
+del_slope = 28.0e11 # del range: [-8, 20]e9 J/m3
+del_inter = 20.0e9 # + 0.25*del_slope
 
-lav_slope = 25.0e9 # lav range: [-10, 15]e9 J/m3
-lav_inter = 15.0e9 + 0.25 * lav_slope
+lav_slope = 25.0e11 # lav range: [-10, 15]e9 J/m3
+lav_inter = 15.0e9 # + 0.25 * lav_slope
 
 # Define linear "funnel" functions
 par_off = 0.05
 
-f_gamma_Cr_lo = gam_inter + gam_slope * (GAMMA_XCR - par_off)**2
-f_gamma_Nb_lo = gam_inter + gam_slope * (GAMMA_XNB - par_off)**2
-f_gamma_Ni_lo = gam_inter + gam_slope * (GAMMA_XNI - par_off)**2
+f_gamma_Cr_lo = gam_inter + gam_slope * (GAMMA_XCR - par_off)**2 - gam_slope * par_off**2
+f_gamma_Nb_lo = gam_inter + gam_slope * (GAMMA_XNB - par_off)**2 - gam_slope * par_off**2
+f_gamma_Ni_lo = gam_inter + gam_slope * (GAMMA_XNI - par_off)**2 - gam_slope * par_off**2
 
-f_delta_Cr_lo = del_inter + del_slope * (DELTA_XCR - par_off)**2
-f_delta_Nb_lo = del_inter + del_slope * (DELTA_XNB - par_off)**2
-f_delta_Cr_hi = del_inter + del_slope * (DELTA_XCR - xcr_del_hi + par_off)**2
-f_delta_Nb_hi = del_inter + del_slope * (DELTA_XNB - xnb_del_hi + par_off)**2
+f_delta_Cr_lo = del_inter + del_slope * (DELTA_XCR - par_off)**2 - del_slope * par_off**2
+f_delta_Nb_lo = del_inter + del_slope * (DELTA_XNB - par_off)**2 - del_slope * par_off**2
+f_delta_Cr_hi = del_inter + del_slope * (DELTA_XCR - xcr_del_hi + par_off)**2 - del_slope * par_off**2
+f_delta_Nb_hi = del_inter + del_slope * (DELTA_XNB - xnb_del_hi + par_off)**2 - del_slope * par_off**2
 
-f_laves_Nb_lo = lav_inter + lav_slope * (LAVES_XNB - par_off)**2
-f_laves_Ni_lo = lav_inter + lav_slope * (LAVES_XNI - par_off)**2
-f_laves_Nb_hi = lav_inter + lav_slope * (LAVES_XNB - xnb_lav_hi + par_off)**2
-f_laves_Ni_hi = lav_inter + lav_slope * (LAVES_XNI - xni_lav_hi + par_off)**2
+f_laves_Nb_lo = lav_inter + lav_slope * (LAVES_XNB - par_off)**2 - lav_slope * par_off**2
+f_laves_Ni_lo = lav_inter + lav_slope * (LAVES_XNI - par_off)**2 - lav_slope * par_off**2
+f_laves_Nb_hi = lav_inter + lav_slope * (LAVES_XNB - xnb_lav_hi + par_off)**2 - lav_slope * par_off**2
+f_laves_Ni_hi = lav_inter + lav_slope * (LAVES_XNI - xni_lav_hi + par_off)**2 - lav_slope * par_off**2
 
 
 # Anchor points for Taylor series
@@ -339,34 +340,35 @@ psi_lav_hi_Ni = fr1by2 * (1.0 + tanh(twopi / alpha_lav * ( LAVES_XNI - xni_lav_h
 
 
 # Generate safe CALPHAD expressions
+cornerwt = 0.02
 
 c_gamma = (1.0 - psi_gam_lo_Cr - psi_gam_lo_Nb - psi_gam_lo_Ni
                + psi_gam_lo_Cr * psi_gam_lo_Nb
                + psi_gam_lo_Cr * psi_gam_lo_Ni
                + psi_gam_lo_Nb * psi_gam_lo_Ni) * g_gamma + \
-          psi_gam_lo_Cr * (1.0 - fr1by3 * psi_gam_lo_Nb - fr1by3 * psi_gam_lo_Ni) * f_gamma_Cr_lo + \
-          psi_gam_lo_Nb * (1.0 - fr1by3 * psi_gam_lo_Cr - fr1by3 * psi_gam_lo_Ni) * f_gamma_Nb_lo + \
-          psi_gam_lo_Ni * (1.0 - fr1by3 * psi_gam_lo_Cr - fr1by3 * psi_gam_lo_Nb) * f_gamma_Ni_lo
+          psi_gam_lo_Cr * (1.0 - cornerwt * psi_gam_lo_Nb - cornerwt * psi_gam_lo_Ni) * f_gamma_Cr_lo + \
+          psi_gam_lo_Nb * (1.0 - cornerwt * psi_gam_lo_Cr - cornerwt * psi_gam_lo_Ni) * f_gamma_Nb_lo + \
+          psi_gam_lo_Ni * (1.0 - cornerwt * psi_gam_lo_Cr - cornerwt * psi_gam_lo_Nb) * f_gamma_Ni_lo
 
 c_delta = (1.0 - psi_del_lo_Cr - psi_del_hi_Cr - psi_del_lo_Nb - psi_del_hi_Nb
                + psi_del_lo_Cr * psi_del_lo_Nb
                + psi_del_lo_Cr * psi_del_hi_Nb
                + psi_del_hi_Cr * psi_del_lo_Nb
                + psi_del_hi_Cr * psi_del_hi_Nb) * g_delta + \
-            psi_del_lo_Cr * (1.0 - fr1by3 * psi_del_lo_Nb - fr1by3 * psi_del_hi_Nb) * f_delta_Cr_lo + \
-            psi_del_hi_Cr * (1.0 - fr1by3 * psi_del_lo_Nb - fr1by3 * psi_del_hi_Nb) * f_delta_Cr_hi + \
-            psi_del_lo_Nb * (1.0 - fr1by3 * psi_del_lo_Cr - fr1by3 * psi_del_hi_Cr) * f_delta_Nb_lo + \
-            psi_del_hi_Nb * (1.0 - fr1by3 * psi_del_lo_Cr - fr1by3 * psi_del_hi_Cr) * f_delta_Nb_hi
+            psi_del_lo_Cr * (1.0 - cornerwt * psi_del_lo_Nb - cornerwt * psi_del_hi_Nb) * f_delta_Cr_lo + \
+            psi_del_hi_Cr * (1.0 - cornerwt * psi_del_lo_Nb - cornerwt * psi_del_hi_Nb) * f_delta_Cr_hi + \
+            psi_del_lo_Nb * (1.0 - cornerwt * psi_del_lo_Cr - cornerwt * psi_del_hi_Cr) * f_delta_Nb_lo + \
+            psi_del_hi_Nb * (1.0 - cornerwt * psi_del_lo_Cr - cornerwt * psi_del_hi_Cr) * f_delta_Nb_hi
 
 c_laves = (1.0 - psi_lav_lo_Nb - psi_lav_hi_Nb - psi_lav_lo_Ni - psi_lav_hi_Ni
                + psi_lav_lo_Nb * psi_lav_lo_Ni
                + psi_lav_lo_Nb * psi_lav_hi_Ni
                + psi_lav_hi_Nb * psi_lav_lo_Ni
                + psi_lav_hi_Nb * psi_lav_hi_Ni) * g_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}) + \
-           psi_lav_lo_Nb * (1.0 - fr1by3 * psi_lav_lo_Ni - fr1by3 * psi_lav_hi_Ni) * f_laves_Nb_lo + \
-           psi_lav_hi_Nb * (1.0 - fr1by3 * psi_lav_lo_Ni - fr1by3 * psi_lav_hi_Ni) * f_laves_Nb_hi + \
-           psi_lav_lo_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_lo + \
-           psi_lav_hi_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_hi
+           psi_lav_lo_Nb * (1.0 - cornerwt * psi_lav_lo_Ni - cornerwt * psi_lav_hi_Ni) * f_laves_Nb_lo + \
+           psi_lav_hi_Nb * (1.0 - cornerwt * psi_lav_lo_Ni - cornerwt * psi_lav_hi_Ni) * f_laves_Nb_hi + \
+           psi_lav_lo_Ni * (1.0 - cornerwt * psi_lav_lo_Nb - cornerwt * psi_lav_hi_Nb) * f_laves_Ni_lo + \
+           psi_lav_hi_Ni * (1.0 - cornerwt * psi_lav_lo_Nb - cornerwt * psi_lav_hi_Nb) * f_laves_Ni_hi
 
 # Generate first derivatives of CALPHAD landscape
 dGgam_dxCr = diff(c_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
@@ -402,29 +404,29 @@ t_gamma = (1.0 - psi_gam_lo_Cr - psi_gam_lo_Nb - psi_gam_lo_Ni
                + psi_gam_lo_Cr * psi_gam_lo_Nb
                + psi_gam_lo_Cr * psi_gam_lo_Ni
                + psi_gam_lo_Nb * psi_gam_lo_Ni) * t_gamma + \
-          psi_gam_lo_Cr * (1.0 - fr1by3 * psi_gam_lo_Nb - fr1by3 * psi_gam_lo_Ni) * f_gamma_Cr_lo + \
-          psi_gam_lo_Nb * (1.0 - fr1by3 * psi_gam_lo_Cr - fr1by3 * psi_gam_lo_Ni) * f_gamma_Nb_lo + \
-          psi_gam_lo_Ni * (1.0 - fr1by3 * psi_gam_lo_Cr - fr1by3 * psi_gam_lo_Nb) * f_gamma_Ni_lo
+          psi_gam_lo_Cr * (1.0 - cornerwt * psi_gam_lo_Nb - cornerwt * psi_gam_lo_Ni) * f_gamma_Cr_lo + \
+          psi_gam_lo_Nb * (1.0 - cornerwt * psi_gam_lo_Cr - cornerwt * psi_gam_lo_Ni) * f_gamma_Nb_lo + \
+          psi_gam_lo_Ni * (1.0 - cornerwt * psi_gam_lo_Cr - cornerwt * psi_gam_lo_Nb) * f_gamma_Ni_lo
 
 t_delta = (1.0 - psi_del_lo_Cr - psi_del_hi_Cr - psi_del_lo_Nb - psi_del_hi_Nb
                + psi_del_lo_Cr * psi_del_lo_Nb
                + psi_del_lo_Cr * psi_del_hi_Nb
                + psi_del_hi_Cr * psi_del_lo_Nb
                + psi_del_hi_Cr * psi_del_hi_Nb) * t_delta + \
-            psi_del_lo_Cr * (1.0 - fr1by3 * psi_del_lo_Nb - fr1by3 * psi_del_hi_Nb) * f_delta_Cr_lo + \
-            psi_del_hi_Cr * (1.0 - fr1by3 * psi_del_lo_Nb - fr1by3 * psi_del_hi_Nb) * f_delta_Cr_hi + \
-            psi_del_lo_Nb * (1.0 - fr1by3 * psi_del_lo_Cr - fr1by3 * psi_del_hi_Cr) * f_delta_Nb_lo + \
-            psi_del_hi_Nb * (1.0 - fr1by3 * psi_del_lo_Cr - fr1by3 * psi_del_hi_Cr) * f_delta_Nb_hi
+            psi_del_lo_Cr * (1.0 - cornerwt * psi_del_lo_Nb - cornerwt * psi_del_hi_Nb) * f_delta_Cr_lo + \
+            psi_del_hi_Cr * (1.0 - cornerwt * psi_del_lo_Nb - cornerwt * psi_del_hi_Nb) * f_delta_Cr_hi + \
+            psi_del_lo_Nb * (1.0 - cornerwt * psi_del_lo_Cr - cornerwt * psi_del_hi_Cr) * f_delta_Nb_lo + \
+            psi_del_hi_Nb * (1.0 - cornerwt * psi_del_lo_Cr - cornerwt * psi_del_hi_Cr) * f_delta_Nb_hi
 
 t_laves = (1.0 - psi_lav_lo_Nb - psi_lav_hi_Nb - psi_lav_lo_Ni - psi_lav_hi_Ni
                + psi_lav_lo_Nb * psi_lav_lo_Ni
                + psi_lav_lo_Nb * psi_lav_hi_Ni
                + psi_lav_hi_Nb * psi_lav_lo_Ni
                + psi_lav_hi_Nb * psi_lav_hi_Ni) * t_laves.subs({LAVES_XNI: 1.0-LAVES_XCR-LAVES_XNB}) + \
-           psi_lav_lo_Nb * (1.0 - fr1by3 * psi_lav_lo_Ni - fr1by3 * psi_lav_hi_Ni) * f_laves_Nb_lo + \
-           psi_lav_hi_Nb * (1.0 - fr1by3 * psi_lav_lo_Ni - fr1by3 * psi_lav_hi_Ni) * f_laves_Nb_hi + \
-           psi_lav_lo_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_lo + \
-           psi_lav_hi_Ni * (1.0 - fr1by3 * psi_lav_lo_Nb - fr1by3 * psi_lav_hi_Nb) * f_laves_Ni_hi
+           psi_lav_lo_Nb * (1.0 - cornerwt * psi_lav_lo_Ni - cornerwt * psi_lav_hi_Ni) * f_laves_Nb_lo + \
+           psi_lav_hi_Nb * (1.0 - cornerwt * psi_lav_lo_Ni - cornerwt * psi_lav_hi_Ni) * f_laves_Nb_hi + \
+           psi_lav_lo_Ni * (1.0 - cornerwt * psi_lav_lo_Nb - cornerwt * psi_lav_hi_Nb) * f_laves_Ni_lo + \
+           psi_lav_hi_Ni * (1.0 - cornerwt * psi_lav_lo_Nb - cornerwt * psi_lav_hi_Nb) * f_laves_Ni_hi
 
 # Generate first derivatives of Taylor series landscape
 t_dGgam_dxCr = diff(t_gamma.subs({GAMMA_XNI: 1.0-GAMMA_XCR-GAMMA_XNB}), GAMMA_XCR)
