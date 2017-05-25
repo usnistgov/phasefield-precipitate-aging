@@ -513,6 +513,7 @@ codegen([# Gibbs energies
          ('xe_gam_Nb', xt_gam_Nb),
          ('xe_del_Cr', xt_del_Cr),
          ('xe_del_Nb', xt_del_Nb),
+         ('xe_lav_Cr', xt_lav_Cr),
          ('xe_lav_Nb', xt_lav_Nb),
          ('xe_lav_Ni', xt_lav_Ni),
          # First derivatives
@@ -548,6 +549,7 @@ codegen([# Gibbs energies
          ('xe_gam_Nb', xt_gam_Nb),
          ('xe_del_Cr', xt_del_Cr),
          ('xe_del_Nb', xt_del_Nb),
+         ('xe_lav_Cr', xt_lav_Cr),
          ('xe_lav_Nb', xt_lav_Nb),
          ('xe_lav_Ni', xt_lav_Ni),
          # First derivatives
@@ -583,6 +585,7 @@ codegen([# Gibbs energies
          ('xe_gam_Nb', xe_gam_Nb),
          ('xe_del_Cr', xe_del_Cr),
          ('xe_del_Nb', xe_del_Nb),
+         ('xe_lav_Cr', xe_lav_Cr),
          ('xe_lav_Nb', xe_lav_Nb),
          ('xe_lav_Ni', xe_lav_Ni),
          # First derivatives

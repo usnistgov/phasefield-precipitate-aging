@@ -94,13 +94,21 @@
 // as defined in the first elements of the two following arrays. The generate() function
 // will adjust the initial gamma composition depending on the type, amount, and composition
 // of the secondary phases to maintain the system's nominal composition.
-//                        nominal   delta   laves    gamma-enrichment
-const field_t xCr[NP+2] = {0.30,    0.0125, 0.3875,  0.31-0.30};
-const field_t xNb[NP+2] = {0.02,    0.2450, 0.2500,  0.13-0.02};
+#ifdef PARABOLA
+// Parabolic free energy requires a system composition inside the three-phase coexistence region
+//                        nominal   delta        laves         gamma-enrichment
+const field_t xCr[NP+2] = {0.250,   xe_del_Cr(), xe_lav_Cr(),  0.350 - 0.250};
+const field_t xNb[NP+2] = {0.125,   xe_del_Nb(), xe_lav_Nb(),  0.175 - 0.125};
+#else
+// CALPHAD and Taylor approximations admit any system composition
+//                        nominal   delta        laves         gamma-enrichment
+const field_t xCr[NP+2] = {0.300,   xe_del_Cr(), xe_lav_Cr(),  0.310 - 0.300};
+const field_t xNb[NP+2] = {0.020,   xe_del_Nb(), xe_lav_Nb(),  0.130 - 0.020};
+#endif
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                       Cr        Nb
-const double bell[NC] = {150.0e-9, 50.0e-9}; // est. between 80-200 nm from SEM
+const double bell[NC] = {75.0e-9, 25.0e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
 const double meshres = 5.0e-9; // grid spacing (m)
@@ -123,28 +131,21 @@ const field_t Lmob[NP] = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns),
 const field_t sigma[NP] = {1.01, 1.01}; // (J/m^2)
 
 // Interfacial width
-//const field_t omega[NP] = {9.5e8, 9.5e8}; // multiwell height (m^2/Nsm^2), Zhou's numbers
-// Note that ifce width was not considered in Zhou's model, but is in vanilla KKS
-const field_t width_factor = 2.2;  // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
+const field_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const field_t ifce_width = 10.0*meshres; // ensure at least 7 points through the interface
 const field_t omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
                            3.0 * width_factor * sigma[1] / ifce_width  // Laves
-                         }; // multiwell height (J/m^3)
+                         };       // multiwell height (J/m^3)
 
 // Numerical considerations
-const bool useNeumann = true;    // apply zero-flux boundaries (Neumann type)?
-const bool tanh_init = false;    // apply tanh profile to initial profile of composition and phase
-const field_t x_min = 1.0e-8;    // what to consider zero to avoid log(c) explosions
-const double epsilon = 1.0e-14;  // what to consider zero to avoid log(c) explosions
+const bool useNeumann = true;     // apply zero-flux boundaries (Neumann type)?
+const bool useTanh = false;       // apply tanh profile to initial profile of composition and phase
+const double epsilon = 1.0e-14;   // what to consider zero to avoid log(c) explosions
 
-const field_t root_tol  = 1.0e-3;// residual tolerance (default is 1e-7)
-const int root_max_iter = 5e5;   // default is 1000, increasing probably won't change anything but your runtime
+const field_t root_tol  = 1.0e-3; // residual tolerance (default is 1e-7)
+const int root_max_iter = 5e5;    // default is 1000, increasing probably won't change anything but your runtime
 
-#ifdef PARABOLA
 const field_t LinStab = 1.0 / 5.827506; // threshold of linear stability (von Neumann stability condition)
-#else
-const field_t LinStab = 1.0 / 29.13753; // threshold of linear stability (von Neumann stability condition)
-#endif
 
 namespace MMSP
 {
@@ -194,113 +195,74 @@ void generate(int dim, const char* filename)
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
 
-		/*
-		const field_t Csstm[NC] = {0.1500, 0.1500}; // gamma-delta system Cr, Nb composition
-		const field_t Cprcp[NC] = {0.0125, 0.2450}; // delta precipitate  Cr, Nb composition
-		const int mid = 0;    // matrix phase
-		const int pid = NC+0; // delta phase
-		*/
+		// Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
+		//                    minimum for numerical stability is 14*dx (due to interface width).
+		const field_t rPrecip[NP] = {5.0*7.5e-9 / dx(initGrid,0),  // delta
+		                             5.0*7.5e-9 / dx(initGrid,0)}; // Laves
 
-		const field_t Csstm[NC] = {0.3625, 0.1625}; // gamma-Laves system Cr, Nb composition
-		const field_t Cprcp[NC] = {0.3625, 0.2750}; // Laves precipitate  Cr, Nb composition
-		const int mid = 0;    // matrix phase
-		const int pid = NC+1; // Laves phase
-
-		/*
-		const field_t Csstm[NC] = {0.2500, 0.2500}; // delta-Laves system Cr, Nb composition
-		const field_t Cprcp[NC] = {0.0125, 0.2450}; // delta precipitate  Cr, Nb composition
-		const int mid = NC+1; // Laves phase
-		const int pid = NC+0; // delta phase
-		*/
-
-		/* ============================================ *
-		 * Two-phase test configuration                 *
-		 *                                              *
-		 * Seed a 1.0 um domain with a planar interface *
-		 * between gamma and precipitate as a simple    *
-		 * test of diffusion and phase equations        *
-		 * ============================================ */
-
-		const int Nprcp = Nx / 3;
-		const int Nmtrx = Nx - Nprcp;
+		// Zero initial condition
 		const vector<field_t> blank(fields(initGrid), 0.0);
-
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
-			vector<int> x = position(initGrid, n);
-			vector<field_t>& initGridN = initGrid(n);
+			initGrid(n) = blank;
+		}
 
-			initGridN = blank;
+		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
+		Composition comp;
+		comp += enrichMatrix(initGrid, bell[0], bell[1]);
 
-			if (x[0] < Nprcp) {
-				// Initialize precipitate with equilibrium composition (from phase diagram)
-				initGridN[0] = Cprcp[0];
-				initGridN[1] = Cprcp[1];
-				initGridN[pid] = 1.0 - x_min;
-			} else {
-				// Initialize gamma to satisfy system composition
-				initGridN[0] = (Csstm[0] * Nx - Cprcp[0] * Nprcp) / Nmtrx;
-				initGridN[1] = (Csstm[1] * Nx - Cprcp[1] * Nprcp) / Nmtrx;
-				if (mid != 0)
-					initGridN[mid] = 1.0 - x_min;
+
+		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
+		const int xoffset[2] = {int(-16 * (5.0e-9 / meshres)), int(16 * (5.0e-9 / meshres))}; //  80 nm
+		vector<int> origin(dim, 0);
+
+		if (1) {
+			/* ============================================= *
+			 * Three-phase Stripe Growth test configuration  *
+			 *                                               *
+			 * Seed a 1.0 um domain with 3 stripes (one of   *
+			 * each secondary phase) to test competitive     *
+			 * growth without curvature                      *
+			 * ============================================= */
+
+			for (int j = 0; j < NP; j++) {
+				origin[0] = Nx / 2 + xoffset[j];
+				comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 			}
 
+		} else {
+			if (rank == 0)
+				std::cerr<<"Error: specify an initial condition!"<<std::endl;
+			MMSP::Abort(-1);
 		}
 
-
-		/* ============================== *
-		 * Three-phase test configuration *
-		 * ============================== */
-
-		/*
-		const int Nprcp[NP] = {Nx / 8, Nx / 8}; // grid points per seed
-		const int Noff = Nx / 8 + 2 * ifce_width / meshres; // grid points between seeds
-		int Nmtrx = Nx; // grid points of matrix phase
-
-		// Compositions:                Cr,   Nb
-		const field_t Csstm[NC]     =  {0.30, 0.20}; // system composition
-		const field_t Cprcp[NP][NC] = {{0.0125, 0.2450}, // delta composition
-		                               {0.3625, 0.2750}  // Laves composition
-		                              };
-
-		field_t matCr = Csstm[0] * Nx;
-		field_t matNb = Csstm[1] * Nx;
-		for (int pid = 0; pid < NP; pid++) {
-			matCr -= Cprcp[pid][0] * Nprcp[pid];
-			matNb -= Cprcp[pid][1] * Nprcp[pid];
-			Nmtrx -= Nprcp[pid];
+		// Synchronize global initial condition parameters
+		#ifdef MPI_VERSION
+		Composition myComp;
+		myComp += comp;
+		MPI::COMM_WORLD.Barrier();
+		// Caution: Primitive. Will not scale to large MPI systems.
+		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
+		for (int j = 0; j < NP+1; j++) {
+			MPI::COMM_WORLD.Barrier();
+			MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
 		}
-		matCr /= Nmtrx;
-		matNb /= Nmtrx;
-
-		const vector<field_t> blank(fields(initGrid), 0.0);
-
-		#ifdef _OPENMP
-		#pragma omp parallel for
 		#endif
-		for (int n = 0; n < nodes(initGrid); n++) {
-			vector<int> x = position(initGrid, n);
-			vector<field_t>& initGridN = initGrid(n);
 
-			initGridN = blank;
 
-			// Initialize gamma to satisfy system composition
-			initGridN[0] = matCr;
-			initGridN[1] = matNb;
-
-			for (int pid = 0; pid < NP; pid++) {
-				const int Nstart = Nx / 4 + pid*Noff;
-				if (x[0]>= Nstart && x[0] < Nstart + Nprcp[pid]) {
-					// Initialize precipitate with equilibrium composition (from phase diagram)
-					initGridN[0] = Cprcp[pid][0];
-					initGridN[1] = Cprcp[pid][1];
-					initGridN[NC+pid] = 1.0 - x_min;
-				}
-			}
+		// Initialize matrix to achieve specified system composition
+		field_t matCr = Ntot * xCr[0];
+		field_t matNb = Ntot * xNb[0];
+		double Nmat  = Ntot;
+		for (int i = 0; i < NP+1; i++) {
+			Nmat  -= comp.N[i];
+			matCr -= comp.x[i][0];
+			matNb -= comp.x[i][1];
 		}
-		*/
+		matCr /= Nmat;
+		matNb /= Nmat;
 
 
 		/* =========================== *
@@ -314,7 +276,16 @@ void generate(int dim, const char* filename)
 		#pragma omp parallel for private(parallelTangentSolver)
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
+			field_t nx = 0.0;
 			vector<field_t>& initGridN = initGrid(n);
+
+			for (int i = NC; i < NC+NP; i++)
+				nx += h(initGridN[i]);
+
+			if (nx < 0.01) { // pure gamma
+				initGridN[0] += matCr;
+				initGridN[1] += matNb;
+			}
 
 			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
 			guessGamma(initGridN);
@@ -323,16 +294,13 @@ void generate(int dim, const char* filename)
 
 			double res = parallelTangentSolver.solve(initGridN);
 
-			if (res > root_tol) {
+			if (res>root_tol) {
 				// Invalid roots: substitute guesses.
 				#ifdef _OPENMP
 				#pragma omp atomic
 				#endif
 				totBadTangents++;
 
-				guessGamma(initGridN);
-				guessDelta(initGridN);
-				guessLaves(initGridN);
 				initGridN[fields(initGrid)-1] = res;
 			} else {
 				initGridN[fields(initGrid)-1] = 0.0;
@@ -375,6 +343,7 @@ void generate(int dim, const char* filename)
 		FILE* gudfile = NULL;
 		badfile = fopen("badroots.log", "w"); // old results will be overwritten
 		gudfile = fopen("gudroots.log", "w"); // old results will be overwritten
+
 		for (int n = 0; n < nodes(initGrid); n++) {
 			if (initGrid(n)[fields(initGrid)-1] > root_tol) {
 				fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
@@ -432,13 +401,12 @@ void generate(int dim, const char* filename)
 		}
 
 		// Zero initial condition
+		const vector<field_t> blank(fields(initGrid), 0.0);
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
-			vector<field_t>& initGridN = initGrid(n);
-			for (int i = NC; i < fields(initGrid); i++)
-				initGridN[i] = 0.0;
+			initGrid(n) = blank;
 		}
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
@@ -449,7 +417,7 @@ void generate(int dim, const char* filename)
 		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
 		const int xoffset = 16 * (5.0e-9 / meshres); //  80 nm
 		const int yoffset = 32 * (5.0e-9 / meshres); // 160 nm
-		vector<int> origin(2, 0);
+		vector<int> origin(dim, 0);
 
 		if (1) {
 			/* ================================================ *
@@ -464,31 +432,31 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny - yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - 5*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 3*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 6*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 
 			// Initialize Laves precipitates
 			j = 1;
 			origin[0] = Nx/2 + xoffset;
 			origin[1] = Ny - yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 4*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 			origin[0] = Nx/2 - xoffset;
 			origin[1] = Ny - 2*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 			origin[0] = Nx/2;
 			origin[1] = Ny - 6*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 
 		} else if (0) {
 			/* =============================================== *
@@ -503,12 +471,12 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny / 2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 
 			// Initialize Laves precipitates
 			j = 1;
 			origin[0] = Nx / 2 + xoffset;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 
 		} else if (0) {
 			/* ============================================= *
@@ -523,12 +491,12 @@ void generate(int dim, const char* filename)
 			int j = 0;
 			origin[0] = Nx / 2;
 			origin[1] = Ny / 2;
-			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 
 			// Initialize Laves stripe
 			j = 1;
 			origin[0] = Nx / 2 + xoffset;
-			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1], 1.0 - x_min);
+			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 
 		} else if (0) {
 			/* ============================================= *
@@ -544,7 +512,7 @@ void generate(int dim, const char* filename)
 			origin[1] = Ny / 2;
 			const field_t delCr = 0.15; // Choose initial composition carefully!
 			const field_t delNb = 0.15;
-			comp += embedStripe(initGrid, origin, 2, Nx/4, delCr, delNb,  1.0 - x_min);
+			comp += embedStripe(initGrid, origin, 2, Nx/4, delCr, delNb);
 
 		} else {
 			if (rank == 0)
@@ -596,7 +564,7 @@ void generate(int dim, const char* filename)
 			for (int i = NC; i < NC+NP; i++)
 				nx += h(initGridN[i]);
 
-			if (1.01 * nx < NP*x_min) { // pure gamma
+			if (nx < 0.01) { // pure gamma
 				initGridN[0] += matCr;
 				initGridN[1] += matNb;
 			}
@@ -615,9 +583,6 @@ void generate(int dim, const char* filename)
 				#endif
 				totBadTangents++;
 
-				guessGamma(initGridN);
-				guessDelta(initGridN);
-				guessLaves(initGridN);
 				initGridN[fields(initGrid)-1] = res;
 			} else {
 				initGridN[fields(initGrid)-1] = 0.0;
@@ -868,9 +833,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				#endif
 				totBadTangents++;
 
+				/*
 				guessGamma(newGridN);
 				guessDelta(newGridN);
 				guessLaves(newGridN);
+				*/
 				newGridN[fields(newGrid)-1] = res;
 			} else {
 				newGridN[fields(newGrid)-1] = 0.0;
@@ -978,8 +945,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	// Output compositions where rootsolver failed
 	FILE* badfile = NULL;
 	FILE* gudfile = NULL;
-	badfile = fopen("badroots.log", "a"); // new results will be appended
-	gudfile = fopen("gudroots.log", "a"); // new results will be appended
+	badfile = fopen("badroots.log", "w"); // old results will be overwritten
+	gudfile = fopen("gudroots.log", "w");
+
 	for (int n = 0; n < nodes(newGrid); n++) {
 		if (newGrid(n)[fields(newGrid)-1] > root_tol) {
 			fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
@@ -1013,7 +981,7 @@ double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const doub
 {
 	double r = 0.0;
 	for (int i = 0; i < a.length() && i < b.length(); i++)
-		r += std::pow(a[i]-b[i],2.0);
+		r += std::pow(a[i] - b[i], 2.0);
 	return dx*std::sqrt(r);
 }
 
@@ -1057,17 +1025,17 @@ template<typename T>
 void guessLaves(MMSP::vector<T>& GRIDN)
 {
 	// Coarsely approximate Laves using a line compound with x_Nb = 30.0%
-	// Interpolate x_Cr from (-0.01, 1.01) into (0.25, 0.50)
+	// Interpolate x_Cr from (-0.01, 1.01) into (0.30, 0.45)
 
 	const T& xcr = GRIDN[0];
 	const T  xnb = 0.25;
 
-	GRIDN[3*NC+NP  ] = 0.30 + 0.20/1.02 * (xcr + 0.01);
+	GRIDN[3*NC+NP  ] = 0.30 + 0.15/1.02 * (xcr + 0.01);
 	GRIDN[3*NC+NP+1] = xnb;
 }
 
 
-template<int dim,typename T>
+template<int dim, typename T>
 Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double bellCr, const double bellNb)
 {
 	/* Not the most efficient: to simplify n-dimensional grid compatibility,   *
@@ -1103,52 +1071,117 @@ Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double be
 	return comp;
 }
 
+template<typename T>
+void embedParticle(MMSP::vector<T>& v, const int& pid, const T& xCr, const T& xNb, Composition& comp)
+{
+	v[0] = xCr;
+	v[1] = xNb;
+	v[pid] = 1.0;
+	comp.x[pid-NC][0] += xCr;
+	comp.x[pid-NC][1] += xNb;
+	comp.N[pid-NC] += 1;
+}
 
 template<typename T>
-Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID,
+void applyParticleTanh(MMSP::vector<T>& v, const int& pid, const T& tanh)
+{
+	v[0]  -=  tanh*v[0];
+	v[1]  -=  tanh*v[1];
+	v[pid] -= tanh*v[pid];
+}
+
+template<int dim, typename T>
+Composition embedParticle(MMSP::grid<dim,MMSP::vector<T> >& GRID,
                           const MMSP::vector<int>& origin,
                           const int pid,
                           const double rprcp,
-                          const T& xCr, const T& xNb,
-                          const T phi)
+                          const T& xCr, const T& xNb)
 {
 	MMSP::vector<int> x(origin);
-	const int R = rprcp; //std::max(rdpltCr, rdpltNb);
+	const int R = rprcp;
 	Composition comp;
 
-	for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
-		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-			continue;
-		for (x[1] = origin[1] - R; x[1] <= origin[1] + R; x[1]++) {
-			if (x[1] < y0(GRID) || x[1] >= y1(GRID))
+	if (dim==1) {
+		for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
+			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 				continue;
 			const double r = radius(origin, x, 1);
-			if (r < rprcp) { // point falls within particle
-				GRID(x)[0] = xCr;
-				GRID(x)[1] = xNb;
-				GRID(x)[pid] = phi;
-				comp.x[pid-NC][0] += xCr;
-				comp.x[pid-NC][1] += xNb;
-				comp.N[pid-NC] += 1;
+			if (r < rprcp) // point falls within particle
+				embedParticle(GRID(x), pid, xCr, xNb, comp);
+		}
+	} else if (dim==2) {
+		for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
+			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+				continue;
+			for (x[1] = origin[1] - R; x[1] <= origin[1] + R; x[1]++) {
+				if (x[1] < x0(GRID, 1) || x[1] >= x1(GRID, 1))
+					continue;
+				const double r = radius(origin, x, 1);
+				if (r < rprcp) // point falls within particle
+					embedParticle(GRID(x), pid, xCr, xNb, comp);
+			}
+		}
+	} else if (dim==3) {
+		for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
+			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+				continue;
+			for (x[1] = origin[1] - R; x[1] <= origin[1] + R; x[1]++) {
+				if (x[1] < x0(GRID, 1) || x[1] >= x1(GRID, 1))
+					continue;
+				for (x[2] = origin[2] - R; x[2] <= origin[2] + R; x[2]++) {
+					if (x[2] < x0(GRID, 2) || x[2] >= x1(GRID, 2))
+						continue;
+					const double r = radius(origin, x, 1);
+					if (r < rprcp) // point falls within particle
+						embedParticle(GRID(x), pid, xCr, xNb, comp);
+				}
 			}
 		}
 	}
 
-	if (tanh_init) {
+	if (useTanh) {
 		// Create a tanh profile in composition surrounding the precipitate to reduce initial Laplacian
 		double del = 3.0 + epsilon;
-		for (x[0] = origin[0] - R - 2*del; x[0] <= origin[0] + R + 2*del; x[0]++) {
-			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-				continue;
-			for (x[1] = origin[1] - R - 2*del; x[1] <= origin[1] + R + 2*del; x[1]++) {
-				if (x[1] < y0(GRID) || x[1] >= y1(GRID))
+		if (dim==1) {
+			for (x[0] = origin[0] - R - 2*del; x[0] <= origin[0] + R + 2*del; x[0]++) {
+				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
 					continue;
 				const double r = radius(origin, x, 1);
 				if (r >= R - del && r < R + del) {
-					T tanhprof = 0.5*(1.0 + std::tanh(double(r - R - del)/(del)));
-					GRID(x)[0]  -=  tanhprof*GRID(x)[0];//  -  GRID(origin)[0]);
-					GRID(x)[1]  -=  tanhprof*GRID(x)[1];//  -  GRID(origin)[1]);
-					GRID(x)[pid] -= tanhprof*GRID(x)[pid];// - GRID(origin)[pid]);
+					const T tanhprof = 0.5*(1.0 + std::tanh(double(r - R - del)/(del)));
+					applyParticleTanh(GRID(x), pid, tanhprof);
+				}
+			}
+		} else if (dim==2) {
+			for (x[0] = origin[0] - R - 2*del; x[0] <= origin[0] + R + 2*del; x[0]++) {
+				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+					continue;
+				for (x[1] = origin[1] - R - 2*del; x[1] <= origin[1] + R + 2*del; x[1]++) {
+					if (x[1] < x0(GRID, 1) || x[1] >= x1(GRID, 1))
+						continue;
+					const double r = radius(origin, x, 1);
+					if (r >= R - del && r < R + del) {
+						const T tanhprof = 0.5*(1.0 + std::tanh(double(r - R - del)/(del)));
+						applyParticleTanh(GRID(x), pid, tanhprof);
+					}
+				}
+			}
+		} else if (dim==3) {
+			for (x[0] = origin[0] - R - 2*del; x[0] <= origin[0] + R + 2*del; x[0]++) {
+				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+					continue;
+				for (x[1] = origin[1] - R - 2*del; x[1] <= origin[1] + R + 2*del; x[1]++) {
+					if (x[1] < x0(GRID, 1) || x[1] >= x1(GRID, 1))
+						continue;
+					for (x[2] = origin[2] - R - 2*del; x[2] <= origin[2] + R + 2*del; x[2]++) {
+						if (x[2] < x0(GRID, 2) || x[2] >= x1(GRID, 2))
+							continue;
+						const double r = radius(origin, x, 1);
+						if (r >= R - del && r < R + del) {
+							const T tanhprof = 0.5*(1.0 + std::tanh(double(r - R - del)/(del)));
+							applyParticleTanh(GRID(x), pid, tanhprof);
+						}
+					}
 				}
 			}
 		}
@@ -1159,51 +1192,124 @@ Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID,
 
 
 template<typename T>
-Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
+void embedStripe(MMSP::vector<T>& v, const int& pid, const T& xCr, const T& xNb, Composition& comp)
+{
+	v[0] = xCr;
+	v[1] = xNb;
+	v[pid] = 1.0;
+	comp.x[pid-NC][0] += xCr;
+	comp.x[pid-NC][1] += xNb;
+	comp.N[pid-NC] += 1;
+}
+
+template<typename T>
+void applyStripeTanh(MMSP::vector<T>& v, const bool lowSide, const int& p, const T& xCr, const T& xNb, const T& tanh)
+{
+	if (lowSide) {
+		v[0] = (1.0 - tanh) * v[0] + tanh * xCr;
+		v[1] = (1.0 - tanh) * v[1] + tanh * xNb;
+		v[p] = (1.0 - tanh) * v[p] + tanh;
+	} else {
+		v[0] = (1.0 - tanh) * xCr + tanh * v[0];
+		v[1] = (1.0 - tanh) * xNb + tanh * v[1];
+		v[p] = (1.0 - tanh)       + tanh * v[p];
+	}
+}
+
+template<int dim, typename T>
+Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
                         const MMSP::vector<int>& origin,
                         const int pid,
                         const double rprcp,
-                        const T& xCr, const T& xNb,
-                        const T phi)
+                        const T& xCr, const T& xNb)
 {
 	MMSP::vector<int> x(origin);
-	const int R(rprcp); //std::max(rdpltCr, rdpltNb);
+	const int R(rprcp);
 	Composition comp;
 
-	for (x[0] = origin[0] - R; x[0] < origin[0] + R; x[0]++) {
-		if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-			continue;
-		for (x[1] = y0(GRID); x[1] < y1(GRID); x[1]++) {
-			GRID(x)[0] = xCr;
-			GRID(x)[1] = xNb;
-			GRID(x)[pid] = phi;
-			comp.x[pid-NC][0] += xCr;
-			comp.x[pid-NC][1] += xNb;
-			comp.N[pid-NC] += 1;
+	if (dim==1) {
+		for (x[0] = origin[0] - R; x[0] < origin[0] + R; x[0]++) {
+			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+				continue;
+			embedStripe(GRID(x), pid, xCr, xNb, comp);
+		}
+	} else if (dim==2) {
+		for (x[0] = origin[0] - R; x[0] < origin[0] + R; x[0]++) {
+			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+				continue;
+			for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
+				embedStripe(GRID(x), pid, xCr, xNb, comp);
+			}
+		}
+	} else if (dim==3) {
+		for (x[0] = origin[0] - R; x[0] < origin[0] + R; x[0]++) {
+			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+				continue;
+			for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
+				for (x[2] = x0(GRID, 2); x[2] < x1(GRID, 2); x[2]++) {
+					embedStripe(GRID(x), pid, xCr, xNb, comp);
+				}
+			}
 		}
 	}
 
-	if (tanh_init) {
+	if (useTanh) {
 		// Create a tanh profile in composition surrounding the precipitate to reduce initial Laplacian
 		T del = 4.3875e-9 / meshres; // empirically determined tanh profile thickness
-		for (x[0] = origin[0] - R - 2*del; x[0] < origin[0] - R; x[0]++) {
-			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-				continue;
-			T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] + R + del)/(del)));
-			for (x[1] = y0(GRID); x[1] < y1(GRID); x[1]++) {
-				GRID(x)[0] = GRID(x)[0] - tanhprof*(GRID(x)[0] - xCr);
-				GRID(x)[1] = GRID(x)[1] - tanhprof*(GRID(x)[1] - xNb);
-				GRID(x)[pid] = GRID(x)[pid] - tanhprof*(GRID(x)[pid] - phi);
+		if (dim==1) {
+			for (x[0] = origin[0] - R - 2*del; x[0] < origin[0] - R; x[0]++) {
+				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+					continue;
+				const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] + R + del)/(del)));
+				applyStripeTanh(GRID(x), true, pid, xCr, xNb, tanhprof);
+			}
+		} else if (dim==2) {
+			for (x[0] = origin[0] - R - 2*del; x[0] < origin[0] - R; x[0]++) {
+				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+					continue;
+				for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
+					const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] + R + del)/(del)));
+					applyStripeTanh(GRID(x), true, pid, xCr, xNb, tanhprof);
+				}
+			}
+		} else if (dim==3) {
+			for (x[0] = origin[0] - R - 2*del; x[0] < origin[0] - R; x[0]++) {
+				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+					continue;
+				for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
+					for (x[2] = x0(GRID, 2); x[2] < x1(GRID, 2); x[2]++) {
+						const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] + R + del)/(del)));
+						applyStripeTanh(GRID(x), true, pid, xCr, xNb, tanhprof);
+					}
+				}
 			}
 		}
-		for (x[0] = origin[0] + R; x[0] < origin[0] + R + 2*del; x[0]++) {
-			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-				continue;
-			T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] - R - del)/(del)));
-			for (x[1] = y0(GRID); x[1] < y1(GRID); x[1]++) {
-				GRID(x)[0] = xCr - tanhprof*(xCr - GRID(x)[0]);
-				GRID(x)[1] = xNb - tanhprof*(xNb - GRID(x)[1]);
-				GRID(x)[pid] = phi - tanhprof*(phi - GRID(x)[pid]);
+		if (dim==1) {
+			for (x[0] = origin[0] + R; x[0] < origin[0] + R + 2*del; x[0]++) {
+				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+					continue;
+				const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] - R - del)/(del)));
+				applyStripeTanh(GRID(x), false, pid, xCr, xNb, tanhprof);
+			}
+		} else if (dim==2) {
+			for (x[0] = origin[0] + R; x[0] < origin[0] + R + 2*del; x[0]++) {
+				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+					continue;
+				for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
+					const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] - R - del)/(del)));
+					applyStripeTanh(GRID(x), false, pid, xCr, xNb, tanhprof);
+				}
+			}
+		} else if (dim==3) {
+			for (x[0] = origin[0] + R; x[0] < origin[0] + R + 2*del; x[0]++) {
+				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
+					continue;
+				for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
+					for (x[2] = x0(GRID, 2); x[2] < x1(GRID, 2); x[2]++) {
+						const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] - R - del)/(del)));
+						applyStripeTanh(GRID(x), false, pid, xCr, xNb, tanhprof);
+					}
+				}
 			}
 		}
 	}
@@ -1457,7 +1563,7 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 
 int parallelTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix* J)
 {
-	parallelTangent_f(x,  params, f);
+	parallelTangent_f( x, params, f);
 	parallelTangent_df(x, params, J);
 
 	return GSL_SUCCESS;
@@ -1479,7 +1585,10 @@ rootsolver::rootsolver() :
 	 * methods reference (human or paper) to get your system of equations sorted.
 	 *
 	 * Available algorithms are, in order of *decreasing* efficiency:
-	 * hybridsj, hybridj, newton, gnewton
+	 * 1. gsl_multiroot_fdfsolver_hybridsj
+	 * 2. gsl_multiroot_fdfsolver_hybridj
+	 * 3. gsl_multiroot_fdfsolver_newton
+	 * 4. gsl_multiroot_fdfsolver_gnewton
 	 */
 	algorithm = gsl_multiroot_fdfsolver_hybridsj;
 	solver = gsl_multiroot_fdfsolver_alloc(algorithm, n);
@@ -1508,9 +1617,11 @@ double rootsolver::solve(MMSP::vector<T>& GRIDN)
 
 	do {
 		iter++;
+
 		status = gsl_multiroot_fdfsolver_iterate(solver);
-		if (status) // extra points for finishing early!
+		if (status) // solver either converged or got stuck
 			break;
+
 		status = gsl_multiroot_test_residual(solver->f, tolerance);
 	} while (status == GSL_CONTINUE && iter < maxiter);
 

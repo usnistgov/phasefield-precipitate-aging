@@ -119,7 +119,8 @@ template<typename T>
 T gibbs(const MMSP::vector<T>& v);
 
 // Compute gradient of specified field, only
-template <int dim, typename T> MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
+template <int dim, typename T>
+MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
 
 // Compute Laplacian of first N fields, ignore the rest
 template <int dim, typename T>
@@ -144,33 +145,31 @@ void guessLaves(MMSP::vector<T>& GRIDN);
 
 
 // Cookie cutter functions to insert features into initial condition
-template<int dim,typename T>
+template<int dim, typename T>
 Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double bellCr, const double bellNb);
 
-template<typename T>
-Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID,
+template<int dim, typename T>
+Composition embedParticle(MMSP::grid<dim,MMSP::vector<T> >& GRID,
                           const MMSP::vector<int>& origin,
                           const int pid,
                           const double rprcp,
-                          const T& xCr, const T& xNb,
-                          const T phi);
+                          const T& xCr, const T& xNb);
 
-template<typename T>
-Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
+template<int dim, typename T>
+Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
                         const MMSP::vector<int>& origin,
                         const int pid,
                         const double rprcp,
-                        const T& xCr, const T& xNb,
-                        const T phi);
+                        const T& xCr, const T& xNb);
 
 
-template<int dim,typename T>
+template<int dim, typename T>
 T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt,
               MMSP::grid<dim,MMSP::vector<T> > const & newGrid);
 
 
-template<int dim,typename T>
+template<int dim, typename T>
 MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const & GRID);
 
-template<int dim,typename T>
+template<int dim, typename T>
 double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const & GRID);
