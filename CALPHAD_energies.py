@@ -94,9 +94,9 @@ from matplotlib.colors import LogNorm
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
 temp = 870.0 + 273.15 # 1143 Kelvin
 
-alpha_gam = 0.01 # exclusion zone at phase boundaries in which the spline applies
-alpha_del = 0.01
-alpha_lav = 0.01
+alpha_gam = 0.025 # exclusion zone at phase boundaries in which the spline applies
+alpha_del = 0.025
+alpha_lav = 0.025
 
 RT = 8.3144598*temp # J/mol/K
 Vm = 1.0e-5         # m^3/mol
@@ -216,11 +216,14 @@ xt_lav_Nb = 0.29
 xt_lav_Ni = 1.0 - xt_lav_Cr - xt_lav_Nb
 
 # Specify upper limit compositions
-xcr_del_hi = fr3by4
-xnb_del_hi = fr1by4
+lim_dx = 0.01 # how far past the hard edge can we go?
 
-xnb_lav_hi = fr1by3
-xni_lav_hi = fr2by3
+xcr_del_hi = fr3by4 + lim_dx
+xnb_del_hi = fr1by4 + lim_dx
+
+xnb_lav_hi = fr1by3 + lim_dx
+xni_lav_hi = fr2by3 + lim_dx
+xni_lav_hi = fr2by3 + lim_dx
 
 # Define slopes and intercepts for linear "funnel" functions
 # from range of CALPHAD landscapes at 1143 K
@@ -235,31 +238,30 @@ xni_lav_hi = fr2by3
 #lav_inter =  4.61e9 + 0.25 * lav_slope
 
 # Taylor ranges
-gam_slope = 18.0e11 # gam range: [-8, 10]e9 J/m3
-gam_inter = 10.0e9 # + 0.25*gam_slope
+gam_slope = 16 * 18e9 # gam range: [-8, 10]e9 J/m3
+gam_inter = 10e9 # + 0.25 * gam_slope
 
-del_slope = 28.0e11 # del range: [-8, 20]e9 J/m3
-del_inter = 20.0e9 # + 0.25*del_slope
+del_slope = 8 * 28e9 # del range: [-8, 20]e9 J/m3
+del_inter = 20e9 # + 0.25 * del_slope
 
-lav_slope = 25.0e11 # lav range: [-10, 15]e9 J/m3
-lav_inter = 15.0e9 # + 0.25 * lav_slope
+lav_slope = 16 * 25e9 # lav range: [-10, 15]e9 J/m3
+lav_inter = 15e9 # + 0.25 * lav_slope
 
 # Define linear "funnel" functions
-par_off = 0.05
 
-f_gamma_Cr_lo = gam_inter + gam_slope * (GAMMA_XCR - par_off)**2 - gam_slope * par_off**2
-f_gamma_Nb_lo = gam_inter + gam_slope * (GAMMA_XNB - par_off)**2 - gam_slope * par_off**2
-f_gamma_Ni_lo = gam_inter + gam_slope * (GAMMA_XNI - par_off)**2 - gam_slope * par_off**2
+f_gamma_Cr_lo = gam_inter - gam_slope * GAMMA_XCR
+f_gamma_Nb_lo = gam_inter - gam_slope * GAMMA_XNB
+f_gamma_Ni_lo = gam_inter - gam_slope * GAMMA_XNI
 
-f_delta_Cr_lo = del_inter + del_slope * (DELTA_XCR - par_off)**2 - del_slope * par_off**2
-f_delta_Nb_lo = del_inter + del_slope * (DELTA_XNB - par_off)**2 - del_slope * par_off**2
-f_delta_Cr_hi = del_inter + del_slope * (DELTA_XCR - xcr_del_hi + par_off)**2 - del_slope * par_off**2
-f_delta_Nb_hi = del_inter + del_slope * (DELTA_XNB - xnb_del_hi + par_off)**2 - del_slope * par_off**2
+f_delta_Cr_lo = del_inter - del_slope * DELTA_XCR
+f_delta_Nb_lo = del_inter - del_slope * DELTA_XNB
+f_delta_Cr_hi = del_inter + del_slope * (DELTA_XCR - xcr_del_hi)
+f_delta_Nb_hi = del_inter + del_slope * (DELTA_XNB - xnb_del_hi)
 
-f_laves_Nb_lo = lav_inter + lav_slope * (LAVES_XNB - par_off)**2 - lav_slope * par_off**2
-f_laves_Ni_lo = lav_inter + lav_slope * (LAVES_XNI - par_off)**2 - lav_slope * par_off**2
-f_laves_Nb_hi = lav_inter + lav_slope * (LAVES_XNB - xnb_lav_hi + par_off)**2 - lav_slope * par_off**2
-f_laves_Ni_hi = lav_inter + lav_slope * (LAVES_XNI - xni_lav_hi + par_off)**2 - lav_slope * par_off**2
+f_laves_Nb_lo = lav_inter - lav_slope * LAVES_XNB
+f_laves_Ni_lo = lav_inter - lav_slope * LAVES_XNI
+f_laves_Nb_hi = lav_inter + lav_slope * (LAVES_XNB - xnb_lav_hi)
+f_laves_Ni_hi = lav_inter + lav_slope * (LAVES_XNI - xni_lav_hi)
 
 
 # Anchor points for Taylor series
@@ -340,7 +342,7 @@ psi_lav_hi_Ni = fr1by2 * (1.0 + tanh(twopi / alpha_lav * ( LAVES_XNI - xni_lav_h
 
 
 # Generate safe CALPHAD expressions
-cornerwt = 0.02
+cornerwt = fr1by4
 
 c_gamma = (1.0 - psi_gam_lo_Cr - psi_gam_lo_Nb - psi_gam_lo_Ni
                + psi_gam_lo_Cr * psi_gam_lo_Nb

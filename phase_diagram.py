@@ -21,7 +21,7 @@ labels = [r"$\gamma$", r"$\delta$", "Laves"]
 colors = ['red', 'green', 'blue']
 
 ### LINESCANS
-stepsz = 0.005
+stepsz = 0.01
 dc = 0.05
 
 # Plot Nb linescans
@@ -35,28 +35,34 @@ for j in range(len(phases)):
 	plt.title("{0} linescan at {1}K".format(labels[j], temp))
 	plt.xlabel(r'$x_\mathrm{Nb}$')
 	plt.ylabel(r'$\mathcal{F}$')
+	plt.ylim([-1e10, 3e10])
 
 n = 0
 for xcr in (0.1, 0.2, 0.3):
     x = []
 	
     c = [[], [], []] # raw CALPHAD array
+    g = [[], [], []] # safe CALPHAD array
     t = [[], [], []] # safe Taylor array
 	
     for xnb in np.arange(-dc, 1+dc, stepsz):
         xni = 1-xcr-xnb
         x.append(xnb)
-        c[0].append(CG(xcr, xnb))
-        c[1].append(CD(xcr, xnb))
-        c[2].append(CL(xcr, xnb))
+        #c[0].append(CG(xcr, xnb))
+        #c[1].append(CD(xcr, xnb))
+        #c[2].append(CL(xcr, xnb))
+        #g[0].append(GG(xcr, xnb))
+        #g[1].append(GD(xcr, xnb))
+        #g[2].append(GL(xcr, xnb))
         t[0].append(TG(xcr, xnb))
         t[1].append(TD(xcr, xnb))
         t[2].append(TL(xcr, xnb))
 	
     for j in range(len(phases)):
     	plt.figure(j)
+    	#plt.plot(x, c[j], color=colors[n], ls=':', label=r'CALPHAD $x_{\mathrm{Cr}}=%.2f$'%xcr)
+    	#plt.plot(x, G[j], color=colors[n], label=r'CALPHAD $x_{\mathrm{Cr}}=%.2f$'%xcr)
     	plt.plot(x, t[j], color=colors[n], label=r'Taylor $x_{\mathrm{Cr}}=%.2f$'%xcr)
-    	plt.plot(x, c[j], color=colors[n], ls=':', label=r'CALPHAD $x_{\mathrm{Cr}}=%.2f$'%xcr)
     
     n += 1
 
@@ -79,27 +85,33 @@ for j in range(len(phases)):
 	plt.title("{0} linescan at {1}K".format(labels[j], temp))
 	plt.xlabel(r'$x_\mathrm{Cr}$')
 	plt.ylabel(r'$\mathcal{F}$')
+	plt.ylim([-1e10, 3e10])
 
 n = 0
 for xnb in (0.01, 0.05, 0.10):
     x = []
 	
     c = [[], [], []] # raw CALPHAD array
+    g = [[], [], []] # safe CALPHAD array
     t = [[], [], []] # safe Taylor array
 	
     for xcr in np.arange(-dc, 1+dc, stepsz):
         x.append(xcr)
-        c[0].append(CG(xcr, xnb))
-        c[1].append(CD(xcr, xnb))
-        c[2].append(CL(xcr, xnb))
+        #c[0].append(CG(xcr, xnb))
+        #c[1].append(CD(xcr, xnb))
+        #c[2].append(CL(xcr, xnb))
+        #g[0].append(GG(xcr, xnb))
+        #g[1].append(GD(xcr, xnb))
+        #g[2].append(GL(xcr, xnb))
         t[0].append(TG(xcr, xnb))
         t[1].append(TD(xcr, xnb))
         t[2].append(TL(xcr, xnb))
 	
     for j in range(len(phases)):
     	plt.figure(j)
+    	#plt.plot(x, c[j], color=colors[n], ls=':', label=r'CALPHAD $x_{\mathrm{Nb}}=%.2f$'%xnb)
+    	#plt.plot(x, g[j], color=colors[n], label=r'CALPHAD $x_{\mathrm{Nb}}=%.2f$'%xnb)
     	plt.plot(x, t[j], color=colors[n], label=r'Taylor $x_{\mathrm{Nb}}=%.2f$'%xnb)
-    	plt.plot(x, c[j], color=colors[n], ls=':', label=r'CALPHAD $x_{\mathrm{Nb}}=%.2f$'%xnb)
     
     n += 1
 
