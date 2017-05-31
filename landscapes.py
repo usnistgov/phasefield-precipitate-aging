@@ -23,7 +23,7 @@ from pycalphad import variables as v
 # setup global variables
 
 Titles = (r'$\gamma$', r'$\delta$', r'Laves')
-npts = 150
+npts = 50
 nfun = 3
 span = (-0.05, 1.05)
 yspan = (-0.05, 0.95)
@@ -67,7 +67,7 @@ for j in tqdm(np.nditer(y)):
         	datmax[k] = max(datmax[k], z[k][n])
         n += 1
 
-print "Data spans [%.4g, %.4g]" % (np.amin(datmin), np.amax(datmax))
+print "Taylor data spans [%.4g, %.4g]" % (np.amin(datmin), np.amax(datmax))
 
 
 f, axarr = plt.subplots(nrows=1, ncols=3, sharex='col', sharey='row')
@@ -114,6 +114,8 @@ for n in range(nfun):
     # points = np.array([p, q, z[n]])
     # np.savetxt(files[n], points.T)
 
+
+
 # Plot CALPHAD free energies using extracted equations
 datmin = 1.0e10 * np.ones(nfun)
 datmax = -1.0e10 * np.ones(nfun)
@@ -135,7 +137,7 @@ for j in tqdm(np.nditer(y)):
         	datmax[k] = max(datmax[k], z[k][n])
         n += 1
 
-print "Data spans [%.4g, %.4g]" % (np.amin(datmin), np.amax(datmax))
+print "CALPHAD data spans [%.4g, %.4g]" % (np.amin(datmin), np.amax(datmax))
 
 
 f, axarr = plt.subplots(nrows=1, ncols=3, sharex='col', sharey='row')

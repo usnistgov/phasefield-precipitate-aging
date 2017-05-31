@@ -30,6 +30,10 @@ if path.isdir(datdir):
     XS = [0.0, simX(1,0), simX(0,1), 0.0]
     YS = [0.0, simY(0),   simY(1),   0.0]
     
+    # triangle bounding three-phase coexistence
+    X0 = [simX(0.025, 0.490), simX(0.245, 0.02), simX(0.283, 0.30)]
+    Y0 = [simY(0.490),        simY(0.02),        simY(0.30)]
+    
     # Tick marks along simplex edges
     Xtick = []
     Ytick = []
@@ -56,7 +60,8 @@ if path.isdir(datdir):
     plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
     plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
     plt.xticks(np.linspace(0, 1, 21))
-    plt.scatter(Xtick, Ytick, color='black', s=3)
+    plt.scatter(Xtick, Ytick, color='black', s=3, zorder=10)
+    plt.scatter(X0, Y0, color='black', s=3, zorder=10)
      
     # Plot compositions given to rootsolver
     thebad = datdir + "/badroots.log"
