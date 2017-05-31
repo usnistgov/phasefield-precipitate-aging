@@ -25,10 +25,10 @@
 #ifndef ALLOY625_UPDATE
 #define ALLOY625_UPDATE
 #include<cmath>
+#include<random>
 #ifdef _OPENMP
 #include"omp.h"
 #endif
-
 #include<gsl/gsl_blas.h>
 #include<gsl/gsl_math.h>
 #include<gsl/gsl_roots.h>
@@ -94,7 +94,7 @@
 // as defined in the first elements of the two following arrays. The generate() function
 // will adjust the initial gamma composition depending on the type, amount, and composition
 // of the secondary phases to maintain the system's nominal composition.
-#ifdef PARABOLA
+#ifndef CALPHAD
 // Parabolic free energy requires a system composition inside the three-phase coexistence region
 //                        nominal   delta        laves         gamma-enrichment
 const field_t xCr[NP+2] = {0.250,   xe_del_Cr(), xe_lav_Cr(),  0.350 - 0.250};
@@ -108,10 +108,10 @@ const field_t xNb[NP+2] = {0.020,   xe_del_Nb(), xe_lav_Nb(),  0.130 - 0.020};
 
 // Define st.dev. of Gaussians for alloying element segregation
 //                       Cr        Nb
-const double bell[NC] = {75.0e-9, 25.0e-9}; // est. between 80-200 nm from SEM
+const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
-const double meshres = 5.0e-9; // grid spacing (m)
+const double meshres = 5e-9; // grid spacing (m)
 const field_t alpha = 1.07e11;  // three-phase coexistence coefficient (J/m^3)
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
@@ -125,7 +125,7 @@ const field_t kappa[NP] = {1.24e-8, 1.24e-8}; // gradient energy coefficient (J/
 // Choose numerical diffusivity to lock chemical and transformational timescales
 //                        delta      Laves
 const field_t Lmob[NP] = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns), Zhou's numbers
-//const field_t Lmob[NP] = {1.92e-12, 1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns), Xu's numbers
+//const field_t Lmob[NP] = {1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns), Xu's numbers
 
 //                        delta  Laves
 const field_t sigma[NP] = {1.01, 1.01}; // (J/m^2)
@@ -140,12 +140,12 @@ const field_t omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
 // Numerical considerations
 const bool useNeumann = true;     // apply zero-flux boundaries (Neumann type)?
 const bool useTanh = false;       // apply tanh profile to initial profile of composition and phase
-const double epsilon = 1.0e-14;   // what to consider zero to avoid log(c) explosions
+const double epsilon = 1e-14;     // what to consider zero to avoid log(c) explosions
 
-const field_t root_tol  = 1.0e-3; // residual tolerance (default is 1e-7)
+const field_t root_tol  = 1e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 5e5;    // default is 1000, increasing probably won't change anything but your runtime
 
-const field_t LinStab = 1.0 / 5.827506; // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 11.65501; // threshold of linear stability (von Neumann stability condition)
 
 namespace MMSP
 {
@@ -172,6 +172,11 @@ void generate(int dim, const char* filename)
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
 	double dt = LinStab * std::min(dtp, dtc);
+
+	// Initialize pseudo-random number generator
+	std::random_device rd; // PRNG seed generator
+	std::mt19937 mtrand(rd()); // Mersenne Twister
+	std::uniform_real_distribution<double> unidist(0, 1); // uniform distribution on [0, 1)
 
 	if (dim==1) {
 		// Construct grid
@@ -214,9 +219,6 @@ void generate(int dim, const char* filename)
 		comp += enrichMatrix(initGrid, bell[0], bell[1]);
 
 
-		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
-		const int xoffset[2] = {int(-16 * (5.0e-9 / meshres)), int(16 * (5.0e-9 / meshres))}; //  80 nm
-		vector<int> origin(dim, 0);
 
 		if (1) {
 			/* ============================================= *
@@ -226,6 +228,9 @@ void generate(int dim, const char* filename)
 			 * each secondary phase) to test competitive     *
 			 * growth without curvature                      *
 			 * ============================================= */
+
+			vector<int> origin(dim, 0);
+			const int xoffset[NP] = {int(-16 * (5e-9 / meshres)), int(16 * (5e-9 / meshres))}; //  80 nm
 
 			for (int j = 0; j < NP; j++) {
 				origin[0] = Nx / 2 + xoffset[j];
@@ -413,106 +418,54 @@ void generate(int dim, const char* filename)
 		Composition comp;
 		comp += enrichMatrix(initGrid, bell[0], bell[1]);
 
-
-		// Seed precipitates: four of each, arranged along the centerline to allow for pairwise coarsening.
-		const int xoffset = 16 * (5.0e-9 / meshres); //  80 nm
-		const int yoffset = 32 * (5.0e-9 / meshres); // 160 nm
-		vector<int> origin(dim, 0);
-
 		if (1) {
 			/* ================================================ *
-			 * Pairwise precipitate particle test configuration *
+			 * Multi-precipitate particle test configuration    *
 			 *                                                  *
-			 * Seed a 1.0 um x 0.25 um domain with 12 particles *
-			 * (four of each secondary phase) in heterogeneous  *
-			 * pairs to test full numerical and physical model  *
+			 * Seed a 1.0 um x 0.25 um domain with N particles  *
+			 * test full numerical and physical model           *
 			 * ================================================ */
 
-			// Initialize delta precipitates
-			int j = 0;
-			origin[0] = Nx / 2;
-			origin[1] = Ny - yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-			origin[0] = Nx/2 + xoffset;
-			origin[1] = Ny - 5*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-			origin[0] = Nx/2;
-			origin[1] = Ny - 3*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-			origin[0] = Nx/2 - xoffset;
-			origin[1] = Ny - 6*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
+			vector<int> origin(dim, 0);
+			double rnd = 0.0;
 
-			// Initialize Laves precipitates
-			j = 1;
-			origin[0] = Nx/2 + xoffset;
-			origin[1] = Ny - yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-			origin[0] = Nx/2;
-			origin[1] = Ny - 4*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-			origin[0] = Nx/2 - xoffset;
-			origin[1] = Ny - 2*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-			origin[0] = Nx/2;
-			origin[1] = Ny - 6*yoffset + yoffset/2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
+			for (int i = 0; i < 12; i++) {
+				// Select precipitate ID between [0, NP+1)
+				rnd = unidist(mtrand);
+				int pid = int(rnd * (NP + 1));
+				assert(pid < NP+1);
+
+				// Select precipitate radius
+				rnd = unidist(mtrand);
+				int prad = int((0.5 + rnd) * rPrecip[pid]);
+
+				// Select precipitate origin
+				rnd = unidist(mtrand);
+				origin[0] = rPrecip[pid] + int(rnd * (Nx - 2 * rPrecip[pid]));
+				rnd = unidist(mtrand);
+				origin[1] = rPrecip[pid] + int(rnd * (Ny - 2 * rPrecip[pid]));
+
+				// Embed this precipitate
+				comp += embedParticle(initGrid, origin, NC+pid, prad, xCr[pid+1], xNb[pid+1]);
+			}
 
 		} else if (0) {
 			/* =============================================== *
 			 * Two-phase Particle Growth test configuration    *
 			 *                                                 *
-			 * Seed a 1.0 um x 0.05 um domain with 3 particles *
+			 * Seed a 1.0 um x 0.05 um domain with 2 particles *
 			 * (one of each secondary phase) in a single row   *
 			 * to test competitive growth with Gibbs-Thomson   *
 			 * =============================================== */
 
-			// Initialize delta precipitates
-			int j = 0;
-			origin[0] = Nx / 2;
-			origin[1] = Ny / 2;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
+			vector<int> origin(dim, 0);
+			const int xoffset[NP] = {0, int(16 * (5e-9 / meshres))}; //  80 nm
 
-			// Initialize Laves precipitates
-			j = 1;
-			origin[0] = Nx / 2 + xoffset;
-			comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-
-		} else if (0) {
-			/* ============================================= *
-			 * Two-phase Stripe Growth test configuration    *
-			 *                                               *
-			 * Seed a 1.0 um x 0.05 um domain with 3 stripes *
-			 * (one of each secondary phase) in a single row *
-			 * to test competitive growth without curvature  *
-			 * ============================================= */
-
-			// Initialize delta stripe
-			int j = 0;
-			origin[0] = Nx / 2;
-			origin[1] = Ny / 2;
-			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-
-			// Initialize Laves stripe
-			j = 1;
-			origin[0] = Nx / 2 + xoffset;
-			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-
-		} else if (0) {
-			/* ============================================= *
-			 * Two-phase Planar Interface test configuration *
-			 *                                               *
-			 * Seed a 1.0 um x 0.004 um domain with a planar *
-			 * interface between gamma and delta as a simple *
-			 * test of diffusion and phase equations         *
-			 * ============================================= */
-
-			// Initialize planar interface between gamma and delta
-			origin[0] = Nx / 4;
-			origin[1] = Ny / 2;
-			const field_t delCr = 0.15; // Choose initial composition carefully!
-			const field_t delNb = 0.15;
-			comp += embedStripe(initGrid, origin, 2, Nx/4, delCr, delNb);
+			for (int j = 0; j < NP; j++) {
+				origin[0] = xoffset[j] + Nx / 2;
+				origin[1] = Ny / 2;
+				comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
+			}
 
 		} else {
 			if (rank == 0)
@@ -715,8 +668,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	// reference values for adaptive timestepper
 	const double run_time = dt * steps;
 	const double timelimit = 4.0 * LinStab * std::min(dtp, dtc) / dim;
-	const T scaleup = 1.00001; // how fast will dt rise when stable
-	const T scaledn = 0.9; // how fast will dt fall when unstable
+	const T scaleup = 1.000001; // how fast dt will rise when stable
+	const T scaledn = 0.9;      // how fast dt will fall when unstable
 
 	#ifdef MPI_VERSION
 	double mydt(current_dt);
@@ -766,13 +719,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			                            };
 
 			// Diffusion potential in matrix (will equal chemical potential at equilibrium)
-			#ifdef PARABOLA
-			const field_t dgGdxCr = dg_gam_dxCr(oldGridN[NC+NP]);
-			const field_t dgGdxNb = dg_gam_dxNb(oldGridN[NC+NP+1]);
-			#else
 			const field_t dgGdxCr = dg_gam_dxCr(oldGridN[NC+NP], oldGridN[NC+NP+1]);
 			const field_t dgGdxNb = dg_gam_dxNb(oldGridN[NC+NP], oldGridN[NC+NP+1]);
-			#endif
 			const T chempot[NC] = {dgGdxCr, dgGdxNb};
 
 			// sum of phase fractions-squared
@@ -918,7 +866,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			ghostswap(oldGrid);
 			#else
 			if (rank == 0) {
-				std::cerr<<"ERROR: Interface swept more than ("<<meshres/advectionlimit<<")dx, timestep is too aggressive!"<<std::endl;
+				std::cerr<<"ERROR: Interface swept more than (dx/"<<meshres/advectionlimit<<"), timestep is too aggressive!"<<std::endl;
 				fclose(cfile);
 			}
 
@@ -1423,16 +1371,6 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 
 	// Prepare derivatives
-	#ifdef PARABOLA
-	const field_t dgGdxCr = dg_gam_dxCr(C_gam_Cr);
-	const field_t dgGdxNb = dg_gam_dxNb(C_gam_Nb);
-
-	const field_t dgDdxCr = dg_del_dxCr(C_del_Cr);
-	const field_t dgDdxNb = dg_del_dxNb(C_del_Nb);
-
-	const field_t dgLdxCr = dg_lav_dxCr(C_lav_Cr);
-	const field_t dgLdxNb = dg_lav_dxNb(C_lav_Nb);
-	#else
 	const field_t dgGdxCr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb);
 	const field_t dgGdxNb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb);
 
@@ -1441,7 +1379,6 @@ int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
 
 	const field_t dgLdxCr = dg_lav_dxCr(C_lav_Cr, C_lav_Nb);
 	const field_t dgLdxNb = dg_lav_dxNb(C_lav_Cr, C_lav_Nb);
-	#endif
 
 
 	// Update vector
@@ -1526,9 +1463,14 @@ int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	const double jac_del_CrNb = d2g_del_dxCrNb();
 	const double jac_del_NbCr = jac_del_CrNb;
 	const double jac_del_NbNb = d2g_del_dxNbNb();
-	#else
+	#elif defined CALPHAD
 	const double jac_del_CrCr = d2g_del_dxCrCr(C_del_Cr, C_del_Nb);
 	const double jac_del_CrNb = d2g_del_dxCrNb(C_del_Cr, C_del_Nb);
+	const double jac_del_NbCr = jac_del_CrNb;
+	const double jac_del_NbNb = d2g_del_dxNbNb(C_del_Cr, C_del_Nb);
+	#else
+	const double jac_del_CrCr = d2g_del_dxCrCr(C_del_Cr);
+	const double jac_del_CrNb = d2g_del_dxCrNb(C_del_Nb);
 	const double jac_del_NbCr = jac_del_CrNb;
 	const double jac_del_NbNb = d2g_del_dxNbNb(C_del_Cr, C_del_Nb);
 	#endif
@@ -1663,7 +1605,7 @@ T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt
 
 		for (int i = 0; i < NP; i++) {
 			const T newPhaseFrac = h(newGridN[i+NC]);
-			if (newPhaseFrac > 0.1 && newPhaseFrac < 0.9) {
+			if (newPhaseFrac > 0.4 && newPhaseFrac < 0.6) {
 				const MMSP::vector<T> gradPhi = maskedgradient(newGrid, x, i+NC);
 				const T magGrad = std::sqrt(gradPhi * gradPhi);
 				if (magGrad > epsilon) {
