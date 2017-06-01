@@ -94,11 +94,11 @@
 // as defined in the first elements of the two following arrays. The generate() function
 // will adjust the initial gamma composition depending on the type, amount, and composition
 // of the secondary phases to maintain the system's nominal composition.
-#ifndef CALPHAD
+#ifdef PARABOLA
 // Parabolic free energy requires a system composition inside the three-phase coexistence region
 //                        nominal   delta        laves         gamma-enrichment
-const field_t xCr[NP+2] = {0.250,   xe_del_Cr(), xe_lav_Cr(),  0.350 - 0.250};
-const field_t xNb[NP+2] = {0.125,   xe_del_Nb(), xe_lav_Nb(),  0.175 - 0.125};
+const field_t xCr[NP+2] = {0.250,   xe_del_Cr(), xe_lav_Cr(),  0.005};
+const field_t xNb[NP+2] = {0.150,   xe_del_Nb(), xe_lav_Nb(),  0.050};
 #else
 // CALPHAD and Taylor approximations admit any system composition
 //                        nominal   delta        laves         gamma-enrichment
@@ -135,17 +135,17 @@ const field_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.0
 const field_t ifce_width = 10.0*meshres; // ensure at least 7 points through the interface
 const field_t omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
                            3.0 * width_factor * sigma[1] / ifce_width  // Laves
-                         };       // multiwell height (J/m^3)
+                          };       // multiwell height (J/m^3)
 
 // Numerical considerations
 const bool useNeumann = true;     // apply zero-flux boundaries (Neumann type)?
 const bool useTanh = false;       // apply tanh profile to initial profile of composition and phase
-const double epsilon = 1e-14;     // what to consider zero to avoid log(c) explosions
+const double epsilon = 1e-12;     // what to consider zero to avoid log(c) explosions
 
 const field_t root_tol  = 1e-3;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 5e5;    // default is 1000, increasing probably won't change anything but your runtime
 
-const field_t LinStab = 1.0 / 11.65501; // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 29.13753; // threshold of linear stability (von Neumann stability condition)
 
 namespace MMSP
 {
@@ -206,7 +206,7 @@ void generate(int dim, const char* filename)
 		                             5.0*7.5e-9 / dx(initGrid,0)}; // Laves
 
 		// Zero initial condition
-		const vector<field_t> blank(fields(initGrid), 0.0);
+		const vector<field_t> blank(fields(initGrid), 0);
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
@@ -406,7 +406,7 @@ void generate(int dim, const char* filename)
 		}
 
 		// Zero initial condition
-		const vector<field_t> blank(fields(initGrid), 0.0);
+		const vector<field_t> blank(fields(initGrid), 0);
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
@@ -747,7 +747,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			for (int j = 0; j < NP; j++) {
 				const T& phiOld = oldGridN[NC+j];
-				assert(phiOld > -epsilon);
+				assert(phiOld > -1);
 
 				// "Pressure" between matrix and precipitate phase
 				T Pressure = PhaseEnergy[NP] - PhaseEnergy[j];
@@ -890,11 +890,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	}
 
 	#ifndef NDEBUG
-	// Output compositions where rootsolver failed
+	// Output compositions where rootsolver failed (and succeeded)
 	FILE* badfile = NULL;
 	FILE* gudfile = NULL;
-	badfile = fopen("badroots.log", "w"); // old results will be overwritten
-	gudfile = fopen("gudroots.log", "w");
+	badfile = fopen("badroots.log", "a"); // new results will be appended
+	gudfile = fopen("gudroots.log", "a");
 
 	for (int n = 0; n < nodes(newGrid); n++) {
 		if (newGrid(n)[fields(newGrid)-1] > root_tol) {
