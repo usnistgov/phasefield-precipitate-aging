@@ -19,7 +19,7 @@
  *************************************************************************************/
 
 // Number of precipitates and components (for array allocation)
-#define NP 3
+#define NP 2
 #define NC 2
 
 std::string PROGRAM = "alloy625";
@@ -68,7 +68,7 @@ Composition& Composition::operator+=(const Composition& c)
 
 /* ============================ rootsolver Class =========================== */
 
-/* Given const phase fractions (in gamma, mu, and delta) and concentrations of
+/* Given const phase fractions (in gamma, delta, and Laves) and concentrations of
  * Cr and Nb, iteratively determine the fictitious concentrations in each phase
  * that satisfy the constraints of equal chemical potential at equilibrium and
  * conservation of mass at all times. Pass constants (p and x) by const value,
@@ -82,9 +82,8 @@ struct rparams {
 	double x_Nb;
 
 	// Structure fields
-	double n_del;
-	double n_mu;
-	double n_lav;
+	double h_del;
+	double h_lav;
 };
 
 class rootsolver
@@ -114,17 +113,18 @@ inline field_t h(const field_t& p) {return p * p * p * (6.0 * p * p - 15.0 * p +
 
 inline field_t hprime(const field_t& p) {return 30.0 * p * p * (1.0 - p) * (1.0 - p);}
 
-inline field_t sign(const field_t& x) {return (x<0) ? -1.0 : 1.0;}
-
 
 // Gibbs free energy density
 template<typename T>
 T gibbs(const MMSP::vector<T>& v);
 
+// Compute gradient of specified field, only
+template <int dim, typename T>
+MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
 
 // Compute Laplacian of first N fields, ignore the rest
 template <int dim, typename T>
-MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
+MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
 
 // Geometric helpers for initial conditions
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx);
@@ -132,7 +132,7 @@ double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const doub
 double bellCurve(double x, double m, double s);
 
 
-// Guess values for parallel tangent solver: gamma, mu, and delta equilibrium compositions
+// Guess values for parallel tangent solver: gamma, delta, and Laves equilibrium compositions
 
 template<typename T>
 void guessGamma(MMSP::vector<T>& GRIDN);
@@ -141,38 +141,35 @@ template<typename T>
 void guessDelta(MMSP::vector<T>& GRIDN);
 
 template<typename T>
-void guessMu(   MMSP::vector<T>& GRIDN);
-
-template<typename T>
 void guessLaves(MMSP::vector<T>& GRIDN);
 
 
 // Cookie cutter functions to insert features into initial condition
-template<int dim,typename T>
+template<int dim, typename T>
 Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double bellCr, const double bellNb);
 
-template<typename T>
-Composition embedParticle(MMSP::grid<2,MMSP::vector<T> >& GRID,
+template<int dim, typename T>
+Composition embedParticle(MMSP::grid<dim,MMSP::vector<T> >& GRID,
                           const MMSP::vector<int>& origin,
                           const int pid,
                           const double rprcp,
-                          const T& xCr, const T& xNb,
-                          const T phi);
+                          const T& xCr, const T& xNb);
 
-template<typename T>
-Composition embedStripe(MMSP::grid<2,MMSP::vector<T> >& GRID,
+template<int dim, typename T>
+Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
                         const MMSP::vector<int>& origin,
                         const int pid,
                         const double rprcp,
-                        const T& xCr, const T& xNb,
-                        const T phi);
+                        const T& xCr, const T& xNb);
 
 
-template<int dim,typename T>
-T maxVelocity(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& dt,
-              MMSP::grid<dim, MMSP::vector<T> > const & newGrid);
+template<int dim, typename T>
+T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt,
+              MMSP::grid<dim,MMSP::vector<T> > const & newGrid);
 
 
-template<int dim,typename T>
-MMSP::vector<double> summarize(MMSP::grid<dim, MMSP::vector<T> > const & oldGrid, const double& dt,
-                               MMSP::grid<dim, MMSP::vector<T> > const & newGrid);
+template<int dim, typename T>
+MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const & GRID);
+
+template<int dim, typename T>
+double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const & GRID);

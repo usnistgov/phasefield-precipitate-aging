@@ -15,7 +15,8 @@ mpilinks = -lmpiP -lbfd -liberty
 
 
 # precompiler directives
-directives = -DADAPTIVE_TIMESTEPS
+# Options: -DCALPHAD	-DPARABOLA	-DADAPTIVE_TIMESTEPS	-DNDEBUG
+directives = -DPARABOLA
 
 
 # flags: common, debug, Intel, GNU, and MPI
@@ -23,8 +24,8 @@ stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include $(directives)
 dbgflags  = $(stdflags) -O1 -pg
 idbgflags = $(stdflags) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
 
-iflags = $(stdflags) -O3 -xCORE-AVX2 -unroll-aggressive -opt-prefetch
-gflags = $(stdflags) -O3 -ffast-math -funroll-loops
+iflags = $(stdflags) -w3 -diag-disable:remark -xCORE-AVX2 -O3 -funroll-loops -opt-prefetch -fast
+gflags = $(stdflags) -pedantic -O3 -funroll-loops -ffast-math 
 pflags = -include mpi.h $(dbgflags) $(mpilinks)
 
 
@@ -32,21 +33,21 @@ pflags = -include mpi.h $(dbgflags) $(mpilinks)
 
 # default program (shared memory, OpenMP)
 alloy625: alloy625.cpp
-	$(icompiler) $< -o $@ $(iflags) $(stdlinks) -fopenmp
+	$(icompiler) $< -o $@ $(iflags) $(stdlinks) -openmp
 
 # profiling program (no parallelism or optimization)
 serial: alloy625.cpp
-	$(gcompiler) $< -o $@ $(dbgflags) $(stdlinks)
+	$(gcompiler) $< -o $@ $(gflags) $(stdlinks)
 
 iserial: alloy625.cpp
-	$(icompiler) $< -o $@ $(idbgflags) $(stdlinks)
+	$(icompiler) $< -o $@ $(iflags) $(stdlinks)
 
 
 # CLUSTER
 
 # threaded program (shared memory, OpenMP)
 smp: alloy625.cpp
-	$(gcompiler) $< -o $@ $(dbgflags) $(stdlinks) -fopenmp
+	$(gcompiler) $< -o $@ $(gflags) $(stdlinks) -fopenmp
 
 # parallel program (distributed memory, MPI)
 parallel: alloy625.cpp $(core)
@@ -63,6 +64,11 @@ pgparallel: alloy625.cpp
 	$(pcompiler) -fast -Mipa=fast -Mfprelaxed -std=c++11 -I $(MMSP_PATH)/include -include mpi.h $< -o $@ $(stdlinks) -mp
 
 
+# DESCRIPTION
+description: phasefield-precipitate-aging_description.tex
+	pdflatex -interaction=nonstopmode $<
+
+
 # UTILITIES
 
 # extract composition from line profile
@@ -73,5 +79,9 @@ mmsp2comp: mmsp2comp.cpp
 adsorption: adsorption.cpp
 	$(gcompiler) $(stdflags) $< -o $@ -lz
 
+# generate equilibrium phase diagram information
+equilibrium: equilibrium.cpp
+	$(gcompiler) -Wall -std=c++11 -DPARABOLA $< -o $@ -lgsl -lgslcblas
+
 clean:
-	rm -f adsorption alloy625 ibtest iserial mmsp2comp parallel pgparallel serial smp smpi
+	rm -f adsorption alloy625 equilibrium ibtest iserial mmsp2comp parallel pgparallel serial smp smpi

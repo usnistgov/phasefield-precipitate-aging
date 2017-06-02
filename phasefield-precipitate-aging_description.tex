@@ -11,13 +11,11 @@
 	which is a generalization of the KKS binary model \cite{Kim1999}.
 	Model parameters are listed in Appendix~\ref{app:params}.
 	
-	To capture $\delta$, $\mu$, and Laves precipitates in a $\gamma$ matrix, I have chosen Ni--\SI{30}{\percent} Cr--\SI{2}{\percent} Nb as the model system.
+	To capture $\delta$ and Laves precipitates in a $\gamma$ matrix, I have chosen Ni--\SI{30}{\percent} Cr--\SI{2}{\percent} Nb as the model system.
 	The interdendritic regions in additive manufacturing get enriched to Ni--\SI{31}{\percent} Cr--\SI{13}{\percent} Nb.
 	The four-phase three-component model is represented using two composition fields $\left(x_{\ce{Cr}}, x_{\ce{Nb}}\right)$
-	and three phase fields $\left(\phi_\delta, \phi_\mu, \phi_{\mathrm{Laves}}\right)$.
+	and two phase fields $\left(\phi_\delta, \phi_{\mathrm{Laves}}\right)$.
 	The CALPHAD database was modified from Du \emph{et al.} \cite{Du2005} to make $\delta$ a line compound.
-
-
 
 
 	\section{Phase Field Model}
@@ -25,18 +23,16 @@
 		\begin{align}
 			x_{\ce{Cr}} &= \left( 1-\sum h(|\phi_i|) \right) x_{\ce{Cr}}^{\gamma}
 			             + h(|\phi_\delta|) x_{\ce{Cr}}^{\delta}
-			             + h(|\phi_\mu|) x_{\ce{Cr}}^{\mu}
 			             + h(|\phi_{\mathrm{L}}|) x_{\ce{Cr}}^{\mathrm{L}}
 						\label{eqn:conscr}\\
 			x_{\ce{Nb}} &= \left( 1-\sum h(|\phi_i|) \right) x_{\ce{Nb}}^{\gamma}
 			             + h(|\phi_\delta|) x_{\ce{Nb}}^{\delta}
-			             + h(|\phi_\mu|) x_{\ce{Nb}}^{\mu}
 			             + h(|\phi_{\mathrm{L}}|) x_{\ce{Nb}}^{\mathrm{L}}
  			             \label{eqn:consnb}\\
  			h(\phi)     &= \phi^3\left(6\phi^2 - 15\phi + 10\right)\label{eqn:interp}
 		\end{align}
 		Therefore, the ternary model is implemented with two ``real'' compositions $(x_{\ce{Cr}}, x_{\ce{Nb}})$ and
-		eight `fictitious'' compositions $(x_{\ce{Cr}}^{\gamma}, x_{\ce{Nb}}^{\gamma}, x_{\ce{Cr}}^{\delta}, x_{\ce{Nb}}^{\delta}, x_{\ce{Cr}}^{\mu}, x_{\ce{Nb}}^{\mu}, x_{\ce{Cr}}^{\mathrm{L}}, x_{\ce{Nb}}^{\mathrm{L}})$.
+		six `fictitious'' compositions $(x_{\ce{Cr}}^{\gamma}, x_{\ce{Nb}}^{\gamma}, x_{\ce{Cr}}^{\delta}, x_{\ce{Nb}}^{\delta}, x_{\ce{Cr}}^{\mathrm{L}}, x_{\ce{Nb}}^{\mathrm{L}})$.
 
 		Zhou \emph{et al.} \cite{Zhou2014} defines the order parameter such that $\phi_i=\pm1$ indicates presence of the phase $i$, and $\phi_i=0$ indicates absence.
 		The matrix phase $\gamma$ exists where $\sum h(|\phi_i|)=0$. This allows for multiple discrete precipitates of the same phase, without unphysical coalescence.
@@ -44,12 +40,10 @@
 		\begin{align}\nonumber
 			f(x,\phi,t) &= \left( 1-\sum h(|\phi_i|) \right) f_\gamma(x_{\ce{Cr}}^{\gamma},x_{\ce{Nb}}^{\gamma})
 			             + h(|\phi_{\delta}|) f_\delta(x_{\ce{Cr}}^{\delta},x_{\ce{Nb}}^{\delta})
-			             + h(|\phi_{\mu}|) f_\mu(x_{\ce{Cr}}^{\mu},x_\ce{Ni}^{\mu})
 			             + h(|\phi_{\ce{L}}|)f_\ce{L}(x_{\ce{Nb}}^\ce{L},x_\ce{Ni}^\ce{L})\\\nonumber
 			            &+ \omega_\delta(\phi_\delta)^2(1-|\phi_\delta|)^2
-			             + \omega_\mu(\phi_\mu)^2(1-|\phi_\mu|)^2
 			             + \omega_\ce{L}(\phi_\ce{L})^2(1-|\phi_\ce{L}|)^2\\
-			            &+ \alpha\left(\phi_{\delta}^2\phi_{\mu}^2 + \phi_{\delta}^2\phi_{\ce{L}}^2 + \phi_{\mu}^2\phi_{\ce{L}}^2\right)
+			            &+ \alpha\phi_{\delta}^2\phi_{\ce{L}}^2
 			            \label{eqn:density}
 		\end{align}
 		with the elastic energy of the Zhou model neglected here.
@@ -62,12 +56,10 @@
 			\label{eqn:potcr}
 			\tilde{\mu}_{\ce{Cr}} &= \frac{\partial f_\gamma}{\partial x_{\ce{Cr}}^{\gamma}}
 			                       = \frac{\partial f_\delta}{\partial x_{\ce{Cr}}^{\delta}}
-			                       = \frac{\partial f_\mu}{\partial x_{\ce{Cr}}^{\mu}}
 			                       = \frac{\partial f_\ce{L}}{\partial x_{\ce{Cr}}^\ce{L}}\\
 			\label{eqn:potnb}
 			\tilde{\mu}_{\ce{Nb}} &= \frac{\partial f_\gamma}{\partial x_{\ce{Nb}}^{\gamma}}
 			                       = \frac{\partial f_\delta}{\partial x_{\ce{Nb}}^{\delta}}
-		    	                   = \frac{\partial f_\mu}{\partial x_{\ce{Nb}}^{\mu}}
 			                       = \frac{\partial f_\ce{L}}{\partial x_{\ce{Nb}}^\ce{L}}
 		\end{align}
 		The pure phase compositions $\left(x_j^i\right)$ are determined by solving the parallel tangent construction constrained by the
@@ -77,16 +69,14 @@
 			\label{eqn:Jf1}
 			0 &= x_{\ce{Cr}} - \left( 1-\sum h(|\phi_i|) \right)x_{\ce{Cr}}^{\gamma}
 			                 - h(|\phi_{\delta}|)x_{\ce{Cr}}^{\delta}
-			                 - h(|\phi_{\mu}|)x_{\ce{Cr}}^{\mu}
 			                 - h(|\phi_{\ce{L}}|)x_{\ce{Cr}}^{\ce{L}}\\
 			\label{eqn:Jf2}
 			0 &= x_{\ce{Nb}} - \left( 1-\sum h(|\phi_i|) \right)x_{\ce{Nb}}^{\gamma}
 			                 - h(|\phi_{\delta}|)x_{\ce{Nb}}^{\delta}
-			                 - h(|\phi_{\mu}|)x_{\ce{Nb}}^{\mu}
 			                 - h(|\phi_{\ce{L}}|)x_{\ce{Nb}}^{\ce{L}}
 		\end{align}\\
 		and equality of chemical potentials for each phase,\\
-		\begin{minipage}{0.305\textwidth}
+		\begin{minipage}{0.45\textwidth}
 		\begin{align}
 			\label{eqn:Jf3}
 			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}} - \frac{\partial f_{\delta}}{\partial x_{\ce{Cr}}^{\delta}}\\
@@ -94,15 +84,7 @@
 			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\delta}}{\partial x_{\ce{Nb}}^{\delta}}
 		\end{align}
 		\end{minipage}\qquad
-		\begin{minipage}{0.305\textwidth}
-		\begin{align}
-			\label{eqn:Jf5}
-			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}} - \frac{\partial f_{\mu}}{\partial x_{\ce{Cr}}^{\mu}}\\
-			\label{eqn:Jf6}
-			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}} - \frac{\partial f_{\mu}}{\partial x_{\ce{Nb}}^{\mu}}
-		\end{align}
-		\end{minipage}\qquad
-		\begin{minipage}{0.305\textwidth}
+		\begin{minipage}{0.45\textwidth}
 		\begin{align}
 			\label{eqn:Jf7}
 			0 &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}} - \frac{\partial f_{\ce{L}}}{\partial x_{\ce{Cr}}^{\ce{L}}}\\
@@ -118,8 +100,6 @@
 		                                                                     $x_{\ce{Nb}}^{\gamma}$,
 		                                                                     $x_{\ce{Cr}}^{\delta}$,
 		                                                                     $x_{\ce{Nb}}^{\delta}$,
-		                                                                     $x_{\ce{Cr}}^{\mu}$,
-		                                                                     $x_{\ce{Nb}}^{\mu}$,
 		                                                                     $x_{\ce{Cr}}^\ce{L}$, and
 		                                                                     $x_{\ce{Nb}}^\ce{L}$.
 		The complete Jacobian matrix is written in Appendix~\ref{app:jacobian}.
@@ -129,8 +109,7 @@
 		Subsequent guesses simply copy the result of the previous timestep.
 		During the iterations, $x_{\ce{Cr}}$,
 		                       $x_{\ce{Nb}}$,
-		                       $\phi_{\delta}$,
-		                       $\phi_{\mu}$, and
+		                       $\phi_{\delta}$, and
 		                       $\phi_{\ce{L}}$ are held constant.
 		In the event that a valid solution cannot be found, at any time during the simulation,
 		the line compound guesses are applied.
@@ -142,12 +121,64 @@
 
 	\section{Thermodynamic Model}
 		The pure phase free energies depend on Gibbs free energy expressions, divided by molar volume to convert from \si{\joule/\mole} to \si{\joule/\cubic\meter}.
-		The Gibbs free energy expressions are read from a CALPHAD database (Du \emph{et al.} \cite{Du2005}) using pycalphad,
-		then manipulated using sympy to substitute sublattice compositions $y$ with system compositions $x$.
+		The Gibbs free energy expressions are read from a CALPHAD database (Du \emph{et al.} \cite{Du2005}) using pycalphad.
 		This substitution is not valid over the entire ternary composition space, and sometimes incurs kinks.
+
+		CALPHAD represents phases in terms of sublattice compositions $y$, not system compositions $x$.
+		This is fundamental to CALPHAD.
+		Each sublattice has a site fraction $a$, similar to the subscripts in a molecular formula.
+		%For any phase with components $j$, sublattices $k$, and site fractions $a$,
+		%the sum of the sublattice compositions for each element $\sum y_j^k=1$.
+		The sublattice compositions are constrained by mass conservation:
+		\begin{align}
+			a' + a'' + \cdots &= 1\\\nonumber
+			a'y_A' + a''y_A'' + \cdots &= x_A\\\label{eqn:sublattice}
+			a'y_B' + a''y_B'' + \cdots &= x_B
+		\end{align}
+		where $'$ indicates the first sublattice, $''$ the second, etc.
+		The lattice fractions are also conserved:
+		\begin{align}\nonumber
+			y_A' + y_B' + \cdots &= 1\\
+			y_A'' + y_B'' + \cdots &= 1
+		\end{align}
+		These constraints can, for some phases, be used to map sublattice compositions directly into system compositions.
+		If all but one component appear on only one sublattice each, then $y$ maps into $x$ uniquely.
+
+		\begin{itemize}
+		\item $\gamma$ is represented with one sublattice \cite{Du2005}, \ce{(Cr{,}Nb{,}Ni)1}.
+			This maps trivially:
+			\begin{align*}
+				y_{\ce{Cr}}' &= x_{\ce{Cr}} & & & &\\
+				y_{\ce{Nb}}' &= x_{\ce{Nb}} & & & &\\
+				y_{\ce{Ni}}' &= x_{\ce{Ni}} & & & &
+			\end{align*}
+		
+		\item $\delta$ is represented with two sublattices \cite{Du2005}, \ce{(Nb{,}Ni)_{1/4}(Cr{,}Nb{,}Ni)_{3/4}}.
+			Since \ce{Nb} and \ce{Ni} appear on both, this cannot be mapped.
+			However, if we assume that \ce{Nb} partitions to the first sublattice,
+			\ce{(Nb{,}Ni)_{1/4}(Cr{,}Ni)_{3/4}} can be solved.
+			\begin{align*}
+				             &                   & y_{\ce{Cr}}'' &= \frac{4}{3}x_{\ce{Cr}}     & x_{\ce{Cr}}&<\frac{3}{4}\\
+				y_{\ce{Nb}}' &= 4x_{\ce{Nb}}     &               &                             & x_{\ce{Nb}}&<\frac{1}{4}\\
+				y_{\ce{Ni}}' &= 1 - 4x_{\ce{Nb}} & y_{\ce{Ni}}'' &= 1 - \frac{4}{3}x_{\ce{Cr}} &            &\\
+			\end{align*}
+		
+		\item Laves is represented with two sublattices, \ce{(Cr{,}Nb{,}Ni)_{2/3}(Cr{,}Nb)_{1/3}}.
+			Since \ce{Cr} and \ce{Nb} appear on both sublattices, this cannot be mapped.
+			Again, assuming that \ce{Nb} partitions to the second lattice,
+			\ce{(Cr{,}Ni)_{2/3}(Cr{,}Nb)_{1/3}} can be solved.
+			\begin{align*}
+				y_{\ce{Cr}}' &= 1 - \frac{3}{2}x_{\ce{Ni}} & y_{\ce{Cr}}'' &= 1 - 3x_{\ce{Nb}} &             &\\
+				             &                             & y_{\ce{Nb}}'' &= 3x_{\ce{Nb}}     & x_{\ce{Nb}} &< \frac{1}{3}\\
+				y_{\ce{Ni}}' &= \frac{3}{2}x_{\ce{Ni}}     &               &                   & x_{\ce{Ni}} &< \frac{2}{3}\\
+			\end{align*}
+		\end{itemize}		
+
+		\subsection{Taylor series approximation}
 		Since smooth and continuously differentiable functions are needed, the single-phase free energies are approximated
-		by second-order Taylor series expansion about control compositions $\mathbf{a}=(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$ chosen empirically such that the phase diagram is qualitatively correct (Fig.~\ref{fig:taylor}).
-		For each phase $\alpha\in(\gamma,\delta,\mu,\ce{Laves})$,
+		by second-order Taylor series expansion about control compositions $\mathbf{a}=(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$
+		chosen empirically such that the phase diagram is qualitatively correct. % (Fig.~\ref{fig:taylor}).
+		For each phase $\alpha\in(\gamma,\delta,\ce{Laves})$,
 		\begin{align}\nonumber
 			f_{\alpha} &\approx f_{\alpha}\left(a_{\ce{Cr}}^{\alpha}, a_{\ce{Nb}}^{\alpha}\right)\\\nonumber
 	                            &+ \sum\limits_{i}\frac{\partial f_{\alpha}\left(a_{\ce{Cr}}^{\alpha}, a_{\ce{Nb}}^{\alpha}\right)}{\partial x_i^{\alpha}}
@@ -158,17 +189,60 @@
 		\end{align}
 		with $i,j\in\ce{Cr},\ce{Nb},\ce{Ni}$. Note that, depending on the CALPHAD expression, some terms are null for each phase.
 
-		\begin{figure}[!ht]\centering
-			\includegraphics[width=\textwidth]{{taylor_phase_diagram}}
-			\caption{Phase diagram produced by a convex hull algorithm.
-			         Lines in coexistence regions are schematic, being edges of hull facets rather than thermodynamic tie lines.
-			         Black points inside the ternary simplex indicate control points $(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$ for the Taylor series expansions.
-			         The $\gamma-\delta-\ce{Laves}$ and $\delta-\mu-\ce{Laves}$ three-phase coexistence regions are qualitatively correct,
-			         but the phase boundaries are displaced and distorted relative to Du \emph{et al.} \cite{Du2005}.
-			}\label{fig:taylor}
-		\end{figure}
+		%\begin{figure}[!ht]\centering
+		%	\includegraphics[width=\textwidth]{{taylor_phase_diagram}}
+		%	\caption{Phase diagram produced by a convex hull algorithm.
+		%	         Lines in coexistence regions are schematic, being edges of hull facets rather than thermodynamic tie lines.
+		%	         Black points inside the ternary simplex indicate control points $(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$ for the Taylor series expansions.
+		%	         The $\gamma-\delta-\ce{Laves}$ three-phase coexistence region is qualitatively correct,
+		%	         but the phase boundaries are displaced and distorted relative to Du \emph{et al.} \cite{Du2005}.
+		%	}\label{fig:taylor}
+		%\end{figure}
 
 
+		\subsection{Continuous and Differentiable Boundaries}
+			The KKS interface model \cite{Kim1999} requires the free energy landscape for each phase to be smooth, continuous, and differentiable everywhere.
+			In the CALPHAD database, however, the sublattice description introduces bounds on the valid domain for each phase,
+			outside of which the free energy is undefined.
+			We therefore construct a ``funnel'' around each CALPHAD free energy to help numerical methods gone astray to find their way back inside the valid domain.
+			For simplicity, the funnels are constructed using independent linear functions of one composition each, stitched together using hyperbolic tangent ($\tanh$) functions.
+			These interpolate through an exclusion zone of width $\alpha$ around the border of each valid domain, guaranteeing continuity and differentiability.
+			
+			For an arbitrary CALPHAD model with a constraint on only one composition, the free energy landscape is stitched together from
+			the CALPHAD expression $G(x)$ and the funnel expression $V(x)$ with critical composition $x^*$.
+			Considering Fig.~\ref{fig:interp}, a $\tanh$ function is applied to interpolate between $G$ (parabolic, on the left) and $V$ (linear, on the right) as follows:
+			\begin{align}\nonumber
+				\xi &= \frac{2\pi}{\alpha}\left(x-x^*-\frac{\alpha}{2}\right)\\
+				V(x) &= \max(G(x)) + \frac{1}{4}\left(\max(G(x))-\min(G(x))\right)\left(x - x^*\right)\\\nonumber
+				F(x) &= G(x) + \frac{1}{2}\left(V(x)-G(x)\right)\left[1 + \tanh\xi\right]\\
+				     &= \frac{1}{2}\left[1 - \tanh\xi\right]G(x) + \frac{1}{2}\left[1 + \tanh\xi\right]V(x).
+			\end{align}
+			\begin{figure}[!ht]\centering
+				\includegraphics[width=\textwidth]{interpolation}
+				\caption{Schematic interpolation between the CALPHAD free energy $G(x)$ and a funnel potential $V(x)$
+				         using a hyperbolic tangent function over a finite composition $\Delta x = \alpha$,
+				         shown between the vertical lines.
+				         The splined function $F(x)$ is smooth, continuous, and differentiable everywhere.}
+				\label{fig:interp}
+			\end{figure}
+			With constraints on two compositions,
+			\begin{align}\label{eqn:xi}
+				\xi_i &= \frac{2\pi}{\alpha}\left(x_i-x^*_i-\frac{\alpha}{2}\right)\\\nonumber
+				F(x_1,x_2) &= G(x_1,x_2) + \frac{1}{2}\left(V(x_1)-G(x_1,x_2)\right)\left[1 + \tanh\xi_1\right] + \frac{1}{2}\left(V(x_2)-G(x_1,x_2)\right)\left[1 + \tanh\xi_2\right]\\
+				           &= \frac{1}{2}\left[-\tanh\xi_1 -\tanh\xi_2\right]G(x_1,x_2) + \frac{1}{2}\left[1 + \tanh\xi_1\right]V(x_1) + \frac{1}{2}\left[1 + \tanh\xi_2\right]V(x_2).
+			\end{align}
+
+			Generalizing to constraints on $N$ compositions, and adding terms to cancel undesirable contributions in regions where more than one funnel function is active,\footnote{
+			The double-summation in the coefficient of $G(\vec{x})$ removes an extraneous term of $-G(\vec{x})$ in ``corners'',
+			while the sum over $j$ in the coefficient of $V(x_i)$ produces the average $\frac{1}{2}[V(x_i)+V(x_j)]$ instead of the full sum of $V(x_i)+V(x_j)$ in those regions.}
+			\begin{align}\nonumber
+				F(\vec{x}) &= \frac{1}{2}\left[2-N-\sum\limits_{i=1}^N\tanh\xi_i + \frac{1}{2}\sum\limits_{i=1}^N\sum\limits_{j>i}\left(1+\tanh\xi_i\right)\left(1+\tanh\xi_j\right)\right]G(\vec{x})\\
+				           &+ \frac{1}{2}\sum\limits_{i=1}^N\left[\left(1 + \tanh\xi_i\right) - \frac{1}{4}\sum\limits_{j>i}\left(1+\tanh\xi_i\right)\left(1+\tanh\xi_j\right)\right]V(x_i).
+			\end{align}
+			For a ``high-side'' constraint, e.g. approaching $x^*_{\ce{Cr}}=1$ from inside the simplex, $\alpha$ should be positive in the definition of $\xi$ (Eqn.~\ref{eqn:xi}).
+			For a ``low-side'' constraint, e.g. approaching $x^*_{\ce{Cr}}=0$ from inside the simplex, $\alpha$ should be negative.
+			No other changes are necessary to reverse directionality of the $\tanh$ profiles.
+			
 
 	\section{Equations of Motion for Phases $\{\phi\}$}
 		The $\{\phi_i\}$ are not conserved, so Allen-Cahn dynamics are assumed:
@@ -329,48 +403,37 @@
 				Molar volume         & $V_m$                    & \SI{1.0e-5}{\cubic\meter/\mole}\\
 				Trijunction penalty  & $\alpha$                 & \SI{1.07e11}{\joule/\cubic\meter}\\
 				Interfacial energy   & $\sigma_\delta
-				                       =\sigma_\mu
 				                       =\sigma_\ce{L}$          & \SI{1.01}{\joule/\square\meter}\\
 				Gradient penalty     & $\kappa_\delta
-				                       =\kappa_\mu
 				                       =\kappa_\ce{L}$          & \SI{1.24e-8}{\joule/\meter}\\
 				Mobility             & $M_{\ce{Cr}}
 				                       = M_{\ce{Nb}}$           & \SI{2.42e-18}{\square\mole/\newton\second\square\meter}\\
 				Diffusivity          & $D_{\ce{Cr}}
 				                       = D_{\ce{Nb}}$           & \SI{1.58e-16}{\square\meter/\second}\\
 				Mobility             & $L_\delta
-				                       =L_\mu
 				                       =L_\ce{L}$               & \SI{2.904e-11}{\square\meter/\newton/\second}\\
 				Interface width      & $2\lambda$               & $7\Delta x$\\
 				Interface width      & $2\lambda$               & \SI{35e-9}{\meter}\\
 				Well height          & $\omega_\delta
-				                       =\omega_\mu
 				                       =\omega_\ce{L}$          & $6.6 \sigma_\delta / 2\lambda$\\
 				Well height          & $\omega_\delta
-				                       =\omega_\mu
 				                       =\omega_\ce{L}$          & \SI{1.9e8}{\joule/\cubic\meter}\\
 				$\gamma$ curvature   & $C_{\ce{Cr}}^{\gamma}$   & \SI{4.8e10}{\joule/\cubic\meter}\\
 				                     & $C_{\ce{Nb}}^{\gamma}$   & \SI{6.1e9}{\joule/\cubic\meter}\\
 				$\delta$ curvature   & $C_{\ce{Cr}}^{\delta}$   & \SI{5.4e10}{\joule/\cubic\meter}\\
 				                     & $C_{\ce{Nb}}^{\delta}$   & \SI{6.8e11}{\joule/\cubic\meter}\\
-				$\mu$ curvature      & $C_{\ce{Cr}}^{\mu}$      & \SI{4.5e10}{\joule/\cubic\meter}\\
-				                     & $C_{\ce{Nb}}^{\mu}$        & \SI{2.1e10}{\joule/\cubic\meter}\\
 				Laves curvature      & $C_{\ce{Nb}}^\ce{L}$     & \SI{1.2e11}{\joule/\cubic\meter}\\
 				                     & $C_{\ce{Ni}}^\ce{L}$     & \SI{1.1e10}{\joule/\cubic\meter}\\
 				$\gamma$ composition & $\prescript{e}{}{x}_{\ce{Cr}}^{\gamma}$ & \SI{1.00}{\percent}\\
 				                     & $\prescript{e}{}{x}_{\ce{Nb}}^{\gamma}$ & \SI{32.3}{\percent}\\
 				$\delta$ composition & $\prescript{e}{}{x}_{\ce{Cr}}^{\delta}$ & \SI{0.88}{\percent}\\
 				                     & $\prescript{e}{}{x}_{\ce{Nb}}^{\delta}$ & \SI{24.9}{\percent}\\
-				$\mu$ composition    & $\prescript{e}{}{x}_{\ce{Cr}}^{\mu}$    & \SI{1.06}{\percent}\\
-				                     & $\prescript{e}{}{x}_{\ce{Nb}}^{\mu}$    & \SI{50.8}{\percent}\\
 				Laves composition    & $\prescript{e}{}{x}_{\ce{Nb}}^{\ce{L}}$ & \SI{30.6}{\percent}\\
 				                     & $\prescript{e}{}{x}_{\ce{Ni}}^{\ce{L}}$ & \SI{49.1}{\percent}\\
 				$\gamma$ minimum     & $f^0_{\gamma}\left(\prescript{e}{}{x}_{\ce{Cr}}^{\gamma}, \prescript{e}{}{x}_{\ce{Nb}}^{\gamma}\right)$
 				                                                & \SI{-7.9722e9}{\joule/\cubic\meter}\\
 				$\delta$ minimum     & $f^0_{\delta}\left(\prescript{e}{}{x}_{\ce{Cr}}^{\delta}, \prescript{e}{}{x}_{\ce{Nb}}^{\delta}\right)$
 				                                                & \SI{-8.5488e9}{\joule/\cubic\meter}\\
-				$\mu$ minimum        & $f^0_{\mu}\left(\prescript{e}{}{x}_{\ce{Cr}}^{\mu}, \prescript{e}{}{x}_{\ce{Nb}}^{\mu}\right)$
-				                                                & \SI{-8.0076e9}{\joule/\cubic\meter}\\
 				Laves minimum        & $f^0_{\ce{L}}\left(\prescript{e}{}{x}_{\ce{Nb}}^{\ce{L}}, \prescript{e}{}{x}_{\ce{Ni}}^{\ce{L}}\right)$
 				                                                & \SI{-8.0522e9}{\joule/\cubic\meter}\\
 				\hline
@@ -408,79 +471,31 @@
 		
 		\begin{table}[ht]\centering
 		\begin{small}
-		\begin{tabular}{|c|cccccccc|}\hline
+		\setlength\extrarowheight{10pt}
+		\begin{tabular}{|c|cccccc|}\hline
 		$J_{ij}$  & $\partial x_{\ce{Cr}}^{\gamma}$ & $\partial x_{\ce{Nb}}^{\gamma}$ & $\partial x_{\ce{Cr}}^{\delta}$ & $\partial x_{\ce{Nb}}^{\delta}$
-		  & $\partial x_{\ce{Cr}}^{\mu}$ & $\partial x_{\ce{Nb}}^{\mu}$ & $\partial x_{\ce{Cr}}^{\ce{L}}$ & $\partial x_{\ce{Nb}}^{\ce{L}}$\\\hline
+		  & $\partial x_{\ce{Cr}}^{\ce{L}}$ & $\partial x_{\ce{Nb}}^{\ce{L}}$\\\hline
 		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf1}})$ & $-1+\sum h(|\phi_i|)$ & 0 & $-h(|\phi_{\delta}|)$ & 0 & $-h(|\phi_{\mu}|)$ & 0 & $-h(|\phi_{\ce{L}}|)$ & 0\\
+		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf1}})$ & $-1+\sum h(|\phi_i|)$ & 0 & $-h(|\phi_{\delta}|)$ & 0 & $-h(|\phi_{\ce{L}}|)$ & 0\\
 		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf2}})$ & 0 & $-1+\sum h(|\phi_i|)$ & 0 & $-h(|\phi_{\delta}|)$ & 0 & $-h(|\phi_{\mu}|)$ & 0 & $-h(|\phi_{\ce{L}}|)$\\
+		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf2}})$ & 0 & $-1+\sum h(|\phi_i|)$ & 0 & $-h(|\phi_{\delta}|)$ & 0 & $-h(|\phi_{\ce{L}}|)$\\
 		%
 		%
 		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf3}})$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Cr}}^{\gamma})^2}$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}\partial x_{\ce{Nb}}^{\gamma}}$ 
 		& $\frac{\partial^2 f_{\delta}}{\partial(x_{\ce{Cr}}^{\delta})^2}$ & $\frac{\partial^2 f_{\delta}}{\partial x_{\ce{Cr}}^{\delta}\partial x_{\ce{Nb}}^{\delta}}$
-		& 0 & 0 & 0 & 0\\
+		& 0 & 0\\
 		%
 		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf4}})$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}\partial x_{\ce{Cr}}^{\gamma}}$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Nb}}^{\gamma})^2}$
 		& $\frac{\partial^2 f_{\delta}}{\partial x_{\ce{Nb}}^{\delta} \partial x_{\ce{Cr}}^{\delta}}$ & $\frac{\partial^2 f_{\delta}}{\partial(x_{\ce{Nb}}^{\delta})^2}$
-		& 0 & 0 & 0 & 0\\
-		%
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf5}})$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Cr}}^{\gamma})^2}$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}\partial x_{\ce{Nb}}^{\gamma}}$ 
-		& 0 & 0 & $\frac{\partial^2 f_{\mu}}{\partial(x_{\ce{Cr}}^{\mu})^2}$ & $\frac{\partial^2 f_{\mu}}{\partial x_{\ce{Cr}}^{\mu}\partial x_{\ce{Nb}}^{\mu}}$
-		& 0 & 0\\
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf6}})$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}\partial x_{\ce{Cr}}^{\gamma}}$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Nb}}^{\gamma})^2}$
-		& 0 & 0 & $\frac{\partial^2 f_{\mu}}{\partial x_{\ce{Nb}}^{\mu} \partial x_{\ce{Cr}}^{\mu}}$ & $\frac{\partial^2 f_{\mu}}{\partial(x_{\ce{Nb}}^{\mu})^2}$
 		& 0 & 0\\
 		%
 		%
 		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf7}})$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Cr}}^{\gamma})^2}$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}\partial x_{\ce{Nb}}^{\gamma}}$ 
-		& 0 & 0 & 0 & 0 & $\frac{\partial^2 f_{\ce{L}}}{\partial(x_{\ce{Cr}}^{\ce{L}})^2}$ & $\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Cr}}^{\ce{L}}\partial x_{\ce{Nb}}^{\ce{L}}}$
+		& 0 & 0 & $\frac{\partial^2 f_{\ce{L}}}{\partial(x_{\ce{Cr}}^{\ce{L}})^2}$ & $\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Cr}}^{\ce{L}}\partial x_{\ce{Nb}}^{\ce{L}}}$
 		\\
 		%
 		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf8}})$ & $\frac{\partial^2 f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}\partial x_{\ce{Cr}}^{\gamma}}$ & $\frac{\partial^2 f_{\gamma}}{\partial(x_{\ce{Nb}}^{\gamma})^2}$
-		& 0 & 0 & 0 & 0 & $\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Nb}}^{\ce{L}} \partial x_{\ce{Cr}}^{\ce{L}}}$ & $\frac{\partial^2 f_{\ce{L}}}{\partial(x_{\ce{Nb}}^{\ce{L}})^2}$
-		\\\hline
-		%
-		%
-		\end{tabular}
-		\end{small}
-		\end{table}
-
-	For the specific case of paraboloid approximations for the pure phase free energies, the matrix reduces to
-	
-		\begin{table}[ht]\centering
-		\begin{small}
-		\begin{tabular}{|c|cccccccc|}\hline
-		$J_{ij}$  & $\partial x_{\ce{Cr}}^{\gamma}$ & $\partial x_{\ce{Nb}}^{\gamma}$ & $\partial x_{\ce{Cr}}^{\delta}$ & $\partial x_{\ce{Nb}}^{\delta}$
-		  & $\partial x_{\ce{Cr}}^{\mu}$ & $\partial x_{\ce{Nb}}^{\mu}$ & $\partial x_{\ce{Cr}}^{\ce{L}}$ & $\partial x_{\ce{Nb}}^{\ce{L}}$\\\hline
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf1}})$ & $-1+\sum h(|\phi_i|)$ & 0 & $-h(|\phi_{\delta}|)$ & 0 & $-h(|\phi_{\mu}|)$ & 0 & $-h(|\phi_{\ce{L}}|)$ & 0\\
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf2}})$ & 0 & $-1+\sum h(|\phi_i|)$ & 0 & $-h(|\phi_{\delta}|)$ & 0 & $-h(|\phi_{\mu}|)$ & 0 & $-h(|\phi_{\ce{L}}|)$\\
-		%
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf3}})$ & $2C_{\ce{Cr}}^{\gamma}$ & $0$ 
-		& $2C_{\ce{Cr}}^{\delta}$ & $0$ & 0 & 0 & 0 & 0\\
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf4}})$ & $0$ & $2C_{\ce{Nb}}^{\gamma}$
-		& $0$ & $2C_{\ce{Nb}}^{\delta}$ & 0 & 0 & 0 & 0\\
-		%
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf5}})$ & $2C_{\ce{Cr}}^{\gamma}$ & $0$ 
-		& 0 & 0 & $2C_{\ce{Cr}}^{\mu}$ & $0$	& 0 & 0\\
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf6}})$ & $0$ & $2C_{\ce{Nb}}^{\gamma}$
-		& 0 & 0 & $0$ & $2C_{\ce{Nb}}^{\mu}$	& 0 & 0\\
-		%
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf7}})$ & $2C_{\ce{Cr}}^{\gamma}$ & $0$ 
-		& 0 & 0 & 0 & 0 & $\frac{\partial^2 f_{\ce{L}}}{\partial(x_{\ce{Cr}}^{\ce{L}})^2}$ & $\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Cr}}^{\ce{L}}\partial x_{\ce{Nb}}^{\ce{L}}}$
-		\\
-		%
-		$\partial (\mathrm{Eqn.}~{\ref{eqn:Jf8}})$ & $0$ & $2C_{\ce{Nb}}^{\gamma}$
-		& 0 & 0 & 0 & 0 & $\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Nb}}^{\ce{L}} \partial x_{\ce{Cr}}^{\ce{L}}}$ & $\frac{\partial^2 f_{\ce{L}}}{\partial(x_{\ce{Nb}}^{\ce{L}})^2}$
+		& 0 & 0 & $\frac{\partial^2 f_{\ce{L}}}{\partial x_{\ce{Nb}}^{\ce{L}} \partial x_{\ce{Cr}}^{\ce{L}}}$ & $\frac{\partial^2 f_{\ce{L}}}{\partial(x_{\ce{Nb}}^{\ce{L}})^2}$
 		\\\hline
 		%
 		%
@@ -506,10 +521,6 @@
 			x_{\ce{Ni}}^{\delta} &= 0.75\\
 			x_{\ce{Cr}}^{\delta} &= \frac{x_{\ce{Cr}}}{x_{\ce{Cr}} + x_{\ce{Nb}} + x_{\ce{Ni}}^{\delta}}\\
 			x_{\ce{Nb}}^{\delta} &= \frac{x_{\ce{Nb}}}{x_{\ce{Cr}} + x_{\ce{Nb}} + x_{\ce{Ni}}^{\delta}}
-		\end{align*}
-		\begin{align*}
-			x_{\ce{Nb}}^{\mu}    &= 0.525\\
-			x_{\ce{Cr}}^{\mu}    &= \frac{x_{\ce{Cr}}}{1 + x_{\ce{Nb}}^{\mu} - x_{\ce{Nb}}}
 		\end{align*}
 		\begin{align*}
 			x_{\ce{Nb}}^{\ce{L}} &= 0.30\\
