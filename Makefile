@@ -79,5 +79,9 @@ mmsp2comp: mmsp2comp.cpp
 adsorption: adsorption.cpp
 	$(gcompiler) $(stdflags) $< -o $@ -lz
 
+# generate equilibrium phase diagram information
+equilibrium: equilibrium.cpp
+	$(gcompiler) -Wall -std=c++11 -DPARABOLA $< -o $@ -lgsl -lgslcblas
+
 clean:
-	rm -f adsorption alloy625 ibtest iserial mmsp2comp parallel pgparallel serial smp smpi
+	rm -f adsorption alloy625 equilibrium ibtest iserial mmsp2comp parallel pgparallel serial smp smpi

@@ -4,6 +4,8 @@
 *.bak
 *.c
 *.dat
+*.directory
+*.gnumeric
 *.h
 *.log
 *.pdf
@@ -14,6 +16,7 @@
 *.o
 *.out
 *.sh
+*.txt
 
 .ipynb_checkpoints
 
@@ -21,6 +24,7 @@ adsorption
 alloy625
 data
 debug
+equilibrium
 ibtest
 iserial
 mmsp2comp
