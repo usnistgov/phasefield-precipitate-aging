@@ -77,5 +77,7 @@ if stat(del_lav_eqm).st_size > 0:
     plt.scatter(simX(del_xnb, del_xcr), simY(del_xcr), c='teal', s=1)
     plt.scatter(simX(lav_xnb, lav_xcr), simY(lav_xcr), c='cyan', s=1)
 
+plt.xlim([0, 1])
+plt.ylim([0, rt3by2])
 plt.savefig("equilibrium_phase_diagram.png", dpi=400, bbox_inches='tight')
 plt.close()

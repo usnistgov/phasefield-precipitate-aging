@@ -37,21 +37,36 @@ if path.isdir(datdir):
     # Tick marks along simplex edges
     Xtick = []
     Ytick = []
-    for i in range(20):
+    tickdens = 10
+    for i in range(tickdens):
         # Cr-Ni edge
-        xcr = 0.05*i
+        xcr = (1.0 * i) / tickdens
         xni = 1.0 - xcr
         Xtick.append(simX(-0.002, xcr))
         Ytick.append(simY(xcr))
         # Cr-Nb edge
-        xcr = 0.05*i
+        xcr = (1.0 * i) / tickdens
         xnb = 1.0 - xcr
         Xtick.append(simX(xnb+0.002, xcr))
         Ytick.append(simY(xcr))
         # Nb-Ni edge
-        xnb = 0.05*i
+        xnb = (1.0 * i) / tickdens
         Xtick.append(xnb)
         Ytick.append(-0.002)
+    
+    # Triangular grid
+    XG = [[]]
+    YG = [[]]
+    for a in np.arange(0, 1, 0.1):
+        # x1--x2: lines of constant x2=a
+        XG.append([simX(a, 0), simX(a, 1-a)])
+        YG.append([simY(0),    simY(1-a)])
+        # x2--x3: lines of constant x3=a
+        XG.append([simX(0, a), simX(1-a, a)])
+        YG.append([simY(a),    simY(a)])
+        # x1--x3: lines of constant x1=1-a
+        XG.append([simX(0, a), simX(a, 0)])
+        YG.append([simY(a),    simY(0)])
     
     # Plot ternary axes and labels
     plt.figure(figsize=(10, 7.5)) # inches
@@ -59,10 +74,14 @@ if path.isdir(datdir):
     plt.title("Cr-Nb-Ni Fictitious Compositions", fontsize=18)
     plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
     plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
-    plt.xticks(np.linspace(0, 1, 21))
+    plt.xlim([0, 1])
+    plt.ylim([0, rt3by2])
+    plt.xticks(np.linspace(0, 1, 11))
     plt.scatter(Xtick, Ytick, color='black', s=3, zorder=10)
-    plt.scatter(X0, Y0, color='black', s=3, zorder=10)
-     
+    plt.scatter(X0, Y0, color='black', s=9, zorder=10)
+    for a in range(len(XG)):
+        plt.plot(XG[a], YG[a], ':k', linewidth=0.5, alpha=0.5)
+    
     # Plot compositions given to rootsolver
     thebad = datdir + "/badroots.log"
     if stat(thebad).st_size > 0:
@@ -74,9 +93,9 @@ if path.isdir(datdir):
     thegud = datdir + "/gudroots.log" 
     if stat(thegud).st_size > 0:
         gam_xcr, gam_xnb, del_xcr, del_xnb, lav_xcr, lav_xnb = np.loadtxt(thegud, delimiter=',', unpack=True)
-        plt.scatter(simX(gam_xnb, gam_xcr), simY(gam_xcr), color='green', s=1.25, zorder=1, label="good $\gamma$")
-        plt.scatter(simX(del_xnb, del_xcr), simY(del_xcr), color='teal', s=1.25, zorder=1, label="good $\delta$")
-        plt.scatter(simX(lav_xnb, lav_xcr), simY(lav_xcr), color='cyan', s=1.25, zorder=1, label="good L")
+        plt.scatter(simX(gam_xnb, gam_xcr), simY(gam_xcr), color='green', s=1.25, zorder=1, label="$\gamma$")
+        plt.scatter(simX(del_xnb, del_xcr), simY(del_xcr), color='blue', s=1.25, zorder=1, label="$\delta$")
+        plt.scatter(simX(lav_xnb, lav_xcr), simY(lav_xcr), color='red', s=1.25, zorder=1, label="L")
     
     plt.legend(loc='best')
     plt.savefig("diagrams/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
