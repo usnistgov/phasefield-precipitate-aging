@@ -204,7 +204,7 @@ xt_gam_Ni = 1 - xt_gam_Cr - xt_gam_Nb
 xt_del_Cr = 0.10
 xt_del_Nb = 0.30
 
-xt_lav_Cr = 0.40
+xt_lav_Cr = 0.35
 xt_lav_Nb = 0.20
 xt_lav_Ni = 1 - xt_lav_Cr - xt_lav_Nb
 
@@ -347,26 +347,26 @@ TE_lav_CrCrNbNb = 6.0 * diff(g_laves, XCR, XCR, XNB, XNB).subs({XCR: xt_lav_Cr, 
 TE_lav_CrNbNbNb = 4.0 * diff(g_laves, XCR, XNB, XNB, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 24
 TE_lav_NbNbNbNb = 1.0 * diff(g_laves, XNB, XNB, XNB, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 24
 
-print("\nGamma Taylor coefficients:")
-print(TA_gam)
-print(TB_gam_Cr, TB_gam_Nb)
-print(TC_gam_CrCr, TC_gam_CrNb, TC_gam_NbNb)
-print(TD_gam_CrCrCr, TD_gam_CrCrNb, TD_gam_CrNbNb, TD_gam_NbNbNb)
-print(TE_gam_CrCrCrCr, TE_gam_CrCrCrNb, TE_gam_CrCrNbNb, TE_gam_CrNbNbNb, TE_gam_NbNbNbNb)
+print("Gamma Taylor coefficients:")
+print(int(TA_gam))
+print(int(TB_gam_Cr), int(TB_gam_Nb))
+print(int(TC_gam_CrCr), int(TC_gam_CrNb), int(TC_gam_NbNb))
+print(int(TD_gam_CrCrCr), int(TD_gam_CrCrNb), int(TD_gam_CrNbNb), int(TD_gam_NbNbNb))
+print(int(TE_gam_CrCrCrCr), int(TE_gam_CrCrCrNb), int(TE_gam_CrCrNbNb), int(TE_gam_CrNbNbNb), int(TE_gam_NbNbNbNb))
 
 print("\nDelta Taylor coefficients:")
-print(TA_del)
-print(TB_del_Cr, TB_del_Nb)
-print(TC_del_CrCr, TC_del_CrNb, TC_del_NbNb)
-print(TD_del_CrCrCr, TD_del_CrCrNb, TD_del_CrNbNb, TD_del_NbNbNb)
-print(TE_del_CrCrCrCr, TE_del_CrCrCrNb, TE_del_CrCrNbNb, TE_del_CrNbNbNb, TE_del_NbNbNbNb)
+print(int(TA_del))
+print(int(TB_del_Cr), int(TB_del_Nb))
+print(int(TC_del_CrCr), int(TC_del_CrNb), int(TC_del_NbNb))
+print(int(TD_del_CrCrCr), int(TD_del_CrCrNb), int(TD_del_CrNbNb), int(TD_del_NbNbNb))
+print(int(TE_del_CrCrCrCr), int(TE_del_CrCrCrNb), int(TE_del_CrCrNbNb), int(TE_del_CrNbNbNb), int(TE_del_NbNbNbNb))
 
 print("\nLaves Taylor coefficients:")
-print(TA_lav)
-print(TB_lav_Cr, TB_lav_Nb)
-print(TC_lav_CrCr, TC_lav_CrNb, TC_lav_NbNb)
-print(TD_lav_CrCrCr, TD_lav_CrCrNb, TD_lav_CrNbNb, TD_lav_NbNbNb)
-print(TE_lav_CrCrCrCr, TE_lav_CrCrCrNb, TE_lav_CrCrNbNb, TE_lav_CrNbNbNb, TE_lav_NbNbNbNb)
+print(int(TA_lav))
+print(int(TB_lav_Cr), int(TB_lav_Nb))
+print(int(TC_lav_CrCr), int(TC_lav_CrNb), int(TC_lav_NbNb))
+print(int(TD_lav_CrCrCr), int(TD_lav_CrCrNb), int(TD_lav_CrNbNb), int(TD_lav_NbNbNb))
+print(int(TE_lav_CrCrCrCr), int(TE_lav_CrCrCrNb), int(TE_lav_CrCrNbNb), int(TE_lav_CrNbNbNb), int(TE_lav_NbNbNbNb))
 
 # Expressions
 t_gamma = TA_gam \
@@ -552,54 +552,54 @@ t_d2Glav_dxNbNb = diff(t_laves, XNB, XNB)
 # Generate parabolic expressions (the crudest of approximations)
 
 # Free-Energy Minima
-PA_gam = g_gamma.subs({XCR: xt_gam_Cr, XNB: xt_gam_Nb})
-PA_del = g_delta.subs({XCR: xt_del_Cr, XNB: xt_del_Nb})
-PA_lav = g_laves.subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb})
+PA_gam = 0 #g_gamma.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PA_del = 0 #g_delta.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PA_lav = 0 #g_laves.subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
 
 # Slopes
-PB_gam_Cr = diff(g_gamma, XCR).subs({XCR: xt_gam_Cr, XNB: xt_gam_Nb})
-PB_gam_Nb = diff(g_gamma, XNB).subs({XCR: xt_gam_Cr, XNB: xt_gam_Nb})
+PB_gam_Cr = 0 #diff(g_gamma, XCR).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PB_gam_Nb = 0 #diff(g_gamma, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
 
-PB_del_Cr = diff(g_delta, XCR).subs({XCR: xt_del_Cr, XNB: xt_del_Nb})
-PB_del_Nb = diff(g_delta, XNB).subs({XCR: xt_del_Cr, XNB: xt_del_Nb})
+PB_del_Cr = 0 #diff(g_delta, XCR).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PB_del_Nb = 0 #diff(g_delta, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
 
-PB_lav_Cr = diff(g_laves, XCR).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb})
-PB_lav_Nb = diff(g_laves, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb})
+PB_lav_Cr = 0 #diff(g_laves, XCR).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
+PB_lav_Nb = 0 #diff(g_laves, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
 
 # Curvatures
-PC_gam_CrCr = 1.0 * diff(g_gamma, XCR, XCR).subs({XCR: xt_gam_Cr, XNB: xt_gam_Nb}) / 2
-PC_gam_CrNb = 2.0 * diff(g_gamma, XCR, XNB).subs({XCR: xt_gam_Cr, XNB: xt_gam_Nb}) / 2
-PC_gam_NbNb = 1.0 * diff(g_gamma, XNB, XNB).subs({XCR: xt_gam_Cr, XNB: xt_gam_Nb}) / 2
+PC_gam_CrCr = 1.0 * diff(g_gamma, XCR, XCR).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb}) / 2
+PC_gam_CrNb = 2.0 * diff(g_gamma, XCR, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb}) / 2
+PC_gam_NbNb = 1.0 * diff(g_gamma, XNB, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb}) / 2
 
-PC_del_CrCr = 1.0 * diff(g_delta, XCR, XCR).subs({XCR: xt_del_Cr, XNB: xt_del_Nb}) / 2
-PC_del_CrNb = 2.0 * diff(g_delta, XCR, XNB).subs({XCR: xt_del_Cr, XNB: xt_del_Nb}) / 2
-PC_del_NbNb = 1.0 * diff(g_delta, XNB, XNB).subs({XCR: xt_del_Cr, XNB: xt_del_Nb}) / 2
+PC_del_CrCr = 1.0 * diff(g_delta, XCR, XCR).subs({XCR: xe_del_Cr, XNB: xe_del_Nb}) / 2
+PC_del_CrNb = 2.0 * diff(g_delta, XCR, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb}) / 2
+PC_del_NbNb = 1.0 * diff(g_delta, XNB, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb}) / 2
 
-PC_lav_CrCr = 1.0 * diff(g_laves, XCR, XCR).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 2
-PC_lav_CrNb = 2.0 * diff(g_laves, XCR, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 2
-PC_lav_NbNb = 1.0 * diff(g_laves, XNB, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 2
+PC_lav_CrCr = 1.0 * diff(g_laves, XCR, XCR).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb}) / 2
+PC_lav_CrNb = 2.0 * diff(g_laves, XCR, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb}) / 2
+PC_lav_NbNb = 1.0 * diff(g_laves, XNB, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb}) / 2
 
 # Expressions
 p_gamma = PA_gam \
-        + PB_gam_Cr * (XCR - xt_gam_Cr) \
-        + PB_gam_Nb * (XNB - xt_gam_Nb) \
-        + PC_gam_CrCr * (XCR - xt_gam_Cr)**2                      \
-        + PC_gam_CrNb * (XCR - xt_gam_Cr)    * (XNB - xt_gam_Nb)  \
-        + PC_gam_NbNb                        * (XNB - xt_gam_Nb)**2
+        + PB_gam_Cr * (XCR - xe_gam_Cr) \
+        + PB_gam_Nb * (XNB - xe_gam_Nb) \
+        + PC_gam_CrCr * (XCR - xe_gam_Cr)**2                      \
+        + PC_gam_CrNb * (XCR - xe_gam_Cr)    * (XNB - xe_gam_Nb)  \
+        + PC_gam_NbNb                        * (XNB - xe_gam_Nb)**2
 
 p_delta = PA_del \
-        + PB_del_Cr * (XCR - xt_del_Cr) \
-        + PB_del_Nb * (XNB - xt_del_Nb) \
-        + PC_del_CrCr * (XCR - xt_del_Cr)**2                      \
-        + PC_del_CrNb * (XCR - xt_del_Cr)    * (XNB - xt_del_Nb)  \
-        + PC_del_NbNb                        * (XNB - xt_del_Nb)**2
+        + PB_del_Cr * (XCR - xe_del_Cr) \
+        + PB_del_Nb * (XNB - xe_del_Nb) \
+        + PC_del_CrCr * (XCR - xe_del_Cr)**2                      \
+        + PC_del_CrNb * (XCR - xe_del_Cr)    * (XNB - xe_del_Nb)  \
+        + PC_del_NbNb                        * (XNB - xe_del_Nb)**2
 
 p_laves = PA_lav \
-        + PB_lav_Cr * (XCR - xt_lav_Cr) \
-        + PB_lav_Nb * (XNB - xt_lav_Nb) \
-        + PC_lav_CrCr * (XCR - xt_lav_Cr)**2                      \
-        + PC_lav_CrNb * (XCR - xt_lav_Cr)    * (XNB - xt_lav_Nb)  \
-        + PC_lav_NbNb                        * (XNB - xt_lav_Nb)**2
+        + PB_lav_Cr * (XCR - xe_lav_Cr) \
+        + PB_lav_Nb * (XNB - xe_lav_Nb) \
+        + PC_lav_CrCr * (XCR - xe_lav_Cr)**2                      \
+        + PC_lav_CrNb * (XCR - xe_lav_Cr)    * (XNB - xe_lav_Nb)  \
+        + PC_lav_NbNb                        * (XNB - xe_lav_Nb)**2
 
 # Generate first derivatives of Taylor series landscape
 p_dGgam_dxCr = diff(p_gamma, XCR)
@@ -707,13 +707,13 @@ codegen([# Gibbs energies
          ('g_del', p_delta),
          ('g_lav', p_laves),
          # Constants
-         ('xe_gam_Cr', xt_gam_Cr),
-         ('xe_gam_Nb', xt_gam_Nb),
-         ('xe_del_Cr', xt_del_Cr),
-         ('xe_del_Nb', xt_del_Nb),
-         ('xe_lav_Cr', xt_lav_Cr),
-         ('xe_lav_Nb', xt_lav_Nb),
-         ('xe_lav_Ni', xt_lav_Ni),
+         ('xe_gam_Cr', xe_gam_Cr),
+         ('xe_gam_Nb', xe_gam_Nb),
+         ('xe_del_Cr', xe_del_Cr),
+         ('xe_del_Nb', xe_del_Nb),
+         ('xe_lav_Cr', xe_lav_Cr),
+         ('xe_lav_Nb', xe_lav_Nb),
+         ('xe_lav_Ni', xe_lav_Ni),
          # First derivatives
          ('dg_gam_dxCr', p_dGgam_dxCr),
          ('dg_gam_dxNb', p_dGgam_dxNb),

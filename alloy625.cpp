@@ -142,10 +142,14 @@ const bool useNeumann = true;     // apply zero-flux boundaries (Neumann type)?
 const bool useTanh = false;       // apply tanh profile to initial profile of composition and phase
 const double epsilon = 1e-12;     // what to consider zero to avoid log(c) explosions
 
-const field_t root_tol  = 1e-3;   // residual tolerance (default is 1e-7)
-const int root_max_iter = 5e5;    // default is 1000, increasing probably won't change anything but your runtime
+const field_t root_tol  = 1e-4;   // residual tolerance (default is 1e-7)
+const int root_max_iter = 1e6;    // default is 1000, increasing probably won't change anything but your runtime
 
-const field_t LinStab = 1.0 / 29.13753; // threshold of linear stability (von Neumann stability condition)
+#ifdef PARABOLA
+const field_t LinStab = 1.0 / 19.42506; // threshold of linear stability (von Neumann stability condition)
+#else
+const field_t LinStab = 1.0 / 2913.753; // threshold of linear stability (von Neumann stability condition)
+#endif
 
 namespace MMSP
 {
