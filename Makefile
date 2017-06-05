@@ -16,7 +16,7 @@ mpilinks = -lmpiP -lbfd -liberty
 
 # precompiler directives
 # Options: -DCALPHAD	-DPARABOLA	-DADAPTIVE_TIMESTEPS	-DNDEBUG
-directives = -DPARABOLA
+directives =
 
 
 # flags: common, debug, Intel, GNU, and MPI
@@ -81,7 +81,7 @@ adsorption: adsorption.cpp
 
 # generate equilibrium phase diagram information
 equilibrium: equilibrium.cpp
-	$(gcompiler) -Wall -std=c++11 -DPARABOLA $< -o $@ -lgsl -lgslcblas
+	$(gcompiler) -Wall -std=c++11 $< -o $@ -lgsl -lgslcblas
 
 clean:
 	rm -f adsorption alloy625 equilibrium ibtest iserial mmsp2comp parallel pgparallel serial smp smpi

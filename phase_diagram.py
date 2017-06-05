@@ -42,8 +42,8 @@ n = 0
 for xcr in (0.1, 0.2, 0.3):
     x = []
 	
-    c = [[], [], []] # raw CALPHAD array
-    g = [[], [], []] # safe CALPHAD array
+    g = [[], [], []] # raw CALPHAD array
+    c = [[], [], []] # safe CALPHAD array
     t = [[], [], []] # safe Taylor array
     p = [[], [], []] # parabolic array
 	
@@ -97,8 +97,8 @@ n = 0
 for xnb in (0.01, 0.05, 0.10):
     x = []
 	
-    c = [[], [], []] # raw CALPHAD array
-    g = [[], [], []] # safe CALPHAD array
+    g = [[], [], []] # raw CALPHAD array
+    c = [[], [], []] # safe CALPHAD array
     t = [[], [], []] # safe Taylor array
     p = [[], [], []] # parabolic array
 	
