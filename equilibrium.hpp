@@ -108,8 +108,8 @@ int GammaDelta_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	const double d2del_CrNb = d2g_del_dxCrNb();
 	const double d2del_NbNb = d2g_del_dxNbNb();
 	#elif defined CALPHAD
-	const double d2del_CrCr = d2g_del_dxCrCr(C_del_Cr, C_del_Nb);
-	const double d2del_CrNb = d2g_del_dxCrNb(C_del_Cr, C_del_Nb);
+	const double d2del_CrCr = d2g_del_dxCrCr(C_del_Cr);
+	const double d2del_CrNb = d2g_del_dxCrNb(C_del_Cr);
 	const double d2del_NbNb = d2g_del_dxNbNb(C_del_Cr, C_del_Nb);
 	#else
 	const double d2del_CrCr = d2g_del_dxCrCr(C_del_Cr);
@@ -336,8 +336,8 @@ int DeltaLaves_df(const gsl_vector* x, void* params, gsl_matrix* J)
 	const double g2del_CrNb = d2g_del_dxCrNb();
 	const double d2del_NbNb = d2g_del_dxNbNb();
 	#elif defined CALPHAD
-	const double d2del_CrCr = d2g_del_dxCrCr(C_del_Cr, C_del_Nb);
-	const double g2del_CrNb = d2g_del_dxCrNb(C_del_Cr, C_del_Nb);
+	const double d2del_CrCr = d2g_del_dxCrCr(C_del_Cr);
+	const double g2del_CrNb = d2g_del_dxCrNb(C_del_Cr);
 	const double d2del_NbNb = d2g_del_dxNbNb(C_del_Cr, C_del_Nb);
 	#else
 	const double d2del_CrCr = d2g_del_dxCrCr(C_del_Cr);
@@ -407,5 +407,43 @@ int DeltaLaves_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix*
 
 	return GSL_SUCCESS;
 }
+
+void print_progress(const int step, const int steps)
+{
+	/*
+	Prints timestamps and a 20-point progress bar to stdout.
+	Call once inside the update function (or equivalent).
+
+	for (int step=0; step<steps; step++) {
+		if (MPI::COMM_WORLD.Get_rank()==0)
+			print_progress(step, steps);
+		...
+		for (int n=0; n<nodes(grid); n++) {
+			...
+		}
+	}
+	*/
+	char* timestring;
+	static unsigned long tstart;
+	struct tm* timeinfo;
+	static int iterations = 0;
+
+	if (step==0) {
+		iterations++;
+		tstart = time(NULL);
+		std::time_t rawtime;
+		std::time( &rawtime );
+		timeinfo = std::localtime( &rawtime );
+		timestring = std::asctime(timeinfo);
+		timestring[std::strlen(timestring)-1] = '\0';
+		std::cout << "No. " << iterations << ":\t" << timestring << " [" << std::flush;
+	} else if (step==steps-1) {
+		unsigned long deltat = time(NULL)-tstart;
+		printf("•] %2luh:%2lum:%2lus",deltat/3600,(deltat%3600)/60,deltat%60);
+		std::cout << std::endl;
+	} else if ((20 * step) % steps == 0)
+		std::cout << "• " << std::flush;
+}
+
 
 #endif

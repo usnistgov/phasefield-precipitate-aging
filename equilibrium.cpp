@@ -21,7 +21,11 @@
 #define ALLOY625_DIAGRAM
 #include<cmath>
 #include<random>
+#include<iostream>
+#include<ciso646>
+#include<ctime>
 #include<vector>
+#include<cstring>
 #ifdef _OPENMP
 #include"omp.h"
 #endif
@@ -45,18 +49,18 @@ using std::vector;
  */
 
 #ifdef PARABOLA
-const size_t max_root_iter = 1e10;
-const double root_tol = 1e-8;
+const size_t max_root_iter = 1e4;
+const double root_tol = 1e-10;
 #elif defined CALPHAD
-const int max_root_iter = 1e6;
-const double root_tol = 1e-4;
-#else
-const int max_root_iter = 1e8;
+const int max_root_iter = 1e4;
 const double root_tol = 1e-6;
+#else
+const int max_root_iter = 1e4;
+const double root_tol = 1e-8;
 #endif
 
 const int rand_iters = 1e5;
-const double maxNi = 0.9;
+const double maxNi = 1.0;
 
 class rootsolver
 {
@@ -243,6 +247,8 @@ int main(int argc, char* argv[])
 	vector<double> origin(2, 1.0);
 
 	do {
+		print_progress(iter, maxiter);
+
 		// Select a random point on the simplex
 		double xni = 2.0;
 		while (xni > maxNi) {

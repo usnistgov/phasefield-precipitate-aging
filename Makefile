@@ -26,7 +26,7 @@ idbgflags = $(stdflags) -O1 -profile-functions -profile-loops=all -profile-loops
 
 iflags = $(stdflags) -w3 -diag-disable:remark -xCORE-AVX2 -O3 -funroll-loops -opt-prefetch -fast
 gflags = $(stdflags) -pedantic -O3 -funroll-loops -ffast-math 
-pflags = -include mpi.h $(dbgflags) $(mpilinks)
+pflags = $(gflags) -include mpi.h
 
 
 # WORKSTATION
