@@ -146,7 +146,7 @@ const field_t root_tol  = 1e-4;   // residual tolerance (default is 1e-7)
 const int root_max_iter = 1e6;    // default is 1000, increasing probably won't change anything but your runtime
 
 #ifdef PARABOLA
-const field_t LinStab = 1.0 / 19.42506; // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 19.42501; // threshold of linear stability (von Neumann stability condition)
 #else
 const field_t LinStab = 1.0 / 2913.753; // threshold of linear stability (von Neumann stability condition)
 #endif
@@ -173,8 +173,8 @@ void generate(int dim, const char* filename)
 		#endif
 	}
 
-	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
-	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
+	const double dtp = (meshres*meshres)/(std::pow(2.0, dim) * Lmob[0]*kappa[0]); // transformation-limited timestep
+	const double dtc = (meshres*meshres)/(std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
 	double dt = LinStab * std::min(dtp, dtc);
 
 	// Initialize pseudo-random number generator
@@ -220,7 +220,7 @@ void generate(int dim, const char* filename)
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
 		Composition comp;
-		comp += enrichMatrix(initGrid, bell[0], bell[1]);
+		//comp += enrichMatrix(initGrid, bell[0], bell[1]);
 
 
 
@@ -378,7 +378,7 @@ void generate(int dim, const char* filename)
 
 		// Construct grid
 		const int Nx = 768; // divisible by 12 and 64
-		const int Ny = 192;
+		const int Ny = 96;
 		double dV = 1.0;
 		double Ntot = 1.0;
 		GRID2D initGrid(NC+NP+NC*(NP+1)+1, 0, Nx, 0, Ny);
@@ -420,7 +420,7 @@ void generate(int dim, const char* filename)
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
 		Composition comp;
-		comp += enrichMatrix(initGrid, bell[0], bell[1]);
+		//comp += enrichMatrix(initGrid, bell[0], bell[1]);
 
 		if (1) {
 			/* ================================================ *
@@ -430,27 +430,56 @@ void generate(int dim, const char* filename)
 			 * test full numerical and physical model           *
 			 * ================================================ */
 
-			vector<int> origin(dim, 0);
-			double rnd = 0.0;
+			std::vector<vector<int> > seeds;
+			vector<int> seed(dim+2, 0);
+			unsigned int nprcp = std::pow(2, std::ceil(std::log2(64*Nx*Ny/(768*192))));
 
-			for (int i = 0; i < 12; i++) {
+			#ifdef MPI_VERSION
+			int np = MPI::COMM_WORLD.Get_size();
+			nprcp = std::max(1, int(nprcp / np));
+			#endif
+			unsigned int attempts = 0;
+
+			// Generate non-overlapping seeds with random size and phase
+			while (seeds.size() < nprcp && attempts < 50 * nprcp) {
 				// Select precipitate ID between [0, NP+1)
-				rnd = unidist(mtrand);
-				int pid = int(rnd * (NP + 1));
-				assert(pid < NP+1);
+				double rnd = unidist(mtrand);
+				seed[dim] = std::floor(rnd * (NP + 1));
 
 				// Select precipitate radius
 				rnd = unidist(mtrand);
-				int prad = int((0.5 + rnd) * rPrecip[pid]);
+				seed[dim+1] = std::floor((0.625 + rnd) * rPrecip[seed[dim]]);
 
 				// Select precipitate origin
-				rnd = unidist(mtrand);
-				origin[0] = rPrecip[pid] + int(rnd * (Nx - 2 * rPrecip[pid]));
-				rnd = unidist(mtrand);
-				origin[1] = rPrecip[pid] + int(rnd * (Ny - 2 * rPrecip[pid]));
+				for (int d=0; d<dim; d++) {
+					rnd = unidist(mtrand);
+					seed[d] = x0(initGrid, d) + seed[dim+1] + int(rnd * (x1(initGrid, d) - x0(initGrid, d) - 2 * seed[dim+1]));
+				}
+
+				bool clearSpace = true;
+				for (size_t i=0; clearSpace && i<seeds.size(); i++) {
+					double r = 0;
+					for (int d=0; d<dim; d++)
+						r += pow(seeds[i][d] - seed[d], 2);
+					if (std::sqrt(r) < seed[dim+1] + seeds[i][dim+1])
+						clearSpace = false;
+				}
+
+				if (clearSpace)
+					seeds.push_back(seed);
+
+				attempts++;
+			}
+
+			for (size_t i = 0; i < seeds.size(); i++) {
+				vector<int> origin(dim, 0);
+				for (int d=0; d<dim; d++)
+					origin[d] = seeds[i][d];
+				int pid = seeds[i][dim];
+				assert(pid < NP+1);
 
 				// Embed this precipitate
-				comp += embedParticle(initGrid, origin, NC+pid, prad, xCr[pid+1], xNb[pid+1]);
+				comp += embedParticle(initGrid, origin, NC+pid, seeds[i][dim+1], xCr[pid+1], xNb[pid+1]);
 			}
 
 		} else if (0) {
