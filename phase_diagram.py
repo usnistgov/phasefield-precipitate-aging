@@ -156,13 +156,13 @@ for xcr in tqdm(np.linspace(dc, 1-dc, density)):
             #     GD(xcr, xnb),
             #     GL(xcr, xnb))
             # Taylor approximation
-            f = (TG(xcr, xnb),
-                 TD(xcr, xnb),
-                 TL(xcr, xnb))
+            #f = (TG(xcr, xnb),
+            #     TD(xcr, xnb),
+            #     TL(xcr, xnb))
             # Parabolic approximation
-            #f = (PG(xcr, xnb),
-            #     PD(xcr, xnb),
-            #     PL(xcr, xnb))
+            f = (PG(xcr, xnb),
+                 PD(xcr, xnb),
+                 PL(xcr, xnb))
             for n in range(len(f)):
                 allX.append(simX(xnb,xcr))
                 allY.append(simY(xcr))
@@ -197,8 +197,8 @@ for simplex in hull.simplices:
 pltsize = 20
 plt.figure(figsize=(pltsize, rt3by2*pltsize))
 #plt.title("Cr-Nb-Ni (CALPHAD expr) at %.0fK"%temp, fontsize=18)
-plt.title("Cr-Nb-Ni (Taylor approx) at %.0fK"%temp, fontsize=18)
-#plt.title("Cr-Nb-Ni (Parabolic approx) at %.0fK"%temp, fontsize=18)
+#plt.title("Cr-Nb-Ni (Taylor approx) at %.0fK"%temp, fontsize=18)
+plt.title("Cr-Nb-Ni (Parabolic approx) at %.0fK"%temp, fontsize=18)
 #plt.xlim([-dc, 1+dc])
 #plt.ylim([simY(-dc), simY(1+dc)])
 plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
@@ -208,14 +208,14 @@ for tie in tielines:
     plt.plot(tie[0], tie[1], '-k', alpha=0.5)
 for i in range(len(labels)):
     plt.scatter(X[i], Y[i], color=colors[i], s=4, label=labels[i])
-plt.scatter(XT, YT, color='black', marker='s', s=8)
-#plt.scatter(X0, Y0, color='black', marker='s', s=8)
+#plt.scatter(XT, YT, color='black', marker='s', s=8)
+plt.scatter(X0, Y0, color='black', marker='s', s=8)
 plt.xticks(np.linspace(0, 1, 21))
 plt.scatter(Xtick, Ytick, color='black', marker='+', s=8)
 plt.legend(loc='best')
 #plt.savefig("calphad_phase_diagram.png", bbox_inches='tight', dpi=400)
-plt.savefig("taylor_phase_diagram.png", bbox_inches='tight', dpi=400)
-#plt.savefig("parabolic_phase_diagram.png", bbox_inches='tight', dpi=400)
+#plt.savefig("taylor_phase_diagram.png", bbox_inches='tight', dpi=400)
+plt.savefig("parabolic_phase_diagram.png", bbox_inches='tight', dpi=400)
 plt.close()
 
 print("Finished plotting ternary phase diagram.")

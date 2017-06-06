@@ -190,22 +190,22 @@ xe_gam_Nb = 0.025
 xe_gam_Ni = 1 - xe_gam_Cr - xe_gam_Nb
 
 xe_del_Cr = 0.015
-xe_del_Nb = fr1by4 - 0.005
+xe_del_Nb = 0.245
 
 xe_lav_Cr = 0.300
-xe_lav_Nb = fr1by3 - 0.005
+xe_lav_Nb = 0.283
 xe_lav_Ni = 1 - xe_lav_Cr - xe_lav_Nb
 
 # Specify Taylor series expansion points
-xt_gam_Cr = 0.40
-xt_gam_Nb = 0.20
+xt_gam_Cr = 0.400
+xt_gam_Nb = 0.200
 xt_gam_Ni = 1 - xt_gam_Cr - xt_gam_Nb
 
-xt_del_Cr = 0.10
-xt_del_Nb = 0.30
+xt_del_Cr = 0.100
+xt_del_Nb = 0.300
 
-xt_lav_Cr = 0.35
-xt_lav_Nb = 0.20
+xt_lav_Cr = 0.350
+xt_lav_Nb = 0.200
 xt_lav_Ni = 1 - xt_lav_Cr - xt_lav_Nb
 
 # Specify upper limit compositions
