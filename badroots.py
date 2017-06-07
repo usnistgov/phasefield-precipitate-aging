@@ -84,14 +84,14 @@ if path.isdir(datdir):
     
     # Plot compositions given to rootsolver
     thebad = datdir + "/badroots.log"
-    if stat(thebad).st_size > 0:
+    if path.isfile(thebad) and stat(thebad).st_size > 0:
         gam_xcr, gam_xnb, del_xcr, del_xnb, lav_xcr, lav_xnb = np.loadtxt(thebad, delimiter=',', unpack=True)
         plt.scatter(simX(gam_xnb, gam_xcr), simY(gam_xcr), color='red', s=2, zorder=1, label="bad $\gamma$")
         plt.scatter(simX(del_xnb, del_xcr), simY(del_xcr), color='yellow', s=2, zorder=1, label="bad $\delta$")
         plt.scatter(simX(lav_xnb, lav_xcr), simY(lav_xcr), color='orange', s=2, zorder=1, label="bad L")
     
     thegud = datdir + "/gudroots.log" 
-    if stat(thegud).st_size > 0:
+    if path.isfile(thegud) and stat(thegud).st_size > 0:
         gam_xcr, gam_xnb, del_xcr, del_xnb, lav_xcr, lav_xnb = np.loadtxt(thegud, delimiter=',', unpack=True)
         plt.scatter(simX(gam_xnb, gam_xcr), simY(gam_xcr), color='green', s=1.25, zorder=1, label="$\gamma$")
         plt.scatter(simX(del_xnb, del_xcr), simY(del_xcr), color='blue', s=1.25, zorder=1, label="$\delta$")

@@ -24,8 +24,10 @@
 
 #ifndef ALLOY625_UPDATE
 #define ALLOY625_UPDATE
+#include<set>
 #include<cmath>
 #include<random>
+#include<vector>
 #ifdef _OPENMP
 #include"omp.h"
 #endif
@@ -347,23 +349,72 @@ void generate(int dim, const char* filename)
 		}
 
 		#ifndef NDEBUG
-		// Output compositions where rootsolver failed
-		FILE* badfile = NULL;
-		FILE* gudfile = NULL;
-		badfile = fopen("badroots.log", "w"); // old results will be overwritten
-		gudfile = fopen("gudroots.log", "w"); // old results will be overwritten
-
+		// Output compositions where rootsolver failed (and succeeded)
+		std::set<std::vector<short> > badpoints;
+		std::set<std::vector<short> > gudpoints;
 		for (int n = 0; n < nodes(initGrid); n++) {
 			if (initGrid(n)[fields(initGrid)-1] > root_tol) {
-				fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-				initGrid(n)[NC+NP], initGrid(n)[NC+NP+1], initGrid(n)[2*NC+NP], initGrid(n)[2*NC+NP+1], initGrid(n)[3*NC+NP], initGrid(n)[3*NC+NP+1]);
+				std::vector<short> point(int(NC*(NP+1)), short(0));
+				for (unsigned int i=0; i<point.size(); i++)
+					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
+				badpoints.insert(point);
 			} else {
-				fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-				initGrid(n)[NC+NP], initGrid(n)[NC+NP+1], initGrid(n)[2*NC+NP], initGrid(n)[2*NC+NP+1], initGrid(n)[3*NC+NP], initGrid(n)[3*NC+NP+1]);
+				std::vector<short> point(int(NC*(NP+1)), short(0));
+				for (unsigned int i=0; i<point.size(); i++)
+					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
+				gudpoints.insert(point);
 			}
 		}
-		fclose(badfile);
-		fclose(gudfile);
+
+		if (badpoints.size() > 0) {
+			if (rank==0) {
+				FILE* badfile = NULL;
+				badfile = fopen("badroots.log", "w"); // old results will be deleted
+				for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
+					fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+				fclose(badfile);
+			}
+			#ifdef MPI_VERSION
+			for (int r=1; r<MPI::COMM_WORLD.Get_size(); r++) {
+				MPI::COMM_WORLD.Barrier();
+				if (rank==r) {
+					FILE* badfile = NULL;
+					badfile = fopen("badroots.log", "a"); // new results will be appended
+					for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
+						fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+						(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+					fclose(badfile);
+				}
+				MPI::COMM_WORLD.Barrier();
+			}
+			#endif
+		}
+
+		if (gudpoints.size() > 0) {
+			if (rank==0) {
+				FILE* gudfile = NULL;
+				gudfile = fopen("gudroots.log", "w"); // old results will be deleted
+				for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
+					fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+				fclose(gudfile);
+			}
+			#ifdef MPI_VERSION
+			for (int r=1; r<MPI::COMM_WORLD.Get_size(); r++) {
+				MPI::COMM_WORLD.Barrier();
+				if (rank==r) {
+					FILE* gudfile = NULL;
+					gudfile = fopen("gudroots.log", "a"); // new results will be appended
+					for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
+						fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+						(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+					fclose(gudfile);
+				}
+				MPI::COMM_WORLD.Barrier();
+			}
+			#endif
+		}
 		#endif
 
 		output(initGrid,filename);
@@ -603,22 +654,72 @@ void generate(int dim, const char* filename)
 		}
 
 		#ifndef NDEBUG
-		// Output compositions where rootsolver failed
-		FILE* badfile = NULL;
-		FILE* gudfile = NULL;
-		badfile = fopen("badroots.log", "w"); // old results will be deleted
-		gudfile = fopen("gudroots.log", "w"); // old results will be deleted
+		// Output compositions where rootsolver failed (and succeeded)
+		std::set<std::vector<short> > badpoints;
+		std::set<std::vector<short> > gudpoints;
 		for (int n = 0; n < nodes(initGrid); n++) {
 			if (initGrid(n)[fields(initGrid)-1] > root_tol) {
-				fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-				initGrid(n)[NC+NP], initGrid(n)[NC+NP+1], initGrid(n)[2*NC+NP], initGrid(n)[2*NC+NP+1], initGrid(n)[3*NC+NP], initGrid(n)[3*NC+NP+1]);
+				std::vector<short> point(int(NC*(NP+1)), short(0));
+				for (unsigned int i=0; i<point.size(); i++)
+					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
+				badpoints.insert(point);
 			} else {
-				fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-				initGrid(n)[NC+NP], initGrid(n)[NC+NP+1], initGrid(n)[2*NC+NP], initGrid(n)[2*NC+NP+1], initGrid(n)[3*NC+NP], initGrid(n)[3*NC+NP+1]);
+				std::vector<short> point(int(NC*(NP+1)), short(0));
+				for (unsigned int i=0; i<point.size(); i++)
+					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
+				gudpoints.insert(point);
 			}
 		}
-		fclose(badfile);
-		fclose(gudfile);
+
+		if (badpoints.size() > 0) {
+			if (rank==0) {
+				FILE* badfile = NULL;
+				badfile = fopen("badroots.log", "w"); // old results will be deleted
+				for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
+					fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+				fclose(badfile);
+			}
+			#ifdef MPI_VERSION
+			for (int r=1; r<MPI::COMM_WORLD.Get_size(); r++) {
+				MPI::COMM_WORLD.Barrier();
+				if (rank==r) {
+					FILE* badfile = NULL;
+					badfile = fopen("badroots.log", "a"); // new results will be appended
+					for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
+						fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+						(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+					fclose(badfile);
+				}
+				MPI::COMM_WORLD.Barrier();
+			}
+			#endif
+		}
+
+		if (gudpoints.size() > 0) {
+			if (rank==0) {
+				FILE* gudfile = NULL;
+				gudfile = fopen("gudroots.log", "w"); // old results will be deleted
+				for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
+					fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+				fclose(gudfile);
+			}
+			#ifdef MPI_VERSION
+			for (int r=1; r<MPI::COMM_WORLD.Get_size(); r++) {
+				MPI::COMM_WORLD.Barrier();
+				if (rank==r) {
+					FILE* gudfile = NULL;
+					gudfile = fopen("gudroots.log", "a"); // new results will be appended
+					for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
+						fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+						(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+					fclose(gudfile);
+				}
+				MPI::COMM_WORLD.Barrier();
+			}
+			#endif
+		}
 		#endif
 
 		output(initGrid,filename);
@@ -924,22 +1025,39 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	#ifndef NDEBUG
 	// Output compositions where rootsolver failed (and succeeded)
-	FILE* badfile = NULL;
-	FILE* gudfile = NULL;
-	badfile = fopen("badroots.log", "a"); // new results will be appended
-	gudfile = fopen("gudroots.log", "a");
-
+	std::set<std::vector<short> > badpoints;
+	std::set<std::vector<short> > gudpoints;
 	for (int n = 0; n < nodes(newGrid); n++) {
 		if (newGrid(n)[fields(newGrid)-1] > root_tol) {
-			fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-			oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[2*NC+NP], oldGrid(n)[2*NC+NP+1], oldGrid(n)[3*NC+NP], oldGrid(n)[3*NC+NP+1]);
+			std::vector<short> point(int(NC*(NP+1)), short(0));
+			for (unsigned int i=0; i<point.size(); i++)
+				point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
+			badpoints.insert(point);
 		} else {
-			fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-			oldGrid(n)[NC+NP], oldGrid(n)[NC+NP+1], oldGrid(n)[2*NC+NP], oldGrid(n)[2*NC+NP+1], oldGrid(n)[3*NC+NP], oldGrid(n)[3*NC+NP+1]);
+			std::vector<short> point(int(NC*(NP+1)), short(0));
+			for (unsigned int i=0; i<point.size(); i++)
+				point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
+			gudpoints.insert(point);
 		}
 	}
-	fclose(badfile);
-	fclose(gudfile);
+
+	if (badpoints.size() > 0) {
+		FILE* badfile = NULL;
+		badfile = fopen("badroots.log", "a"); // new results will be appended
+		for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
+			fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+			(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+		fclose(badfile);
+	}
+
+	if (gudpoints.size() > 0) {
+		FILE* gudfile = NULL;
+		gudfile = fopen("gudroots.log", "a");
+		for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
+			fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+			(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+		fclose(gudfile);
+	}
 	#endif
 
 	if (rank == 0) {
