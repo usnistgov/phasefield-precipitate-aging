@@ -355,66 +355,57 @@ void generate(int dim, const char* filename)
 		for (int n = 0; n < nodes(initGrid); n++) {
 			if (initGrid(n)[fields(initGrid)-1] > root_tol) {
 				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i=0; i<point.size(); i++)
+				for (unsigned int i = 0; i < point.size(); i++)
 					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
 				badpoints.insert(point);
 			} else {
 				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i=0; i<point.size(); i++)
+				for (unsigned int i = 0; i < point.size(); i++)
 					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
 				gudpoints.insert(point);
 			}
 		}
 
-		if (badpoints.size() > 0) {
-			if (rank==0) {
-				FILE* badfile = NULL;
-				badfile = fopen("badroots.log", "w"); // old results will be deleted
+		FILE* badfile = NULL;
+		FILE* gudfile = NULL;
+		if (rank == 0) {
+			badfile = fopen("badroots.log", "w"); // old results will be deleted
+			gudfile = fopen("gudroots.log", "w"); // old results will be deleted
+		} else {
+			badfile = fopen("badroots.log", "a"); // new results will be appended
+			gudfile = fopen("gudroots.log", "a"); // new results will be appended
+		}
+
+		#ifdef MPI_VERSION
+		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
+			MPI::COMM_WORLD.Barrier();
+			if (rank == r) {
+		#endif
 				for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
 					fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
 					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-				fclose(badfile);
+		#ifdef MPI_VERSION
 			}
-			#ifdef MPI_VERSION
-			for (int r=1; r<MPI::COMM_WORLD.Get_size(); r++) {
-				MPI::COMM_WORLD.Barrier();
-				if (rank==r) {
-					FILE* badfile = NULL;
-					badfile = fopen("badroots.log", "a"); // new results will be appended
-					for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
-						fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-						(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-					fclose(badfile);
-				}
-				MPI::COMM_WORLD.Barrier();
-			}
-			#endif
+			MPI::COMM_WORLD.Barrier();
 		}
+		#endif
 
-		if (gudpoints.size() > 0) {
-			if (rank==0) {
-				FILE* gudfile = NULL;
-				gudfile = fopen("gudroots.log", "w"); // old results will be deleted
+		#ifdef MPI_VERSION
+		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
+			MPI::COMM_WORLD.Barrier();
+			if (rank == r) {
+		#endif
 				for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
 					fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
 					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-				fclose(gudfile);
+		#ifdef MPI_VERSION
 			}
-			#ifdef MPI_VERSION
-			for (int r=1; r<MPI::COMM_WORLD.Get_size(); r++) {
-				MPI::COMM_WORLD.Barrier();
-				if (rank==r) {
-					FILE* gudfile = NULL;
-					gudfile = fopen("gudroots.log", "a"); // new results will be appended
-					for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
-						fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-						(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-					fclose(gudfile);
-				}
-				MPI::COMM_WORLD.Barrier();
-			}
-			#endif
+			MPI::COMM_WORLD.Barrier();
 		}
+		#endif
+
+		fclose(badfile);
+		fclose(gudfile);
 		#endif
 
 		output(initGrid,filename);
@@ -428,11 +419,11 @@ void generate(int dim, const char* filename)
 
 
 		// Construct grid
-		const int Nx = 768; // divisible by 12 and 64
-		const int Ny = 96;
+		const int Nx = 256; // divisible by 12 and 64
+		const int Ny = 128;
 		double dV = 1.0;
 		double Ntot = 1.0;
-		GRID2D initGrid(NC+NP+NC*(NP+1)+1, 0, Nx, 0, Ny);
+		GRID2D initGrid(NC+NP+NC*(NP+1)+1, -Nx/2, Nx/2, -Ny/2, Ny/2);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
@@ -471,9 +462,11 @@ void generate(int dim, const char* filename)
 
 		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
 		Composition comp;
+		field_t matCr = 0.0;
+		field_t matNb = 0.0;
 		//comp += enrichMatrix(initGrid, bell[0], bell[1]);
 
-		if (1) {
+		if (0) {
 			/* ================================================ *
 			 * Multi-precipitate particle test configuration    *
 			 *                                                  *
@@ -483,7 +476,7 @@ void generate(int dim, const char* filename)
 
 			std::vector<vector<int> > seeds;
 			vector<int> seed(dim+2, 0);
-			unsigned int nprcp = std::pow(2, std::ceil(std::log2(64*Nx*Ny/(768*192))));
+			unsigned int nprcp = std::pow(2, std::ceil(std::log2(96*Nx*Ny/(768*192))));
 
 			#ifdef MPI_VERSION
 			int np = MPI::COMM_WORLD.Get_size();
@@ -492,25 +485,25 @@ void generate(int dim, const char* filename)
 			unsigned int attempts = 0;
 
 			// Generate non-overlapping seeds with random size and phase
-			while (seeds.size() < nprcp && attempts < 50 * nprcp) {
-				// Select precipitate ID between [0, NP+1)
+			while (seeds.size() < nprcp && attempts < 500 * nprcp) {
+				// Set precipitate ID between [0, NP+1)
 				double rnd = unidist(mtrand);
 				seed[dim] = std::floor(rnd * (NP + 1));
 
-				// Select precipitate radius
+				// Set precipitate radius
 				rnd = unidist(mtrand);
-				seed[dim+1] = std::floor((0.625 + rnd) * rPrecip[seed[dim]]);
+				seed[dim+1] = std::floor((0.525 + rnd) * rPrecip[seed[dim]]);
 
-				// Select precipitate origin
-				for (int d=0; d<dim; d++) {
+				// Set precipitate origin
+				for (int d = 0; d < dim; d++) {
 					rnd = unidist(mtrand);
 					seed[d] = x0(initGrid, d) + seed[dim+1] + int(rnd * (x1(initGrid, d) - x0(initGrid, d) - 2 * seed[dim+1]));
 				}
 
 				bool clearSpace = true;
-				for (size_t i=0; clearSpace && i<seeds.size(); i++) {
+				for (size_t i = 0; clearSpace && i < seeds.size(); i++) {
 					double r = 0;
-					for (int d=0; d<dim; d++)
+					for (int d = 0; d < dim; d++)
 						r += pow(seeds[i][d] - seed[d], 2);
 					if (std::sqrt(r) < seed[dim+1] + seeds[i][dim+1])
 						clearSpace = false;
@@ -524,7 +517,7 @@ void generate(int dim, const char* filename)
 
 			for (size_t i = 0; i < seeds.size(); i++) {
 				vector<int> origin(dim, 0);
-				for (int d=0; d<dim; d++)
+				for (int d = 0; d < dim; d++)
 					origin[d] = seeds[i][d];
 				int pid = seeds[i][dim];
 				assert(pid < NP+1);
@@ -533,7 +526,32 @@ void generate(int dim, const char* filename)
 				comp += embedParticle(initGrid, origin, NC+pid, seeds[i][dim+1], xCr[pid+1], xNb[pid+1]);
 			}
 
-		} else if (0) {
+			// Synchronize global initial condition parameters
+			#ifdef MPI_VERSION
+			Composition myComp;
+			myComp += comp;
+			MPI::COMM_WORLD.Barrier();
+			// Caution: Primitive. Will not scale to large MPI systems.
+			MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
+			for (int j = 0; j < NP+1; j++) {
+				MPI::COMM_WORLD.Barrier();
+				MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
+			}
+			#endif
+
+			// Initialize matrix to achieve specified system composition
+			matCr = Ntot * xCr[0];
+			matNb = Ntot * xNb[0];
+			double Nmat  = Ntot;
+			for (int i = 0; i < NP+1; i++) {
+				Nmat  -= comp.N[i];
+				matCr -= comp.x[i][0];
+				matNb -= comp.x[i][1];
+			}
+			matCr /= Nmat;
+			matNb /= Nmat;
+
+		} else if (1) {
 			/* =============================================== *
 			 * Two-phase Particle Growth test configuration    *
 			 *                                                 *
@@ -543,45 +561,53 @@ void generate(int dim, const char* filename)
 			 * =============================================== */
 
 			vector<int> origin(dim, 0);
-			const int xoffset[NP] = {0, int(16 * (5e-9 / meshres))}; //  80 nm
+
+			// Set precipitate radius
+			const int r = std::floor((0.525 + unidist(mtrand)) * rPrecip[0]);
+
+			// Set precipitate separation (min=2r, max=Nx-2r
+			const int d = 2*r + unidist(mtrand) * (x1(initGrid) - x0(initGrid) - 4*r);
+
+			// Set system composition
+			double xCr0 = 0.05 + unidist(mtrand) * (0.45 - 0.05);
+			double xNb0 = 0.15 + unidist(mtrand) * (0.25 - 0.15);
 
 			for (int j = 0; j < NP; j++) {
-				origin[0] = xoffset[j] + Nx / 2;
-				origin[1] = Ny / 2;
-				comp += embedParticle(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
+				origin[0] = (j%2==0) ? -d/2 : d/2;
+				origin[1] = 0;
+				comp += embedParticle(initGrid, origin, j+NC, r, xCr[j+1], xNb[j+1]);
 			}
+
+			// Synchronize global initial condition parameters
+			#ifdef MPI_VERSION
+			Composition myComp;
+			myComp += comp;
+			MPI::COMM_WORLD.Barrier();
+			// Caution: Primitive. Will not scale to large MPI systems.
+			MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
+			for (int j = 0; j < NP+1; j++) {
+				MPI::COMM_WORLD.Barrier();
+				MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
+			}
+			#endif
+
+			// Initialize matrix to achieve specified system composition
+			matCr = Ntot * xCr0;
+			matNb = Ntot * xNb0;
+			double Nmat  = Ntot;
+			for (int i = 0; i < NP+1; i++) {
+				Nmat  -= comp.N[i];
+				matCr -= comp.x[i][0];
+				matNb -= comp.x[i][1];
+			}
+			matCr /= Nmat;
+			matNb /= Nmat;
 
 		} else {
 			if (rank == 0)
 				std::cerr<<"Error: specify an initial condition!"<<std::endl;
 			MMSP::Abort(-1);
 		}
-
-		// Synchronize global initial condition parameters
-		#ifdef MPI_VERSION
-		Composition myComp;
-		myComp += comp;
-		MPI::COMM_WORLD.Barrier();
-		// Caution: Primitive. Will not scale to large MPI systems.
-		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
-		for (int j = 0; j < NP+1; j++) {
-			MPI::COMM_WORLD.Barrier();
-			MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
-		}
-		#endif
-
-
-		// Initialize matrix to achieve specified system composition
-		field_t matCr = Ntot * xCr[0];
-		field_t matNb = Ntot * xNb[0];
-		double Nmat  = Ntot;
-		for (int i = 0; i < NP+1; i++) {
-			Nmat  -= comp.N[i];
-			matCr -= comp.x[i][0];
-			matNb -= comp.x[i][1];
-		}
-		matCr /= Nmat;
-		matNb /= Nmat;
 
 
 		/* =========================== *
@@ -660,66 +686,57 @@ void generate(int dim, const char* filename)
 		for (int n = 0; n < nodes(initGrid); n++) {
 			if (initGrid(n)[fields(initGrid)-1] > root_tol) {
 				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i=0; i<point.size(); i++)
+				for (unsigned int i = 0; i < point.size(); i++)
 					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
 				badpoints.insert(point);
 			} else {
 				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i=0; i<point.size(); i++)
+				for (unsigned int i = 0; i < point.size(); i++)
 					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
 				gudpoints.insert(point);
 			}
 		}
 
-		if (badpoints.size() > 0) {
-			if (rank==0) {
-				FILE* badfile = NULL;
-				badfile = fopen("badroots.log", "w"); // old results will be deleted
+		FILE* badfile = NULL;
+		FILE* gudfile = NULL;
+		if (rank == 0) {
+			badfile = fopen("badroots.log", "w"); // old results will be deleted
+			gudfile = fopen("gudroots.log", "w"); // old results will be deleted
+		} else {
+			badfile = fopen("badroots.log", "a"); // new results will be appended
+			gudfile = fopen("gudroots.log", "a"); // new results will be appended
+		}
+
+		#ifdef MPI_VERSION
+		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
+			MPI::COMM_WORLD.Barrier();
+			if (rank == r) {
+		#endif
 				for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
 					fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
 					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-				fclose(badfile);
+		#ifdef MPI_VERSION
 			}
-			#ifdef MPI_VERSION
-			for (int r=1; r<MPI::COMM_WORLD.Get_size(); r++) {
-				MPI::COMM_WORLD.Barrier();
-				if (rank==r) {
-					FILE* badfile = NULL;
-					badfile = fopen("badroots.log", "a"); // new results will be appended
-					for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
-						fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-						(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-					fclose(badfile);
-				}
-				MPI::COMM_WORLD.Barrier();
-			}
-			#endif
+			MPI::COMM_WORLD.Barrier();
 		}
+		#endif
 
-		if (gudpoints.size() > 0) {
-			if (rank==0) {
-				FILE* gudfile = NULL;
-				gudfile = fopen("gudroots.log", "w"); // old results will be deleted
+		#ifdef MPI_VERSION
+		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
+			MPI::COMM_WORLD.Barrier();
+			if (rank == r) {
+		#endif
 				for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
 					fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
 					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-				fclose(gudfile);
+		#ifdef MPI_VERSION
 			}
-			#ifdef MPI_VERSION
-			for (int r=1; r<MPI::COMM_WORLD.Get_size(); r++) {
-				MPI::COMM_WORLD.Barrier();
-				if (rank==r) {
-					FILE* gudfile = NULL;
-					gudfile = fopen("gudroots.log", "a"); // new results will be appended
-					for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
-						fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-						(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-					fclose(gudfile);
-				}
-				MPI::COMM_WORLD.Barrier();
-			}
-			#endif
+			MPI::COMM_WORLD.Barrier();
 		}
+		#endif
+
+		fclose(badfile);
+		fclose(gudfile);
 		#endif
 
 		output(initGrid,filename);
@@ -933,7 +950,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		swap(oldGrid, newGrid);
 		ghostswap(oldGrid);
 
-		// Update timestep based on interfacial velocity. If v=0, there's no interface: march ahead with current dt.
+		// Update timestep based on interfacial velocity. If v==0, there's no interface: march ahead with current dt.
 		double interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
 		double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
 
@@ -1024,40 +1041,58 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	}
 
 	#ifndef NDEBUG
-	// Output compositions where rootsolver failed (and succeeded)
-	std::set<std::vector<short> > badpoints;
-	std::set<std::vector<short> > gudpoints;
-	for (int n = 0; n < nodes(newGrid); n++) {
-		if (newGrid(n)[fields(newGrid)-1] > root_tol) {
-			std::vector<short> point(int(NC*(NP+1)), short(0));
-			for (unsigned int i=0; i<point.size(); i++)
-				point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
-			badpoints.insert(point);
-		} else {
-			std::vector<short> point(int(NC*(NP+1)), short(0));
-			for (unsigned int i=0; i<point.size(); i++)
-				point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
-			gudpoints.insert(point);
+		// Output compositions where rootsolver failed (and succeeded)
+		std::set<std::vector<short> > badpoints;
+		std::set<std::vector<short> > gudpoints;
+		for (int n = 0; n < nodes(oldGrid); n++) {
+			if (newGrid(n)[fields(newGrid)-1] > root_tol) {
+				std::vector<short> point(int(NC*(NP+1)), short(0));
+				for (unsigned int i = 0; i < point.size(); i++)
+					point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
+				badpoints.insert(point);
+			} else {
+				std::vector<short> point(int(NC*(NP+1)), short(0));
+				for (unsigned int i = 0; i < point.size(); i++)
+					point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
+				gudpoints.insert(point);
+			}
 		}
-	}
 
-	if (badpoints.size() > 0) {
 		FILE* badfile = NULL;
-		badfile = fopen("badroots.log", "a"); // new results will be appended
-		for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
-			fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-			(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-		fclose(badfile);
-	}
-
-	if (gudpoints.size() > 0) {
 		FILE* gudfile = NULL;
-		gudfile = fopen("gudroots.log", "a");
-		for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
-			fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-			(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+		badfile = fopen("badroots.log", "a"); // new results will be appended
+		gudfile = fopen("gudroots.log", "a"); // new results will be appended
+
+		#ifdef MPI_VERSION
+		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
+			MPI::COMM_WORLD.Barrier();
+			if (rank == r) {
+		#endif
+				for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
+					fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+		#ifdef MPI_VERSION
+			}
+			MPI::COMM_WORLD.Barrier();
+		}
+		#endif
+
+		#ifdef MPI_VERSION
+		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
+			MPI::COMM_WORLD.Barrier();
+			if (rank == r) {
+		#endif
+				for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
+					fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+		#ifdef MPI_VERSION
+			}
+			MPI::COMM_WORLD.Barrier();
+		}
+		#endif
+
+		fclose(badfile);
 		fclose(gudfile);
-	}
 	#endif
 
 	if (rank == 0) {
