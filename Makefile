@@ -20,12 +20,12 @@ directives = -DPARABOLA
 
 
 # flags: common, debug, Intel, GNU, and MPI
-stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include $(directives)
-dbgflags  = $(stdflags) -O1 -pg
-idbgflags = $(stdflags) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
+stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include
+dbgflags  = $(stdflags) $(directives) -O1 -pg
+idbgflags = $(stdflags) $(directives) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
 
-iflags = $(stdflags) -w3 -diag-disable:remark -xCORE-AVX2 -O3 -funroll-loops -opt-prefetch -fast
-gflags = $(stdflags) -pedantic -O3 -funroll-loops -ffast-math 
+iflags = $(stdflags) $(directives) -w3 -diag-disable:remark -xCORE-AVX2 -O3 -funroll-loops -opt-prefetch -fast
+gflags = $(stdflags) $(directives) -pedantic -O3 -funroll-loops -ffast-math 
 pflags = $(gflags) -include mpi.h
 
 
@@ -73,15 +73,15 @@ description: phasefield-precipitate-aging_description.tex
 
 # extract composition from line profile
 mmsp2comp: mmsp2comp.cpp
-	$(gcompiler) $(stdflags) $< -o $@ -lz
+	$(gcompiler) $(stdflags) -O2 $< -o $@ -lz
 
 # check interfacial adsorption (should be zero)
 adsorption: adsorption.cpp
-	$(gcompiler) $(stdflags) $< -o $@ -lz
+	$(gcompiler) $(stdflags) -O2 $< -o $@ -lz
 
 # generate equilibrium phase diagram information
 equilibrium: equilibrium.cpp
-	$(gcompiler) -Wall -std=c++11 -DPARABOLA $< -o $@ -lgsl -lgslcblas
+	$(gcompiler) $(gflags) $< -o $@ -lgsl -lgslcblas
 
 clean:
 	rm -f adsorption alloy625 equilibrium ibtest iserial mmsp2comp parallel pgparallel serial smp smpi
