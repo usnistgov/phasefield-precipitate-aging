@@ -2,6 +2,8 @@
 # coding: utf-8
 
 # Overlay phase-field simulation compositions on ternary phase diagram
+# Before executing this script, run the mmsp2comp utility
+# for each checkpoint file in the directories of interest.
 
 # Numerical libraries
 import numpy as np
@@ -25,8 +27,8 @@ from CALPHAD_energies import *
 # # Generate a phase diagram
 # Using scipy.spatial.ConvexHull, an interface to qhull. This method cannot provide phase fractions, chemical potentials, etc., but will quickly produce the correct diagram from the given Gibbs energies.
 
-labels = [r'$\gamma$', r'$\delta$', r'$\mu$', 'Laves']
-colors = ['red', 'green', 'blue', 'cyan']
+labels = [r'$\gamma$', r'$\delta$', 'Laves']
+colors = ['red', 'green', 'blue']
 
 # Tick marks along simplex edges
 Xtick = []
@@ -53,20 +55,19 @@ def computeKernelExclusive(n):
 
     xni = 1.0 - xcr - xnb
 
-    result = [0]*6
+    result = [0] * 5
     
     if xni>0:
         result[0] = xcr
         result[1] = xnb
-        result[2] = TG(xcr, xnb)
-        result[3] = TD(xcr, xnb)
-        result[4] = TU(xcr, xnb)
-        result[5] = TL(xcr, xnb)
+        result[2] = PG(xcr, xnb)
+        result[3] = PD(xcr, xnb)
+        result[4] = PL(xcr, xnb)
     
     return result
 
 
-density = 4000
+density = 2000
 allCr = []
 allNb = []
 allG = []
@@ -79,8 +80,8 @@ if __name__ == '__main__':
 
     i = 0
     for result in pool.imap(computeKernelExclusive, range(density*(density+1))):
-        xcr, xnb, fg, fd, fu, fl = result
-        f = (fg, fd, fu, fl)
+        xcr, xnb, fg, fd, fl = result
+        f = (fg, fd, fl)
 
         # Accumulate (x, y, G) points for each phase
         for n in range(len(f)):
@@ -109,37 +110,37 @@ for simplex in hull.simplices:
 
 
 
-for pair in ('gamma-delta', 'gamma-mu', 'gamma-laves', 'delta-laves', 'fourphase'):
-    # Plot phase diagram
-    plt.figure(figsize=(10, 7.5)) # inches
-    plt.plot(XS, YS, '-k')
-    plt.title("Cr-Nb-Ni at %.0fK"%temp, fontsize=18)
-    plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
-    plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
-    n = 0
-    for i in range(len(labels)):
-        plt.scatter(X[i], Y[i], color=colors[i], s=2.5, label=labels[i])
-    plt.xticks(np.linspace(0, 1, 21))
-    plt.scatter(Xtick, Ytick, color='black', s=3)
-    plt.legend(loc='best')
-    plt.text(simX(0.075, 0.01), simY(0.01), r'$\gamma$', fontweight='bold', fontsize=18)
-    plt.text(simX(0.2375, 0.01), simY(0.01), r'$\delta$', fontweight='bold', fontsize=18)
-    plt.text(simX(0.50625, 0.01), simY(0.01), r'$\mu$', fontweight='bold', fontsize=18)
-    plt.text(simX(0.2375, 0.375), simY(0.375), r'$L$', fontweight='bold', fontsize=18)
-    
-    # Add composition pathways
-    fnames = sorted(glob.glob("data/alloy625/run1/{0}/*.xy".format(pair)))
-    n = len(fnames)
-    # for i in np.logspace(0, np.log10(n), 3, endpoint=False, dtype=int):
-    for i in (0, n-1):
-        xcr, xnb = np.loadtxt(fnames[i], delimiter=',', unpack=True)
-        xcr0 = np.mean(xcr)
-        xnb0 = np.mean(xnb)
-        plt.plot(simX(xnb, xcr), simY(xcr), '.-', markersize=2, linewidth=1, zorder=1)
-        plt.scatter(simX(xnb0, xcr0), simY(xcr0), color='black', s=6, zorder=10)
-    
-    plt.xlim([0, 0.6])
-    plt.ylim([0, rt3by2*0.6])
-    plt.savefig("diagrams/pathways_{0}.png".format(pair), dpi=400, bbox_inches='tight')
-    plt.close()
-    collect()
+pair = 'threephase'
+# Plot phase diagram
+plt.figure(figsize=(10, 7.5)) # inches
+plt.plot(XS, YS, '-k')
+plt.title("Cr-Nb-Ni at %.0fK"%temp, fontsize=18)
+plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=18)
+plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=18)
+for i in range(len(labels)):
+    plt.scatter(X[i], Y[i], color=colors[i], s=2, label=labels[i])
+    plt.scatter(X0[i], Y0[i], color='black', s=6, zorder=10)
+plt.xticks(np.linspace(0, 1, 21))
+plt.scatter(Xtick, Ytick, color='black', s=3)
+
+plt.legend(loc='best')
+plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
+plt.text(simX(0.230, 0.010), simY(0.010), r'$\delta$', fontsize=14)
+plt.text(simX(0.310, 0.320), simY(0.320), r'L',        fontsize=14)
+
+# Add composition pathways
+fnames = sorted(glob.glob("data/alloy625/run1/{0}/*.xy".format(pair)))
+n = len(fnames)
+# for i in np.logspace(0, np.log10(n), 3, endpoint=False, dtype=int):
+for i in range(n):
+    xcr, xnb = np.loadtxt(fnames[i], delimiter=',', unpack=True)
+    xcr0 = np.mean(xcr)
+    xnb0 = np.mean(xnb)
+    plt.plot(simX(xnb, xcr), simY(xcr), '.-', markersize=2, linewidth=1, zorder=1)
+    plt.scatter(simX(xnb0, xcr0), simY(xcr0), color='black', s=6, zorder=10)
+
+plt.xlim([0, 0.6])
+plt.ylim([0, rt3by2*0.6])
+plt.savefig("diagrams/pathways_{0}.png".format(pair), dpi=400, bbox_inches='tight')
+plt.close()
+collect()

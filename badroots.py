@@ -98,7 +98,7 @@ if path.isdir(datdir):
         plt.scatter(simX(lav_xnb, lav_xcr), simY(lav_xcr), color='red', s=1.25, zorder=1, label="L")
     
     plt.legend(loc='best')
-    plt.savefig("diagrams/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
+    plt.savefig("diagrams/fictitious_{0}.png".format(base), dpi=400, bbox_inches='tight')
     plt.close()
 else:
     print("Invalid argument: {0} is not a directory.".format(datdir))

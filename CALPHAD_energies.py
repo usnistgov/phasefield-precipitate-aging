@@ -82,8 +82,8 @@ from pycalphad import Database, calculate, Model
 from sympy.utilities.codegen import codegen
 from sympy.parsing.sympy_parser import parse_expr
 from sympy import And, Ge, Gt, Le, Lt, Or, Piecewise, true
-from sympy import diff, symbols, simplify, sympify
-from sympy import Abs, exp, pi, tanh
+from sympy import diff, Function, Lambda, symbols, simplify, sympify
+from sympy import Abs, exp, log, pi, tanh
 
 # Visualization libraries
 import matplotlib.pylab as plt
@@ -193,7 +193,7 @@ xe_del_Cr = 0.015
 xe_del_Nb = 0.245
 
 xe_lav_Cr = 0.300
-xe_lav_Nb = 0.283
+xe_lav_Nb = 0.328
 xe_lav_Ni = 1 - xe_lav_Cr - xe_lav_Nb
 
 # Specify Taylor series expansion points
@@ -202,7 +202,7 @@ xt_gam_Nb = 0.200
 xt_gam_Ni = 1 - xt_gam_Cr - xt_gam_Nb
 
 xt_del_Cr = 0.100
-xt_del_Nb = 0.300
+xt_del_Nb = 0.245
 
 xt_lav_Cr = 0.350
 xt_lav_Nb = 0.200
@@ -551,21 +551,6 @@ t_d2Glav_dxNbNb = diff(t_laves, XNB, XNB)
 
 # Generate parabolic expressions (the crudest of approximations)
 
-# Free-Energy Minima
-PA_gam = 0 #g_gamma.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PA_del = 0 #g_delta.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
-PA_lav = 0 #g_laves.subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
-
-# Slopes
-PB_gam_Cr = 0 #diff(g_gamma, XCR).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PB_gam_Nb = 0 #diff(g_gamma, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-
-PB_del_Cr = 0 #diff(g_delta, XCR).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
-PB_del_Nb = 0 #diff(g_delta, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
-
-PB_lav_Cr = 0 #diff(g_laves, XCR).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
-PB_lav_Nb = 0 #diff(g_laves, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
-
 # Curvatures
 PC_gam_CrCr = 1.0 * diff(g_gamma, XCR, XCR).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb}) / 2
 PC_gam_CrNb = 2.0 * diff(g_gamma, XCR, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb}) / 2
@@ -580,24 +565,15 @@ PC_lav_CrNb = 2.0 * diff(g_laves, XCR, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb
 PC_lav_NbNb = 1.0 * diff(g_laves, XNB, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb}) / 2
 
 # Expressions
-p_gamma = PA_gam \
-        + PB_gam_Cr * (XCR - xe_gam_Cr) \
-        + PB_gam_Nb * (XNB - xe_gam_Nb) \
-        + PC_gam_CrCr * (XCR - xe_gam_Cr)**2                      \
+p_gamma = PC_gam_CrCr * (XCR - xe_gam_Cr)**2                      \
         + PC_gam_CrNb * (XCR - xe_gam_Cr)    * (XNB - xe_gam_Nb)  \
         + PC_gam_NbNb                        * (XNB - xe_gam_Nb)**2
 
-p_delta = PA_del \
-        + PB_del_Cr * (XCR - xe_del_Cr) \
-        + PB_del_Nb * (XNB - xe_del_Nb) \
-        + PC_del_CrCr * (XCR - xe_del_Cr)**2                      \
+p_delta = PC_del_CrCr * (XCR - xe_del_Cr)**2                      \
         + PC_del_CrNb * (XCR - xe_del_Cr)    * (XNB - xe_del_Nb)  \
         + PC_del_NbNb                        * (XNB - xe_del_Nb)**2
 
-p_laves = PA_lav \
-        + PB_lav_Cr * (XCR - xe_lav_Cr) \
-        + PB_lav_Nb * (XNB - xe_lav_Nb) \
-        + PC_lav_CrCr * (XCR - xe_lav_Cr)**2                      \
+p_laves = PC_lav_CrCr * (XCR - xe_lav_Cr)**2                      \
         + PC_lav_CrNb * (XCR - xe_lav_Cr)    * (XNB - xe_lav_Nb)  \
         + PC_lav_NbNb                        * (XNB - xe_lav_Nb)**2
 
