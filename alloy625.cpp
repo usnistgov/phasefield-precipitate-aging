@@ -563,14 +563,21 @@ void generate(int dim, const char* filename)
 			vector<int> origin(dim, 0);
 
 			// Set precipitate radius
-			const int r = std::floor((0.525 + unidist(mtrand)) * rPrecip[0]);
+			int r = std::floor((0.525 + unidist(mtrand)) * rPrecip[0]);
 
 			// Set precipitate separation (min=2r, max=Nx-2r
-			const int d = 2*r + unidist(mtrand) * (x1(initGrid) - x0(initGrid) - 4*r);
+			int d = 2*r + unidist(mtrand) * (x1(initGrid) - x0(initGrid) - 4*r);
 
 			// Set system composition
 			double xCr0 = 0.05 + unidist(mtrand) * (0.45 - 0.05);
 			double xNb0 = 0.15 + unidist(mtrand) * (0.25 - 0.15);
+
+			#ifdef MPI_VERSION
+			MPI::COMM_WORLD.Bcast(&r,    1, MPI_INT,    0);
+			MPI::COMM_WORLD.Bcast(&d,    1, MPI_INT,    0);
+			MPI::COMM_WORLD.Bcast(&xCr0, 1, MPI_DOUBLE, 0);
+			MPI::COMM_WORLD.Bcast(&xNb0, 1, MPI_DOUBLE, 0);
+			#endif
 
 			for (int j = 0; j < NP; j++) {
 				origin[0] = (j%2==0) ? -d/2 : d/2;
