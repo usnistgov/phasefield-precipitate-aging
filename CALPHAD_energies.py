@@ -216,44 +216,6 @@ xnb_lav_hi = fr1by3
 xni_lav_hi = fr2by3
 xni_lav_hi = fr2by3
 
-# Define slopes and intercepts for linear "funnel" functions
-# from range of CALPHAD landscapes at 1143 K
-# CALPHAD ranges
-#gam_slope =  1.0e9 * (-3.79 + 7.97) # gam range: [-7.97, -3.79]e9 J/m3
-#gam_inter = -3.79e9 + 0.25*gam_slope
-#
-#del_slope =  1.0e9 * (-3.99 + 8.54) # del range: [-8.54, -3.99]e9 J/m3
-#del_inter = -3.99e9 + 0.25*del_slope
-#
-#lav_slope =  1.0e9 * (4.61 + 8.05) # lav range: [-8.05, +4.61]e9 J/m3
-#lav_inter =  4.61e9 + 0.25 * lav_slope
-
-# Taylor ranges
-gam_slope = 16 * 18e9 # gam range: [-8, 10]e9 J/m3
-gam_inter = 10e9 # + 0.25 * gam_slope
-
-del_slope = 8 * 28e9 # del range: [-8, 20]e9 J/m3
-del_inter = 20e9 # + 0.25 * del_slope
-
-lav_slope = 16 * 25e9 # lav range: [-10, 15]e9 J/m3
-lav_inter = 15e9 # + 0.25 * lav_slope
-
-# Define linear "funnel" functions
-
-f_gamma_Cr_lo = gam_inter - gam_slope * XCR
-f_gamma_Nb_lo = gam_inter - gam_slope * XNB
-f_gamma_Ni_lo = gam_inter - gam_slope * XNI
-
-f_delta_Cr_lo = del_inter - del_slope * XCR
-f_delta_Nb_lo = del_inter - del_slope * XNB
-f_delta_Cr_hi = del_inter + del_slope * (XCR - xcr_del_hi)
-f_delta_Nb_hi = del_inter + del_slope * (XNB - xnb_del_hi)
-
-f_laves_Nb_lo = lav_inter - lav_slope * XNB
-f_laves_Ni_lo = lav_inter - lav_slope * XNI
-f_laves_Nb_hi = lav_inter + lav_slope * (XNB - xnb_lav_hi)
-f_laves_Ni_hi = lav_inter + lav_slope * (XNI - xni_lav_hi)
-
 
 # Anchor points for Taylor series
 XT = [simX(xt_gam_Nb, xt_gam_Cr), simX(xt_del_Nb, xt_del_Cr), simX(xt_lav_Nb, xt_lav_Cr)]
@@ -347,27 +309,6 @@ TE_lav_CrCrNbNb = 6.0 * diff(g_laves, XCR, XCR, XNB, XNB).subs({XCR: xt_lav_Cr, 
 TE_lav_CrNbNbNb = 4.0 * diff(g_laves, XCR, XNB, XNB, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 24
 TE_lav_NbNbNbNb = 1.0 * diff(g_laves, XNB, XNB, XNB, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 24
 
-print("Gamma Taylor coefficients:")
-print(int(TA_gam))
-print(int(TB_gam_Cr), int(TB_gam_Nb))
-print(int(TC_gam_CrCr), int(TC_gam_CrNb), int(TC_gam_NbNb))
-print(int(TD_gam_CrCrCr), int(TD_gam_CrCrNb), int(TD_gam_CrNbNb), int(TD_gam_NbNbNb))
-print(int(TE_gam_CrCrCrCr), int(TE_gam_CrCrCrNb), int(TE_gam_CrCrNbNb), int(TE_gam_CrNbNbNb), int(TE_gam_NbNbNbNb))
-
-print("\nDelta Taylor coefficients:")
-print(int(TA_del))
-print(int(TB_del_Cr), int(TB_del_Nb))
-print(int(TC_del_CrCr), int(TC_del_CrNb), int(TC_del_NbNb))
-print(int(TD_del_CrCrCr), int(TD_del_CrCrNb), int(TD_del_CrNbNb), int(TD_del_NbNbNb))
-print(int(TE_del_CrCrCrCr), int(TE_del_CrCrCrNb), int(TE_del_CrCrNbNb), int(TE_del_CrNbNbNb), int(TE_del_NbNbNbNb))
-
-print("\nLaves Taylor coefficients:")
-print(int(TA_lav))
-print(int(TB_lav_Cr), int(TB_lav_Nb))
-print(int(TC_lav_CrCr), int(TC_lav_CrNb), int(TC_lav_NbNb))
-print(int(TD_lav_CrCrCr), int(TD_lav_CrCrNb), int(TD_lav_CrNbNb), int(TD_lav_NbNbNb))
-print(int(TE_lav_CrCrCrCr), int(TE_lav_CrCrCrNb), int(TE_lav_CrCrNbNb), int(TE_lav_CrNbNbNb), int(TE_lav_NbNbNbNb))
-
 # Expressions
 t_gamma = TA_gam \
         + TB_gam_Cr * (XCR - xt_gam_Cr) \
@@ -417,53 +358,6 @@ t_laves = TA_lav \
         + TE_lav_CrNbNbNb * (XCR - xt_lav_Cr)    * (XNB - xt_lav_Nb)**3 \
         + TE_lav_NbNbNbNb                        * (XNB - xt_lav_Nb)**4
 
-# Generate interpolation functions using sublattice domain restrictions
-
-psi_gam_lo_Cr = fr1by2 * (1 + tanh(twopi / alpha_gam * (-XCR + fr1by2 * alpha_gam)))
-psi_gam_lo_Nb = fr1by2 * (1 + tanh(twopi / alpha_gam * (-XNB + fr1by2 * alpha_gam)))
-psi_gam_lo_Ni = fr1by2 * (1 + tanh(twopi / alpha_gam * (-XNI + fr1by2 * alpha_gam)))
-
-psi_del_lo_Cr = fr1by2 * (1 + tanh(twopi / alpha_del * (-XCR              + fr1by2 * alpha_del)))
-psi_del_hi_Cr = fr1by2 * (1 + tanh(twopi / alpha_del * ( XCR - xcr_del_hi + fr1by2 * alpha_del)))
-psi_del_lo_Nb = fr1by2 * (1 + tanh(twopi / alpha_del * (-XNB              + fr1by2 * alpha_del)))
-psi_del_hi_Nb = fr1by2 * (1 + tanh(twopi / alpha_del * ( XNB - xnb_del_hi + fr1by2 * alpha_del)))
-
-psi_lav_lo_Nb = fr1by2 * (1 + tanh(twopi / alpha_lav * (-XNB              + fr1by2 * alpha_lav)))
-psi_lav_hi_Nb = fr1by2 * (1 + tanh(twopi / alpha_lav * ( XNB - xnb_lav_hi + fr1by2 * alpha_lav)))
-psi_lav_lo_Ni = fr1by2 * (1 + tanh(twopi / alpha_lav * (-XNI              + fr1by2 * alpha_lav)))
-psi_lav_hi_Ni = fr1by2 * (1 + tanh(twopi / alpha_lav * ( XNI - xni_lav_hi + fr1by2 * alpha_lav)))
-
-
-# Generate safe CALPHAD expressions
-cornerwt = fr1by4
-
-c_gamma = ((1 - psi_gam_lo_Cr - psi_gam_lo_Nb - psi_gam_lo_Ni
-              + psi_gam_lo_Cr * psi_gam_lo_Nb
-              + psi_gam_lo_Cr * psi_gam_lo_Ni
-              + psi_gam_lo_Nb * psi_gam_lo_Ni) * g_gamma + \
-          psi_gam_lo_Cr * (1 - cornerwt * psi_gam_lo_Nb - cornerwt * psi_gam_lo_Ni) * f_gamma_Cr_lo + \
-          psi_gam_lo_Nb * (1 - cornerwt * psi_gam_lo_Cr - cornerwt * psi_gam_lo_Ni) * f_gamma_Nb_lo + \
-          psi_gam_lo_Ni * (1 - cornerwt * psi_gam_lo_Cr - cornerwt * psi_gam_lo_Nb) * f_gamma_Ni_lo).subs({XNI: 1 - XCR - XNB})
-
-c_delta = (1 - psi_del_lo_Cr - psi_del_hi_Cr - psi_del_lo_Nb - psi_del_hi_Nb
-             + psi_del_lo_Cr * psi_del_lo_Nb
-             + psi_del_lo_Cr * psi_del_hi_Nb
-             + psi_del_hi_Cr * psi_del_lo_Nb
-             + psi_del_hi_Cr * psi_del_hi_Nb) * g_delta + \
-            psi_del_lo_Cr * (1 - cornerwt * psi_del_lo_Nb - cornerwt * psi_del_hi_Nb) * f_delta_Cr_lo + \
-            psi_del_hi_Cr * (1 - cornerwt * psi_del_lo_Nb - cornerwt * psi_del_hi_Nb) * f_delta_Cr_hi + \
-            psi_del_lo_Nb * (1 - cornerwt * psi_del_lo_Cr - cornerwt * psi_del_hi_Cr) * f_delta_Nb_lo + \
-            psi_del_hi_Nb * (1 - cornerwt * psi_del_lo_Cr - cornerwt * psi_del_hi_Cr) * f_delta_Nb_hi
-
-c_laves = ((1 - psi_lav_lo_Nb - psi_lav_hi_Nb - psi_lav_lo_Ni - psi_lav_hi_Ni
-              + psi_lav_lo_Nb * psi_lav_lo_Ni
-              + psi_lav_lo_Nb * psi_lav_hi_Ni
-              + psi_lav_hi_Nb * psi_lav_lo_Ni
-              + psi_lav_hi_Nb * psi_lav_hi_Ni) * g_laves + \
-           psi_lav_lo_Nb * (1 - cornerwt * psi_lav_lo_Ni - cornerwt * psi_lav_hi_Ni) * f_laves_Nb_lo + \
-           psi_lav_hi_Nb * (1 - cornerwt * psi_lav_lo_Ni - cornerwt * psi_lav_hi_Ni) * f_laves_Nb_hi + \
-           psi_lav_lo_Ni * (1 - cornerwt * psi_lav_lo_Nb - cornerwt * psi_lav_hi_Nb) * f_laves_Ni_lo + \
-           psi_lav_hi_Ni * (1 - cornerwt * psi_lav_lo_Nb - cornerwt * psi_lav_hi_Nb) * f_laves_Ni_hi).subs({XNI: 1 - XCR - XNB})
 
 # Generate first derivatives of CALPHAD landscape
 dGgam_dxCr = diff(g_gamma, XCR)
@@ -717,17 +611,12 @@ print "Finished writing CALPHAD, Taylor series, and parabolic energy functions t
 
 # Generate numerically efficient system-composition expressions
 
-# Lambdify unsafe CALPHAD expressions
+# Lambdify CALPHAD expressions
 GG = lambdify([XCR, XNB], g_gamma, modules='sympy')
 GD = lambdify([XCR, XNB], g_delta, modules='sympy')
 GL = lambdify([XCR, XNB], g_laves, modules='sympy')
 
-# Lambdify safe CALPHAD expressions
-CG = lambdify([XCR, XNB], g_gamma, modules='sympy')
-CD = lambdify([XCR, XNB], g_delta, modules='sympy')
-CL = lambdify([XCR, XNB], g_laves, modules='sympy')
-
-# Lambdify safe Taylor expressions
+# Lambdify Taylor expressions
 TG = lambdify([XCR, XNB], t_gamma, modules='sympy')
 TD = lambdify([XCR, XNB], t_delta, modules='sympy')
 TL = lambdify([XCR, XNB], t_laves, modules='sympy')

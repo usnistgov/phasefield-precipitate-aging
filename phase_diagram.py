@@ -42,17 +42,13 @@ n = 0
 for xcr in (0.1, 0.2, 0.3):
     x = []
 	
-    g = [[], [], []] # raw CALPHAD array
-    c = [[], [], []] # safe CALPHAD array
-    t = [[], [], []] # safe Taylor array
+    g = [[], [], []] # CALPHAD array
+    t = [[], [], []] # Taylor array
     p = [[], [], []] # parabolic array
 	
     for xnb in np.arange(-dc, 1+dc, stepsz):
         xni = 1-xcr-xnb
         x.append(xnb)
-        #c[0].append(CG(xcr, xnb))
-        #c[1].append(CD(xcr, xnb))
-        #c[2].append(CL(xcr, xnb))
         #g[0].append(GG(xcr, xnb))
         #g[1].append(GD(xcr, xnb))
         #g[2].append(GL(xcr, xnb))
@@ -65,7 +61,6 @@ for xcr in (0.1, 0.2, 0.3):
 	
     for j in range(len(phases)):
     	plt.figure(j)
-    	#plt.plot(x, c[j], color=colors[n], ls=':', label=r'CALPHAD $x_{\mathrm{Cr}}=%.2f$'%xcr)
     	#plt.plot(x, g[j], color=colors[n], label=r'CALPHAD $x_{\mathrm{Cr}}=%.2f$'%xcr)
     	plt.plot(x, t[j], color=colors[n], ls='-', label=r'Taylor $x_{\mathrm{Cr}}=%.2f$'%xcr)
     	plt.plot(x, p[j], color=colors[n], ls='-.', label=r'parabola $x_{\mathrm{Cr}}=%.2f$'%xcr)
@@ -97,16 +92,12 @@ n = 0
 for xnb in (0.01, 0.05, 0.10):
     x = []
 	
-    g = [[], [], []] # raw CALPHAD array
-    c = [[], [], []] # safe CALPHAD array
-    t = [[], [], []] # safe Taylor array
+    g = [[], [], []] # CALPHAD array
+    t = [[], [], []] # Taylor array
     p = [[], [], []] # parabolic array
 	
     for xcr in np.arange(-dc, 1+dc, stepsz):
         x.append(xcr)
-        #c[0].append(CG(xcr, xnb))
-        #c[1].append(CD(xcr, xnb))
-        #c[2].append(CL(xcr, xnb))
         #g[0].append(GG(xcr, xnb))
         #g[1].append(GD(xcr, xnb))
         #g[2].append(GL(xcr, xnb))
@@ -119,7 +110,6 @@ for xnb in (0.01, 0.05, 0.10):
 	
     for j in range(len(phases)):
     	plt.figure(j)
-    	#plt.plot(x, c[j], color=colors[n], ls=':', label=r'CALPHAD $x_{\mathrm{Nb}}=%.2f$'%xnb)
     	#plt.plot(x, g[j], color=colors[n], label=r'CALPHAD $x_{\mathrm{Nb}}=%.2f$'%xnb)
     	plt.plot(x, t[j], color=colors[n], ls='-', label=r'Taylor $x_{\mathrm{Nb}}=%.2f$'%xnb)
     	plt.plot(x, p[j], color=colors[n], ls='-.', label=r'parabola $x_{\mathrm{Nb}}=%.2f$'%xnb)
