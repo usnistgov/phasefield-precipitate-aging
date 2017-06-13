@@ -31,7 +31,7 @@ if path.isdir(datdir):
     YS = [0.0, simY(0),   simY(1),   0.0]
     
     # triangle bounding three-phase coexistence
-    X0 = [simX(0.025, 0.490), simX(0.245, 0.015), simX(0.283, 0.300)]
+    X0 = [simX(0.025, 0.490), simX(0.245, 0.015), simX(0.328, 0.300)]
     Y0 = [simY(0.490),        simY(0.015),        simY(0.300)]
     
     # Tick marks along simplex edges

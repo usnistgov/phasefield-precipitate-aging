@@ -7,6 +7,53 @@
 #include"MMSP.hpp"
 #include<vector>
 
+#if defined CALPHAD
+	#include"energy625.c"
+#elif defined PARABOLA
+	#include"parabola625.c"
+#else
+	#include"taylor625.c"
+#endif
+
+#define NC 2
+#define NP 2
+
+template<int dim, typename T>
+void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID, std::vector<double>& xcr, std::vector<double>& xnb, std::vector<double>& P)
+{
+	// Perform a line-scan parallel to the x-axis through the center of the grid
+	MMSP::vector<int> x(dim, 0);
+	double dV = 1.0;
+	for (int d=0; d<dim; d++) {
+		x[d] = (MMSP::g1(GRID,d)-MMSP::g0(GRID,d))/2;
+		dV *= dx(GRID,d);
+	}
+
+	for (x[0] = MMSP::g0(GRID,0); x[0] < MMSP::g1(GRID,0); x[0]++) {
+		// Record system compositions
+		xcr.push_back(GRID(x)[0]);
+		xnb.push_back(GRID(x)[1]);
+
+		// Compute diffusion potential in matrix
+		const double chempot[NC] = {dg_gam_dxCr(GRID(x)[NC+NP], GRID(x)[NC+NP+1]),
+		                            dg_gam_dxNb(GRID(x)[NC+NP], GRID(x)[NC+NP+1])};
+
+		double PhaseEnergy[NP+1] = {g_del(GRID(x)[2*NC+NP], GRID(x)[2*NC+NP+1]),
+		                            g_lav(GRID(x)[3*NC+NP], GRID(x)[3*NC+NP+1]),
+		                            g_gam(GRID(x)[  NC+NP], GRID(x)[  NC+NP+1]) // matrix phase last
+		                           };
+
+		// Record driving force for phase transformation
+		double Pressure = 0.0;
+		for (int j = 0; j < NP; j++) {
+			Pressure += PhaseEnergy[NP] - PhaseEnergy[j];
+			for (int i = 0; i < NC; i++)
+				Pressure -= (GRID(x)[NC+NP+i] - GRID(x)[NC+NP+i+NC*(j+1)]) * chempot[i];
+		}
+		P.push_back(dV * Pressure);
+	}
+}
+
 int main(int argc, char* argv[]) {
 	// command line error check
 	if (argc < 2) {
@@ -97,77 +144,52 @@ int main(int argc, char* argv[]) {
 	input >> fields;
 
 
-	std::vector<double> c0, c1;
+	std::vector<double> xcr;
+	std::vector<double> xnb;
+	std::vector<double> P;
 
 	// write grid data
 	if (vector_type && fields>1) {
 		if (float_type) {
 			if (dim == 1) {
 				MMSP::grid<1, MMSP::vector<float> > GRID(argv[1]);
-				for (int k = 0; k < MMSP::nodes(GRID); k++) {
-					c0.push_back(GRID(k)[0]);
-					c1.push_back(GRID(k)[1]);
-				}
+				vectorComp(GRID, xcr, xnb, P);
 			} else if (dim == 2) {
 				MMSP::grid<2, MMSP::vector<float> > GRID(argv[1]);
-				for (int k = 0; k < MMSP::nodes(GRID); k++) {
-					c0.push_back(GRID(k)[0]);
-					c1.push_back(GRID(k)[1]);
-				}
+				vectorComp(GRID, xcr, xnb, P);
 			} else if (dim == 3) {
 				MMSP::grid<3, MMSP::vector<float> > GRID(argv[1]);
-				for (int k = 0; k < MMSP::nodes(GRID); k++) {
-					c0.push_back(GRID(k)[0]);
-					c1.push_back(GRID(k)[1]);
-				}
+				vectorComp(GRID, xcr, xnb, P);
 			}
 		}
 		if (double_type) {
 			if (dim == 1) {
 				MMSP::grid<1, MMSP::vector<double> > GRID(argv[1]);
-				for (int k = 0; k < MMSP::nodes(GRID); k++) {
-					c0.push_back(GRID(k)[0]);
-					c1.push_back(GRID(k)[1]);
-				}
+				vectorComp(GRID, xcr, xnb, P);
 			} else if (dim == 2) {
 				MMSP::grid<2, MMSP::vector<double> > GRID(argv[1]);
-				for (int k = 0; k < MMSP::nodes(GRID); k++) {
-					c0.push_back(GRID(k)[0]);
-					c1.push_back(GRID(k)[1]);
-				}
+				vectorComp(GRID, xcr, xnb, P);
 			} else if (dim == 3) {
 				MMSP::grid<3, MMSP::vector<double> > GRID(argv[1]);
-				for (int k = 0; k < MMSP::nodes(GRID); k++) {
-					c0.push_back(GRID(k)[0]);
-					c1.push_back(GRID(k)[1]);
-				}
+				vectorComp(GRID, xcr, xnb, P);
 			}
 		}
 		if (long_double_type) {
 			if (dim == 1) {
 				MMSP::grid<1, MMSP::vector<long double> > GRID(argv[1]);
-				for (int k = 0; k < MMSP::nodes(GRID); k++) {
-					c0.push_back(GRID(k)[0]);
-					c1.push_back(GRID(k)[1]);
-				}
+				vectorComp(GRID, xcr, xnb, P);
 			} else if (dim == 2) {
 				MMSP::grid<2, MMSP::vector<long double> > GRID(argv[1]);
-				for (int k = 0; k < MMSP::nodes(GRID); k++) {
-					c0.push_back(GRID(k)[0]);
-					c1.push_back(GRID(k)[1]);
-				}
+				vectorComp(GRID, xcr, xnb, P);
 			} else if (dim == 3) {
 				MMSP::grid<3, MMSP::vector<long double> > GRID(argv[1]);
-				for (int k = 0; k < MMSP::nodes(GRID); k++) {
-					c0.push_back(GRID(k)[0]);
-					c1.push_back(GRID(k)[1]);
-				}
+				vectorComp(GRID, xcr, xnb, P);
 			}
 		}
 	}
 
-	for (unsigned int i=0; i<c0.size(); i++)
-		output << c0[i] << ',' << c1[i] << '\n';
+	for (unsigned int i=0; i<xcr.size(); i++)
+		output << xcr[i] << ',' << xnb[i] << ',' << P[i] << '\n';
 
 	output.close();
 	return 0;
