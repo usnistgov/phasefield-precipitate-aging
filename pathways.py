@@ -137,13 +137,12 @@ if path.isdir(datdir):
     fnames = sorted(glob.glob("{0}/*.xy".format(datdir)))
     n = len(fnames)
     for i in np.arange(0, n, min(n,4), dtype=int):
-        xcr, xnb, P = np.loadtxt(fnames[i], delimiter=',', unpack=True)
-        x = np.linspace(0, 1, len(P))
+        x, xcr, xnb, P = np.loadtxt(fnames[i], delimiter=',', unpack=True)
         num = int(re.search('[0-9]{5,16}', fnames[i]).group(0)) / 1000000
         plt.figure(0)
         plt.plot(simX(xnb, xcr), simY(xcr), '.-', markersize=2, linewidth=1, zorder=1, label=num)
         plt.figure(1)
-        plt.plot(x, P, label=num)
+        plt.semilogy(x, P, label=num)
     
     plt.figure(0)
     plt.xlim([0, 0.6])

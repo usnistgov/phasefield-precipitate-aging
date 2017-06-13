@@ -73,7 +73,7 @@ description: phasefield-precipitate-aging_description.tex
 
 # extract composition from line profile
 mmsp2comp: mmsp2comp.cpp
-	$(gcompiler) $(stdflags) -O2 $< -o $@ -lz
+	$(gcompiler) $(stdflags) $(directives) -O2 $< -o $@ -lz
 
 # check interfacial adsorption (should be zero)
 adsorption: adsorption.cpp
