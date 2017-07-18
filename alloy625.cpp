@@ -27,6 +27,7 @@
 #include<set>
 #include<cmath>
 #include<random>
+#include<sstream>
 #include<vector>
 #ifdef _OPENMP
 #include"omp.h"
@@ -164,16 +165,9 @@ void generate(int dim, const char* filename)
  	#endif
 
 	FILE* cfile = NULL;
-	#ifdef ADAPTIVE_TIMESTEPS
-	FILE* tfile = NULL;
-	#endif
 
-	if (rank == 0) {
+	if (rank == 0)
 		cfile = fopen("c.log", "w"); // existing log will be overwritten
-		#ifdef ADAPTIVE_TIMESTEPS
-		tfile = fopen("t.log", "w"); // existing log will be overwritten
-		#endif
-	}
 
 	const double dtp = (meshres*meshres)/(std::pow(2.0, dim) * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
@@ -337,10 +331,6 @@ void generate(int dim, const char* filename)
 			"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "velocity");
 			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\n",
 			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, 0.0);
-
-			#ifdef ADAPTIVE_TIMESTEPS
-			fprintf(tfile, "%9g\t%9g\t%9g\n", 0.0, 1.0, dt);
-			#endif
 
 			printf("%9s %9s %9s %9s %9s %9s\n",
 			"x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", "p_l");
@@ -742,10 +732,6 @@ void generate(int dim, const char* filename)
 			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\n",
 			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, 0.0);
 
-			#ifdef ADAPTIVE_TIMESTEPS
-			fprintf(tfile, "%9g\t%9g\t%9g\n", 0.0, 1.0, dt);
-			#endif
-
 			printf("%9s %9s %9s %9s %9s %9s\n",
 			"x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", " p_l");
 			printf("%9g %9g %9g %9g %9g %9g\n",
@@ -819,12 +805,8 @@ void generate(int dim, const char* filename)
 	} else
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
 
-	if (rank == 0) {
+	if (rank == 0)
 		fclose(cfile);
-		#ifdef ADAPTIVE_TIMESTEPS
-		fclose(tfile);
-		#endif
-	}
 
 }
 
@@ -866,17 +848,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	ghostswap(oldGrid);
 
-	FILE* cfile = NULL;
-	#ifdef ADAPTIVE_TIMESTEPS
-	FILE* tfile = NULL;
-	#endif
-
-	if (rank == 0) {
-		cfile = fopen("c.log", "a"); // new results will be appended
-		#ifdef ADAPTIVE_TIMESTEPS
-		tfile = fopen("t.log", "a"); // new results will be appended
-		#endif
-	}
+	std::ofstream cfile;
+	if (rank == 0)
+		cfile.open("c.log", std::ofstream::out | std::ofstream::app); // new results will be appended
 
 
 	double current_time = 0.0;
@@ -887,6 +861,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	const T advectionlimit = 0.1 * meshres;
 
 	T velocity_range[2] = {1.0, -1.0};
+
+	std::stringstream ostr;
 
 	#ifdef ADAPTIVE_TIMESTEPS
 	// reference values for adaptive timestepper
@@ -1033,6 +1009,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		MPI::COMM_WORLD.Allreduce(&myt, &ideal_dt, 1, MPI_DOUBLE, MPI_MIN);
 		#endif
 
+		char buffer[128] = {0};
+
 		if (current_dt < ideal_dt + epsilon) {
 			// Update succeeded: process solution
 			current_time += current_dt; // increment before output block
@@ -1059,15 +1037,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				vector<double> summary = summarize_fields(newGrid);
 				double energy = summarize_energy(newGrid);
 
-				if (rank == 0)
-					fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\t(%9g\t%9g)\n",
+				if (rank == 0) {
+					sprintf(buffer, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\t(%9g\t%9g)\n",
 					ideal_dt, current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, interfacialVelocity, velocity_range[0], velocity_range[1]);
-
-				#ifdef ADAPTIVE_TIMESTEPS
-				if (rank == 0)
-					fprintf(tfile, "%9g\t%9g\t%9g\t%9g\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, ideal_dt, current_dt);
-				#endif
-
+					ostr << buffer;
+				}
 			}
 
 			#ifdef ADAPTIVE_TIMESTEPS
@@ -1081,8 +1055,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			// Update failed: solution is unstable
 			#ifdef ADAPTIVE_TIMESTEPS
-			if (rank == 0)
-				fprintf(tfile, "%9g\t%9g\t%9g\t%9g F\n", interfacialVelocity, std::min(dtp, dtc) / current_dt, ideal_dt, current_dt);
 
 			current_dt *= scaledn;
 
@@ -1091,7 +1063,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			#else
 			if (rank == 0) {
 				std::cerr<<"ERROR: Interface swept more than (dx/"<<meshres/advectionlimit<<"), timestep is too aggressive!"<<std::endl;
-				fclose(cfile);
+				cfile.close();
 			}
 
 			MMSP::Abort(-1);
@@ -1113,65 +1085,67 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		assert(current_dt > epsilon);
 	}
 
+	cfile << ostr.str(); // write log data to disk
+	ostr.str(""); // clear log data
+
 	#ifndef NDEBUG
-		// Output compositions where rootsolver failed (and succeeded)
-		std::set<std::vector<short> > badpoints;
-		std::set<std::vector<short> > gudpoints;
-		for (int n = 0; n < nodes(oldGrid); n++) {
-			if (newGrid(n)[fields(newGrid)-1] > root_tol) {
-				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i = 0; i < point.size(); i++)
-					point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
-				badpoints.insert(point);
-			} else {
-				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i = 0; i < point.size(); i++)
-					point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
-				gudpoints.insert(point);
-			}
+	// Output compositions where rootsolver failed (and succeeded)
+	std::set<std::vector<short> > badpoints;
+	std::set<std::vector<short> > gudpoints;
+	for (int n = 0; n < nodes(oldGrid); n++) {
+		if (newGrid(n)[fields(newGrid)-1] > root_tol) {
+			std::vector<short> point(int(NC*(NP+1)), short(0));
+			for (unsigned int i = 0; i < point.size(); i++)
+				point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
+			badpoints.insert(point);
+		} else {
+			std::vector<short> point(int(NC*(NP+1)), short(0));
+			for (unsigned int i = 0; i < point.size(); i++)
+				point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
+			gudpoints.insert(point);
 		}
+	}
 
-		FILE* badfile = NULL;
-		FILE* gudfile = NULL;
-		badfile = fopen("badroots.log", "a"); // new results will be appended
-		gudfile = fopen("gudroots.log", "a"); // new results will be appended
+	FILE* badfile = NULL;
+	FILE* gudfile = NULL;
+	badfile = fopen("badroots.log", "a"); // new results will be appended
+	gudfile = fopen("gudroots.log", "a"); // new results will be appended
 
-		#ifdef MPI_VERSION
-		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
-			MPI::COMM_WORLD.Barrier();
-			if (rank == r) {
-		#endif
-				for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
-					fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-		#ifdef MPI_VERSION
-			}
-			MPI::COMM_WORLD.Barrier();
+	#ifdef MPI_VERSION
+	for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
+		MPI::COMM_WORLD.Barrier();
+		if (rank == r) {
+	#endif
+			for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
+				fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
+				(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+	#ifdef MPI_VERSION
 		}
-		#endif
+		MPI::COMM_WORLD.Barrier();
+	}
+	#endif
 
-		#ifdef MPI_VERSION
-		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
-			MPI::COMM_WORLD.Barrier();
-			if (rank == r) {
-		#endif
-				for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
-					fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-		#ifdef MPI_VERSION
-			}
-			MPI::COMM_WORLD.Barrier();
+	#ifdef MPI_VERSION
+	for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
+		MPI::COMM_WORLD.Barrier();
+		if (rank == r) {
+	#endif
+			for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
+				fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
+				(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
+	#ifdef MPI_VERSION
 		}
-		#endif
+		MPI::COMM_WORLD.Barrier();
+	}
+	#endif
 
-		fclose(badfile);
-		fclose(gudfile);
+	fclose(badfile);
+	fclose(gudfile);
 	#endif
 
 	if (rank == 0) {
-		fclose(cfile);
+		cfile.close();
 		#ifdef ADAPTIVE_TIMESTEPS
-		fclose(tfile);
 		print_progress(steps-1, steps); // floating-point comparison misses the endpoint
 		#endif
 	}
