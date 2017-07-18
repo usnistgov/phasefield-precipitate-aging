@@ -6,7 +6,7 @@
 # compilers: Intel, GCC, MPI
 icompiler = icc
 gcompiler = /usr/bin/g++
-pcompiler = /usr/bin/mpic++
+pcompiler = mpicxx
 
 
 # libraries: z, gsl, mpiP
@@ -24,44 +24,48 @@ stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include
 dbgflags  = $(stdflags) $(directives) -O1 -pg
 idbgflags = $(stdflags) $(directives) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
 
-iflags = $(stdflags) $(directives) -w3 -diag-disable:remark -xCORE-AVX2 -O3 -funroll-loops -opt-prefetch -fast
-gflags = $(stdflags) $(directives) -pedantic -O3 -funroll-loops -ffast-math 
-pflags = $(gflags) -include mpi.h
+iccflags = $(stdflags) $(directives) -w3 -diag-disable:remark -O3 -funroll-loops -opt-prefetch
+gccflags = $(stdflags) $(directives) -pedantic -O3 -funroll-loops -ffast-math 
+pgiflags = -I $(MMSP_PATH)/include $(directives) -fast -Mipa=fast,inline,safe -Mfprelaxed -std=c++11
+mpiflags = $(gccflags) -include mpi.h
 
 
 # WORKSTATION
 
 # default program (shared memory, OpenMP)
 alloy625: alloy625.cpp
-	$(icompiler) $< -o $@ $(iflags) $(stdlinks) -openmp
+	$(icompiler) $< -o $@ $(iccflags) $(stdlinks) -openmp
 
 # profiling program (no parallelism or optimization)
 serial: alloy625.cpp
-	$(gcompiler) $< -o $@ $(gflags) $(stdlinks)
+	$(gcompiler) $< -o $@ $(gccflags) $(stdlinks)
 
 iserial: alloy625.cpp
-	$(icompiler) $< -o $@ $(iflags) $(stdlinks)
+	$(icompiler) $< -o $@ $(iccflags) $(stdlinks)
 
 
 # CLUSTER
 
 # threaded program (shared memory, OpenMP)
 smp: alloy625.cpp
-	$(gcompiler) $< -o $@ $(gflags) $(stdlinks) -fopenmp
+	$(gcompiler) $< -o $@ $(gccflags) $(stdlinks) -fopenmp
 
 # parallel program (distributed memory, MPI)
 parallel: alloy625.cpp $(core)
-	$(pcompiler) $< -o $@ $(pflags) $(stdlinks)
+	$(pcompiler) $< -o $@ $(mpiflags) $(stdlinks)
 
 smpi: alloy625.cpp
-	$(pcompiler) $< -o $@ $(pflags) $(stdlinks) -fopenmp
+	$(pcompiler) $< -o $@ $(mpiflags) $(stdlinks) -fopenmp
+
+ismpi: alloy625.cpp
+	$(pcompiler) $< -o $@ $(iccflags) -include mpi.h -L/usr/lib64 $(stdlinks) -fopenmp
 
 ibtest: alloy625.cpp
-	/usr/local/bin/mpicxx $< -o $@ $(pflags) $(stdlinks) -fopenmp
+	/usr/local/bin/mpicxx $< -o $@ $(mpiflags) $(stdlinks) -fopenmp
 
 # PGI compiler
 pgparallel: alloy625.cpp
-	$(pcompiler) -fast -Mipa=fast -Mfprelaxed -std=c++11 -I $(MMSP_PATH)/include -include mpi.h $< -o $@ $(stdlinks) -mp
+	$(pcompiler) $(pgiflags) -include mpi.h $< -o $@ $(stdlinks) -mp
 
 
 # DESCRIPTION
@@ -75,13 +79,17 @@ description: phasefield-precipitate-aging_description.tex
 mmsp2comp: mmsp2comp.cpp
 	$(gcompiler) $(stdflags) $(directives) -O2 $< -o $@ -lz
 
+# extract phase fractions
+mmsp2frac: mmsp2frac.cpp
+	$(gcompiler) $(stdflags) -O2 $< -o $@ -lz
+
 # check interfacial adsorption (should be zero)
 adsorption: adsorption.cpp
 	$(gcompiler) $(stdflags) -O2 $< -o $@ -lz
 
 # generate equilibrium phase diagram information
 equilibrium: equilibrium.cpp
-	$(gcompiler) $(gflags) $< -o $@ -lgsl -lgslcblas
+	$(gcompiler) $(gccflags) $< -o $@ -lgsl -lgslcblas
 
 clean:
 	rm -f adsorption alloy625 equilibrium ibtest iserial mmsp2comp parallel pgparallel serial smp smpi

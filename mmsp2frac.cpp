@@ -1,60 +1,35 @@
-// mmsp2comp.cpp
+// mmsp2frac.cpp
 // INPUT: MMSP grid containing vector data with at least two fields
-// OUTPUT: Pairs of comma-delimited coordinates representing position in (v0,v1) phase space
-//         Expected usage is for composition spaces, hence comp.
+// OUTPUT: comma-separated values representing phase fraction
 // Questions/comments to trevor.keller@nist.gov (Trevor Keller)
 
 #include"MMSP.hpp"
 #include<vector>
 #include<algorithm>
 
-#if defined CALPHAD
-	#include"energy625.c"
-#elif defined PARABOLA
-	#include"parabola625.c"
-#else
-	#include"taylor625.c"
-#endif
-
 #define NC 2
 #define NP 2
 
-template<int dim, typename T>
-void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID, std::vector<double>& idx, std::vector<double>& xcr, std::vector<double>& xnb, std::vector<double>& P)
+template<class T>
+double h(const T& p)
 {
-	// Perform a line-scan parallel to the x-axis through the center of the grid
-	MMSP::vector<int> x(dim, 0);
+	return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);
+}
+
+template<int dim, typename T>
+void vectorFrac(const MMSP::grid<dim,MMSP::vector<T> >& GRID, MMSP::vector<double>& f)
+{
 	double dV = 1.0;
-	for (int d=0; d<dim; d++) {
-		x[d] = (MMSP::g1(GRID,d)+MMSP::g0(GRID,d))/2;
+	for (int d=0; d<dim; d++)
 		dV *= dx(GRID,d);
-	}
 
-	for (x[0] = MMSP::g0(GRID,0); x[0] < MMSP::g1(GRID,0); x[0]++) {
-		// Record position
-		idx.push_back(dx(GRID) * x[0]);
-
-		// Record system compositions
-		xcr.push_back(GRID(x)[0]);
-		xnb.push_back(GRID(x)[1]);
-
-		// Compute diffusion potential in matrix
-		const double chempot[NC] = {dg_gam_dxCr(GRID(x)[NC+NP], GRID(x)[NC+NP+1]),
-		                            dg_gam_dxNb(GRID(x)[NC+NP], GRID(x)[NC+NP+1])};
-
-		double PhaseEnergy[NP+1] = {g_del(GRID(x)[2*NC+NP], GRID(x)[2*NC+NP+1]),
-		                            g_lav(GRID(x)[3*NC+NP], GRID(x)[3*NC+NP+1]),
-		                            g_gam(GRID(x)[  NC+NP], GRID(x)[  NC+NP+1]) // matrix phase last
-		                           };
-
-		// Record driving force for phase transformation
-		double Pressure[NP] = {0.0};
-		for (int j = 0; j < NP; j++) {
-			Pressure[j] += PhaseEnergy[NP] - PhaseEnergy[j];
-			for (int i = 0; i < NC; i++)
-				Pressure[j] -= (GRID(x)[NC+NP+i] - GRID(x)[NC+NP+i+NC*(j+1)]) * chempot[i];
+	for (int n = 0; n < MMSP::nodes(GRID); n++) {
+		f[NP] += dV;
+		for (int i = NC; i < NC + NP; i++) {
+			// Update phase fractions
+			f[i - NC] += dV * h(GRID(n)[i]);
+			f[NP] -= dV * h(GRID(n)[i]);
 		}
-		P.push_back(dV * (*std::max_element(Pressure, Pressure+NP)));
 	}
 }
 
@@ -80,20 +55,11 @@ int main(int argc, char* argv[]) {
 		exit(-1);
 	}
 
-	// generate output file name
-	std::stringstream filename;
-	if (argc < 3)
-		filename << std::string(argv[1]).substr(0, std::string(argv[1]).find_last_of(".")) << ".xy";
-	else
-		filename << argv[2];
-
-	// file open error check
-	std::ofstream output(filename.str().c_str());
-	if (!output) {
-		std::cerr << "File output error: could not open ";
-		std::cerr << filename.str() << "." << std::endl;
-		exit(-1);
-	}
+	// parse timestamp
+	std::string filename(argv[1]);
+	size_t lastdot = filename.find_last_of(".");
+	size_t firstdot = filename.find_last_of(".", lastdot - 1);
+	int timestamp = std::atoi(filename.substr(firstdot+1, lastdot-firstdot-1).c_str());
 
 	// read data type
 	std::string type;
@@ -148,54 +114,52 @@ int main(int argc, char* argv[]) {
 	input >> fields;
 
 
-	std::vector<double> idx;
-	std::vector<double> xcr;
-	std::vector<double> xnb;
-	std::vector<double> P;
+	MMSP::vector<double> f(NP+1, 0.0);
 
 	// write grid data
 	if (vector_type && fields>1) {
 		if (float_type) {
 			if (dim == 1) {
 				MMSP::grid<1, MMSP::vector<float> > GRID(argv[1]);
-				vectorComp(GRID, idx, xcr, xnb, P);
+				vectorFrac(GRID, f);
 			} else if (dim == 2) {
 				MMSP::grid<2, MMSP::vector<float> > GRID(argv[1]);
-				vectorComp(GRID, idx, xcr, xnb, P);
+				vectorFrac(GRID, f);
 			} else if (dim == 3) {
 				MMSP::grid<3, MMSP::vector<float> > GRID(argv[1]);
-				vectorComp(GRID, idx, xcr, xnb, P);
+				vectorFrac(GRID, f);
 			}
 		}
 		if (double_type) {
 			if (dim == 1) {
 				MMSP::grid<1, MMSP::vector<double> > GRID(argv[1]);
-				vectorComp(GRID, idx, xcr, xnb, P);
+				vectorFrac(GRID, f);
 			} else if (dim == 2) {
 				MMSP::grid<2, MMSP::vector<double> > GRID(argv[1]);
-				vectorComp(GRID, idx, xcr, xnb, P);
+				vectorFrac(GRID, f);
 			} else if (dim == 3) {
 				MMSP::grid<3, MMSP::vector<double> > GRID(argv[1]);
-				vectorComp(GRID, idx, xcr, xnb, P);
+				vectorFrac(GRID, f);
 			}
 		}
 		if (long_double_type) {
 			if (dim == 1) {
 				MMSP::grid<1, MMSP::vector<long double> > GRID(argv[1]);
-				vectorComp(GRID, idx, xcr, xnb, P);
+				vectorFrac(GRID, f);
 			} else if (dim == 2) {
 				MMSP::grid<2, MMSP::vector<long double> > GRID(argv[1]);
-				vectorComp(GRID, idx, xcr, xnb, P);
+				vectorFrac(GRID, f);
 			} else if (dim == 3) {
 				MMSP::grid<3, MMSP::vector<long double> > GRID(argv[1]);
-				vectorComp(GRID, idx, xcr, xnb, P);
+				vectorFrac(GRID, f);
 			}
 		}
 	}
 
-	for (unsigned int i=0; i<xcr.size(); i++)
-		output << idx[i] << ',' << xcr[i] << ',' << xnb[i] << ',' << P[i] << '\n';
+	std::cout << timestamp;
+	for (unsigned int i=0; i<NP+1; i++)
+		std::cout << ',' << f[i];
+	std::cout << '\n';
 
-	output.close();
 	return 0;
 }
