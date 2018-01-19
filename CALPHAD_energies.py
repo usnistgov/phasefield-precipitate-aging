@@ -196,6 +196,10 @@ xe_lav_Cr = 0.300
 xe_lav_Nb = 0.328
 xe_lav_Ni = 1 - xe_lav_Cr - xe_lav_Nb
 
+print("Gamma:\n xe_nb = {0}, xe_cr = {1}".format(xe_gam_Nb, xe_gam_Cr))
+print("Delta:\n xe_nb = {0}, xe_cr = {1}".format(xe_del_Nb, xe_del_Cr))
+print("Laves:\n xe_nb = {0}, xe_cr = {1}".format(xe_lav_Nb, xe_lav_Cr))
+
 # Specify Taylor series expansion points
 xt_gam_Cr = 0.400
 xt_gam_Nb = 0.200
@@ -308,6 +312,7 @@ TE_lav_CrCrCrNb = 4.0 * diff(g_laves, XCR, XCR, XCR, XNB).subs({XCR: xt_lav_Cr, 
 TE_lav_CrCrNbNb = 6.0 * diff(g_laves, XCR, XCR, XNB, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 24
 TE_lav_CrNbNbNb = 4.0 * diff(g_laves, XCR, XNB, XNB, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 24
 TE_lav_NbNbNbNb = 1.0 * diff(g_laves, XNB, XNB, XNB, XNB).subs({XCR: xt_lav_Cr, XNB: xt_lav_Nb}) / 24
+
 
 # Expressions
 t_gamma = TA_gam \
@@ -446,30 +451,36 @@ t_d2Glav_dxNbNb = diff(t_laves, XNB, XNB)
 # Generate parabolic expressions (the crudest of approximations)
 
 # Curvatures
-PC_gam_CrCr = 1.0 * diff(g_gamma, XCR, XCR).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb}) / 2
-PC_gam_CrNb = 2.0 * diff(g_gamma, XCR, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb}) / 2
-PC_gam_NbNb = 1.0 * diff(g_gamma, XNB, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb}) / 2
+PC_gam_CrCr = diff(g_gamma, XCR, XCR).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_CrNb = diff(g_gamma, XCR, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_NbNb = diff(g_gamma, XNB, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
 
-PC_del_CrCr = 1.0 * diff(g_delta, XCR, XCR).subs({XCR: xe_del_Cr, XNB: xe_del_Nb}) / 2
-PC_del_CrNb = 2.0 * diff(g_delta, XCR, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb}) / 2
-PC_del_NbNb = 1.0 * diff(g_delta, XNB, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb}) / 2
+PC_del_CrCr = diff(g_delta, XCR, XCR).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PC_del_CrNb = diff(g_delta, XCR, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PC_del_NbNb = diff(g_delta, XNB, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
 
-PC_lav_CrCr = 1.0 * diff(g_laves, XCR, XCR).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb}) / 2
-PC_lav_CrNb = 2.0 * diff(g_laves, XCR, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb}) / 2
-PC_lav_NbNb = 1.0 * diff(g_laves, XNB, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb}) / 2
+PC_lav_CrCr = diff(g_laves, XCR, XCR).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
+PC_lav_CrNb = diff(g_laves, XCR, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
+PC_lav_NbNb = diff(g_laves, XNB, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
 
 # Expressions
-p_gamma = PC_gam_CrCr * (XCR - xe_gam_Cr)**2                      \
-        + PC_gam_CrNb * (XCR - xe_gam_Cr)    * (XNB - xe_gam_Nb)  \
-        + PC_gam_NbNb                        * (XNB - xe_gam_Nb)**2
+p_gamma = 0.5 * PC_gam_CrCr * (XCR - xe_gam_Cr)**2                      \
+        +       PC_gam_CrNb * (XCR - xe_gam_Cr)    * (XNB - xe_gam_Nb)  \
+        + 0.5 * PC_gam_NbNb                        * (XNB - xe_gam_Nb)**2
 
-p_delta = PC_del_CrCr * (XCR - xe_del_Cr)**2                      \
-        + PC_del_CrNb * (XCR - xe_del_Cr)    * (XNB - xe_del_Nb)  \
-        + PC_del_NbNb                        * (XNB - xe_del_Nb)**2
+print("Gamma:\n d2f/dcr2 = {0}\n d2f/dnb2 = {1}\n d2f/dcr.dnb = {2}".format(PC_gam_CrCr, PC_gam_NbNb, PC_gam_CrNb))
 
-p_laves = PC_lav_CrCr * (XCR - xe_lav_Cr)**2                      \
-        + PC_lav_CrNb * (XCR - xe_lav_Cr)    * (XNB - xe_lav_Nb)  \
-        + PC_lav_NbNb                        * (XNB - xe_lav_Nb)**2
+p_delta = 0.5 * PC_del_CrCr * (XCR - xe_del_Cr)**2                      \
+        +       PC_del_CrNb * (XCR - xe_del_Cr)    * (XNB - xe_del_Nb)  \
+        + 0.5 * PC_del_NbNb                        * (XNB - xe_del_Nb)**2
+
+print("Delta:\n d2f/dcr2 = {0}\n d2f/dnb2 = {1}\n d2f/dcr.dnb = {2}".format(PC_del_CrCr, PC_del_NbNb, PC_del_CrNb))
+
+p_laves = 0.5 * PC_lav_CrCr * (XCR - xe_lav_Cr)**2                      \
+        +       PC_lav_CrNb * (XCR - xe_lav_Cr)    * (XNB - xe_lav_Nb)  \
+        + 0.5 * PC_lav_NbNb                        * (XNB - xe_lav_Nb)**2
+
+print("Laves:\n d2f/dcr2 = {0}\n d2f/dnb2 = {1}\n d2f/dcr.dnb = {2}".format(PC_lav_CrCr, PC_lav_NbNb, PC_lav_CrNb))
 
 # Generate first derivatives of Taylor series landscape
 p_dGgam_dxCr = diff(p_gamma, XCR)

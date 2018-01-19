@@ -166,7 +166,7 @@ for j in range(1, len(argv)):
         #plt.scatter(t, fg, c=colors[0], label="$\gamma$")
         plt.scatter(t, fd, c=colors[1], label="$\delta$")
         plt.scatter(t, fl, c=colors[2], label="Laves")
-        plt.xlim([0, 50e6])
+        plt.xlim([0, 100e6])
         plt.ylim([0, 3e-13])
         plt.legend(loc='best')
         plt.savefig("diagrams/phasefrac_{0}.png".format(base), dpi=400, bbox_inches='tight')

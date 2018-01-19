@@ -23,7 +23,10 @@ void vectorFrac(const MMSP::grid<dim,MMSP::vector<T> >& GRID, MMSP::vector<doubl
 	for (int d=0; d<dim; d++)
 		dV *= dx(GRID,d);
 
-	for (int n = 0; n < MMSP::nodes(GRID); n++) {
+	const int N = MMSP::nodes(GRID);
+	const double unity = 1.0 / (dV * N);
+
+	for (int n = 0; n < N; n++) {
 		f[NP] += dV;
 		for (int i = NC; i < NC + NP; i++) {
 			// Update phase fractions
@@ -31,6 +34,9 @@ void vectorFrac(const MMSP::grid<dim,MMSP::vector<T> >& GRID, MMSP::vector<doubl
 			f[NP] -= dV * h(GRID(n)[i]);
 		}
 	}
+
+	for (int i = 0; i < f.length(); i++)
+		f[i] *= unity;
 }
 
 int main(int argc, char* argv[]) {

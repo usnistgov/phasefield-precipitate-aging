@@ -1009,8 +1009,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		MPI::COMM_WORLD.Allreduce(&myt, &ideal_dt, 1, MPI_DOUBLE, MPI_MIN);
 		#endif
 
-		char buffer[128] = {0};
-
 		if (current_dt < ideal_dt + epsilon) {
 			// Update succeeded: process solution
 			current_time += current_dt; // increment before output block
@@ -1036,6 +1034,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				// Warning: placement matters for MPI. Be careful.
 				vector<double> summary = summarize_fields(newGrid);
 				double energy = summarize_energy(newGrid);
+
+				char buffer[4096];
 
 				if (rank == 0) {
 					sprintf(buffer, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\t(%9g\t%9g)\n",
@@ -1085,8 +1085,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		assert(current_dt > epsilon);
 	}
 
-	cfile << ostr.str(); // write log data to disk
-	ostr.str(""); // clear log data
+	if (rank == 0) {
+		cfile << ostr.str(); // write log data to disk
+		ostr.str(""); // clear log data
+	}
 
 	#ifndef NDEBUG
 	// Output compositions where rootsolver failed (and succeeded)
