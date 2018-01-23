@@ -5,7 +5,7 @@
 
 # compilers: Intel, GCC, MPI
 icompiler = icc
-gcompiler = /usr/bin/g++
+gcompiler = /usr/bin/g++-4.9
 pcompiler = mpicxx
 
 
@@ -14,19 +14,20 @@ stdlinks = -lz -lgsl -lgslcblas
 mpilinks = -lmpiP -lbfd -liberty
 
 
-# precompiler directives
+# precompiler stddirect
 # Options: -DCALPHAD	-DPARABOLA	-DADAPTIVE_TIMESTEPS	-DNDEBUG
-directives = -DPARABOLA -DNDEBUG
+stddirect = -DPARABOLA -DNDEBUG
+dbgdirect = -DPARABOLA
 
 
 # flags: common, debug, Intel, GNU, and MPI
 stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include
-dbgflags  = $(stdflags) $(directives) -O1 -pg
-idbgflags = $(stdflags) $(directives) -O1 -profile-functions -profile-loops=all -profile-loops-report=2
+dbgflags  = $(stdflags) $(dbgdirect) -O0 -pg
+idbgflags = $(stdflags) $(dbgdirect) -O0 -profile-functions -profile-loops=all -profile-loops-report=2
 
-iccflags = $(stdflags) $(directives) -w3 -diag-disable:remark -O3 -funroll-loops -opt-prefetch
-gccflags = $(stdflags) $(directives) -pedantic -O3 -funroll-loops -ffast-math 
-pgiflags = -I $(MMSP_PATH)/include $(directives) -fast -Mipa=fast,inline,safe -Mfprelaxed -std=c++11
+iccflags = $(stdflags) $(stddirect) -w3 -diag-disable:remark -O3 -funroll-loops -opt-prefetch
+gccflags = $(stdflags) $(stddirect) -pedantic -O3 -funroll-loops -ffast-math
+pgiflags = -I $(MMSP_PATH)/include $(stddirect) -fast -Mipa=fast,inline,safe -Mfprelaxed -std=c++11
 mpiflags = $(gccflags) -include mpi.h
 
 
@@ -38,7 +39,7 @@ alloy625: alloy625.cpp
 
 # profiling program (no parallelism or optimization)
 serial: alloy625.cpp
-	$(gcompiler) $< -o $@ $(gccflags) $(stdlinks)
+	$(gcompiler) $< -o $@ $(dbgflags) $(stdlinks)
 
 iserial: alloy625.cpp
 	$(icompiler) $< -o $@ $(iccflags) $(stdlinks)
@@ -77,7 +78,7 @@ description: phasefield-precipitate-aging_description.tex
 
 # extract composition from line profile
 mmsp2comp: mmsp2comp.cpp
-	$(gcompiler) $(stdflags) $(directives) -O2 $< -o $@ -lz
+	$(gcompiler) $(stdflags) $(stddirect) -O2 $< -o $@ -lz
 
 # extract phase fractions
 mmsp2frac: mmsp2frac.cpp
