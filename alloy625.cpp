@@ -822,6 +822,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	#endif
 
 	grid<dim,vector<T> > newGrid(oldGrid);
+	grid<dim,vector<T> > lapGrid(oldGrid, 2*NC+NP); // excludes fictitious secondary compositions
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
@@ -864,37 +865,26 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	std::stringstream ostr;
 
-	#ifdef ADAPTIVE_TIMESTEPS
-	// reference values for adaptive timestepper
-	const double run_time = dt * steps;
-	const double timelimit = 4.0 * LinStab * std::min(dtp, dtc) / dim;
-	const T scaleup = 1.000001; // how fast dt will rise when stable
-	const T scaledn = 0.9;      // how fast dt will fall when unstable
-
-	#ifdef MPI_VERSION
-	double mydt(current_dt);
-	MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
-	#endif
-
-	if (rank == 0)
-		print_progress(0, steps);
-
-	while (current_time < run_time && current_dt > 0.0) {
-
-		/* Partial timestep trips up parallel jobs.
-		current_dt = std::min(current_dt, run_time - current_time);
-		*/
-
-	#else
 	for (int step = 0; step < steps; step++) {
 
 		if (rank == 0)
 			print_progress(step, steps);
 
-	#endif
-
 		rootsolver parallelTangentSolver;
 		unsigned int totBadTangents = 0;
+
+		/* ================= *
+		 * Compute Laplacian *
+		 * ================= */
+		#ifdef _OPENMP
+		#pragma omp parallel for private(parallelTangentSolver)
+		#endif
+		for (int n = 0; n < nodes(oldGrid); n++) {
+			vector<int> x = position(oldGrid, n);
+			lapGrid(n) = maskedlaplacian(oldGrid, x, 2*NC+NP);
+		}
+
+
 
 		#ifdef _OPENMP
 		#pragma omp parallel for private(parallelTangentSolver)
@@ -929,7 +919,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				sumPhiSq += oldGridN[i] * oldGridN[i];
 
 			// Laplacians of field variables, including fictitious compositions of matrix phase
-			const vector<T> laplac = maskedlaplacian(oldGrid, x, 2*NC+NP);
+			const vector<T>& laplac = lapGrid(n); //maskedlaplacian(oldGrid, x, 2*NC+NP);
 
 
 			/* ============================================= *
@@ -1044,30 +1034,18 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				}
 			}
 
-			#ifdef ADAPTIVE_TIMESTEPS
-			current_dt = std::min(std::min(ideal_dt, current_dt*scaleup), timelimit);
-			#endif
-
 		} else {
 			#ifdef MPI_VERSION
 			MPI::COMM_WORLD.Barrier();
 			#endif
 
 			// Update failed: solution is unstable
-			#ifdef ADAPTIVE_TIMESTEPS
-
-			current_dt *= scaledn;
-
-			swap(oldGrid, newGrid);
-			ghostswap(oldGrid);
-			#else
 			if (rank == 0) {
 				std::cerr<<"ERROR: Interface swept more than (dx/"<<meshres/advectionlimit<<"), timestep is too aggressive!"<<std::endl;
 				cfile.close();
 			}
 
 			MMSP::Abort(-1);
-			#endif
 		}
 
 		logcount++; // increment after output block
@@ -1147,9 +1125,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	if (rank == 0) {
 		cfile.close();
-		#ifdef ADAPTIVE_TIMESTEPS
-		print_progress(steps-1, steps); // floating-point comparison misses the endpoint
-		#endif
 	}
 }
 
