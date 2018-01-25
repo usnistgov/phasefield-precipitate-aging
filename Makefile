@@ -17,7 +17,7 @@ mpilinks = -lmpiP -lbfd -liberty
 # precompiler stddirect
 # Options: -DCALPHAD	-DPARABOLA	-DADAPTIVE_TIMESTEPS	-DNDEBUG
 stddirect = -DPARABOLA -DNDEBUG
-dbgdirect = -DPARABOLA
+dbgdirect = -DPARABOLA -DNDEBUG
 
 
 # flags: common, debug, Intel, GNU, and MPI

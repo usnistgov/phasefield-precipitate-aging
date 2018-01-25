@@ -612,19 +612,38 @@ void generate(int dim, const char* filename)
 			vector<int> origin(dim, 0);
 
 			// Set precipitate radius
-			int r = std::floor((0.525 + unidist(mtrand)) * rPrecip[0]);
+			// int r = std::floor((0.525 + unidist(mtrand)) * rPrecip[0]);
+			int r = rPrecip[0];
 
-			// Set precipitate separation (min=2r, max=Nx-2r
-			int d = unidist(mtrand) * 16 + (g1(initGrid, 0) - g0(initGrid, 0))/2;
+			// Set precipitate separation (min=2r, max=Nx-2r)
+			// int d = unidist(mtrand) * 16 + (g1(initGrid, 0) - g0(initGrid, 0))/2;
+			int d = 8 + (g1(initGrid, 0) - g0(initGrid, 0))/2;
 
 			// Set system composition
 			bool withinRange = false;
-			double xCr0 = 0.45;
-			double xNb0 = 0.07;
+			double xCr0;
+			double xNb0;
+			/*
 			while (!withinRange) {
 				xCr0 = 0.43 + unidist(mtrand) * (0.47 - 0.43);
 				xNb0 = 0.05 + unidist(mtrand) * (0.09 - 0.05);
 				withinRange = (std::pow(xCr0 - 0.45, 2.0) + std::pow(xNb0 - 0.07, 2.0) < std::pow(0.02, 2.0));
+			}
+			*/
+			while (!withinRange) {
+				const double theta = 0.8376;
+				const double phi = 0.0997;
+				const double psi = 0.4636;
+				const double gamma = 0.8200;
+				const double dX = 0.025 * gamma;
+				const double dY = 0.490 * gamma;
+				const double X = 0.0100 + 0.05 * unidist(mtrand);
+				const double Y = 0.0275 + 0.05 * unidist(mtrand);
+				xCr0 =  (std::cos(theta) + std::tan(psi)) * X + (std::sin(theta) + std::tan(phi)) + dX;
+				xNb0 = -(std::sin(theta) + std::tan(psi)) * X + (std::cos(theta) + std::tan(phi)) + dY;
+				bool belowUpperBound = (xCr0 < (0.349 - 0.490)/(0.250-0.025) * (xNb0 - 0.025) + 0.49);
+				bool aboveLowerBound = (xCr0 > (0.250 - 0.490)/(0.136-0.025) * (xNb0 - 0.025) + 0.49);
+				withinRange = (belowUpperBound && aboveLowerBound);
 			}
 
 			#ifdef MPI_VERSION
