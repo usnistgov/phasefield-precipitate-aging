@@ -573,8 +573,8 @@ void generate(int dim, const char* filename)
 				const double dY = 0.490 * gamma;
 				const double X = 0.0100 + 0.05 * unidist(mtrand);
 				const double Y = 0.0275 + 0.05 * unidist(mtrand);
-				xCr0 =  (std::cos(theta) + std::tan(psi)) * X + (std::sin(theta) + std::tan(phi)) + dX;
-				xNb0 = -(std::sin(theta) + std::tan(psi)) * X + (std::cos(theta) + std::tan(phi)) + dY;
+				xNb0 =  (std::cos(theta) + std::tan(psi)) * X + (std::sin(theta) + std::tan(phi)) * Y + dX;
+				xCr0 = -(std::sin(theta) + std::tan(psi)) * X + (std::cos(theta) + std::tan(phi)) * Y + dY;
 				bool belowUpperBound = (xCr0 < (0.349 - 0.490)/(0.250-0.025) * (xNb0 - 0.025) + 0.49);
 				bool aboveLowerBound = (xCr0 > (0.250 - 0.490)/(0.136-0.025) * (xNb0 - 0.025) + 0.49);
 				withinRange = (belowUpperBound && aboveLowerBound);
