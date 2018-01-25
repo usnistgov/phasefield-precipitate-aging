@@ -11,18 +11,17 @@ pcompiler = mpicxx
 
 # libraries: z, gsl, mpiP
 stdlinks = -lz -lgsl -lgslcblas
-mpilinks = -lmpiP -lbfd -liberty
+# mpilinks = -lmpiP -lbfd -liberty
 
 
 # precompiler stddirect
-# Options: -DCALPHAD	-DPARABOLA	-DADAPTIVE_TIMESTEPS	-DNDEBUG
+# Options: -DCALPHAD	-DPARABOLA	-DNDEBUG
 stddirect = -DPARABOLA -DNDEBUG
-dbgdirect = -DPARABOLA -DNDEBUG
-
+dbgdirect = -DPARABOLA
 
 # flags: common, debug, Intel, GNU, and MPI
 stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include
-dbgflags  = $(stdflags) $(dbgdirect) -O0 -pg
+dbgflags  = -pedantic $(stdflags) $(dbgdirect) -O0 -pg
 idbgflags = $(stdflags) $(dbgdirect) -O0 -profile-functions -profile-loops=all -profile-loops-report=2
 
 iccflags = $(stdflags) $(stddirect) -w3 -diag-disable:remark -O3 -funroll-loops -opt-prefetch
@@ -42,7 +41,7 @@ serial: alloy625.cpp
 	$(gcompiler) $< -o $@ $(dbgflags) $(stdlinks)
 
 iserial: alloy625.cpp
-	$(icompiler) $< -o $@ $(iccflags) $(stdlinks)
+	$(icompiler) $< -o $@ $(idbgflags) $(stdlinks)
 
 
 # CLUSTER

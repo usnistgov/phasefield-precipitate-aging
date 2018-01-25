@@ -63,7 +63,7 @@
  * Implement MMSP kernels: generate() and update() *
  * =============================================== */
 
-/* Representation includes eleven field variables:
+/* Representation includes ten field variables:
  *
  * X0.  molar fraction of Cr + Mo
  * X1.  molar fraction of Nb
@@ -79,8 +79,6 @@
  *
  * C8. Cr molar fraction in pure Laves
  * C9. Nb molar fraction in pure Laves
- *
- * D10. debugging information (deviation of field variables or max. field velocity normal to the interface)
  */
 
 /* Based on experiments (EDS) and simulations (DICTRA),
@@ -183,7 +181,7 @@ void generate(int dim, const char* filename)
 		const int Nx = 768; // divisible by 12 and 64
 		double dV = 1.0;
 		double Ntot = 1.0;
-		GRID1D initGrid(NC+NP+NC*(NP+1)+1, 0, Nx);
+		GRID1D initGrid(NC+NP+NC*(NP+1), 0, Nx);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
@@ -305,10 +303,6 @@ void generate(int dim, const char* filename)
 				#pragma omp atomic
 				#endif
 				totBadTangents++;
-
-				initGridN[fields(initGrid)-1] = res;
-			} else {
-				initGridN[fields(initGrid)-1] = 0.0;
 			}
 		}
 
@@ -327,76 +321,16 @@ void generate(int dim, const char* filename)
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-			"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "velocity");
-			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\n",
-			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, 0.0);
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+			"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy");
+			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\n",
+			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy);
 
 			printf("%9s %9s %9s %9s %9s %9s\n",
 			"x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", "p_l");
 			printf("%9g %9g %9g %9g %9g %9g\n",
 			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
 		}
-
-		#ifndef NDEBUG
-		// Output compositions where rootsolver failed (and succeeded)
-		std::set<std::vector<short> > badpoints;
-		std::set<std::vector<short> > gudpoints;
-		for (int n = 0; n < nodes(initGrid); n++) {
-			if (initGrid(n)[fields(initGrid)-1] > root_tol) {
-				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i = 0; i < point.size(); i++)
-					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
-				badpoints.insert(point);
-			} else {
-				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i = 0; i < point.size(); i++)
-					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
-				gudpoints.insert(point);
-			}
-		}
-
-		FILE* badfile = NULL;
-		FILE* gudfile = NULL;
-		if (rank == 0) {
-			badfile = fopen("badroots.log", "w"); // old results will be deleted
-			gudfile = fopen("gudroots.log", "w"); // old results will be deleted
-		} else {
-			badfile = fopen("badroots.log", "a"); // new results will be appended
-			gudfile = fopen("gudroots.log", "a"); // new results will be appended
-		}
-
-		#ifdef MPI_VERSION
-		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
-			MPI::COMM_WORLD.Barrier();
-			if (rank == r) {
-		#endif
-				for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
-					fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-		#ifdef MPI_VERSION
-			}
-			MPI::COMM_WORLD.Barrier();
-		}
-		#endif
-
-		#ifdef MPI_VERSION
-		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
-			MPI::COMM_WORLD.Barrier();
-			if (rank == r) {
-		#endif
-				for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
-					fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-		#ifdef MPI_VERSION
-			}
-			MPI::COMM_WORLD.Barrier();
-		}
-		#endif
-
-		fclose(badfile);
-		fclose(gudfile);
-		#endif
 
 		output(initGrid,filename);
 
@@ -413,7 +347,7 @@ void generate(int dim, const char* filename)
 		const int Ny = 192;
 		double dV = 1.0;
 		double Ntot = 1.0;
-		GRID2D initGrid(NC+NP+NC*(NP+1)+1, -Nx/2, Nx/2, -Ny/2, Ny/2);
+		GRID2D initGrid(NC+NP+NC*(NP+1), -Nx/2, Nx/2, -Ny/2, Ny/2);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
@@ -727,10 +661,6 @@ void generate(int dim, const char* filename)
 				#pragma omp atomic
 				#endif
 				totBadTangents++;
-
-				initGridN[fields(initGrid)-1] = res;
-			} else {
-				initGridN[fields(initGrid)-1] = 0.0;
 			}
 		}
 
@@ -746,76 +676,16 @@ void generate(int dim, const char* filename)
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-			"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "velocity");
-			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\n",
-			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, 0.0);
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+			"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy");
+			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\n",
+			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy);
 
 			printf("%9s %9s %9s %9s %9s %9s\n",
 			"x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", " p_l");
 			printf("%9g %9g %9g %9g %9g %9g\n",
 			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
 		}
-
-		#ifndef NDEBUG
-		// Output compositions where rootsolver failed (and succeeded)
-		std::set<std::vector<short> > badpoints;
-		std::set<std::vector<short> > gudpoints;
-		for (int n = 0; n < nodes(initGrid); n++) {
-			if (initGrid(n)[fields(initGrid)-1] > root_tol) {
-				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i = 0; i < point.size(); i++)
-					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
-				badpoints.insert(point);
-			} else {
-				std::vector<short> point(int(NC*(NP+1)), short(0));
-				for (unsigned int i = 0; i < point.size(); i++)
-					point[i] = short(10000 * initGrid(n)[NC+NP+i]);
-				gudpoints.insert(point);
-			}
-		}
-
-		FILE* badfile = NULL;
-		FILE* gudfile = NULL;
-		if (rank == 0) {
-			badfile = fopen("badroots.log", "w"); // old results will be deleted
-			gudfile = fopen("gudroots.log", "w"); // old results will be deleted
-		} else {
-			badfile = fopen("badroots.log", "a"); // new results will be appended
-			gudfile = fopen("gudroots.log", "a"); // new results will be appended
-		}
-
-		#ifdef MPI_VERSION
-		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
-			MPI::COMM_WORLD.Barrier();
-			if (rank == r) {
-		#endif
-				for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
-					fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-		#ifdef MPI_VERSION
-			}
-			MPI::COMM_WORLD.Barrier();
-		}
-		#endif
-
-		#ifdef MPI_VERSION
-		for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
-			MPI::COMM_WORLD.Barrier();
-			if (rank == r) {
-		#endif
-				for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
-					fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-					(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-		#ifdef MPI_VERSION
-			}
-			MPI::COMM_WORLD.Barrier();
-		}
-		#endif
-
-		fclose(badfile);
-		fclose(gudfile);
-		#endif
 
 		output(initGrid,filename);
 
@@ -841,6 +711,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	#endif
 
 	grid<dim,vector<T> > newGrid(oldGrid);
+	grid<dim,vector<T> > lapGrid(oldGrid, 2*NC+NP); // excludes fictitious secondary compositions
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
@@ -883,37 +754,24 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	std::stringstream ostr;
 
-	#ifdef ADAPTIVE_TIMESTEPS
-	// reference values for adaptive timestepper
-	const double run_time = dt * steps;
-	const double timelimit = 4.0 * LinStab * std::min(dtp, dtc) / dim;
-	const T scaleup = 1.000001; // how fast dt will rise when stable
-	const T scaledn = 0.9;      // how fast dt will fall when unstable
-
-	#ifdef MPI_VERSION
-	double mydt(current_dt);
-	MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
-	#endif
-
-	if (rank == 0)
-		print_progress(0, steps);
-
-	while (current_time < run_time && current_dt > 0.0) {
-
-		/* Partial timestep trips up parallel jobs.
-		current_dt = std::min(current_dt, run_time - current_time);
-		*/
-
-	#else
 	for (int step = 0; step < steps; step++) {
 
 		if (rank == 0)
 			print_progress(step, steps);
 
-	#endif
-
 		rootsolver parallelTangentSolver;
 		unsigned int totBadTangents = 0;
+
+		/* ================= *
+		 * Compute Laplacian *
+		 * ================= */
+		#ifdef _OPENMP
+		#pragma omp parallel for private(parallelTangentSolver)
+		#endif
+		for (int n = 0; n < nodes(oldGrid); n++) {
+			vector<int> x = position(oldGrid, n);
+			lapGrid(n) = maskedlaplacian(oldGrid, x, 2*NC+NP);
+		}
 
 		#ifdef _OPENMP
 		#pragma omp parallel for private(parallelTangentSolver)
@@ -948,7 +806,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				sumPhiSq += oldGridN[i] * oldGridN[i];
 
 			// Laplacians of field variables, including fictitious compositions of matrix phase
-			const vector<T> laplac = maskedlaplacian(oldGrid, x, 2*NC+NP);
+			const vector<T>& laplac = lapGrid(n); //maskedlaplacian(oldGrid, x, 2*NC+NP);
 
 
 			/* ============================================= *
@@ -999,56 +857,45 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				#pragma omp atomic
 				#endif
 				totBadTangents++;
-
-				/*
-				guessGamma(newGridN);
-				guessDelta(newGridN);
-				guessLaves(newGridN);
-				*/
-				newGridN[fields(newGrid)-1] = res;
-			} else {
-				newGridN[fields(newGrid)-1] = 0.0;
 			}
 
-			/* ======= *
-			 * ~ fin ~ *
-			 * ======= */
-		}
+		} // end loop over grid points
 
 		swap(oldGrid, newGrid);
 		ghostswap(oldGrid);
 
-		// Update timestep based on interfacial velocity. If v==0, there's no interface: march ahead with current dt.
-		double interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
-		double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
+		if (logcount >= logstep) {
+			logcount = 0;
 
-		#ifdef MPI_VERSION
-		MPI::COMM_WORLD.Barrier();
-		double myt(ideal_dt);
-		MPI::COMM_WORLD.Allreduce(&myt, &ideal_dt, 1, MPI_DOUBLE, MPI_MIN);
-		#endif
-
-		if (current_dt < ideal_dt + epsilon) {
-			// Update succeeded: process solution
-			current_time += current_dt; // increment before output block
-
-			if (interfacialVelocity < velocity_range[0])
-				velocity_range[0] = interfacialVelocity;
-			else if (interfacialVelocity > velocity_range[1])
-				velocity_range[1] = interfacialVelocity;
-
-			/* ====================================================================== *
-			 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
-			 * ====================================================================== */
+			// Update timestep based on interfacial velocity. If v==0, there's no interface: march ahead with current dt.
+			double interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
+			double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
 
 			#ifdef MPI_VERSION
 			MPI::COMM_WORLD.Barrier();
-			unsigned int myBad(totBadTangents);
-			MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+			double myt(ideal_dt);
+			MPI::COMM_WORLD.Allreduce(&myt, &ideal_dt, 1, MPI_DOUBLE, MPI_MIN);
 			#endif
 
-			if (logcount >= logstep) {
-				logcount = 0;
+			if (current_dt < ideal_dt + epsilon) {
+				// Update succeeded: process solution
+				current_time += current_dt; // increment before output block
+
+				if (interfacialVelocity < velocity_range[0])
+					velocity_range[0] = interfacialVelocity;
+				else if (interfacialVelocity > velocity_range[1])
+					velocity_range[1] = interfacialVelocity;
+
+				/* ====================================================================== *
+				 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
+				 * ====================================================================== */
+
+				#ifdef MPI_VERSION
+				MPI::COMM_WORLD.Barrier();
+				unsigned int myBad(totBadTangents);
+				MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
+				#endif
+
 
 				// Warning: placement matters for MPI. Be careful.
 				vector<double> summary = summarize_fields(newGrid);
@@ -1061,114 +908,43 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 					ideal_dt, current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, interfacialVelocity, velocity_range[0], velocity_range[1]);
 					ostr << buffer;
 				}
+			} else {
+				#ifdef MPI_VERSION
+				MPI::COMM_WORLD.Barrier();
+				#endif
+
+				// Update failed: solution is unstable
+				if (rank == 0) {
+					std::cerr<<"ERROR: Interface swept more than (dx/"<<meshres/advectionlimit<<"), timestep is too aggressive!"<<std::endl;
+					cfile.close();
+				}
+
+				MMSP::Abort(-1);
 			}
 
-			#ifdef ADAPTIVE_TIMESTEPS
-			current_dt = std::min(std::min(ideal_dt, current_dt*scaleup), timelimit);
-			#endif
+			logcount++; // increment after output block
 
-		} else {
 			#ifdef MPI_VERSION
+			// Synchronize watches
 			MPI::COMM_WORLD.Barrier();
+			int myL(logcount);
+			MPI::COMM_WORLD.Allreduce(&myL, &logcount, 1, MPI_INT, MPI_MAX);
+			MPI::COMM_WORLD.Barrier();
+			double mydt(current_dt);
+			MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
 			#endif
 
-			// Update failed: solution is unstable
-			#ifdef ADAPTIVE_TIMESTEPS
-
-			current_dt *= scaledn;
-
-			swap(oldGrid, newGrid);
-			ghostswap(oldGrid);
-			#else
-			if (rank == 0) {
-				std::cerr<<"ERROR: Interface swept more than (dx/"<<meshres/advectionlimit<<"), timestep is too aggressive!"<<std::endl;
-				cfile.close();
-			}
-
-			MMSP::Abort(-1);
-			#endif
+			assert(current_dt > epsilon);
 		}
-
-		logcount++; // increment after output block
-
-		#ifdef MPI_VERSION
-		// Synchronize watches
-		MPI::COMM_WORLD.Barrier();
-		int myL(logcount);
-		MPI::COMM_WORLD.Allreduce(&myL, &logcount, 1, MPI_INT, MPI_MAX);
-		MPI::COMM_WORLD.Barrier();
-		double mydt(current_dt);
-		MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
-		#endif
-
-		assert(current_dt > epsilon);
-	}
+	} // end timestepping loop
 
 	if (rank == 0) {
 		cfile << ostr.str(); // write log data to disk
 		ostr.str(""); // clear log data
 	}
 
-	#ifndef NDEBUG
-	// Output compositions where rootsolver failed (and succeeded)
-	std::set<std::vector<short> > badpoints;
-	std::set<std::vector<short> > gudpoints;
-	for (int n = 0; n < nodes(oldGrid); n++) {
-		if (newGrid(n)[fields(newGrid)-1] > root_tol) {
-			std::vector<short> point(int(NC*(NP+1)), short(0));
-			for (unsigned int i = 0; i < point.size(); i++)
-				point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
-			badpoints.insert(point);
-		} else {
-			std::vector<short> point(int(NC*(NP+1)), short(0));
-			for (unsigned int i = 0; i < point.size(); i++)
-				point[i] = short(10000 * oldGrid(n)[NC+NP+i]);
-			gudpoints.insert(point);
-		}
-	}
-
-	FILE* badfile = NULL;
-	FILE* gudfile = NULL;
-	badfile = fopen("badroots.log", "a"); // new results will be appended
-	gudfile = fopen("gudroots.log", "a"); // new results will be appended
-
-	#ifdef MPI_VERSION
-	for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
-		MPI::COMM_WORLD.Barrier();
-		if (rank == r) {
-	#endif
-			for (std::set<std::vector<short> >::const_iterator i = badpoints.begin(); i != badpoints.end(); i++)
-				fprintf(badfile, "%f,%f,%f,%f,%f,%f\n",
-				(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-	#ifdef MPI_VERSION
-		}
-		MPI::COMM_WORLD.Barrier();
-	}
-	#endif
-
-	#ifdef MPI_VERSION
-	for (int r = 0; r < MPI::COMM_WORLD.Get_size(); r++) {
-		MPI::COMM_WORLD.Barrier();
-		if (rank == r) {
-	#endif
-			for (std::set<std::vector<short> >::const_iterator i = gudpoints.begin(); i != gudpoints.end(); i++)
-				fprintf(gudfile, "%f,%f,%f,%f,%f,%f\n",
-				(*i)[0]/10000.0, (*i)[1]/10000.0, (*i)[2]/10000.0, (*i)[3]/10000.0, (*i)[4]/10000.0, (*i)[5]/10000.0);
-	#ifdef MPI_VERSION
-		}
-		MPI::COMM_WORLD.Barrier();
-	}
-	#endif
-
-	fclose(badfile);
-	fclose(gudfile);
-	#endif
-
 	if (rank == 0) {
 		cfile.close();
-		#ifdef ADAPTIVE_TIMESTEPS
-		print_progress(steps-1, steps); // floating-point comparison misses the endpoint
-		#endif
 	}
 }
 
@@ -1587,6 +1363,7 @@ MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, co
 		const double weight = 1.0 / (MMSP::dx(GRID, i) * MMSP::dx(GRID, i));
 		for (int j = 0; j < N; j++)
 			laplacian[j] += weight * (yh[j] - 2.0 * y[j] + yl[j]);
+		//laplacian += weight * (yh - 2.0 * y + yl);
 	}
 	return laplacian;
 }
