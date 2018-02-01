@@ -922,20 +922,20 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				MMSP::Abort(-1);
 			}
 
-			logcount++; // increment after output block
-
-			#ifdef MPI_VERSION
-			// Synchronize watches
-			MPI::COMM_WORLD.Barrier();
-			int myL(logcount);
-			MPI::COMM_WORLD.Allreduce(&myL, &logcount, 1, MPI_INT, MPI_MAX);
-			MPI::COMM_WORLD.Barrier();
-			double mydt(current_dt);
-			MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
-			#endif
-
 			assert(current_dt > epsilon);
 		}
+
+		logcount++; // increment after output block
+
+		#ifdef MPI_VERSION
+		// Synchronize watches
+		MPI::COMM_WORLD.Barrier();
+		int myL(logcount);
+		MPI::COMM_WORLD.Allreduce(&myL, &logcount, 1, MPI_INT, MPI_MAX);
+		MPI::COMM_WORLD.Barrier();
+		double mydt(current_dt);
+		MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
+		#endif
 	} // end timestepping loop
 
 	if (rank == 0) {

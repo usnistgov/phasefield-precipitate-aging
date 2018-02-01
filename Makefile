@@ -8,13 +8,10 @@ icompiler = icc
 gcompiler = /usr/bin/g++-4.9
 pcompiler = mpicxx
 
-
-# libraries: z, gsl, mpiP
+# libraries: z, gsl
 stdlinks = -lz -lgsl -lgslcblas
-# mpilinks = -lmpiP -lbfd -liberty
 
-
-# precompiler stddirect
+# precompiler directives
 # Options: -DCALPHAD	-DPARABOLA	-DNDEBUG
 stddirect = -DPARABOLA -DNDEBUG
 dbgdirect = -DPARABOLA
@@ -57,19 +54,15 @@ parallel: alloy625.cpp $(core)
 smpi: alloy625.cpp
 	$(pcompiler) $< -o $@ $(mpiflags) $(stdlinks) -fopenmp
 
-ismpi: alloy625.cpp
-	$(pcompiler) $< -o $@ $(iccflags) -include mpi.h -L/usr/lib64 $(stdlinks) -fopenmp
-
-ibtest: alloy625.cpp
-	/usr/local/bin/mpicxx $< -o $@ $(mpiflags) $(stdlinks) -fopenmp
-
 # PGI compiler
 pgparallel: alloy625.cpp
 	$(pcompiler) $(pgiflags) -include mpi.h $< -o $@ $(stdlinks) -mp
 
 
-# DESCRIPTION
-description: phasefield-precipitate-aging_description.tex
+# DOCUMENTATION
+
+.PHONY: docs
+docs: phasefield-precipitate-aging_description.tex
 	pdflatex -interaction=nonstopmode $<
 
 
