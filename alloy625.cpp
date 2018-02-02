@@ -321,8 +321,8 @@ void generate(int dim, const char* filename)
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-			"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy");
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+					"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "ifce_vel", "error");
 			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\n",
 			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy);
 
@@ -676,8 +676,8 @@ void generate(int dim, const char* filename)
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-			"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy");
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+					"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "ifce_vel", "error");
 			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\n",
 			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy);
 
@@ -712,6 +712,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	grid<dim,vector<T> > newGrid(oldGrid);
 	grid<dim,vector<T> > lapGrid(oldGrid, 2*NC+NP); // excludes fictitious secondary compositions
+	grid<dim,vector<T> > chkGrid(oldGrid, 2*NC+NP); // excludes fictitious secondary compositions
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
@@ -770,7 +771,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		#endif
 		for (int n = 0; n < nodes(oldGrid); n++) {
 			vector<int> x = position(oldGrid, n);
-			lapGrid(n) = maskedlaplacian(oldGrid, x, 2*NC+NP);
+			lapGrid(n) = pointerlaplacian(oldGrid, x, 2*NC+NP);
+			if (logcount >= logstep)
+				chkGrid(n) = maskedlaplacian(oldGrid, x, 2*NC+NP);
 		}
 
 		#ifdef _OPENMP
@@ -867,6 +870,12 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (logcount >= logstep) {
 			logcount = 0;
 
+			// Compare traditional to pointer-based Laplacian results
+			double error = 0.0;
+			for (int n = 0; n < nodes(lapGrid); n++)
+				for (int j = 0; j < 2*NC+NP; j++)
+					error += std::pow(lapGrid(n)[j] - chkGrid(n)[j], 2.);
+
 			// Update timestep based on interfacial velocity. If v==0, there's no interface: march ahead with current dt.
 			double interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
 			double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
@@ -904,8 +913,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				char buffer[4096];
 
 				if (rank == 0) {
-					sprintf(buffer, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\t(%9g\t%9g)\n",
-					ideal_dt, current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, interfacialVelocity, velocity_range[0], velocity_range[1]);
+					sprintf(buffer, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\t%9g\n",
+							ideal_dt, current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, interfacialVelocity, std::sqrt(error / ((2.*NC+NP) * nodes(lapGrid))));
 					ostr << buffer;
 				}
 			} else {
@@ -1363,11 +1372,59 @@ MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, co
 		const double weight = 1.0 / (MMSP::dx(GRID, i) * MMSP::dx(GRID, i));
 		for (int j = 0; j < N; j++)
 			laplacian[j] += weight * (yh[j] - 2.0 * y[j] + yl[j]);
-		//laplacian += weight * (yh - 2.0 * y + yl);
 	}
 	return laplacian;
 }
 
+
+template <int dim, typename T>
+MMSP::vector<T> pointerlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N)
+{
+	// Compute Laplacian of first N fields, ignore the rest; use pointers instead of accessor operators
+	MMSP::vector<T> laplacian(N, 0.0);
+
+	const double wx = 1.0 / (MMSP::dx(GRID, 0) * MMSP::dx(GRID, 0));
+	int deltax = 1;
+	int deltay = 1;
+	int deltaz = 1;
+	if (dim > 1) {
+		// Why does this work!?
+		deltax = 2 * MMSP::ghosts(GRID) + MMSP::y1(GRID) - MMSP::y0(GRID);
+		deltay = 1;
+	} else {
+		deltax = 2 * MMSP::ghosts(GRID) + MMSP::z1(GRID) - MMSP::z0(GRID);
+		deltay = 2 * MMSP::ghosts(GRID) + MMSP::y1(GRID) - MMSP::y0(GRID);
+		deltaz = 1;
+	}
+
+	const MMSP::vector<T>* const c = &(GRID(x));
+	const MMSP::vector<T>* const l = (MMSP::b0(GRID,0)==MMSP::Neumann && x[0]==MMSP::x0(GRID)  ) ? c : c - deltax;
+	const MMSP::vector<T>* const h = (MMSP::b1(GRID,0)==MMSP::Neumann && x[0]==MMSP::x1(GRID)-1) ? c : c + deltax;
+	for (int j = 0; j < N; j++)
+		laplacian[j] += wx * ((*h)[j] - 2. * (*c)[j] + (*l)[j]);
+
+	if (dim > 1) {
+		const double wy = 1.0 / (MMSP::dx(GRID, 1) * MMSP::dx(GRID, 1));
+		const MMSP::vector<T>* const cl = (MMSP::b0(GRID,1)==MMSP::Neumann && x[1]==MMSP::y0(GRID)  ) ? c : c - deltay;
+		const MMSP::vector<T>* const ch = (MMSP::b1(GRID,1)==MMSP::Neumann && x[1]==MMSP::y1(GRID)-1) ? c : c + deltay;
+		for (int j = 0; j < N; j++)
+			laplacian[j] +=  wy * ((*ch)[j] - 2. * (*c)[j] + (*cl)[j]);
+
+		if (dim > 2) {
+			// UNTESTED and UNSAFE!
+			std::cerr << "ERROR: pointedlaplacian is onl;y available for dim<3." <<std::endl;
+			MMSP::Abort(-1);
+
+			const double wz = 1.0 / (MMSP::dx(GRID, 2) * MMSP::dx(GRID, 2));
+			const MMSP::vector<T>* const ccl = (MMSP::b0(GRID,2)==MMSP::Neumann && x[2]==MMSP::z0(GRID)  ) ? c : c - deltaz;
+			const MMSP::vector<T>* const cch = (MMSP::b1(GRID,2)==MMSP::Neumann && x[2]==MMSP::z1(GRID)-1) ? c : c + deltaz;
+			for (int j = 0; j < N; j++)
+				laplacian[j] += wz * ((*cch)[j] - 2. * (*c)[j] + (*ccl)[j]);
+		}
+	}
+
+	return laplacian;
+}
 
 
 /* ========================================= *

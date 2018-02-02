@@ -126,6 +126,9 @@ MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, con
 template <int dim, typename T>
 MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
 
+template <int dim, typename T>
+MMSP::vector<T> pointerlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N);
+
 // Geometric helpers for initial conditions
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx);
 
