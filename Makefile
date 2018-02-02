@@ -4,7 +4,7 @@
 # Compiler optimizations after http://www.nersc.gov/users/computational-systems/retired-systems/hopper/performance-and-optimization/compiler-comparisons/
 
 # compilers: Intel, GCC, MPI
-icompiler = icc
+icompiler = /usr/local/intel/bin/icc
 gcompiler = /usr/bin/g++-4.9
 pcompiler = mpicxx
 
@@ -21,7 +21,8 @@ stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include
 dbgflags  = -pedantic $(stdflags) $(dbgdirect) -O0 -pg
 idbgflags = $(stdflags) $(dbgdirect) -O0 -profile-functions -profile-loops=all -profile-loops-report=2
 
-iccflags = $(stdflags) $(stddirect) -w3 -diag-disable:remark -O3 -funroll-loops -opt-prefetch
+#iccflags = $(stdflags) $(stddirect) -gcc-name=/usr/bin/g++-4.9 -w3 -diag-disable:remark -O3 -funroll-loops -opt-prefetch
+iccflags = $(stdflags) $(stddirect) -w3 -diag-disable:remark -O3 -funroll-loops -qopt-prefetch
 gccflags = $(stdflags) $(stddirect) -pedantic -O3 -funroll-loops -ffast-math
 pgiflags = -I $(MMSP_PATH)/include $(stddirect) -fast -Mipa=fast,inline,safe -Mfprelaxed -std=c++11
 mpiflags = $(gccflags) -include mpi.h
@@ -31,7 +32,7 @@ mpiflags = $(gccflags) -include mpi.h
 
 # default program (shared memory, OpenMP)
 alloy625: alloy625.cpp
-	$(icompiler) $< -o $@ $(iccflags) $(stdlinks) -openmp
+	$(icompiler) $< -o $@ $(iccflags) $(stdlinks) -qopenmp
 
 # profiling program (no parallelism or optimization)
 serial: alloy625.cpp

@@ -237,7 +237,7 @@ void generate(int dim, const char* filename)
 
 		} else {
 			if (rank == 0)
-				std::cerr<<"Error: specify an initial condition!"<<std::endl;
+				std::cerr << "Error: specify an initial condition!" << std::endl;
 			MMSP::Abort(-1);
 		}
 
@@ -321,8 +321,8 @@ void generate(int dim, const char* filename)
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-					"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "ifce_vel", "error");
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+					"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "ifce_vel");
 			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\n",
 			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy);
 
@@ -621,7 +621,7 @@ void generate(int dim, const char* filename)
 
 		} else {
 			if (rank == 0)
-				std::cerr<<"Error: specify an initial condition!"<<std::endl;
+				std::cerr << "Error: specify an initial condition!" << std::endl;
 			MMSP::Abort(-1);
 		}
 
@@ -676,8 +676,8 @@ void generate(int dim, const char* filename)
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-					"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "ifce_vel", "error");
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+					"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "ifce_vel");
 			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\n",
 			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy);
 
@@ -712,7 +712,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	grid<dim,vector<T> > newGrid(oldGrid);
 	grid<dim,vector<T> > lapGrid(oldGrid, 2*NC+NP); // excludes fictitious secondary compositions
-	grid<dim,vector<T> > chkGrid(oldGrid, 2*NC+NP); // excludes fictitious secondary compositions
 
 	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
 	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
@@ -772,8 +771,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		for (int n = 0; n < nodes(oldGrid); n++) {
 			vector<int> x = position(oldGrid, n);
 			lapGrid(n) = pointerlaplacian(oldGrid, x, 2*NC+NP);
-			if (logcount >= logstep)
-				chkGrid(n) = maskedlaplacian(oldGrid, x, 2*NC+NP);
 		}
 
 		#ifdef _OPENMP
@@ -870,12 +867,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (logcount >= logstep) {
 			logcount = 0;
 
-			// Compare traditional to pointer-based Laplacian results
-			double error = 0.0;
-			for (int n = 0; n < nodes(lapGrid); n++)
-				for (int j = 0; j < 2*NC+NP; j++)
-					error += std::pow(lapGrid(n)[j] - chkGrid(n)[j], 2.);
-
 			// Update timestep based on interfacial velocity. If v==0, there's no interface: march ahead with current dt.
 			double interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
 			double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
@@ -913,8 +904,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				char buffer[4096];
 
 				if (rank == 0) {
-					sprintf(buffer, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\t%9g\n",
-							ideal_dt, current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, interfacialVelocity, std::sqrt(error / ((2.*NC+NP) * nodes(lapGrid))));
+					sprintf(buffer, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\n",
+							ideal_dt, current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, interfacialVelocity);
 					ostr << buffer;
 				}
 			} else {
@@ -924,7 +915,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 				// Update failed: solution is unstable
 				if (rank == 0) {
-					std::cerr<<"ERROR: Interface swept more than (dx/"<<meshres/advectionlimit<<"), timestep is too aggressive!"<<std::endl;
+					std::cerr << "ERROR: Interface swept more than (dx/" << meshres/advectionlimit << "), timestep is too aggressive!" << std::endl;
 					cfile.close();
 				}
 
@@ -1412,7 +1403,7 @@ MMSP::vector<T> pointerlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, c
 
 		if (dim > 2) {
 			// UNTESTED and UNSAFE!
-			std::cerr << "ERROR: pointedlaplacian is onl;y available for dim<3." <<std::endl;
+			std::cerr << "ERROR: pointedlaplacian is only available for dim<3." << std::endl;
 			MMSP::Abort(-1);
 
 			const double wz = 1.0 / (MMSP::dx(GRID, 2) * MMSP::dx(GRID, 2));
