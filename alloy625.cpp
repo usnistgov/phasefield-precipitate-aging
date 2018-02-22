@@ -128,8 +128,8 @@ const field_t kappa[NP] = {1.24e-8, 1.24e-8}; // gradient energy coefficient (J/
 const field_t Lmob[NP] = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns), Zhou's numbers
 //const field_t Lmob[NP] = {1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns), Xu's numbers
 
-//                        delta  Laves
-const field_t sigma[NP] = {1.01, 1.01}; // (J/m^2)
+//                        delta   Laves
+const field_t sigma[NP] = {1.010, 1.111}; // (J/m^2)
 
 // Interfacial width
 const field_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
