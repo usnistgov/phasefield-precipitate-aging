@@ -129,7 +129,7 @@ const field_t Lmob[NP] = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns),
 //const field_t Lmob[NP] = {1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns), Xu's numbers
 
 //                        delta   Laves
-const field_t sigma[NP] = {1.010, 1.111}; // (J/m^2)
+const field_t sigma[NP] = {1.010, 1.010}; // (J/m^2)
 
 // Interfacial width
 const field_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
@@ -565,18 +565,27 @@ void generate(int dim, const char* filename)
 			}
 			*/
 			while (!withinRange) {
+				/*
+				// Survey parameters (TKR4p149, TKR4p158)
 				const double theta = 0.8376;
-				const double phi = 0.0997;
-				const double psi = 0.4636;
+				const double   phi = 0.0997;
+				const double   psi = 0.4636;
 				const double gamma = 0.8200;
-				const double dX = 0.025 * gamma;
-				const double dY = 0.490 * gamma;
+				const double    dX = 0.025 * gamma;
+				const double    dY = 0.490 * gamma;
+				*/
+				// Focus parameters (TKR4p159)
+				const double theta = 1.1000;
+				const double   phi =-0.4000;
+				const double   psi = 0.7000;
+				const double    dX = 0.0075;
+				const double    dY = 0.4750;
 				const double X = 0.0100 + 0.05 * unidist(mtrand);
 				const double Y = 0.0275 + 0.05 * unidist(mtrand);
 				xNb0 =  (std::cos(theta) + std::tan(psi)) * X + (std::sin(theta) + std::tan(phi)) * Y + dX;
 				xCr0 = -(std::sin(theta) + std::tan(psi)) * X + (std::cos(theta) + std::tan(phi)) * Y + dY;
-				bool belowUpperBound = (xCr0 < (0.349 - 0.490)/(0.250-0.025) * (xNb0 - 0.025) + 0.49);
-				bool aboveLowerBound = (xCr0 > (0.250 - 0.490)/(0.136-0.025) * (xNb0 - 0.025) + 0.49);
+				bool belowUpperBound = (xCr0 < (0.349 - 0.490)/(0.250 - 0.025) * (xNb0 - 0.025) + 0.49);
+				bool aboveLowerBound = (xCr0 > (0.250 - 0.490)/(0.136 - 0.025) * (xNb0 - 0.025) + 0.49);
 				withinRange = (belowUpperBound && aboveLowerBound);
 			}
 
