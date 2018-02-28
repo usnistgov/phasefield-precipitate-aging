@@ -55,6 +55,9 @@ parallel: alloy625.cpp $(core)
 smpi: alloy625.cpp
 	$(pcompiler) $< -o $@ $(mpiflags) $(stdlinks) -fopenmp
 
+ismpi: alloy625.cpp
+	$(pcompiler) $< -o $@ $(iccflags) -include mpi.h -L/usr/lib64 $(stdlinks) -fopenmp
+
 # PGI compiler
 pgparallel: alloy625.cpp
 	$(pcompiler) $(pgiflags) -include mpi.h $< -o $@ $(stdlinks) -mp
