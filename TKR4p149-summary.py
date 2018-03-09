@@ -154,5 +154,5 @@ plt.plot(xb, yb, ls=':', c="green", zorder=1)
 
 plt.xlim([0.20, 0.48])
 plt.ylim([0.25, 0.50])
-plt.savefig("diagrams/TKR4p149/summary-149.png", dpi=400, bbox_inches='tight')
+plt.savefig("diagrams/TKR4p149/coexistence-149.png", dpi=400, bbox_inches='tight')
 plt.close()

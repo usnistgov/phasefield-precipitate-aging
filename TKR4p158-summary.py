@@ -120,10 +120,10 @@ def draw_bisector(A, B):
 
 xb, yb = draw_bisector(4., 5.)
 plt.plot(xb, yb, c="black", zorder=1)
-xb, yb = draw_bisector(6., 5.)
+xb, yb = draw_bisector(5., 7.)
 plt.plot(xb, yb, ls=':', c="green", zorder=1)
 
 plt.xlim([0.20, 0.48])
 plt.ylim([0.25, 0.50])
-plt.savefig("diagrams/TKR4p158/summary-158.png", dpi=400, bbox_inches='tight')
+plt.savefig("diagrams/TKR4p158/coexistence-158.png", dpi=400, bbox_inches='tight')
 plt.close()

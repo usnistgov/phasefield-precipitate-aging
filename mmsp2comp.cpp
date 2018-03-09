@@ -19,6 +19,9 @@
 #define NC 2
 #define NP 2
 
+template <typename T>
+T h(const T& p) {return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);}
+
 template<int dim, typename T>
 void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID, std::vector<double>& idx, std::vector<double>& xcr, std::vector<double>& xnb, std::vector<double>& P)
 {
@@ -30,31 +33,50 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID, std::vector<double
 		dV *= dx(GRID,d);
 	}
 
-	for (x[0] = MMSP::g0(GRID,0); x[0] < MMSP::g1(GRID,0); x[0]++) {
-		// Record position
-		idx.push_back(dx(GRID) * x[0]);
+	const int d = 8 + (MMSP::g1(GRID, 0) - MMSP::g0(GRID, 0))/2;
 
-		// Record system compositions
-		xcr.push_back(GRID(x)[0]);
-		xnb.push_back(GRID(x)[1]);
+	// for (x[0] = MMSP::g0(GRID,0); x[0] < MMSP::g1(GRID,0); x[0]++) {
+	for (x[0] = -d/2; x[0] < d/2; x[0]++) {
+		/*
+		  for (int n=0; n<MMSP::nodes(GRID); n++) {
+		  MMSP::vector<int> x = MMSP::position(GRID, n);
+		*/
 
-		// Compute diffusion potential in matrix
-		const double chempot[NC] = {dg_gam_dxCr(GRID(x)[NC+NP], GRID(x)[NC+NP+1]),
-		                            dg_gam_dxNb(GRID(x)[NC+NP], GRID(x)[NC+NP+1])};
+		T fd = h((GRID(x)[NC]));
+		T fl = h((GRID(x)[NC+1]));
+		T fg = 1. - fd - fl;
 
-		double PhaseEnergy[NP+1] = {g_del(GRID(x)[2*NC+NP], GRID(x)[2*NC+NP+1]),
-		                            g_lav(GRID(x)[3*NC+NP], GRID(x)[3*NC+NP+1]),
-		                            g_gam(GRID(x)[  NC+NP], GRID(x)[  NC+NP+1]) // matrix phase last
-		                           };
+		bool isDelta = fd > 0.975; // && fd < 0.625;
+		bool isLaves = fl > 0.975; // && fl < 0.625;
+		bool isGamma = fg > 0.975; // && fg < 0.625;
 
-		// Record driving force for phase transformation
-		double Pressure[NP] = {0.0};
-		for (int j = 0; j < NP; j++) {
-			Pressure[j] += PhaseEnergy[NP] - PhaseEnergy[j];
-			for (int i = 0; i < NC; i++)
-				Pressure[j] -= (GRID(x)[NC+NP+i] - GRID(x)[NC+NP+i+NC*(j+1)]) * chempot[i];
+		//if (isDelta || isLaves || isGamma) {
+		if (1) {
+			// Record position
+			idx.push_back(dx(GRID) * x[0]);
+
+			// Record system compositions
+			xcr.push_back(GRID(x)[0]);
+			xnb.push_back(GRID(x)[1]);
+
+			// Compute diffusion potential in matrix
+			const double chempot[NC] = {dg_gam_dxCr(GRID(x)[NC+NP], GRID(x)[NC+NP+1]),
+										dg_gam_dxNb(GRID(x)[NC+NP], GRID(x)[NC+NP+1])};
+
+			double PhaseEnergy[NP+1] = {g_del(GRID(x)[2*NC+NP], GRID(x)[2*NC+NP+1]),
+										g_lav(GRID(x)[3*NC+NP], GRID(x)[3*NC+NP+1]),
+										g_gam(GRID(x)[  NC+NP], GRID(x)[  NC+NP+1]) // matrix phase last
+			};
+
+			// Record driving force for phase transformation
+			double Pressure[NP] = {0.0};
+			for (int j = 0; j < NP; j++) {
+				Pressure[j] += PhaseEnergy[NP] - PhaseEnergy[j];
+				for (int i = 0; i < NC; i++)
+					Pressure[j] -= (GRID(x)[NC+NP+i] - GRID(x)[NC+NP+i+NC*(j+1)]) * chempot[i];
+			}
+			P.push_back(dV * (*std::max_element(Pressure, Pressure+NP)));
 		}
-		P.push_back(dV * (*std::max_element(Pressure, Pressure+NP)));
 	}
 }
 

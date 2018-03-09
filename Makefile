@@ -74,7 +74,11 @@ docs: phasefield-precipitate-aging_description.tex
 
 # extract composition from line profile
 mmsp2comp: mmsp2comp.cpp
-	$(gcompiler) $(stdflags) $(stddirect) -O2 $< -o $@ -lz
+	g++ $(stdflags) $(stddirect) -O2 $< -o $@ -lz
+
+# extract composition from line profile
+ifcomp: ifcomp.cpp
+	g++ $(stdflags) $(stddirect) -O2 $< -o $@ -lz
 
 # extract phase fractions
 mmsp2frac: mmsp2frac.cpp
