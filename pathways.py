@@ -116,7 +116,7 @@ for j in range(1, len(argv)):
         # Plot phase diagram
         plt.figure(0, figsize=(10, 7.5)) # inches
         plt.plot(XS, YS, '-k')
-        plt.title("Cr-Nb-Ni at %.0fK"%temp, fontsize=18)
+        plt.title("Cr-Nb-Ni at %.0f K"%temp, fontsize=18)
         plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=18)
         plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=18)
         for i in range(len(labels)):
@@ -160,7 +160,7 @@ for j in range(1, len(argv)):
         # Plot phase evolution trajectories
         t, fd, fl, fg = np.loadtxt("{0}/phasefrac.csv".format(datdir), delimiter=',', skiprows=1, unpack=True)
         plt.figure(2, figsize=(10, 7.5)) # inches
-        plt.title("Cr-Nb-Ni at %.0fK"%temp, fontsize=18)
+        plt.title("Cr-Nb-Ni at %.0f K"%temp, fontsize=18)
         plt.xlabel(r'$t$', fontsize=18)
         plt.ylabel(r'Phase fraction $\phi$', fontsize=18)
         #plt.scatter(t, fg, c=colors[0], label="$\gamma$")

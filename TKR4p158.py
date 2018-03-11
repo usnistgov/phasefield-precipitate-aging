@@ -95,7 +95,7 @@ for a in np.arange(0, 1, 0.1):
 
 # Plot ternary axes and labels
 # plt.figure(0, figsize=(10, 7.5)) # inches
-# plt.title("Phase Coexistence at %.0fK"%temp, fontsize=18)
+# plt.title("Phase Coexistence at %.0f K"%temp, fontsize=18)
 # plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
 # plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
 # plt.xlim([0, 1])
@@ -109,8 +109,8 @@ for a in np.arange(0, 1, 0.1):
 
 # Plot difference in size between delta and Laves precipitates
 plt.figure(1, figsize=(10, 7.5)) # inches
-plt.title("Cr-Nb-Ni at %.0fK"%temp, fontsize=18)
-plt.xlabel(r'$t$ / sec', fontsize=18)
+plt.title("Cr-Nb-Ni at %.0f K"%temp, fontsize=18)
+plt.xlabel(r'$t$ / s', fontsize=18)
 plt.ylabel(r'Relative Phase Fraction $\frac{\phi_{\delta}-\phi_{\mathrm{L}}}{\phi_{\delta}+\phi_{\mathrm{L}}}$', fontsize=18)
 plt.xlim([0, tmax])
 plt.ylim([-1, 1])
@@ -175,8 +175,8 @@ for base, xCr, xNb, fd, fl in datasets:
 
         # Plot coarsening trajectories (difference-over-sum data)
         plt.figure(2, figsize=(10, 7.5)) # inches
-        plt.title(r'%.4fCr - %.4fNb - Ni at %.0fK' % (xCr, xNb, temp), fontsize=18)
-        plt.xlabel(r'$t$ / sec', fontsize=18)
+        plt.title(r'%.4fCr - %.4fNb - Ni at %.0f K' % (xCr, xNb, temp), fontsize=18)
+        plt.xlabel(r'$t$ / s', fontsize=18)
         plt.ylabel(r'Relative Phase Fraction $\frac{\phi_{\delta}-\phi_{\mathrm{L}}}{\phi_{\delta}+\phi_{\mathrm{L}}}$', fontsize=18)
         # plt.xlim([0, tmax])
         plt.ylim([-1, 1])
@@ -193,13 +193,13 @@ for base, xCr, xNb, fd, fl in datasets:
 
         # Plot phase fractions with theoretical limits
         plt.figure(3, figsize=(10, 7.5)) # inches
-        plt.title(r'%.4fCr - %.4fNb - Ni at %.0fK' % (xCr, xNb, temp), fontsize=18)
-        plt.xlabel(r'$t$ / sec', fontsize=18)
+        plt.title(r'%.4fCr - %.4fNb - Ni at %.0f K' % (xCr, xNb, temp), fontsize=18)
+        plt.xlabel(r'$t$ / s', fontsize=18)
         plt.ylabel(r'Phase Fraction', fontsize=18)
         # plt.xlim([0, tmax])
         plt.ylim([0, fmax])
         plt.plot(t, fd, c=colors[1], label=r'$f_{\delta}$', zorder=2)
-        plt.plot(t, fl, c=colors[2], label=r'$f_{\mathrm{Laves}}$', zorder=2)
+        plt.plot(t, fl, c=colors[2], label=r'$f_{\mathrm{L}}$', zorder=2)
         plt.plot((0, t[-1]), (fd0, fd0), c=colors[1], ls=':', zorder=1)
         plt.plot((0, t[-1]), (fl0, fl0), c=colors[2], ls=':', zorder=1)
         plt.legend(loc='best')

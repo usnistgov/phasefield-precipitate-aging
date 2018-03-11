@@ -74,7 +74,7 @@ for a in np.arange(0, 1, 0.1):
 
 # Plot ternary axes and labels
 plt.figure(0, figsize=(10, 7.5)) # inches
-plt.title("Phase Coexistence at %.0fK"%temp, fontsize=18)
+plt.title("Phase Coexistence at %.0f K"%temp, fontsize=18)
 plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
 plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
 plt.xticks(np.linspace(0, 1, 11))

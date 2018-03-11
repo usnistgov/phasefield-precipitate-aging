@@ -186,9 +186,9 @@ for simplex in hull.simplices:
 # Plot phase diagram
 pltsize = 20
 plt.figure(figsize=(pltsize, rt3by2*pltsize))
-#plt.title("Cr-Nb-Ni (CALPHAD expr) at %.0fK"%temp, fontsize=18)
-#plt.title("Cr-Nb-Ni (Taylor approx) at %.0fK"%temp, fontsize=18)
-plt.title("Cr-Nb-Ni (Parabolic approx) at %.0fK"%temp, fontsize=18)
+#plt.title("Cr-Nb-Ni (CALPHAD expr) at %.0f K"%temp, fontsize=18)
+#plt.title("Cr-Nb-Ni (Taylor approx) at %.0f K"%temp, fontsize=18)
+plt.title("Cr-Nb-Ni (Parabolic approx) at %.0f K"%temp, fontsize=18)
 #plt.xlim([-dc, 1+dc])
 #plt.ylim([simY(-dc), simY(1+dc)])
 plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)

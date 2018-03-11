@@ -76,12 +76,12 @@ for datdir in ["data/alloy625/TKR4p158/run{0}".format(j) for j in (11,13,58,64)]
         plt.figure(0, figsize=(10, 7.5)) # inches
         plt.plot(XS, YS, '-k')
         plt.plot(X0, Y0, '-k', zorder=1)
-        plt.title("Cr-Nb-Ni at %.0fK"%temp, fontsize=18)
+        plt.title("Cr-Nb-Ni at %.0f K"%temp, fontsize=18)
         plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=18)
         plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=18)
         plt.xticks(np.linspace(0, 1, 21))
         plt.scatter(Xtick, Ytick, color='black', s=3)
-        plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
+        gann = plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
         dann = plt.text(simX(0.230, 0.010), simY(0.010), r'$\delta$', fontsize=14)
         lann = plt.text(simX(0.340, 0.275), simY(0.275), r'L',        fontsize=14)
 
@@ -96,18 +96,18 @@ for datdir in ["data/alloy625/TKR4p158/run{0}".format(j) for j in (11,13,58,64)]
         for file in fnames[::10]:
             try:
                 x, xcr, xnb, P = np.loadtxt(file, delimiter=',', unpack=True)
-                # num = int(re.search('[0-9]{5,16}', file).group(0)) / 1000000
-                plt.plot(simX(xnb, xcr), simY(xcr), '-', markersize=2, linewidth=1, zorder=1, c='gray')
+                num = int(re.search('[0-9]{5,16}', file).group(0)) * 7.5e-5
+                plt.plot(simX(xnb, xcr), simY(xcr), '-', linewidth=1, zorder=1, c='gray', label=r'%.0f s' % num)
                 # plt.plot(simX(xnb, xcr), simY(xcr), linewidth=1, zorder=1, label=num)
             except:
                 print("Empty file: ", file)
 
         try:
             dgcr, dgnb, dcr, dnb, lgcr, lgnb, lcr, lnb = np.loadtxt("{0}/diffusion_{1}.xc".format(datdir, base), delimiter=',', skiprows=1, usecols=(3,4,5,6,10,11,12,13), unpack=True)
-            plt.plot(simX(dgnb, dgcr), simY(dgcr), label=r'$\gamma-\delta$', c='blue')
-            plt.plot(simX(lgnb, lgcr), simY(lgcr), label=r'$\gamma-$L', c='green')
-            plt.plot(simX(dnb, dcr), simY(dcr), label=r'$\delta$', c='coral')
-            plt.plot(simX(lnb, lcr), simY(lcr), label=r'L', c='magenta')
+            plt.plot(simX(dgnb, dgcr), simY(dgcr), c='blue') # , label=r'$\gamma(\delta)$'
+            plt.plot(simX(lgnb, lgcr), simY(lgcr), c='green') # , label=r'$\gamma$($L$)$'
+            plt.plot(simX(dnb, dcr), simY(dcr), c='coral') # , label=r'$\delta$'
+            plt.plot(simX(lnb, lcr), simY(lcr), c='magenta') # , label=r'L'
         except:
             print("Empty file: {0}/diffusion_{1}.xc".format(datdir, base))
 
@@ -118,10 +118,27 @@ for datdir in ["data/alloy625/TKR4p158/run{0}".format(j) for j in (11,13,58,64)]
 
         dann.remove()
         lann.remove()
+        plt.xticks([])
+        plt.yticks([])
 
         plt.xlim([0.175, 0.425])
         plt.ylim([0.275, 0.275+rt3by2*0.25])
-        plt.savefig("diagrams/TKR4p158/pathways_zoom_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("diagrams/TKR4p158/pathways_zm_gam_{0}.png".format(base), dpi=400, bbox_inches='tight')
+
+        gann.remove()
+        dann = plt.text(simX(0.2375, 0.010), simY(0.010), r'$\delta$', fontsize=14)
+
+        plt.xlim([0.2375, 0.3])
+        plt.ylim([0.0, rt3by2 * 0.05125])
+        plt.savefig("diagrams/TKR4p158/pathways_zm_del_{0}.png".format(base), dpi=400, bbox_inches='tight')
+
+        dann.remove()
+        lann = plt.text(simX(0.345, 0.3), simY(0.3), r'L',        fontsize=14)
+
+        plt.xlim([0.45, 0.55])
+        plt.ylim([0.25, 0.25 + rt3by2*0.1])
+        plt.savefig("diagrams/TKR4p158/pathways_zm_lav_{0}.png".format(base), dpi=400, bbox_inches='tight')
+
         plt.close()
     else:
         print("Skipping {0}".format(datdir))
