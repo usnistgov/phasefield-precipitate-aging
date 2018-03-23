@@ -69,7 +69,8 @@ for i in range(20):
     Xtick.append(xnb + xcr/2 + 0.002)
     Ytick.append(rt3by2*xcr)
 
-for datdir in ["data/alloy625/TKR4p158/run{0}".format(j) for j in (11,13,58,64)]:
+#for datdir in ["data/alloy625/TKR4p158/run{0}".format(j) for j in (11,13,58,64)]:
+for datdir in glob.glob("data/alloy625/TKR4p158/run*"):
     if path.isdir(datdir) and len(glob.glob("{0}/*.xy".format(datdir))) > 0:
         base = path.basename(datdir)
         # Plot phase diagram
@@ -87,8 +88,8 @@ for datdir in ["data/alloy625/TKR4p158/run{0}".format(j) for j in (11,13,58,64)]
 
         # Plot system composition and bisector
         # xCr0, xNb0 = np.genfromtxt("{0}/c.log".format(datdir), usecols=(2, 3), delimiter='\t', skip_header=1, unpack=True)
-        xb, yb = draw_bisector(5., 7.)
-        plt.plot(xb, yb, ls=':', c="green", zorder=1)
+        # xb, yb = draw_bisector(5., 7.)
+        # plt.plot(xb, yb, ls=':', c="green", zorder=1)
         # plt.scatter(simX(xNb0[-1], xCr0[-1]), simY(xCr0[-1]), zorder=1)
 
         # Add composition pathways

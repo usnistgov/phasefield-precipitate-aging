@@ -69,7 +69,7 @@ for i in range(20):
     Xtick.append(xnb + xcr/2 + 0.002)
     Ytick.append(rt3by2*xcr)
 
-for datdir in ["data/alloy625/TKR4p149/run{0}".format(j) for j in (2,6,21,63)]:
+for datdir in glob.glob("data/alloy625/TKR4p149/run*"): #{0}".format(j) for j in (2,3,6,12,21,63)]:
     if path.isdir(datdir) and len(glob.glob("{0}/*.xy".format(datdir))) > 0:
         base = path.basename(datdir)
         # Plot phase diagram
@@ -86,10 +86,8 @@ for datdir in ["data/alloy625/TKR4p149/run{0}".format(j) for j in (2,6,21,63)]:
         lann = plt.text(simX(0.340, 0.275), simY(0.275), r'L',        fontsize=14)
 
         # Plot system composition and bisector
-        # xCr0, xNb0 = np.genfromtxt("{0}/c.log".format(datdir), usecols=(2, 3), delimiter='\t', skip_header=1, unpack=True)
-        xb, yb = draw_bisector(6., 5.)
-        plt.plot(xb, yb, ls=':', c="green", zorder=1)
-        # plt.scatter(simX(xNb0[-1], xCr0[-1]), simY(xCr0[-1]), zorder=1)
+        # xb, yb = draw_bisector(6., 5.)
+        # plt.plot(xb, yb, ls=':', c="green", zorder=1)
 
         # Add composition pathways
         fnames = sorted(glob.glob("{0}/*.xy".format(datdir)))
@@ -139,6 +137,25 @@ for datdir in ["data/alloy625/TKR4p149/run{0}".format(j) for j in (2,6,21,63)]:
         plt.ylim([0.25, 0.25 + rt3by2*0.1])
         plt.savefig("diagrams/TKR4p149/pathways_zm_lav_{0}.png".format(base), dpi=400, bbox_inches='tight')
 
+        plt.close()
+
+        # Plot phase diagram
+        plt.figure(1, figsize=(10, 7.5)) # inches
+        plt.plot(XS, YS, '-k')
+        plt.plot(X0, Y0, '-k', zorder=1)
+        plt.axis('off')
+        #plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=18)
+        #plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=18)
+        #plt.xticks(np.linspace(0, 1, 21))
+        #plt.scatter(Xtick, Ytick, color='black', s=3)
+        gann = plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
+        dann = plt.text(simX(0.230, 0.010), simY(0.010), r'$\delta$', fontsize=14)
+        lann = plt.text(simX(0.340, 0.275), simY(0.275), r'L',        fontsize=14)
+        xCr0, xNb0 = np.genfromtxt("{0}/c.log".format(datdir), usecols=(2, 3), delimiter='\t', skip_header=1, unpack=True)
+        plt.scatter(simX(xNb0[-1], xCr0[-1]), simY(xCr0[-1]), zorder=1, color='black')
+        plt.xlim([0, 0.6])
+        plt.ylim([0, rt3by2*0.6])
+        plt.savefig("diagrams/TKR4p149/composition_{0}.png".format(base), dpi=300, bbox_inches='tight')
         plt.close()
     else:
         print("Skipping {0}".format(datdir))

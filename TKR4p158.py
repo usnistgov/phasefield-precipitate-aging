@@ -155,7 +155,7 @@ summary.write("name,x_Cr_,x_Nb_,phase\n")
 envelope = ('run11', 'run13', 'run58', 'run64')
 
 for base, xCr, xNb, fd, fl in datasets:
-    if base in envelope:
+    # if base in envelope:
         summary.write("{0},{1},{2},\n".format(base, xCr, xNb))
         t = dt * np.arange(0, len(fd))
 

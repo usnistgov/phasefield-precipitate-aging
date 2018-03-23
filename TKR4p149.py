@@ -145,17 +145,13 @@ plt.figure(1)
 plt.savefig("diagrams/TKR4p149/phases.png", dpi=400, bbox_inches='tight')
 plt.close()
 
-# plt.figure(0)
-# plt.savefig("diagrams/TKR4p149/coexistence.png", dpi=400, bbox_inches='tight')
-# plt.close()
-
 summary = open("TKR4p149-summary.csv", "w")
 summary.write("name,x_Cr_,x_Nb_,phase\n")
 
-envelope = ('run2', 'run6', 'run21', 'run63')
+envelope = ('run2', 'run3', 'run6', 'run21', 'run63')
 
 for base, xCr, xNb, fd, fl in datasets:
-    if base in envelope:
+    # if base in envelope:
         summary.write("{0},{1},{2},\n".format(base, xCr, xNb))
         t = dt * np.arange(0, len(fd))
 

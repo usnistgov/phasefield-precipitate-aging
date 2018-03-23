@@ -7,6 +7,8 @@
 
 import numpy as np
 import matplotlib.pylab as plt
+from sympy import Matrix, solve_linear_system, symbols
+from sympy.abc import x, y
 
 labels = [r'$\gamma$', r'$\delta$', 'Laves']
 colors = ['red', 'green', 'blue']
@@ -30,6 +32,62 @@ def simX(xnb, xcr):
     return xnb + fr1by2 * xcr
 def simY(xcr):
     return rt3by2 * xcr
+
+# Empirically determined constants for coord transformation
+def coord149(n):
+    tta = 0.8376
+    phi = 0.0997
+    psi = 0.4636
+    dlx = 0.0205
+    dly = 0.4018
+    cr = 0.0275 + 0.05 * np.random.rand(1, n)
+    nb = 0.0100 + 0.05 * np.random.rand(1, n)
+    x = nb * (np.cos(tta) + np.tan(psi)) + cr * (np.sin(tta) + np.tan(phi)) + dlx
+    y =-nb * (np.sin(tta) + np.tan(psi)) + cr * (np.cos(tta) + np.tan(phi)) + dly
+    return (x, y)
+
+def coord159(n):
+    tta =  1.1000
+    phi = -0.4000
+    psi =  0.7000
+    dlx =  0.0075
+    dly =  0.4750
+    cr = 0.0275 + 0.05 * np.random.rand(1, n)
+    nb = 0.0100 + 0.05 * np.random.rand(1, n)
+    x = nb * (np.cos(tta) + np.tan(psi)) + cr * (np.sin(tta) + np.tan(phi)) + dlx
+    y =-nb * (np.sin(tta) + np.tan(psi)) + cr * (np.cos(tta) + np.tan(phi)) + dly
+    return (x, y)
+
+def coord160(n):
+    tta =  1.1000
+    phi = -0.4500
+    psi =  0.8000
+    dlx =  0.01
+    dly =  0.50
+    cr = 0.0275 + 0.05 * np.random.rand(1, n)
+    nb = 0.0100 + 0.05 * np.random.rand(1, n)
+    x = nb * (np.cos(tta) + np.tan(psi)) + cr * (np.sin(tta) + np.tan(phi)) + dlx
+    y =-nb * (np.sin(tta) + np.tan(psi)) + cr * (np.cos(tta) + np.tan(phi)) + dly
+    return (x, y)
+
+def coordlist(n):
+    dlx = 0.0275
+    dly = 0.47
+    scx = 0.2
+    scy = 0.025
+    tta = 0.925
+    cr = np.random.rand(1, n)
+    nb = np.random.rand(1, n)
+    x = nb * scx * np.cos(tta) + cr * scy * np.sin(tta) + dlx
+    y =-nb * scx * np.sin(tta) + cr * scy * np.cos(tta) + dly
+    return (x, y)
+
+def draw_bisector(A, B):
+    bNb = (A * delNb + B * lavNb) / (A + B)
+    bCr = (A * delCr + B * lavCr) / (A + B)
+    x = [simX(gamNb, gamCr), simX(bNb, bCr)]
+    y = [simY(gamCr), simY(bCr)]
+    return x, y
 
 # triangle bounding the Gibbs simplex
 XS = (0.0, simX(1, 0), simX(0, 1), 0.0)
@@ -73,6 +131,7 @@ for a in np.arange(0, 1, 0.1):
     XG.append([simX(0, a), simX(a, 0)])
     YG.append([simY(a),    simY(0)])
 
+
 # Plot ternary axes and labels
 plt.figure(0, figsize=(10, 7.5)) # inches
 plt.title("Phase Coexistence at %.0f K"%temp, fontsize=18)
@@ -95,64 +154,72 @@ plt.scatter(simX(dNb, dCr), simY(dCr), s=12, c="blue", zorder=2)
 plt.scatter(simX(lNb, lCr), simY(lCr), s=12, c="orange", zorder=2)
 
 # Plot surveyed regions using random points on [0,1)
-# Empirically determined constants for coord transformation
-def coord149(n):
-    tta = 0.8376
-    phi = 0.0997
-    psi = 0.4636
-    dlx = 0.0205
-    dly = 0.4018
-    cr = 0.0275 + 0.05 * np.random.rand(1, n)
-    nb = 0.0100 + 0.05 * np.random.rand(1, n)
-    x = nb * (np.cos(tta) + np.tan(psi)) + cr * (np.sin(tta) + np.tan(phi)) + dlx
-    y =-nb * (np.sin(tta) + np.tan(psi)) + cr * (np.cos(tta) + np.tan(phi)) + dly
-    return (x, y)
+xB, yB = draw_bisector(6., 5.)
+plt.plot(xB, yB, c="green", lw=2, zorder=1)
 
-def coord159(n):
-    tta =  1.1000
-    phi = -0.4000
-    psi =  0.7000
-    dlx =  0.0075
-    dly =  0.4750
-    cr = 0.0275 + 0.05 * np.random.rand(1, n)
-    nb = 0.0100 + 0.05 * np.random.rand(1, n)
-    x = nb * (np.cos(tta) + np.tan(psi)) + cr * (np.sin(tta) + np.tan(phi)) + dlx
-    y =-nb * (np.sin(tta) + np.tan(psi)) + cr * (np.cos(tta) + np.tan(phi)) + dly
-    return (x, y)
-
-def coord160(n):
-    tta =  1.1000
-    phi = -0.4500
-    psi =  0.8000
-    dlx =  0.01
-    dly =  0.50
-    cr = 0.0275 + 0.05 * np.random.rand(1, n)
-    nb = 0.0100 + 0.05 * np.random.rand(1, n)
-    x = nb * (np.cos(tta) + np.tan(psi)) + cr * (np.sin(tta) + np.tan(phi)) + dlx
-    y =-nb * (np.sin(tta) + np.tan(psi)) + cr * (np.cos(tta) + np.tan(phi)) + dly
-    return (x, y)
-
-# rNb, rCr = coord149(200)
-# plt.scatter(simX(rNb, rCr), simY(rCr), s=10, edgecolors="lightgray", facecolors="none", zorder=1)
-# rNb, rCr = coord159(200)
-# plt.scatter(simX(rNb, rCr), simY(rCr), s=10, edgecolors="lightgray", facecolors="none", zorder=1)
-# rNb, rCr = coord160(200)
-# plt.scatter(simX(rNb, rCr), simY(rCr), s=10, edgecolors="gray", facecolors="none", zorder=1)
-
-# Draw bisector lines
-def draw_bisector(A, B):
-    bNb = (A * delNb + B * lavNb) / (A + B)
-    bCr = (A * delCr + B * lavCr) / (A + B)
-    x = [simX(gamNb, gamCr), simX(bNb, bCr)]
-    y = [simY(gamCr), simY(bCr)]
-    return x, y
-
-xb, yb = draw_bisector(4., 5.)
-plt.plot(xb, yb, c="black", zorder=1)
-xb, yb = draw_bisector(6., 5.)
-plt.plot(xb, yb, ls=':', c="green", zorder=1)
-
+gann = plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
 plt.xlim([0.20, 0.48])
 plt.ylim([0.25, 0.50])
-plt.savefig("diagrams/TKR4p149/coexistence-149.png", dpi=400, bbox_inches='tight')
+plt.savefig("diagrams/TKR4p149/coexistence-149.png", dpi=300, bbox_inches='tight')
+plt.close()
+
+
+
+
+# Define lever rule equations
+x0, y0 = symbols('x0 y0')
+xb, yb = symbols('xb yb')
+xc, yc = symbols('xc yc')
+xd, yd = symbols('xd yd')
+
+system = Matrix(( (y0 - yb, xb - x0, xb * (y0 - yb) + yb * (xb - x0)),
+                  (yc - yd, xd - xc, xd * (yc - yd) + yd * (xd - xc)) ))
+levers = solve_linear_system(system, x, y)
+
+# Plot ternary axes and labels
+plt.figure(0, figsize=(10, 7.5)) # inches
+plt.title("Phase Coexistence at %.0f K"%temp, fontsize=18)
+plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
+plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
+plt.xticks(np.linspace(0, 1, 11))
+plt.plot(XS, YS, '-k')
+plt.scatter(Xtick, Ytick, color='black', s=3, zorder=5)
+plt.plot(X0, Y0, color='black', zorder=5)
+for a in range(len(XG)):
+    plt.plot(XG[a], YG[a], ':k', linewidth=0.5, alpha=0.5, zorder=1)
+gann = plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
+plt.xlim([0.20, 0.48])
+plt.ylim([0.25, 0.50])
+
+N = 120
+coords = np.array(coordlist(N)).T.reshape((N, 2))
+
+for rNb, rCr in coords:
+    # Compute equilibrium delta fraction
+    aNb = float(levers[x].subs({x0: rNb, y0: rCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
+    aCr = float(levers[y].subs({x0: rNb, y0: rCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
+    lAO = np.sqrt((aNb - rNb)**2 + (aCr - rCr)**2)
+    lAB = np.sqrt((aNb - delNb)**2 + (aCr - delCr)**2)
+    fd0 = lAO / lAB
+
+    # Compute equilibrium Laves fraction
+    aNb = float(levers[x].subs({x0: rNb, y0: rCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
+    aCr = float(levers[y].subs({x0: rNb, y0: rCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
+    lAO = np.sqrt((aNb - rNb)**2 + (aCr - rCr)**2)
+    lAB = np.sqrt((aNb - lavNb)**2 + (aCr - lavCr)**2)
+    fl0 = lAO / lAB
+
+    # Collate data, colored by phase
+    if fd0 >= fl0:
+        plt.scatter(simX(rNb, rCr), simY(rCr), s=12, c="blue", zorder=2)
+    else:
+        plt.scatter(simX(rNb, rCr), simY(rCr), s=12, c="orange", zorder=2)
+
+xB, yB = draw_bisector(6., 5.)
+plt.plot(xB, yB, c="green", lw=2, zorder=1)
+xB, yB = draw_bisector(5., 5.)
+plt.plot(xB, yB, c="black", lw=2, zorder=1)
+xB, yB = draw_bisector(5., 7.)
+plt.plot(xB, yB, c="red", lw=2, zorder=1)
+plt.savefig("diagrams/TKR4p149/prediction.png", dpi=300, bbox_inches='tight')
 plt.close()
