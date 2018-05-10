@@ -15,7 +15,7 @@ colors = ['red', 'green', 'blue']
 
 # Constants
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
-temp = 870 + 273.15 # 1143 Kelvin
+temp = 1143.15 # 870°C
 fr1by2 = 1.0 / 2
 rt3by2 = np.sqrt(3.0) / 2
 RT = 8.3144598*temp # J/mol/K
@@ -191,7 +191,7 @@ gann = plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
 plt.xlim([0.20, 0.48])
 plt.ylim([0.25, 0.50])
 
-N = 120
+N = 500
 coords = np.array(coordlist(N)).T.reshape((N, 2))
 
 for rNb, rCr in coords:
@@ -217,7 +217,7 @@ for rNb, rCr in coords:
 
 xB, yB = draw_bisector(6., 5.)
 plt.plot(xB, yB, c="green", lw=2, zorder=1)
-xB, yB = draw_bisector(5., 5.)
+xB, yB = draw_bisector(1., 1.)
 plt.plot(xB, yB, c="black", lw=2, zorder=1)
 xB, yB = draw_bisector(5., 7.)
 plt.plot(xB, yB, c="red", lw=2, zorder=1)

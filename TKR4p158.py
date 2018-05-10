@@ -18,7 +18,7 @@ colors = ['red', 'green', 'blue']
 
 # Constants
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
-temp = 870 + 273.15 # 1143 Kelvin
+temp = 1143.15 # 870°C
 fr1by2 = 1.0 / 2
 rt3by2 = np.sqrt(3.0)/2
 RT = 8.3144598*temp # J/mol/K
@@ -93,33 +93,18 @@ for a in np.arange(0, 1, 0.1):
     XG.append([simX(0, a), simX(a, 0)])
     YG.append([simY(a),    simY(0)])
 
-# Plot ternary axes and labels
-# plt.figure(0, figsize=(10, 7.5)) # inches
-# plt.title("Phase Coexistence at %.0f K"%temp, fontsize=18)
-# plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
-# plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
-# plt.xlim([0, 1])
-# plt.ylim([0, rt3by2])
-# plt.xticks(np.linspace(0, 1, 11))
-# plt.plot(XS, YS, '-k')
-# plt.scatter(Xtick, Ytick, color='black', s=3, zorder=10)
-# plt.plot(X0, Y0, color='black', zorder=10)
-# for a in range(len(XG)):
-#     plt.plot(XG[a], YG[a], ':k', linewidth=0.5, alpha=0.5)
-
 # Plot difference in size between delta and Laves precipitates
 plt.figure(1, figsize=(10, 7.5)) # inches
 plt.title("Cr-Nb-Ni at %.0f K"%temp, fontsize=18)
 plt.xlabel(r'$t$ / s', fontsize=18)
 plt.ylabel(r'Relative Phase Fraction $\frac{\phi_{\delta}-\phi_{\mathrm{L}}}{\phi_{\delta}+\phi_{\mathrm{L}}}$', fontsize=18)
-plt.xlim([0, tmax])
 plt.ylim([-1, 1])
 plt.plot((0, tmax), (0, 0), color='black', zorder=1)
 
 # Generate combined plots (ternary and trajectories); store individual data
 fmax = 0.
 datasets = []
-for datdir in glob.glob("/data/tnk10/phase-field/alloy625/TKR4p158/run*"):
+for datdir in glob.glob('/data/tnk10/phase-field/alloy625/TKR4p158/run*'):
     if path.isdir(datdir) and len(glob.glob("{0}/c.log".format(datdir))) > 0:
         base = path.basename(datdir)
         try:
@@ -132,12 +117,6 @@ for datdir in glob.glob("/data/tnk10/phase-field/alloy625/TKR4p158/run*"):
 
             plt.figure(1)
             plt.plot(t, (fd - fl)/(fd + fl), zorder=2)
-
-            # plt.figure(0)
-            # if fd[-1] > fl[-1]:
-            #     plt.scatter(simX(xNb[-1], xCr[-1]), simY(xCr[-1]), c="blue")
-            # else:
-            #     plt.scatter(simX(xNb[-1], xCr[-1]), simY(xCr[-1]), c="orange")
         except:
             print("Skipping {0}".format(datdir))
 
@@ -145,64 +124,55 @@ plt.figure(1)
 plt.savefig("diagrams/TKR4p158/phases.png", dpi=400, bbox_inches='tight')
 plt.close()
 
-# plt.figure(0)
-# plt.savefig("diagrams/TKR4p158/coexistence.png", dpi=400, bbox_inches='tight')
-# plt.close()
-
 summary = open("TKR4p158-summary.csv", "w")
 summary.write("name,x_Cr_,x_Nb_,phase\n")
 
-envelope = ('run11', 'run13', 'run58', 'run64')
-
 for base, xCr, xNb, fd, fl in datasets:
-    # if base in envelope:
-        summary.write("{0},{1},{2},\n".format(base, xCr, xNb))
-        t = dt * np.arange(0, len(fd))
+    summary.write("{0},{1},{2},\n".format(base, xCr, xNb))
+    t = dt * np.arange(0, len(fd))
 
-        # Compute equilibrium delta fraction
-        aNb = float(levers[x].subs({x0: xNb, y0: xCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
-        aCr = float(levers[y].subs({x0: xNb, y0: xCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
-        lAO = np.sqrt((aNb - xNb)**2 + (aCr - xCr)**2)
-        lAB = np.sqrt((aNb - delNb)**2 + (aCr - delCr)**2)
-        fd0 = lAO / lAB
+    # Compute equilibrium delta fraction
+    aNb = float(levers[x].subs({x0: xNb, y0: xCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
+    aCr = float(levers[y].subs({x0: xNb, y0: xCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
+    lAO = np.sqrt((aNb - xNb)**2 + (aCr - xCr)**2)
+    lAB = np.sqrt((aNb - delNb)**2 + (aCr - delCr)**2)
+    fd0 = lAO / lAB
 
-        # Compute equilibrium Laves fraction
-        aNb = float(levers[x].subs({x0: xNb, y0: xCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
-        aCr = float(levers[y].subs({x0: xNb, y0: xCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
-        lAO = np.sqrt((aNb - xNb)**2 + (aCr - xCr)**2)
-        lAB = np.sqrt((aNb - lavNb)**2 + (aCr - lavCr)**2)
-        fl0 = lAO / lAB
+    # Compute equilibrium Laves fraction
+    aNb = float(levers[x].subs({x0: xNb, y0: xCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
+    aCr = float(levers[y].subs({x0: xNb, y0: xCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
+    lAO = np.sqrt((aNb - xNb)**2 + (aCr - xCr)**2)
+    lAB = np.sqrt((aNb - lavNb)**2 + (aCr - lavCr)**2)
+    fl0 = lAO / lAB
 
-        # Plot coarsening trajectories (difference-over-sum data)
-        plt.figure(2, figsize=(10, 7.5)) # inches
-        plt.title(r'%.4fCr - %.4fNb - Ni at %.0f K' % (xCr, xNb, temp), fontsize=18)
-        plt.xlabel(r'$t$ / s', fontsize=18)
-        plt.ylabel(r'Relative Phase Fraction $\frac{\phi_{\delta}-\phi_{\mathrm{L}}}{\phi_{\delta}+\phi_{\mathrm{L}}}$', fontsize=18)
-        # plt.xlim([0, tmax])
-        plt.ylim([-1, 1])
-        for ibase, ixCr, ixNb, ifd, ifl in datasets:
-            it = dt * np.arange(0, len(ifd))
-            plt.plot(it[::100], (ifd[::100] - ifl[::100])/(ifd[::100] + ifl[::100]), c="gray", zorder=1)
-        plt.plot(t, fd / (fd + fl), c=colors[1], label=r'$\delta$', zorder=2)
-        plt.plot(t, -fl / (fd + fl), c=colors[2], label="Laves", zorder=2)
-        plt.plot((0, t[-1]), (0, 0), c='black', zorder=1)
-        plt.plot(t, (fd - fl)/(fd + fl), c="coral", zorder=1)
-        plt.legend(loc='best')
-        plt.savefig("diagrams/TKR4p158/ratio_{0}.png".format(base), dpi=400, bbox_inches='tight')
-        plt.close()
+    # Plot coarsening trajectories (difference-over-sum data)
+    plt.figure(2, figsize=(10, 7.5)) # inches
+    plt.title(r'%.4fCr - %.4fNb - Ni at %.0f K' % (xCr, xNb, temp), fontsize=18)
+    plt.xlabel(r'$t$ / s', fontsize=18)
+    plt.ylabel(r'Relative Phase Fraction $\frac{\phi_{\delta}-\phi_{\mathrm{L}}}{\phi_{\delta}+\phi_{\mathrm{L}}}$', fontsize=18)
+    plt.ylim([-1, 1])
+    for ibase, ixCr, ixNb, ifd, ifl in datasets:
+        it = dt * np.arange(0, len(ifd))
+        plt.plot(it[::100], (ifd[::100] - ifl[::100])/(ifd[::100] + ifl[::100]), c="gray", zorder=1)
+    plt.plot(t, fd / (fd + fl), c=colors[1], label=r'$\delta$', zorder=2)
+    plt.plot(t, -fl / (fd + fl), c=colors[2], label="Laves", zorder=2)
+    plt.plot((0, t[-1]), (0, 0), c='black', zorder=1)
+    plt.plot(t, (fd - fl)/(fd + fl), c="coral", zorder=1)
+    plt.legend(loc='best')
+    plt.savefig("diagrams/TKR4p158/ratios/ratio_{0}.png".format(base), dpi=400, bbox_inches='tight')
+    plt.close()
 
-        # Plot phase fractions with theoretical limits
-        plt.figure(3, figsize=(10, 7.5)) # inches
-        plt.title(r'%.4fCr - %.4fNb - Ni at %.0f K' % (xCr, xNb, temp), fontsize=18)
-        plt.xlabel(r'$t$ / s', fontsize=18)
-        plt.ylabel(r'Phase Fraction', fontsize=18)
-        # plt.xlim([0, tmax])
-        plt.ylim([0, fmax])
-        plt.plot(t, fd, c=colors[1], label=r'$f_{\delta}$', zorder=2)
-        plt.plot(t, fl, c=colors[2], label=r'$f_{\mathrm{L}}$', zorder=2)
-        plt.plot((0, t[-1]), (fd0, fd0), c=colors[1], ls=':', zorder=1)
-        plt.plot((0, t[-1]), (fl0, fl0), c=colors[2], ls=':', zorder=1)
-        plt.legend(loc='best')
-        plt.savefig("diagrams/TKR4p158/phase_{0}.png".format(base), dpi=400, bbox_inches='tight')
-        plt.close()
+    # Plot phase fractions with theoretical limits
+    plt.figure(3, figsize=(10, 7.5)) # inches
+    plt.title(r'%.4fCr - %.4fNb - Ni at %.0f K' % (xCr, xNb, temp), fontsize=18)
+    plt.xlabel(r'$t$ / s', fontsize=18)
+    plt.ylabel(r'Phase Fraction', fontsize=18)
+    plt.ylim([0, fmax])
+    plt.plot(t, fd, c=colors[1], label=r'$f_{\delta}$', zorder=2)
+    plt.plot(t, fl, c=colors[2], label=r'$f_{\mathrm{L}}$', zorder=2)
+    plt.plot((0, t[-1]), (fd0, fd0), c=colors[1], ls=':', zorder=1)
+    plt.plot((0, t[-1]), (fl0, fl0), c=colors[2], ls=':', zorder=1)
+    plt.legend(loc='best')
+    plt.savefig("diagrams/TKR4p158/phases/phase_{0}.png".format(base), dpi=400, bbox_inches='tight')
+    plt.close()
 summary.close()
