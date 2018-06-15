@@ -2,7 +2,7 @@ This directory contains MMSP code for phase field simulation of solid state
 transformation in Ni alloys 625 and 718. Phase field model implemented based on
 Zhou et al. [1], modified for Cr-Nb-Ni instead of Al-Nb-Ni. It is a
 generalization of the binary Kim-Kim-Suzuki model [2]. CALPHAD thermodynamic
-potentials from Du et al. [3], implemented by U. Kattner(NIST MML MSED).
+potentials from Du et al. [3], implemented by U. Kattner (NIST MML MSED).
 Diffusion constants for Cr and Nb in fcc Ni from Karunaratne [4] and Xu [5].
 
 Send questions or comments to trevor.keller@nist.gov (Trevor Keller)

@@ -6,6 +6,10 @@
 
 # Usage: python pathways.py data/alloy625/run2/TKR4p119/run2*
 
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from CALPHAD_energies import *
+
 # Numerical libraries
 import re
 import numpy as np
@@ -24,14 +28,13 @@ from multiprocessing import Pool
 # Visualization libraries
 import matplotlib.pylab as plt
 
-
 density = 500
 skipsz = 9
 
 # # Generate a phase diagram
-# Using scipy.spatial.ConvexHull, an interface to qhull. This method cannot provide phase fractions, chemical potentials, etc., but will quickly produce the correct diagram from the given Gibbs energies.
-
-from CALPHAD_energies import *
+# Using scipy.spatial.ConvexHull, an interface to qhull. This method cannot
+# provide phase fractions, chemical potentials, etc., but will quickly produce
+# the correct diagram from the given Gibbs energies.
 
 labels = [r'$\gamma$', r'$\delta$', 'Laves']
 colors = ['red', 'green', 'blue']
@@ -149,12 +152,12 @@ for j in range(1, len(argv)):
         plt.xlim([0, 0.6])
         plt.ylim([0, rt3by2*0.6])
         plt.legend(loc='best')
-        plt.savefig("diagrams/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("../diagrams/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
         plt.close()
 
         plt.figure(1)
         plt.legend(loc='best', fontsize=8)
-        plt.savefig("diagrams/pressures_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("../diagrams/pressures_{0}.png".format(base), dpi=400, bbox_inches='tight')
         plt.close()
 
         # Plot phase evolution trajectories
@@ -169,7 +172,7 @@ for j in range(1, len(argv)):
         plt.xlim([0, 100e6])
         plt.ylim([0, 3e-13])
         plt.legend(loc='best')
-        plt.savefig("diagrams/phasefrac_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("../diagrams/phasefrac_{0}.png".format(base), dpi=400, bbox_inches='tight')
         plt.close()
     else:
         print("Invalid argument: {0} is not a directory, or contains no usable data.".format(datdir))

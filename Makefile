@@ -77,7 +77,7 @@ mmsp2comp: mmsp2comp.cpp
 	g++ $(stdflags) $(stddirect) -O2 $< -o $@ -lz
 
 # extract composition from line profile
-ifcomp: ifcomp.cpp
+ifcomp: interface-composition.cpp
 	g++ $(stdflags) $(stddirect) -O2 $< -o $@ -lz
 
 # extract phase fractions

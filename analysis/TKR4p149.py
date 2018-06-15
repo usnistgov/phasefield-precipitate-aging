@@ -121,7 +121,7 @@ for datdir in glob.glob('/data/tnk10/phase-field/alloy625/TKR4p149/run*'):
             print("Skipping {0}".format(datdir))
 
 plt.figure(1)
-plt.savefig("diagrams/TKR4p149/phases.png", dpi=400, bbox_inches='tight')
+plt.savefig("../diagrams/TKR4p149/phases.png", dpi=400, bbox_inches='tight')
 plt.close()
 
 summary = open("TKR4p149-summary.csv", "w")
@@ -159,7 +159,7 @@ for base, xCr, xNb, fd, fl in datasets:
     plt.plot((0, t[-1]), (0, 0), c='black', zorder=1)
     plt.plot(t, (fd - fl)/(fd + fl), c="coral", zorder=1)
     plt.legend(loc='best')
-    plt.savefig("diagrams/TKR4p149/ratios/ratio_{0}.png".format(base), dpi=400, bbox_inches='tight')
+    plt.savefig("../diagrams/TKR4p149/ratios/ratio_{0}.png".format(base), dpi=400, bbox_inches='tight')
     plt.close()
 
     # Plot phase fractions with theoretical limits
@@ -173,6 +173,6 @@ for base, xCr, xNb, fd, fl in datasets:
     plt.plot((0, t[-1]), (fd0, fd0), c=colors[1], ls=':', zorder=1)
     plt.plot((0, t[-1]), (fl0, fl0), c=colors[2], ls=':', zorder=1)
     plt.legend(loc='best')
-    plt.savefig("diagrams/TKR4p149/phases/phase_{0}.png".format(base), dpi=400, bbox_inches='tight')
+    plt.savefig("../diagrams/TKR4p149/phases/phase_{0}.png".format(base), dpi=400, bbox_inches='tight')
     plt.close()
 summary.close()

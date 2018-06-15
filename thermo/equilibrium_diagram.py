@@ -79,5 +79,5 @@ if stat(del_lav_eqm).st_size > 0:
 
 plt.xlim([0, 1])
 plt.ylim([0, rt3by2])
-plt.savefig("equilibrium_phase_diagram.png", dpi=400, bbox_inches='tight')
+plt.savefig("../diagrams/equilibrium_phase_diagram.png", dpi=400, bbox_inches='tight')
 plt.close()

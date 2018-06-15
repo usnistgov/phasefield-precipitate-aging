@@ -4,7 +4,7 @@
 # Before executing this script, run the mmsp2comp utility
 # for each checkpoint file in the directories of interest.
 
-# Usage: python pathways158.py
+# Usage: python pathways149.py
 
 import re
 import numpy as np
@@ -69,7 +69,7 @@ for i in range(20):
     Xtick.append(xnb + xcr/2 + 0.002)
     Ytick.append(rt3by2*xcr)
 
-for datdir in glob.glob("data/alloy625/TKR4p158/run*"): #{0}".format(j) for j in (2,3,6,12,21,63)]:
+for datdir in glob.glob("data/alloy625/TKR4p149/run*"): #{0}".format(j) for j in (2,3,6,12,21,63)]:
     if path.isdir(datdir) and len(glob.glob("{0}/*.xy".format(datdir))) > 0:
         base = path.basename(datdir)
         # Plot phase diagram
@@ -112,7 +112,7 @@ for datdir in glob.glob("data/alloy625/TKR4p158/run*"): #{0}".format(j) for j in
         plt.xlim([0, 0.6])
         plt.ylim([0, rt3by2*0.6])
         plt.legend(loc='best')
-        plt.savefig("diagrams/TKR4p158/pathways/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("../diagrams/TKR4p149/pathways/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
 
         dann.remove()
         lann.remove()
@@ -121,21 +121,21 @@ for datdir in glob.glob("data/alloy625/TKR4p158/run*"): #{0}".format(j) for j in
 
         plt.xlim([0.175, 0.425])
         plt.ylim([0.275, 0.275+rt3by2*0.25])
-        plt.savefig("diagrams/TKR4p158/pathways/pathways_zm_gam_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("../diagrams/TKR4p149/pathways/pathways_zm_gam_{0}.png".format(base), dpi=400, bbox_inches='tight')
 
         gann.remove()
         dann = plt.text(simX(0.2375, 0.010), simY(0.010), r'$\delta$', fontsize=14)
 
         plt.xlim([0.2375, 0.3])
         plt.ylim([0.0, rt3by2 * 0.05125])
-        plt.savefig("diagrams/TKR4p158/pathways/pathways_zm_del_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("../diagrams/TKR4p149/pathways/pathways_zm_del_{0}.png".format(base), dpi=400, bbox_inches='tight')
 
         dann.remove()
         lann = plt.text(simX(0.345, 0.3), simY(0.3), r'L',        fontsize=14)
 
         plt.xlim([0.45, 0.55])
         plt.ylim([0.25, 0.25 + rt3by2*0.1])
-        plt.savefig("diagrams/TKR4p158/pathways/pathways_zm_lav_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("../diagrams/TKR4p149/pathways/pathways_zm_lav_{0}.png".format(base), dpi=400, bbox_inches='tight')
 
         plt.close()
 
@@ -155,7 +155,7 @@ for datdir in glob.glob("data/alloy625/TKR4p158/run*"): #{0}".format(j) for j in
         plt.scatter(simX(xNb0[-1], xCr0[-1]), simY(xCr0[-1]), zorder=1, color='black')
         plt.xlim([0, 0.6])
         plt.ylim([0, rt3by2*0.6])
-        plt.savefig("diagrams/TKR4p158/triangles/composition_{0}.png".format(base), dpi=300, bbox_inches='tight')
+        plt.savefig("../diagrams/TKR4p149/triangles/composition_{0}.png".format(base), dpi=300, bbox_inches='tight')
         plt.close()
     else:
         print("Skipping {0}".format(datdir))
