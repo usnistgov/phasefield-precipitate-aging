@@ -14,7 +14,7 @@
 	To capture $\delta$ and Laves precipitates in a $\gamma$ matrix, I have chosen Ni--\SI{30}{\percent} Cr--\SI{2}{\percent} Nb as the model system.
 	The interdendritic regions in additive manufacturing get enriched to Ni--\SI{31}{\percent} Cr--\SI{13}{\percent} Nb.
 	The four-phase three-component model is represented using two composition fields $\left(x_{\ce{Cr}}, x_{\ce{Nb}}\right)$
-	and two phase fields $\left(\phi_\delta, \phi_{\mathrm{Laves}}\right)$.
+	and two phase fields $\left(\phi_{\delta}, \phi_{\mathrm{Laves}}\right)$.
 	The CALPHAD database was modified from Du \emph{et al.} \cite{Du2005} to make $\delta$ a line compound.
 
 
@@ -22,11 +22,11 @@
 		In this model, the system composition depends on the pure-phase compositions and phase fractions:
 		\begin{align}
 			x_{\ce{Cr}} &= \left( 1-\sum h(|\phi_i|) \right) x_{\ce{Cr}}^{\gamma}
-			             + h(|\phi_\delta|) x_{\ce{Cr}}^{\delta}
+			             + h(|\phi_{\delta}|) x_{\ce{Cr}}^{\delta}
 			             + h(|\phi_{\mathrm{L}}|) x_{\ce{Cr}}^{\mathrm{L}}
 						\label{eqn:conscr}\\
 			x_{\ce{Nb}} &= \left( 1-\sum h(|\phi_i|) \right) x_{\ce{Nb}}^{\gamma}
-			             + h(|\phi_\delta|) x_{\ce{Nb}}^{\delta}
+			             + h(|\phi_{\delta}|) x_{\ce{Nb}}^{\delta}
 			             + h(|\phi_{\mathrm{L}}|) x_{\ce{Nb}}^{\mathrm{L}}
  			             \label{eqn:consnb}\\
  			h(\phi)     &= \phi^3\left(6\phi^2 - 15\phi + 10\right)\label{eqn:interp}
@@ -37,12 +37,14 @@
 		Zhou \emph{et al.} \cite{Zhou2014} defines the order parameter such that $\phi_i=\pm1$ indicates presence of the phase $i$, and $\phi_i=0$ indicates absence.
 		The matrix phase $\gamma$ exists where $\sum h(|\phi_i|)=0$. This allows for multiple discrete precipitates of the same phase, without unphysical coalescence.
 		The free energy density is
-		\begin{align}\nonumber
-			f(x,\phi,t) &= \left( 1-\sum h(|\phi_i|) \right) f_\gamma(x_{\ce{Cr}}^{\gamma},x_{\ce{Nb}}^{\gamma})
-			             + h(|\phi_{\delta}|) f_\delta(x_{\ce{Cr}}^{\delta},x_{\ce{Nb}}^{\delta})
-			             + h(|\phi_{\ce{L}}|)f_\ce{L}(x_{\ce{Nb}}^\ce{L},x_\ce{Ni}^\ce{L})\\\nonumber
-			            &+ \omega_\delta(\phi_\delta)^2(1-|\phi_\delta|)^2
-			             + \omega_\ce{L}(\phi_\ce{L})^2(1-|\phi_\ce{L}|)^2\\
+		\begin{align}
+		    \nonumber
+			f(x,\phi,t) &= \left( 1-\sum h(|\phi_i|) \right) f_{\gamma}(x_{\ce{Cr}}^{\gamma},x_{\ce{Nb}}^{\gamma})
+			             + h(|\phi_{\delta}|) f_{\delta}(x_{\ce{Cr}}^{\delta},x_{\ce{Nb}}^{\delta})
+			   		     + h(|\phi_{\ce{L}}|)f_{\ce{L}}(x_{\ce{Nb}}^{\ce{L}},x_{\ce{Ni}}^{\ce{L}})\\
+		    \nonumber
+			            &+ \omega_{\delta}(\phi_{\delta})^2(1-|\phi_{\delta}|)^2
+			             + \omega_{\ce{L}}(\phi_{\ce{L}})^2(1-|\phi_{\ce{L}}|)^2\\
 			            &+ \alpha\phi_{\delta}^2\phi_{\ce{L}}^2
 			            \label{eqn:density}
 		\end{align}
@@ -54,13 +56,13 @@
 		The KKS interface model \cite{Kim1999} assumes constant chemical potential through the interface, so
 		\begin{align}
 			\label{eqn:potcr}
-			\tilde{\mu}_{\ce{Cr}} &= \frac{\partial f_\gamma}{\partial x_{\ce{Cr}}^{\gamma}}
-			                       = \frac{\partial f_\delta}{\partial x_{\ce{Cr}}^{\delta}}
-			                       = \frac{\partial f_\ce{L}}{\partial x_{\ce{Cr}}^\ce{L}}\\
+			\tilde{\mu}_{\ce{Cr}} &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Cr}}^{\gamma}}
+			                       = \frac{\partial f_{\delta}}{\partial x_{\ce{Cr}}^{\delta}}
+			                       = \frac{\partial f_{\ce{L}}}{\partial x_{\ce{Cr}}^{\ce{L}}}\\
 			\label{eqn:potnb}
-			\tilde{\mu}_{\ce{Nb}} &= \frac{\partial f_\gamma}{\partial x_{\ce{Nb}}^{\gamma}}
-			                       = \frac{\partial f_\delta}{\partial x_{\ce{Nb}}^{\delta}}
-			                       = \frac{\partial f_\ce{L}}{\partial x_{\ce{Nb}}^\ce{L}}
+			\tilde{\mu}_{\ce{Nb}} &= \frac{\partial f_{\gamma}}{\partial x_{\ce{Nb}}^{\gamma}}
+			                       = \frac{\partial f_{\delta}}{\partial x_{\ce{Nb}}^{\delta}}
+			                       = \frac{\partial f_{\ce{L}}}{\partial x_{\ce{Nb}}^{\ce{L}}}
 		\end{align}
 		The pure phase compositions $\left(x_j^i\right)$ are determined by solving the parallel tangent construction constrained by the
 		conservation of mass
@@ -94,14 +96,14 @@
 		\end{minipage}\\
 		in which each partial derivative is evaluated at the pure phase composition $x_j^i$, not the system composition $x_j$.
 		This set of eight equations should uniquely solve for the eight unknown pure compositions at each point,
-		given that $x_\ce{Ni}^i = 1-x_{\ce{Cr}}^i-x_{\ce{Nb}}^i$.
+		given that $x_{\ce{Ni}}^i = 1-x_{\ce{Cr}}^i-x_{\ce{Nb}}^i$.
 		This solution is found using the GNU Scientific Library's multiroot solver, provided these eight equations and the
 		Jacobian matrix defined by their partial derivatives with respect to $x_{\ce{Cr}}^{\gamma}$,
 		                                                                     $x_{\ce{Nb}}^{\gamma}$,
 		                                                                     $x_{\ce{Cr}}^{\delta}$,
 		                                                                     $x_{\ce{Nb}}^{\delta}$,
-		                                                                     $x_{\ce{Cr}}^\ce{L}$, and
-		                                                                     $x_{\ce{Nb}}^\ce{L}$.
+		                                                                     $x_{\ce{Cr}}^{\ce{L}}$, and
+		                                                                     $x_{\ce{Nb}}^{\ce{L}}$.
 		The complete Jacobian matrix is written in Appendix~\ref{app:jacobian}.
 
 		The first guess for each composition is made using line compound approximations for each phase,
@@ -114,9 +116,6 @@
 		In the event that a valid solution cannot be found, at any time during the simulation,
 		the line compound guesses are applied.
 		Details are provided in Appendix~\ref{app:linecomp}.
-
-	
-
 
 
 	\section{Thermodynamic Model}
@@ -177,7 +176,7 @@
 		\subsection{Taylor series approximation}
 		Since smooth and continuously differentiable functions are needed, the single-phase free energies are approximated
 		by second-order Taylor series expansion about control compositions $\mathbf{a}=(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$
-		chosen empirically such that the phase diagram is qualitatively correct. % (Fig.~\ref{fig:taylor}).
+		chosen as the vertices of the triangular phase field of $\gamma$--$\delta$--\ce{Laves} coexistence predicted by the CALPHAD phase diagram.
 		For each phase $\alpha\in(\gamma,\delta,\ce{Laves})$,
 		\begin{align}\nonumber
 			f_{\alpha} &\approx f_{\alpha}\left(a_{\ce{Cr}}^{\alpha}, a_{\ce{Nb}}^{\alpha}\right)\\\nonumber
@@ -187,62 +186,10 @@
 	                              {\partial x_i^{\alpha} \partial x_j^{\alpha}}
 	                              \left(x_i^{\alpha} - a_i^{\alpha}\right)\left(x_j^{\alpha} - a_j^{\alpha}\right)
 		\end{align}
-		with $i,j\in\ce{Cr},\ce{Nb},\ce{Ni}$. Note that, depending on the CALPHAD expression, some terms are null for each phase.
+		with $i,j\in\ce{Cr},\ce{Nb},\ce{Ni}$.
+		This is also known as a \emph{paraboloid} free energy approximation.
+		Note that, depending on the CALPHAD expression, some terms are null for each phase.
 
-		%\begin{figure}[!ht]\centering
-		%	\includegraphics[width=\textwidth]{{taylor_phase_diagram}}
-		%	\caption{Phase diagram produced by a convex hull algorithm.
-		%	         Lines in coexistence regions are schematic, being edges of hull facets rather than thermodynamic tie lines.
-		%	         Black points inside the ternary simplex indicate control points $(a_{\ce{Cr}}, a_{\ce{Nb}}, a_{\ce{Ni}})$ for the Taylor series expansions.
-		%	         The $\gamma-\delta-\ce{Laves}$ three-phase coexistence region is qualitatively correct,
-		%	         but the phase boundaries are displaced and distorted relative to Du \emph{et al.} \cite{Du2005}.
-		%	}\label{fig:taylor}
-		%\end{figure}
-
-
-		\subsection{Continuous and Differentiable Boundaries}
-			The KKS interface model \cite{Kim1999} requires the free energy landscape for each phase to be smooth, continuous, and differentiable everywhere.
-			In the CALPHAD database, however, the sublattice description introduces bounds on the valid domain for each phase,
-			outside of which the free energy is undefined.
-			We therefore construct a ``funnel'' around each CALPHAD free energy to help numerical methods gone astray to find their way back inside the valid domain.
-			For simplicity, the funnels are constructed using independent linear functions of one composition each, stitched together using hyperbolic tangent ($\tanh$) functions.
-			These interpolate through an exclusion zone of width $\alpha$ around the border of each valid domain, guaranteeing continuity and differentiability.
-			
-			For an arbitrary CALPHAD model with a constraint on only one composition, the free energy landscape is stitched together from
-			the CALPHAD expression $G(x)$ and the funnel expression $V(x)$ with critical composition $x^*$.
-			Considering Fig.~\ref{fig:interp}, a $\tanh$ function is applied to interpolate between $G$ (parabolic, on the left) and $V$ (linear, on the right) as follows:
-			\begin{align}\nonumber
-				\xi &= \frac{2\pi}{\alpha}\left(x-x^*-\frac{\alpha}{2}\right)\\
-				V(x) &= \max(G(x)) + \frac{1}{4}\left(\max(G(x))-\min(G(x))\right)\left(x - x^*\right)\\\nonumber
-				F(x) &= G(x) + \frac{1}{2}\left(V(x)-G(x)\right)\left[1 + \tanh\xi\right]\\
-				     &= \frac{1}{2}\left[1 - \tanh\xi\right]G(x) + \frac{1}{2}\left[1 + \tanh\xi\right]V(x).
-			\end{align}
-			\begin{figure}[!ht]\centering
-				\includegraphics[width=\textwidth]{interpolation}
-				\caption{Schematic interpolation between the CALPHAD free energy $G(x)$ and a funnel potential $V(x)$
-				         using a hyperbolic tangent function over a finite composition $\Delta x = \alpha$,
-				         shown between the vertical lines.
-				         The splined function $F(x)$ is smooth, continuous, and differentiable everywhere.}
-				\label{fig:interp}
-			\end{figure}
-			With constraints on two compositions,
-			\begin{align}\label{eqn:xi}
-				\xi_i &= \frac{2\pi}{\alpha}\left(x_i-x^*_i-\frac{\alpha}{2}\right)\\\nonumber
-				F(x_1,x_2) &= G(x_1,x_2) + \frac{1}{2}\left(V(x_1)-G(x_1,x_2)\right)\left[1 + \tanh\xi_1\right] + \frac{1}{2}\left(V(x_2)-G(x_1,x_2)\right)\left[1 + \tanh\xi_2\right]\\
-				           &= \frac{1}{2}\left[-\tanh\xi_1 -\tanh\xi_2\right]G(x_1,x_2) + \frac{1}{2}\left[1 + \tanh\xi_1\right]V(x_1) + \frac{1}{2}\left[1 + \tanh\xi_2\right]V(x_2).
-			\end{align}
-
-			Generalizing to constraints on $N$ compositions, and adding terms to cancel undesirable contributions in regions where more than one funnel function is active,\footnote{
-			The double-summation in the coefficient of $G(\vec{x})$ removes an extraneous term of $-G(\vec{x})$ in ``corners'',
-			while the sum over $j$ in the coefficient of $V(x_i)$ produces the average $\frac{1}{2}[V(x_i)+V(x_j)]$ instead of the full sum of $V(x_i)+V(x_j)$ in those regions.}
-			\begin{align}\nonumber
-				F(\vec{x}) &= \frac{1}{2}\left[2-N-\sum\limits_{i=1}^N\tanh\xi_i + \frac{1}{2}\sum\limits_{i=1}^N\sum\limits_{j>i}\left(1+\tanh\xi_i\right)\left(1+\tanh\xi_j\right)\right]G(\vec{x})\\
-				           &+ \frac{1}{2}\sum\limits_{i=1}^N\left[\left(1 + \tanh\xi_i\right) - \frac{1}{4}\sum\limits_{j>i}\left(1+\tanh\xi_i\right)\left(1+\tanh\xi_j\right)\right]V(x_i).
-			\end{align}
-			For a ``high-side'' constraint, e.g. approaching $x^*_{\ce{Cr}}=1$ from inside the simplex, $\alpha$ should be positive in the definition of $\xi$ (Eqn.~\ref{eqn:xi}).
-			For a ``low-side'' constraint, e.g. approaching $x^*_{\ce{Cr}}=0$ from inside the simplex, $\alpha$ should be negative.
-			No other changes are necessary to reverse directionality of the $\tanh$ profiles.
-			
 
 	\section{Equations of Motion for Phases $\{\phi\}$}
 		The $\{\phi_i\}$ are not conserved, so Allen-Cahn dynamics are assumed:
@@ -270,7 +217,7 @@
 		\end{align}
 
 		Implicitly differentiating both sides of the expression for system composition,
-		Eqns.~\ref{eqn:conscr} and \ref{eqn:consnb}, with respect to a phase,\footnote{
+		Eqns.~\ref{eqn:conscr} and~\ref{eqn:consnb}, with respect to a phase,\footnote{
 		Cf. Eqn.~6.91 in Provatas and Elder \cite{Provatas2010}. The amount of species should not change explicitly with changes in phase.
 		}
 		\begin{align}
@@ -291,7 +238,6 @@
 			                                    + 2\alpha\phi_n\sum_{i\neq n}\phi_i^2.
 			\label{eqn:phieom}
 		\end{align}		
-
 
 
 	\section{Equations of Motion for Compositions $\{x\}$}
@@ -365,9 +311,7 @@
 		\begin{equation}
 			\frac{\partial x_{\ell}}{\partial t} = D_{\ell\ce{Cr}}^{\gamma}\nabla^2 x_{\ce{Cr}}^{\gamma} + D_{\ell\ce{Nb}}^{\gamma}\nabla^2 x_{\ce{Nb}}^{\gamma}.
 		\end{equation}
-		
-		
-
+	
 
 	\section{Timestep Adaptivity}
 		If the phase-field $\phi$ advances more than one mesh point in a given timestep, the solution is unstable.
@@ -402,28 +346,28 @@
 				Temperature          & $T$                      & \SI{870}{\degreeCelsius}\\
 				Molar volume         & $V_m$                    & \SI{1.0e-5}{\cubic\meter/\mole}\\
 				Trijunction penalty  & $\alpha$                 & \SI{1.07e11}{\joule/\cubic\meter}\\
-				Interfacial energy   & $\sigma_\delta
-				                       =\sigma_\ce{L}$          & \SI{1.01}{\joule/\square\meter}\\
-				Gradient penalty     & $\kappa_\delta
-				                       =\kappa_\ce{L}$          & \SI{1.24e-8}{\joule/\meter}\\
+				Interfacial energy   & $\sigma_{\delta}
+				                       =\sigma_{\ce{L}}$          & \SI{1.01}{\joule/\square\meter}\\
+				Gradient penalty     & $\kappa_{\delta}
+				                       =\kappa_{\ce{L}}$          & \SI{1.24e-8}{\joule/\meter}\\
 				Mobility             & $M_{\ce{Cr}}
 				                       = M_{\ce{Nb}}$           & \SI{2.42e-18}{\square\mole/\newton\second\square\meter}\\
 				Diffusivity          & $D_{\ce{Cr}}
 				                       = D_{\ce{Nb}}$           & \SI{1.58e-16}{\square\meter/\second}\\
-				Mobility             & $L_\delta
-				                       =L_\ce{L}$               & \SI{2.904e-11}{\square\meter/\newton/\second}\\
+				Mobility             & $L_{\delta}
+				                       =L_{\ce{L}}$               & \SI{2.904e-11}{\square\meter/\newton/\second}\\
 				Interface width      & $2\lambda$               & $7\Delta x$\\
 				Interface width      & $2\lambda$               & \SI{35e-9}{\meter}\\
-				Well height          & $\omega_\delta
-				                       =\omega_\ce{L}$          & $6.6 \sigma_\delta / 2\lambda$\\
-				Well height          & $\omega_\delta
-				                       =\omega_\ce{L}$          & \SI{1.9e8}{\joule/\cubic\meter}\\
+				Well height          & $\omega_{\delta}
+				                       =\omega_{\ce{L}}$          & $6.6 \sigma_{\delta} / 2\lambda$\\
+				Well height          & $\omega_{\delta}
+				                       =\omega_{\ce{L}}$          & \SI{1.9e8}{\joule/\cubic\meter}\\
 				$\gamma$ curvature   & $C_{\ce{Cr}}^{\gamma}$   & \SI{4.8e10}{\joule/\cubic\meter}\\
 				                     & $C_{\ce{Nb}}^{\gamma}$   & \SI{6.1e9}{\joule/\cubic\meter}\\
 				$\delta$ curvature   & $C_{\ce{Cr}}^{\delta}$   & \SI{5.4e10}{\joule/\cubic\meter}\\
 				                     & $C_{\ce{Nb}}^{\delta}$   & \SI{6.8e11}{\joule/\cubic\meter}\\
-				Laves curvature      & $C_{\ce{Nb}}^\ce{L}$     & \SI{1.2e11}{\joule/\cubic\meter}\\
-				                     & $C_{\ce{Ni}}^\ce{L}$     & \SI{1.1e10}{\joule/\cubic\meter}\\
+				Laves curvature      & $C_{\ce{Nb}}^{\ce{L}}$     & \SI{1.2e11}{\joule/\cubic\meter}\\
+				                     & $C_{\ce{Ni}}^{\ce{L}}$     & \SI{1.1e10}{\joule/\cubic\meter}\\
 				$\gamma$ composition & $\prescript{e}{}{x}_{\ce{Cr}}^{\gamma}$ & \SI{1.00}{\percent}\\
 				                     & $\prescript{e}{}{x}_{\ce{Nb}}^{\gamma}$ & \SI{32.3}{\percent}\\
 				$\delta$ composition & $\prescript{e}{}{x}_{\ce{Cr}}^{\delta}$ & \SI{0.88}{\percent}\\

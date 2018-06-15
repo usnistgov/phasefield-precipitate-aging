@@ -42,11 +42,10 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID, std::vector<double
 		  MMSP::vector<int> x = MMSP::position(GRID, n);
 		*/
 
+		/*
 		T fd = h((GRID(x)[NC]));
 		T fl = h((GRID(x)[NC+1]));
 		T fg = 1. - fd - fl;
-
-		/*
 		bool isDelta = fd > 0.975; // && fd < 0.625;
 		bool isLaves = fl > 0.975; // && fl < 0.625;
 		bool isGamma = fg > 0.975; // && fg < 0.625;
