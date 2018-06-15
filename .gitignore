@@ -19,16 +19,11 @@
 *.sh
 *.txt
 
-.ipynb_checkpoints
-
-adsorption
+# simulation executables
 alloy625
-data
 debug
-equilibrium
 ibtest
 iserial
-mmsp2comp
 omp
 ompi
 parallel
@@ -36,3 +31,14 @@ pgparallel
 serial
 smp
 smpi
+
+# folders
+bin
+data
+
+# utility executables
+analysis/adsorption
+analysis/ifcomp
+analysis/mmsp2comp
+analysis/mmsp2frac
+thermo/equilibrium
