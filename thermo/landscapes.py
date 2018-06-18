@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 #####################################################################################
 # This software was developed at the National Institute of Standards and Technology #
@@ -14,13 +15,15 @@
 # versions bear some notice that they have been modified.                           #
 #####################################################################################
 
-import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from CALPHAD_energies import *
+# Usage: python thermo/landscapes.py
 
 from tqdm import tqdm
 from pycalphad import equilibrium
 from pycalphad import variables as v
+
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from CALPHAD_energies import *
 
 Titles = (r'$\gamma$', r'$\delta$', r'Laves')
 xspan = (-0.05, 1.05)
@@ -91,10 +94,10 @@ for ax in axarr.reshape(-1):
     n+=1
 plt.figtext(x=0.5, y=0.0625, ha='center', fontsize=8, \
             s=r'White triangles enclose Gibbs simplex, $x_{\mathrm{Cr}}+x_{\mathrm{Nb}}+x_{\mathrm{Ni}}=1$.')
-f.savefig('../diagrams/ternary_parabola.png', dpi=400, bbox_inches='tight')
+f.savefig('diagrams/ternary_parabola.png', dpi=400, bbox_inches='tight')
 plt.close()
 
-images = ['../diagrams/gamma_parabola.png', '../diagrams/delta_parabola.png', '../diagrams/Laves_parabola.png']
+images = ['diagrams/gamma_parabola.png', 'diagrams/delta_parabola.png', 'diagrams/Laves_parabola.png']
 for n in range(nfun):
     levels = np.logspace(np.log2(xmin), np.log2(xmax), num=ncon, base=2.0)
     plt.axis('equal')

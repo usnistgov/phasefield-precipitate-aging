@@ -1,11 +1,24 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+#####################################################################################
+# This software was developed at the National Institute of Standards and Technology #
+# by employees of the Federal Government in the course of their official duties.    #
+# Pursuant to title 17 section 105 of the United States Code this software is not   #
+# subject to copyright protection and is in the public domain. NIST assumes no      #
+# responsibility whatsoever for the use of this code by other parties, and makes no #
+# guarantees, expressed or implied, about its quality, reliability, or any other    #
+# characteristic. We would appreciate acknowledgement if the software is used.      #
+#                                                                                   #
+# This software can be redistributed and/or modified freely provided that any       #
+# derivative works bear some notice that they are derived from it, and any modified #
+# versions bear some notice that they have been modified.                           #
+#####################################################################################
+
 # Overlay phase-field simulation compositions on ternary phase diagram
 # Before executing this script, run the mmsp2comp utility
 # for each checkpoint file in the directories of interest.
-
-# Usage: python TKR4p158.py
+# Usage: python analysis/TKR4p158.py
 
 import glob
 from os import path
@@ -13,85 +26,16 @@ import numpy as np
 import matplotlib.pylab as plt
 from sympy import Matrix, solve_linear_system, symbols
 
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from CALPHAD_energies import *
+
 labels = [r'$\gamma$', r'$\delta$', 'Laves']
 colors = ['red', 'green', 'blue']
 
-# Constants
-epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
-temp = 1143.15 # 870°C
-fr1by2 = 1.0 / 2
-rt3by2 = np.sqrt(3.0)/2
-RT = 8.3144598*temp # J/mol/K
 dt = 7.5e-5 * 1000
 tmax = 5625 # 3750
 pmax = 0.35
-
-# Coexistence vertices
-gamCr = 0.490
-gamNb = 0.025
-delCr = 0.015
-delNb = 0.245
-lavCr = 0.300
-lavNb = 0.328
-
-def simX(xnb, xcr):
-    return xnb + fr1by2 * xcr
-
-def simY(xcr):
-    return rt3by2 * xcr
-
-# Define lever rule equations
-from sympy.abc import x, y
-x0, y0 = symbols('x0 y0')
-xb, yb = symbols('xb yb')
-xc, yc = symbols('xc yc')
-xd, yd = symbols('xd yd')
-
-system = Matrix(( (y0 - yb, xb - x0, xb * (y0 - yb) + yb * (xb - x0)),
-                  (yc - yd, xd - xc, xd * (yc - yd) + yd * (xd - xc)) ))
-levers = solve_linear_system(system, x, y)
-
-# triangle bounding the Gibbs simplex
-XS = [0, simX(1, 0), simX(0, 1), 0]
-YS = [0, simY(0), simY(1), 0]
-
-# triangle bounding three-phase coexistence
-X0 = [simX(gamNb, gamCr), simX(delNb, delCr), simX(lavNb, lavCr), simX(gamNb, gamCr)]
-Y0 = [simY(gamCr), simY(delCr), simY(lavCr), simY(gamCr)]
-
-# Tick marks along simplex edges
-Xtick = []
-Ytick = []
-tickdens = 10
-for i in range(tickdens):
-    # Cr-Ni edge
-    xcr = (1.0 * i) / tickdens
-    xni = 1.0 - xcr
-    Xtick.append(simX(-0.002, xcr))
-    Ytick.append(simY(xcr))
-    # Cr-Nb edge
-    xcr = (1.0 * i) / tickdens
-    xnb = 1.0 - xcr
-    Xtick.append(simX(xnb+0.002, xcr))
-    Ytick.append(simY(xcr))
-    # Nb-Ni edge
-    xnb = (1.0 * i) / tickdens
-    Xtick.append(xnb)
-    Ytick.append(-0.002)
-
-# Triangular grid
-XG = [[]]
-YG = [[]]
-for a in np.arange(0, 1, 0.1):
-    # x1 - x2: lines of constant x2=a
-    XG.append([simX(a, 0), simX(a, 1-a)])
-    YG.append([simY(0),    simY(1-a)])
-    # x2 - x3: lines of constant x3=a
-    XG.append([simX(0, a), simX(1-a, a)])
-    YG.append([simY(a),    simY(a)])
-    # x1 - x3: lines of constant x1=1-a
-    XG.append([simX(0, a), simX(a, 0)])
-    YG.append([simY(a),    simY(0)])
 
 # Plot difference in size between delta and Laves precipitates
 plt.figure(1, figsize=(10, 7.5)) # inches
@@ -121,7 +65,7 @@ for datdir in glob.glob('/data/tnk10/phase-field/alloy625/TKR4p158/run*'):
             print("Skipping {0}".format(datdir))
 
 plt.figure(1)
-plt.savefig("../diagrams/TKR4p158/phases.png", dpi=400, bbox_inches='tight')
+plt.savefig("diagrams/TKR4p158/phases.png", dpi=400, bbox_inches='tight')
 plt.close()
 
 summary = open("TKR4p158-summary.csv", "w")
@@ -132,17 +76,17 @@ for base, xCr, xNb, fd, fl in datasets:
     t = dt * np.arange(0, len(fd))
 
     # Compute equilibrium delta fraction
-    aNb = float(levers[x].subs({x0: xNb, y0: xCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
-    aCr = float(levers[y].subs({x0: xNb, y0: xCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
+    aNb = leverNb(rNb, rCr, xe_del_Nb, xe_del_Cr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr)
+    aCr = leverCr(rNb, rCr, xe_del_Nb, xe_del_Cr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr)
     lAO = np.sqrt((aNb - xNb)**2 + (aCr - xCr)**2)
-    lAB = np.sqrt((aNb - delNb)**2 + (aCr - delCr)**2)
+    lAB = np.sqrt((aNb - xe_del_Nb)**2 + (aCr - xe_del_Cr)**2)
     fd0 = lAO / lAB
 
     # Compute equilibrium Laves fraction
-    aNb = float(levers[x].subs({x0: xNb, y0: xCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
-    aCr = float(levers[y].subs({x0: xNb, y0: xCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
+    aNb = leverNb(rNb, rCr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr, xe_del_Nb, xe_del_Cr)
+    aCr = leverCr(rNb, rCr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr, xe_del_Nb, xe_del_Cr)
     lAO = np.sqrt((aNb - xNb)**2 + (aCr - xCr)**2)
-    lAB = np.sqrt((aNb - lavNb)**2 + (aCr - lavCr)**2)
+    lAB = np.sqrt((aNb - xe_lav_Nb)**2 + (aCr - xe_lav_Cr)**2)
     fl0 = lAO / lAB
 
     # Plot coarsening trajectories (difference-over-sum data)
@@ -159,7 +103,7 @@ for base, xCr, xNb, fd, fl in datasets:
     plt.plot((0, t[-1]), (0, 0), c='black', zorder=1)
     plt.plot(t, (fd - fl)/(fd + fl), c="coral", zorder=1)
     plt.legend(loc='best')
-    plt.savefig("../diagrams/TKR4p158/ratios/ratio_{0}.png".format(base), dpi=400, bbox_inches='tight')
+    plt.savefig("diagrams/TKR4p158/ratios/ratio_{0}.png".format(base), dpi=400, bbox_inches='tight')
     plt.close()
 
     # Plot phase fractions with theoretical limits
@@ -173,6 +117,6 @@ for base, xCr, xNb, fd, fl in datasets:
     plt.plot((0, t[-1]), (fd0, fd0), c=colors[1], ls=':', zorder=1)
     plt.plot((0, t[-1]), (fl0, fl0), c=colors[2], ls=':', zorder=1)
     plt.legend(loc='best')
-    plt.savefig("../diagrams/TKR4p158/phases/phase_{0}.png".format(base), dpi=400, bbox_inches='tight')
+    plt.savefig("diagrams/TKR4p158/phases/phase_{0}.png".format(base), dpi=400, bbox_inches='tight')
     plt.close()
 summary.close()

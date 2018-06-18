@@ -1,10 +1,24 @@
-# coding: utf-8
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+#####################################################################################
+# This software was developed at the National Institute of Standards and Technology #
+# by employees of the Federal Government in the course of their official duties.    #
+# Pursuant to title 17 section 105 of the United States Code this software is not   #
+# subject to copyright protection and is in the public domain. NIST assumes no      #
+# responsibility whatsoever for the use of this code by other parties, and makes no #
+# guarantees, expressed or implied, about its quality, reliability, or any other    #
+# characteristic. We would appreciate acknowledgement if the software is used.      #
+#                                                                                   #
+# This software can be redistributed and/or modified freely provided that any       #
+# derivative works bear some notice that they are derived from it, and any modified #
+# versions bear some notice that they have been modified.                           #
+#####################################################################################
 
 # Overlay phase-field simulation compositions on ternary phase diagram
 # Before executing this script, run the mmsp2comp utility
 # for each checkpoint file in the directories of interest.
-
-# Usage: python pathways149.py
+# Usage: python analysis/pathways149.py
 
 import re
 import numpy as np
@@ -14,60 +28,15 @@ from sys import argv
 import glob
 import matplotlib.pylab as plt
 
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from CALPHAD_energies import *
+
 density = 500
 skipsz = 9
 
 labels = [r'$\gamma$', r'$\delta$', 'Laves']
 colors = ['red', 'green', 'blue']
-
-temp = 1143.15 # 870°C
-fr1by2 = 1.0 / 2
-rt3by2 = np.sqrt(3.0)/2
-RT = 8.3144598*temp # J/mol/K
-
-# Coexistence vertices
-gamCr = 0.490
-gamNb = 0.025
-delCr = 0.015
-delNb = 0.245
-lavCr = 0.300
-lavNb = 0.328
-
-def simX(xnb, xcr):
-    return xnb + fr1by2 * xcr
-
-def simY(xcr):
-    return rt3by2 * xcr
-
-def draw_bisector(A, B):
-    bNb = (A * delNb + B * lavNb) / (A + B)
-    bCr = (A * delCr + B * lavCr) / (A + B)
-    x = [simX(gamNb, gamCr), simX(bNb, bCr)]
-    y = [simY(gamCr), simY(bCr)]
-    return x, y
-
-# triangle bounding the Gibbs simplex
-XS = [0, simX(1, 0), simX(0, 1), 0]
-YS = [0, simY(0), simY(1), 0]
-
-# triangle bounding three-phase coexistence
-X0 = [simX(gamNb, gamCr), simX(delNb, delCr), simX(lavNb, lavCr), simX(gamNb, gamCr)]
-Y0 = [simY(gamCr), simY(delCr), simY(lavCr), simY(gamCr)]
-
-# Tick marks along simplex edges
-Xtick = []
-Ytick = []
-for i in range(20):
-    # Cr-Ni edge
-    xcr = 0.05*i
-    xni = 1.0 - xcr
-    Xtick.append(xcr/2 - 0.002)
-    Ytick.append(rt3by2*xcr)
-    # Cr-Nb edge
-    xcr = 0.05*i
-    xnb = 1.0 - xcr
-    Xtick.append(xnb + xcr/2 + 0.002)
-    Ytick.append(rt3by2*xcr)
 
 for datdir in glob.glob("data/alloy625/TKR4p149/run*"): #{0}".format(j) for j in (2,3,6,12,21,63)]:
     if path.isdir(datdir) and len(glob.glob("{0}/*.xy".format(datdir))) > 0:
@@ -84,10 +53,6 @@ for datdir in glob.glob("data/alloy625/TKR4p149/run*"): #{0}".format(j) for j in
         gann = plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
         dann = plt.text(simX(0.230, 0.010), simY(0.010), r'$\delta$', fontsize=14)
         lann = plt.text(simX(0.340, 0.275), simY(0.275), r'L',        fontsize=14)
-
-        # Plot system composition and bisector
-        # xb, yb = draw_bisector(6., 5.)
-        # plt.plot(xb, yb, ls=':', c="green", zorder=1)
 
         # Add composition pathways
         fnames = sorted(glob.glob("{0}/*.xy".format(datdir)))
@@ -112,7 +77,7 @@ for datdir in glob.glob("data/alloy625/TKR4p149/run*"): #{0}".format(j) for j in
         plt.xlim([0, 0.6])
         plt.ylim([0, rt3by2*0.6])
         plt.legend(loc='best')
-        plt.savefig("../diagrams/TKR4p149/pathways/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("diagrams/TKR4p149/pathways/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
 
         dann.remove()
         lann.remove()
@@ -121,21 +86,21 @@ for datdir in glob.glob("data/alloy625/TKR4p149/run*"): #{0}".format(j) for j in
 
         plt.xlim([0.175, 0.425])
         plt.ylim([0.275, 0.275+rt3by2*0.25])
-        plt.savefig("../diagrams/TKR4p149/pathways/pathways_zm_gam_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("diagrams/TKR4p149/pathways/pathways_zm_gam_{0}.png".format(base), dpi=400, bbox_inches='tight')
 
         gann.remove()
         dann = plt.text(simX(0.2375, 0.010), simY(0.010), r'$\delta$', fontsize=14)
 
         plt.xlim([0.2375, 0.3])
         plt.ylim([0.0, rt3by2 * 0.05125])
-        plt.savefig("../diagrams/TKR4p149/pathways/pathways_zm_del_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("diagrams/TKR4p149/pathways/pathways_zm_del_{0}.png".format(base), dpi=400, bbox_inches='tight')
 
         dann.remove()
         lann = plt.text(simX(0.345, 0.3), simY(0.3), r'L',        fontsize=14)
 
         plt.xlim([0.45, 0.55])
         plt.ylim([0.25, 0.25 + rt3by2*0.1])
-        plt.savefig("../diagrams/TKR4p149/pathways/pathways_zm_lav_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("diagrams/TKR4p149/pathways/pathways_zm_lav_{0}.png".format(base), dpi=400, bbox_inches='tight')
 
         plt.close()
 
@@ -144,10 +109,6 @@ for datdir in glob.glob("data/alloy625/TKR4p149/run*"): #{0}".format(j) for j in
         plt.plot(XS, YS, '-k')
         plt.plot(X0, Y0, '-k', zorder=1)
         plt.axis('off')
-        #plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=18)
-        #plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=18)
-        #plt.xticks(np.linspace(0, 1, 21))
-        #plt.scatter(Xtick, Ytick, color='black', s=3)
         gann = plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
         dann = plt.text(simX(0.230, 0.010), simY(0.010), r'$\delta$', fontsize=14)
         lann = plt.text(simX(0.340, 0.275), simY(0.275), r'L',        fontsize=14)
@@ -155,7 +116,7 @@ for datdir in glob.glob("data/alloy625/TKR4p149/run*"): #{0}".format(j) for j in
         plt.scatter(simX(xNb0[-1], xCr0[-1]), simY(xCr0[-1]), zorder=1, color='black')
         plt.xlim([0, 0.6])
         plt.ylim([0, rt3by2*0.6])
-        plt.savefig("../diagrams/TKR4p149/triangles/composition_{0}.png".format(base), dpi=300, bbox_inches='tight')
+        plt.savefig("diagrams/TKR4p149/triangles/composition_{0}.png".format(base), dpi=300, bbox_inches='tight')
         plt.close()
     else:
         print("Skipping {0}".format(datdir))

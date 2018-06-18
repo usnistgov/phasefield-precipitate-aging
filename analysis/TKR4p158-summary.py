@@ -1,37 +1,34 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# Overlay phase-field simulation compositions on ternary phase diagram
+#####################################################################################
+# This software was developed at the National Institute of Standards and Technology #
+# by employees of the Federal Government in the course of their official duties.    #
+# Pursuant to title 17 section 105 of the United States Code this software is not   #
+# subject to copyright protection and is in the public domain. NIST assumes no      #
+# responsibility whatsoever for the use of this code by other parties, and makes no #
+# guarantees, expressed or implied, about its quality, reliability, or any other    #
+# characteristic. We would appreciate acknowledgement if the software is used.      #
+#                                                                                   #
+# This software can be redistributed and/or modified freely provided that any       #
+# derivative works bear some notice that they are derived from it, and any modified #
+# versions bear some notice that they have been modified.                           #
+#####################################################################################
 
-# Usage: python TKR4p158-summary.py
+# Overlay phase-field simulation compositions on ternary phase diagram
+# Usage: python analysis/TKR4p158-summary.py
 
 import numpy as np
 import matplotlib.pylab as plt
 from sympy import Matrix, solve_linear_system, symbols
 from sympy.abc import x, y
 
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from CALPHAD_energies import *
+
 labels = [r'$\gamma$', r'$\delta$', 'Laves']
 colors = ['red', 'green', 'blue']
-
-# Constants
-epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
-temp = 1143.15 # 870°C
-fr1by2 = 1.0 / 2
-rt3by2 = np.sqrt(3.0) / 2
-RT = 8.3144598*temp # J/mol/K
-
-# Coexistence vertices
-gamCr = 0.490
-gamNb = 0.025
-delCr = 0.015
-delNb = 0.245
-lavCr = 0.300
-lavNb = 0.328
-
-def simX(xnb, xcr):
-    return xnb + fr1by2 * xcr
-def simY(xcr):
-    return rt3by2 * xcr
 
 # Empirically determined constants for coord transformation
 def coord158(n):
@@ -83,54 +80,11 @@ def coordlist(n):
     return (x, y)
 
 def draw_bisector(A, B):
-    bNb = (A * delNb + B * lavNb) / (A + B)
-    bCr = (A * delCr + B * lavCr) / (A + B)
-    x = [simX(gamNb, gamCr), simX(bNb, bCr)]
-    y = [simY(gamCr), simY(bCr)]
+    bNb = (A * xe_del_Nb + B * xe_lav_Nb) / (A + B)
+    bCr = (A * xe_del_Cr + B * xe_lav_Cr) / (A + B)
+    x = [simX(xe_gam_Nb, xe_gam_Cr), simX(bNb, bCr)]
+    y = [simY(xe_gam_Cr), simY(bCr)]
     return x, y
-
-# triangle bounding the Gibbs simplex
-XS = (0.0, simX(1, 0), simX(0, 1), 0.0)
-YS = (0.0, simY(0), simY(1), 0.0)
-
-# triangle bounding three-phase coexistence
-X0 = (simX(gamNb, gamCr), simX(delNb, delCr), simX(lavNb, lavCr), simX(gamNb, gamCr))
-Y0 = (simY(gamCr), simY(delCr), simY(lavCr), simY(gamCr))
-
-# Tick marks along simplex edges
-Xtick = []
-Ytick = []
-tickdens = 10
-for i in range(tickdens):
-    # Cr-Ni edge
-    xcr = (1.0 * i) / tickdens
-    xni = 1.0 - xcr
-    Xtick.append(simX(-0.002, xcr))
-    Ytick.append(simY(xcr))
-    # Cr-Nb edge
-    xcr = (1.0 * i) / tickdens
-    xnb = 1.0 - xcr
-    Xtick.append(simX(xnb+0.002, xcr))
-    Ytick.append(simY(xcr))
-    # Nb-Ni edge
-    xnb = (1.0 * i) / tickdens
-    Xtick.append(xnb)
-    Ytick.append(-0.002)
-
-# Triangular grid
-XG = [[]]
-YG = [[]]
-for a in np.arange(0, 1, 0.1):
-    # x1--x2: lines of constant x2=a
-    XG.append([simX(a, 0), simX(a, 1-a)])
-    YG.append([simY(0),    simY(1-a)])
-    # x2--x3: lines of constant x3=a
-    XG.append([simX(0, a), simX(1-a, a)])
-    YG.append([simY(a),    simY(a)])
-    # x1--x3: lines of constant x1=1-a
-    XG.append([simX(0, a), simX(a, 0)])
-    YG.append([simY(a),    simY(0)])
-
 
 # Plot ternary axes and labels
 plt.figure(0, figsize=(10, 7.5)) # inches
@@ -145,7 +99,7 @@ for a in range(len(XG)):
     plt.plot(XG[a], YG[a], ':k', linewidth=0.5, alpha=0.5, zorder=1)
 
 # Plot generated data, colored by phase
-base, xCr, xNb, phase = np.genfromtxt('TKR4p158-summary-permanent.csv', delimiter=',', dtype=None, unpack=True, skip_header=0)
+base, xCr, xNb, phase = np.genfromtxt('analysis/TKR4p158-summary-permanent.csv', delimiter=',', dtype=None, unpack=True, skip_header=0)
 dCr = np.array(xCr[phase == 'D'], dtype=float)
 dNb = np.array(xNb[phase == 'D'], dtype=float)
 lCr = np.array(xCr[phase == 'L'], dtype=float)
@@ -160,21 +114,8 @@ plt.plot(xB, yB, c="green", lw=2, zorder=1)
 gann = plt.text(simX(0.010, 0.495), simY(0.495), r'$\gamma$', fontsize=14)
 plt.xlim([0.20, 0.48])
 plt.ylim([0.25, 0.50])
-plt.savefig("../diagrams/TKR4p158/coexistence-158.png", dpi=300, bbox_inches='tight')
+plt.savefig("diagrams/TKR4p158/coexistence-158.png", dpi=300, bbox_inches='tight')
 plt.close()
-
-
-
-
-# Define lever rule equations
-x0, y0 = symbols('x0 y0')
-xb, yb = symbols('xb yb')
-xc, yc = symbols('xc yc')
-xd, yd = symbols('xd yd')
-
-system = Matrix(( (y0 - yb, xb - x0, xb * (y0 - yb) + yb * (xb - x0)),
-                  (yc - yd, xd - xc, xd * (yc - yd) + yd * (xd - xc)) ))
-levers = solve_linear_system(system, x, y)
 
 # Plot ternary axes and labels
 plt.figure(0, figsize=(10, 7.5)) # inches
@@ -196,17 +137,17 @@ coords = np.array(coordlist(N)).T.reshape((N, 2))
 
 for rNb, rCr in coords:
     # Compute equilibrium delta fraction
-    aNb = float(levers[x].subs({x0: rNb, y0: rCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
-    aCr = float(levers[y].subs({x0: rNb, y0: rCr, xb: delNb, yb: delCr, xc: lavNb, yc: lavCr, xd: gamNb, yd: gamCr}))
+    aNb = leverNb(rNb, rCr, xe_del_Nb, xe_del_Cr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr)
+    aCr = leverCr(rNb, rCr, xe_del_Nb, xe_del_Cr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr)
     lAO = np.sqrt((aNb - rNb)**2 + (aCr - rCr)**2)
-    lAB = np.sqrt((aNb - delNb)**2 + (aCr - delCr)**2)
+    lAB = np.sqrt((aNb - xe_del_Nb)**2 + (aCr - xe_del_Cr)**2)
     fd0 = lAO / lAB
 
     # Compute equilibrium Laves fraction
-    aNb = float(levers[x].subs({x0: rNb, y0: rCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
-    aCr = float(levers[y].subs({x0: rNb, y0: rCr, xb: lavNb, yb: lavCr, xc: gamNb, yc: gamCr, xd: delNb, yd: delCr}))
+    aNb = leverNb(rNb, rCr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr, xe_del_Nb, xe_del_Cr)
+    aCr = leverCr(rNb, rCr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr, xe_del_Nb, xe_del_Cr)
     lAO = np.sqrt((aNb - rNb)**2 + (aCr - rCr)**2)
-    lAB = np.sqrt((aNb - lavNb)**2 + (aCr - lavCr)**2)
+    lAB = np.sqrt((aNb - xe_lav_Nb)**2 + (aCr - xe_lav_Cr)**2)
     fl0 = lAO / lAB
 
     # Collate data, colored by phase
@@ -221,5 +162,5 @@ xB, yB = draw_bisector(1., 1.)
 plt.plot(xB, yB, c="black", lw=2, zorder=1)
 xB, yB = draw_bisector(5., 7.)
 plt.plot(xB, yB, c="red", lw=2, zorder=1)
-plt.savefig("../diagrams/TKR4p158/prediction.png", dpi=300, bbox_inches='tight')
+plt.savefig("diagrams/TKR4p158/prediction.png", dpi=300, bbox_inches='tight')
 plt.close()

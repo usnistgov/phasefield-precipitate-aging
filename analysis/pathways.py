@@ -1,14 +1,24 @@
-# coding: utf-8
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+#####################################################################################
+# This software was developed at the National Institute of Standards and Technology #
+# by employees of the Federal Government in the course of their official duties.    #
+# Pursuant to title 17 section 105 of the United States Code this software is not   #
+# subject to copyright protection and is in the public domain. NIST assumes no      #
+# responsibility whatsoever for the use of this code by other parties, and makes no #
+# guarantees, expressed or implied, about its quality, reliability, or any other    #
+# characteristic. We would appreciate acknowledgement if the software is used.      #
+#                                                                                   #
+# This software can be redistributed and/or modified freely provided that any       #
+# derivative works bear some notice that they are derived from it, and any modified #
+# versions bear some notice that they have been modified.                           #
+#####################################################################################
 
 # Overlay phase-field simulation compositions on ternary phase diagram
 # Before executing this script, run the mmsp2comp utility
 # for each checkpoint file in the directories of interest.
-
-# Usage: python pathways.py data/alloy625/run2/TKR4p119/run2*
-
-import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from CALPHAD_energies import *
+# Usage: python analysis/pathways.py data/alloy625/run2/TKR4p119/run2*
 
 # Numerical libraries
 import re
@@ -28,6 +38,10 @@ from multiprocessing import Pool
 # Visualization libraries
 import matplotlib.pylab as plt
 
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from CALPHAD_energies import *
+
 density = 500
 skipsz = 9
 
@@ -38,21 +52,6 @@ skipsz = 9
 
 labels = [r'$\gamma$', r'$\delta$', 'Laves']
 colors = ['red', 'green', 'blue']
-
-# Tick marks along simplex edges
-Xtick = []
-Ytick = []
-for i in range(20):
-    # Cr-Ni edge
-    xcr = 0.05*i
-    xni = 1.0 - xcr
-    Xtick.append(xcr/2 - 0.002)
-    Ytick.append(rt3by2*xcr)
-    # Cr-Nb edge
-    xcr = 0.05*i
-    xnb = 1.0 - xcr
-    Xtick.append(xnb + xcr/2 + 0.002)
-    Ytick.append(rt3by2*xcr)
 
 def computeKernelExclusive(n):
     xnb = max(epsilon, 1.0 * (n / density) / density)
@@ -152,12 +151,12 @@ for j in range(1, len(argv)):
         plt.xlim([0, 0.6])
         plt.ylim([0, rt3by2*0.6])
         plt.legend(loc='best')
-        plt.savefig("../diagrams/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("diagrams/pathways_{0}.png".format(base), dpi=400, bbox_inches='tight')
         plt.close()
 
         plt.figure(1)
         plt.legend(loc='best', fontsize=8)
-        plt.savefig("../diagrams/pressures_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("diagrams/pressures_{0}.png".format(base), dpi=400, bbox_inches='tight')
         plt.close()
 
         # Plot phase evolution trajectories
@@ -172,7 +171,7 @@ for j in range(1, len(argv)):
         plt.xlim([0, 100e6])
         plt.ylim([0, 3e-13])
         plt.legend(loc='best')
-        plt.savefig("../diagrams/phasefrac_{0}.png".format(base), dpi=400, bbox_inches='tight')
+        plt.savefig("diagrams/phasefrac_{0}.png".format(base), dpi=400, bbox_inches='tight')
         plt.close()
     else:
         print("Invalid argument: {0} is not a directory, or contains no usable data.".format(datdir))

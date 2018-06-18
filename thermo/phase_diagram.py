@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 #####################################################################################
 # This software was developed at the National Institute of Standards and Technology #
@@ -13,6 +14,8 @@
 # derivative works bear some notice that they are derived from it, and any modified #
 # versions bear some notice that they have been modified.                           #
 #####################################################################################
+
+# Usage: python thermo/phase_diagram.py
 
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -63,7 +66,7 @@ for xcr in (0.1, 0.2, 0.3):
 for j in range(len(phases)):
 	plt.figure(j)
 	plt.legend(loc='best', fontsize=6)
-	plt.savefig("../diagrams/linescan_{0}_Nb.png".format(phases[j]), bbox_inches='tight', dpi=400)
+	plt.savefig("diagrams/linescan_{0}_Nb.png".format(phases[j]), bbox_inches='tight', dpi=400)
 	plt.close()
 
 print("Finished plotting Nb linescan.")
@@ -101,7 +104,7 @@ for xnb in (0.01, 0.05, 0.10):
 for j in range(len(phases)):
 	plt.figure(j)
 	plt.legend(loc='best', fontsize=6)
-	plt.savefig("../diagrams/linescan_{0}_Cr.png".format(phases[j]), bbox_inches='tight', dpi=400)
+	plt.savefig("diagrams/linescan_{0}_Cr.png".format(phases[j]), bbox_inches='tight', dpi=400)
 	plt.close()
 
 print("Finished plotting Cr linescan.")
@@ -172,7 +175,7 @@ plt.scatter(X0, Y0, color='black', marker='s', s=8)
 plt.xticks(np.linspace(0, 1, 21))
 plt.scatter(Xtick, Ytick, color='black', marker='+', s=8)
 plt.legend(loc='best')
-plt.savefig("../diagrams/parabolic_phase_diagram.png", bbox_inches='tight', dpi=400)
+plt.savefig("diagrams/parabolic_phase_diagram.png", bbox_inches='tight', dpi=400)
 plt.close()
 
 print("Finished plotting ternary phase diagram.")

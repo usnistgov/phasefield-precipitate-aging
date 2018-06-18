@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 #####################################################################################
 # This software was developed at the National Institute of Standards and Technology #
@@ -14,15 +15,15 @@
 # versions bear some notice that they have been modified.                           #
 #####################################################################################
 
-import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from CALPHAD_energies import *
+# Usage: python landscape_envelope.py
 
 from tqdm import tqdm
 from pycalphad import equilibrium
 from pycalphad import variables as v
 
-# setup global variables
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from constants import *
 
 Titles = (r'$\gamma$', r'$\delta$', r'Laves')
 xspan = (-0.05, 1.05)
@@ -35,20 +36,6 @@ xmax = 1.0e11
 x = np.linspace(xspan[0], xspan[1], npts)
 y = np.linspace(yspan[0], yspan[1], npts)
 z = np.zeros(len(x)*len(y))
-
-# Triangular grid
-XG = [[]]
-YG = [[]]
-for a in np.arange(0, 1, 0.1):
-    # x1--x2: lines of constant x2=a
-    XG.append([simX(a, 0), simX(a, 1-a)])
-    YG.append([simY(0),    simY(1-a)])
-    # x2--x3: lines of constant x3=a
-    XG.append([simX(0, a), simX(1-a, a)])
-    YG.append([simY(a),    simY(a)])
-    # x1--x3: lines of constant x1=1-a
-    XG.append([simX(0, a), simX(a, 0)])
-    YG.append([simY(a),    simY(0)])
 
 # Plot 2nd-order Taylor series approximate free energy landscapes
 
@@ -84,5 +71,5 @@ plt.text(simX(0.340, 0.275), simY(0.275), r'L',        fontsize=14)
 plt.margins(0,0)
 plt.gca().xaxis.set_major_locator(plt.NullLocator())
 plt.gca().yaxis.set_major_locator(plt.NullLocator())
-plt.savefig( '../diagrams/landscape_parabola.png', transparent=True, dpi=400, bbox_inches='tight', pad_inches=0)
+plt.savefig('../diagrams/landscape_parabola.png', transparent=True, dpi=400, bbox_inches='tight', pad_inches=0)
 plt.close()

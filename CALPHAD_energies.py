@@ -76,60 +76,14 @@ from pycalphad import Database, calculate, Model
 from sympy.utilities.codegen import codegen
 from sympy.parsing.sympy_parser import parse_expr
 from sympy import And, Ge, Gt, Le, Lt, Or, Piecewise, true
-from sympy import diff, Function, Lambda, symbols, simplify, sympify
-from sympy import Abs, exp, log, pi, tanh
+from sympy import diff, Function, Lambda, Matrix, symbols, simplify, sympify
+from sympy import Abs, exp, log, pi, tanh, solve_linear_system
 
 # Constants
-epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
-temp = 870 + 273.15 # 1143 Kelvin
-
-RT = 8.3144598*temp # J/mol/K
-Vm = 1.0e-5         # m^3/mol
-inVm = 1.0 / Vm     # mol/m^3
-
-# Let's avoid integer arithmetic in fractions.
-fr3by4 = 0.75
-fr3by2 = 1.5
-fr4by3 = 4.0/3
-fr2by3 = 2.0/3
-fr1by4 = 0.25
-fr1by3 = 1.0/3
-fr1by2 = 0.5
-rt3by2 = np.sqrt(3.0)/2
-
-# Helper functions to convert compositions into (x,y) coordinates
-def simX(x2, x3):
-    return x2 + fr1by2 * x3
-
-def simY(x3):
-    return rt3by2 * x3
-
-# triangle bounding the Gibbs simplex
-XS = [0, simX(1,0), simX(0,1), 0]
-YS = [0, simY(0),   simY(1),   0]
-
-# Tick marks along simplex edges
-Xtick = []
-Ytick = []
-for i in range(20):
-    # Cr-Ni edge
-    xcr = 0.05*i
-    xnb = -0.002
-    Xtick.append(simX(xnb, xcr))
-    Ytick.append(simY(xcr))
-    # Cr-Nb edge
-    xcr = 0.05*i
-    xnb = 1.002 - xcr
-    Xtick.append(simX(xnb, xcr))
-    Ytick.append(simY(xcr))
-    # Nb-Ni edge
-    xcr = -0.002
-    xnb = 0.05*i
-    Xtick.append(simX(xnb, xcr))
-    Ytick.append(simY(xcr))
+from constants import *
 
 # Read CALPHAD database from disk, specify phases and elements of interest
-tdb = Database('Du_Cr-Nb-Ni_simple.tdb')
+tdb = Database('thermo/Du_Cr-Nb-Ni_simple.tdb')
 elements = ['CR', 'NB', 'NI']
 
 species = list(set([i for c in tdb.phases['FCC_A1'].constituents for i in c]))
@@ -170,30 +124,24 @@ xe_lav_Cr = 0.300
 xe_lav_Nb = 0.328
 xe_lav_Ni = 1 - xe_lav_Cr - xe_lav_Nb
 
-# Specify Taylor series expansion points
-xt_gam_Cr = 0.400
-xt_gam_Nb = 0.200
-xt_gam_Ni = 1 - xt_gam_Cr - xt_gam_Nb
+# Define lever rule equations
+x0, y0 = symbols('x0 y0')
+xb, yb = symbols('xb yb')
+xc, yc = symbols('xc yc')
+xd, yd = symbols('xd yd')
 
-xt_del_Cr = 0.100
-xt_del_Nb = 0.245
+from sympy.abc import x, y
+levers = solve_linear_system(Matrix(((y0 - yb, xb - x0, xb * (y0 - yb) + yb * (xb - x0)),
+                                     (yc - yd, xd - xc, xd * (yc - yd) + yd * (xd - xc)) )), x, y)
+leverNb = lambdify([x0, y0, xb, yb, xc, yc, xd, yd], levers[x])
+leverCr = lambdify([x0, y0, xb, yb, xc, yc, xd, yd], levers[y])
 
-xt_lav_Cr = 0.350
-xt_lav_Nb = 0.200
-xt_lav_Ni = 1 - xt_lav_Cr - xt_lav_Nb
-
-# Specify upper limit compositions
-xcr_del_hi = fr3by4
-xnb_del_hi = fr1by4
-
-xnb_lav_hi = fr1by3
-xni_lav_hi = fr2by3
-xni_lav_hi = fr2by3
-
-
-# Anchor points for Taylor series
-XT = [simX(xt_gam_Nb, xt_gam_Cr), simX(xt_del_Nb, xt_del_Cr), simX(xt_lav_Nb, xt_lav_Cr)]
-YT = [simY(xt_gam_Cr),            simY(xt_del_Cr),            simY(xt_lav_Cr)]
+def draw_bisector(A, B):
+    bNb = (A * xe_del_Nb + B * xe_lav_Nb) / (A + B)
+    bCr = (A * xe_del_Cr + B * xe_lav_Cr) / (A + B)
+    x = [simX(xe_gam_Nb, xe_gam_Cr), simX(bNb, bCr)]
+    y = [simY(xe_gam_Cr), simY(bCr)]
+    return x, y
 
 # triangle bounding three-phase coexistence
 X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_lav_Nb, xe_lav_Cr)]
@@ -218,7 +166,7 @@ g_laves = inVm * g_laves.subs({C14_LAVES0CR: 1 - fr3by2 * (1 - XCR - XNB),
                                C14_LAVES1NB: 3 * XNB,
                                T: temp})
 
-# Generate parabolic expressions (the crudest of approximations)
+# Generate paraboloid expressions (2nd-order Taylor series approximations)
 
 # Curvatures
 PC_gam_CrCr = diff(g_gamma, XCR, XCR).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
@@ -238,21 +186,15 @@ p_gamma = fr1by2 * PC_gam_CrCr * (XCR - xe_gam_Cr)**2                      \
         +          PC_gam_CrNb * (XCR - xe_gam_Cr)    * (XNB - xe_gam_Nb)  \
         + fr1by2 * PC_gam_NbNb                        * (XNB - xe_gam_Nb)**2
 
-# print("Gamma:\n d2f/dcr2 = {0}\n d2f/dnb2 = {1}\n d2f/dcr.dnb = {2}".format(PC_gam_CrCr, PC_gam_NbNb, PC_gam_CrNb))
-
 p_delta = fr1by2 * PC_del_CrCr * (XCR - xe_del_Cr)**2                      \
         +          PC_del_CrNb * (XCR - xe_del_Cr)    * (XNB - xe_del_Nb)  \
         + fr1by2 * PC_del_NbNb                        * (XNB - xe_del_Nb)**2
-
-# print("Delta:\n d2f/dcr2 = {0}\n d2f/dnb2 = {1}\n d2f/dcr.dnb = {2}".format(PC_del_CrCr, PC_del_NbNb, PC_del_CrNb))
 
 p_laves = fr1by2 * PC_lav_CrCr * (XCR - xe_lav_Cr)**2                      \
         +          PC_lav_CrNb * (XCR - xe_lav_Cr)    * (XNB - xe_lav_Nb)  \
         + fr1by2 * PC_lav_NbNb                        * (XNB - xe_lav_Nb)**2
 
-# print("Laves:\n d2f/dcr2 = {0}\n d2f/dnb2 = {1}\n d2f/dcr.dnb = {2}".format(PC_lav_CrCr, PC_lav_NbNb, PC_lav_CrNb))
-
-# Generate first derivatives of Taylor series landscape
+# Generate first derivatives of paraboloid landscape
 p_dGgam_dxCr = diff(p_gamma, XCR)
 p_dGgam_dxNb = diff(p_gamma, XNB)
 
@@ -262,7 +204,7 @@ p_dGdel_dxNb = diff(p_delta, XNB)
 p_dGlav_dxCr = diff(p_laves, XCR)
 p_dGlav_dxNb = diff(p_laves, XNB)
 
-# Generate second derivatives of Taylor series landscape
+# Generate second derivatives of paraboloid landscape
 p_d2Ggam_dxCrCr = diff(p_gamma, XCR, XCR)
 p_d2Ggam_dxCrNb = diff(p_gamma, XCR, XNB)
 p_d2Ggam_dxNbCr = diff(p_gamma, XNB, XCR)
@@ -279,28 +221,129 @@ p_d2Glav_dxNbCr = diff(p_laves, XNB, XCR)
 p_d2Glav_dxNbNb = diff(p_laves, XNB, XNB)
 
 # Write parabolic functions as C code
-codegen([# Gibbs energies
-         ('g_gam', p_gamma),         ('g_del', p_delta),         ('g_lav', p_laves),
-         # Constants
-         ('xe_gam_Cr', xe_gam_Cr),         ('xe_gam_Nb', xe_gam_Nb),
-         ('xe_del_Cr', xe_del_Cr),         ('xe_del_Nb', xe_del_Nb),
-         ('xe_lav_Cr', xe_lav_Cr),         ('xe_lav_Nb', xe_lav_Nb),
+codegen([# Constants
+         ('xe_gam_Cr', xe_gam_Cr),  ('xe_gam_Nb', xe_gam_Nb),
+         ('xe_del_Cr', xe_del_Cr),  ('xe_del_Nb', xe_del_Nb),
+         ('xe_lav_Cr', xe_lav_Cr),  ('xe_lav_Nb', xe_lav_Nb),
+         ('r_delta', r_delta),  ('r_laves', r_laves),
+         ('s_delta', s_delta),  ('s_laves', s_laves),
+         # Gibbs energies
+         ('g_gam', p_gamma),  ('g_del', p_delta),  ('g_lav', p_laves),
          # First derivatives
-         ('dg_gam_dxCr', p_dGgam_dxCr),         ('dg_gam_dxNb', p_dGgam_dxNb),
-         ('dg_del_dxCr', p_dGdel_dxCr),         ('dg_del_dxNb', p_dGdel_dxNb),
-         ('dg_lav_dxCr', p_dGlav_dxCr),         ('dg_lav_dxNb', p_dGlav_dxNb),
+         ('dg_gam_dxCr', p_dGgam_dxCr),  ('dg_gam_dxNb', p_dGgam_dxNb),
+         ('dg_del_dxCr', p_dGdel_dxCr),  ('dg_del_dxNb', p_dGdel_dxNb),
+         ('dg_lav_dxCr', p_dGlav_dxCr),  ('dg_lav_dxNb', p_dGlav_dxNb),
          # Second derivatives
-         ('d2g_gam_dxCrCr', p_d2Ggam_dxCrCr),         ('d2g_gam_dxCrNb', p_d2Ggam_dxCrNb),
-         ('d2g_gam_dxNbCr', p_d2Ggam_dxNbCr),         ('d2g_gam_dxNbNb', p_d2Ggam_dxNbNb),
-         ('d2g_del_dxCrCr', p_d2Gdel_dxCrCr),         ('d2g_del_dxCrNb', p_d2Gdel_dxCrNb),
-         ('d2g_del_dxNbCr', p_d2Gdel_dxNbCr),         ('d2g_del_dxNbNb', p_d2Gdel_dxNbNb),
-         ('d2g_lav_dxCrCr', p_d2Glav_dxCrCr),         ('d2g_lav_dxCrNb', p_d2Glav_dxCrNb),
-         ('d2g_lav_dxNbCr', p_d2Glav_dxNbCr),         ('d2g_lav_dxNbNb', p_d2Glav_dxNbNb)],
-        language='C', prefix='parabola625', project='ALLOY625', to_files=True)
-
-# Generate numerically efficient system-composition expressions
+         ('d2g_gam_dxCrCr', p_d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', p_d2Ggam_dxCrNb),
+         ('d2g_gam_dxNbCr', p_d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', p_d2Ggam_dxNbNb),
+         ('d2g_del_dxCrCr', p_d2Gdel_dxCrCr), ('d2g_del_dxCrNb', p_d2Gdel_dxCrNb),
+         ('d2g_del_dxNbCr', p_d2Gdel_dxNbCr), ('d2g_del_dxNbNb', p_d2Gdel_dxNbNb),
+         ('d2g_lav_dxCrCr', p_d2Glav_dxCrCr), ('d2g_lav_dxCrNb', p_d2Glav_dxCrNb),
+         ('d2g_lav_dxNbCr', p_d2Glav_dxNbCr), ('d2g_lav_dxNbNb', p_d2Glav_dxNbNb)],
+        language='C', prefix='parabola625', project='phasefield-precipitate-aging', to_files=True)
 
 # Lambdify parabolic expressions
-PG = lambdify([XCR, XNB], p_gamma, modules='sympy')
-PD = lambdify([XCR, XNB], p_delta, modules='sympy')
-PL = lambdify([XCR, XNB], p_laves, modules='sympy')
+PG = lambdify([XCR, XNB], p_gamma)
+PD = lambdify([XCR, XNB], p_delta)
+PL = lambdify([XCR, XNB], p_laves)
+
+# ============ COMPOSITION SHIFTS ============
+s_beta, s_gamma = symbols('s_beta, s_gamma')
+r_beta, r_gamma = symbols('r_beta, r_gamma')
+
+GaCrCr = p_d2Ggam_dxCrCr
+GaCrNb = p_d2Ggam_dxCrNb
+GaNbNb = p_d2Ggam_dxNbNb
+
+GbCrCr = p_d2Gdel_dxCrCr
+GbCrNb = p_d2Gdel_dxCrNb
+GbNbNb = p_d2Gdel_dxNbNb
+
+GgCrCr = p_d2Glav_dxCrCr
+GgCrNb = p_d2Glav_dxCrNb
+GgNbNb = p_d2Glav_dxNbNb
+
+DaCrCr = xe_gam_Cr * GaCrCr
+DaCrNb = xe_gam_Cr * GaCrNb
+DaNbCr = xe_gam_Nb * GaCrNb
+DaNbNb = xe_gam_Nb * GaNbNb
+
+DbCrCr = xe_del_Cr * GbCrCr
+DbCrNb = xe_del_Cr * GbCrNb
+DbNbCr = xe_del_Nb * GbCrNb
+DbNbNb = xe_del_Nb * GbNbNb
+
+DgCrCr = xe_lav_Cr * GgCrCr
+DgCrNb = xe_lav_Cr * GgCrNb
+DgNbCr = xe_lav_Nb * GgCrNb
+DgNbNb = xe_lav_Nb * GgNbNb
+
+P_beta  = 2 * s_beta / r_beta
+P_gamma = 2 * s_gamma / r_gamma
+
+A = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
+            [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
+            [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
+            [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
+            [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
+            [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+
+A1 = Matrix([[ 0          , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
+             [ 0          , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
+             [ 0          , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
+             [ 0          , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
+             [-P_beta     ,  DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
+             [-P_gamma    , DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+
+A2 = Matrix([[GaCrCr       , 0            ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
+             [GaCrNb       , 0            ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
+             [GaCrCr       , 0            , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
+             [GaCrNb       , 0            , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
+             [DaCrCr+DaNbCr,-P_beta       ,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
+             [DaCrCr+DaNbCr,-P_gamma      , 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+
+A3 = Matrix([[GaCrCr       , GaCrNb       , 0            ,-GbCrNb       , 0            , 0            ],
+             [GaCrNb       , GaNbNb       , 0            ,-GbNbNb       , 0            , 0            ],
+             [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
+             [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-P_beta       ,-DbCrNb-DbNbNb, 0            , 0            ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-P_gamma      , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+
+A4 = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       , 0            , 0            , 0            ],
+             [GaCrNb       , GaNbNb       ,-GbCrNb       , 0            , 0            , 0            ],
+             [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
+             [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-P_beta       , 0            , 0            ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            ,-P_gamma      ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+
+A5 = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
+             [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
+             [GaCrCr       , GaCrNb       , 0            , 0            , 0            ,-GgCrNb       ],
+             [GaCrNb       , GaNbNb       , 0            , 0            , 0            ,-GgNbNb       ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb,-P_beta       , 0            ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-P_gamma      ,-DgCrNb-DgNbNb]])
+
+A6 = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
+             [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
+             [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       , 0            ],
+             [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       , 0            ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            ,-P_beta       ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-P_gamma      ]])
+
+dA  = A.det()
+dA1 = A1.det()
+dA2 = A2.det()
+dA3 = A3.det()
+dA4 = A4.det()
+dA5 = A5.det()
+dA6 = A6.det()
+
+# Lambdify composition shifts
+DXAB = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA1/dA) # Cr in gamma phase
+DXAC = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA2/dA) # Nb in gamma phase
+
+DXBB = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA3/dA) # Cr in delta phase
+DXBC = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA4/dA) # Nb in delta phase
+
+DXGB = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA5/dA) # Cr in Laves phase
+DXGC = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA6/dA) # Nb in Laves phase
