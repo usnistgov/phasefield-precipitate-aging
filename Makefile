@@ -17,7 +17,7 @@ stddirect = -DPARABOLA -DNDEBUG
 dbgdirect = -DPARABOLA
 
 # flags: common, debug, Intel, GNU, and MPI
-stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include
+stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include -I ..
 dbgflags  = -pedantic $(stdflags) $(dbgdirect) -O0 -pg
 idbgflags = $(stdflags) $(dbgdirect) -O0 -profile-functions -profile-loops=all -profile-loops-report=2
 
@@ -27,8 +27,7 @@ gccflags = $(stdflags) $(stddirect) -pedantic -O3 -funroll-loops -ffast-math
 pgiflags = -I $(MMSP_PATH)/include $(stddirect) -fast -Mipa=fast,inline,safe -Mfprelaxed -std=c++11
 mpiflags = $(gccflags) -include mpi.h
 
-
-# WORKSTATION
+# WORKSTATION EXECUTABLES
 
 # default program (shared memory, OpenMP)
 alloy625: alloy625.cpp
@@ -41,8 +40,7 @@ serial: alloy625.cpp
 iserial: alloy625.cpp
 	$(icompiler) $< -o $@ $(idbgflags) $(stdlinks)
 
-
-# CLUSTER
+# CLUSTER EXECUTABLES
 
 # threaded program (shared memory, OpenMP)
 smp: alloy625.cpp
@@ -64,33 +62,20 @@ pgparallel: alloy625.cpp
 
 
 # DOCUMENTATION
-
 .PHONY: docs
-docs: phasefield-precipitate-aging_description.tex
-	pdflatex -interaction=nonstopmode $<
+docs:
+	$(MAKE) -C docs
 
+# THERMODYNAMICS EXECUTABLES
+.PHONY: thermo
+thermo:
+	$(MAKE) -C thermo
 
-# UTILITIES
+# ANALYSIS EXECUTABLES
+.PHONY: analysis
+analysis:
+	$(MAKE) -C analysis
 
-# extract composition from line profile
-mmsp2comp: mmsp2comp.cpp
-	g++ $(stdflags) $(stddirect) -O2 $< -o $@ -lz
-
-# extract composition from line profile
-ifcomp: ifcomp.cpp
-	g++ $(stdflags) $(stddirect) -O2 $< -o $@ -lz
-
-# extract phase fractions
-mmsp2frac: mmsp2frac.cpp
-	$(gcompiler) $(stdflags) -O2 $< -o $@ -lz
-
-# check interfacial adsorption (should be zero)
-adsorption: adsorption.cpp
-	$(gcompiler) $(stdflags) -O2 $< -o $@ -lz
-
-# generate equilibrium phase diagram information
-equilibrium: equilibrium.cpp
-	$(gcompiler) $(gccflags) $< -o $@ -lgsl -lgslcblas
-
+.PHONY: clean
 clean:
-	rm -f adsorption alloy625 equilibrium ibtest iserial mmsp2comp parallel pgparallel serial smp smpi
+	rm -f alloy625 ibtest iserial parallel pgparallel serial smp smpi

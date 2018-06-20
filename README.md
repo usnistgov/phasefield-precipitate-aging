@@ -30,7 +30,7 @@ dependent composition (Ni) and one dependent phase (γ).
 For a more thorough discussion of the model, please build the PDF description:
 
 ```
-    pdflatex description.tex
+    make docs
 ```
 
 Free energies for each constituent phase are computed using a CALPHAD database,

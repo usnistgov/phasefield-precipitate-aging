@@ -1,10 +1,24 @@
-# coding: utf-8
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+#####################################################################################
+# This software was developed at the National Institute of Standards and Technology #
+# by employees of the Federal Government in the course of their official duties.    #
+# Pursuant to title 17 section 105 of the United States Code this software is not   #
+# subject to copyright protection and is in the public domain. NIST assumes no      #
+# responsibility whatsoever for the use of this code by other parties, and makes no #
+# guarantees, expressed or implied, about its quality, reliability, or any other    #
+# characteristic. We would appreciate acknowledgement if the software is used.      #
+#                                                                                   #
+# This software can be redistributed and/or modified freely provided that any       #
+# derivative works bear some notice that they are derived from it, and any modified #
+# versions bear some notice that they have been modified.                           #
+#####################################################################################
 
 # Overlay phase-field simulation compositions on ternary phase diagram
 # Before executing this script, run the mmsp2comp utility
 # for each checkpoint file in the directories of interest.
-
-# Usage: python pathways.py data/alloy625/run2/TKR4p119/run2*
+# Usage: python analysis/pathways.py data/alloy625/run2/TKR4p119/run2*
 
 # Numerical libraries
 import re
@@ -24,32 +38,20 @@ from multiprocessing import Pool
 # Visualization libraries
 import matplotlib.pylab as plt
 
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from CALPHAD_energies import *
 
 density = 500
 skipsz = 9
 
 # # Generate a phase diagram
-# Using scipy.spatial.ConvexHull, an interface to qhull. This method cannot provide phase fractions, chemical potentials, etc., but will quickly produce the correct diagram from the given Gibbs energies.
-
-from CALPHAD_energies import *
+# Using scipy.spatial.ConvexHull, an interface to qhull. This method cannot
+# provide phase fractions, chemical potentials, etc., but will quickly produce
+# the correct diagram from the given Gibbs energies.
 
 labels = [r'$\gamma$', r'$\delta$', 'Laves']
 colors = ['red', 'green', 'blue']
-
-# Tick marks along simplex edges
-Xtick = []
-Ytick = []
-for i in range(20):
-    # Cr-Ni edge
-    xcr = 0.05*i
-    xni = 1.0 - xcr
-    Xtick.append(xcr/2 - 0.002)
-    Ytick.append(rt3by2*xcr)
-    # Cr-Nb edge
-    xcr = 0.05*i
-    xnb = 1.0 - xcr
-    Xtick.append(xnb + xcr/2 + 0.002)
-    Ytick.append(rt3by2*xcr)
 
 def computeKernelExclusive(n):
     xnb = max(epsilon, 1.0 * (n / density) / density)
