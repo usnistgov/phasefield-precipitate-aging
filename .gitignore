@@ -4,20 +4,22 @@
 *.aux
 *.bak
 *.c
+*.csv
 *.dat
 *.directory
 *.gnumeric
 *.h
 *.log
+*.o
+*.old
+*.out
 *.pdf
 *.png
 *.pvd
 *.pyc
-*.vti
-*.o
-*.out
 *.sh
 *.txt
+*.vti
 
 # simulation executables
 alloy625

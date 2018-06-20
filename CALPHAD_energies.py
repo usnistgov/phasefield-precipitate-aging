@@ -115,26 +115,24 @@ C14_LAVES0CR, C14_LAVES0NI, C14_LAVES1CR, C14_LAVES1NB = symbols('C14_LAVES0CR C
 # Specify gamma-delta-Laves corners (from phase diagram)
 xe_gam_Cr = 0.490
 xe_gam_Nb = 0.025
-xe_gam_Ni = 1 - xe_gam_Cr - xe_gam_Nb
 
 xe_del_Cr = 0.015
 xe_del_Nb = 0.245
 
 xe_lav_Cr = 0.300
 xe_lav_Nb = 0.328
-xe_lav_Ni = 1 - xe_lav_Cr - xe_lav_Nb
 
 # Define lever rule equations
-x0, y0 = symbols('x0 y0')
+xo, yo = symbols('xo yo')
 xb, yb = symbols('xb yb')
 xc, yc = symbols('xc yc')
 xd, yd = symbols('xd yd')
 
 from sympy.abc import x, y
-levers = solve_linear_system(Matrix(((y0 - yb, xb - x0, xb * (y0 - yb) + yb * (xb - x0)),
-                                     (yc - yd, xd - xc, xd * (yc - yd) + yd * (xd - xc)) )), x, y)
-leverNb = lambdify([x0, y0, xb, yb, xc, yc, xd, yd], levers[x])
-leverCr = lambdify([x0, y0, xb, yb, xc, yc, xd, yd], levers[y])
+levers = solve_linear_system(Matrix( ((yo - yb, xb - xo, xb * yo - xo * yb),
+                                      (yc - yd, xd - xc, xd * yc - xc * yd)) ), x, y)
+leverCr = lambdify([xo, yo, xb, yb, xc, yc, xd, yd], levers[y])
+leverNb = lambdify([xo, yo, xb, yb, xc, yc, xd, yd], levers[x])
 
 def draw_bisector(A, B):
     bNb = (A * xe_del_Nb + B * xe_lav_Nb) / (A + B)
@@ -248,8 +246,7 @@ PD = lambdify([XCR, XNB], p_delta)
 PL = lambdify([XCR, XNB], p_laves)
 
 # ============ COMPOSITION SHIFTS ============
-s_beta, s_gamma = symbols('s_beta, s_gamma')
-r_beta, r_gamma = symbols('r_beta, r_gamma')
+P_beta, P_gamma = symbols('P_beta, P_gamma')
 
 GaCrCr = p_d2Ggam_dxCrCr
 GaCrNb = p_d2Ggam_dxCrNb
@@ -278,9 +275,6 @@ DgCrNb = xe_lav_Cr * GgCrNb
 DgNbCr = xe_lav_Nb * GgCrNb
 DgNbNb = xe_lav_Nb * GgNbNb
 
-P_beta  = 2 * s_beta / r_beta
-P_gamma = 2 * s_gamma / r_gamma
-
 A = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
             [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
             [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
@@ -292,7 +286,7 @@ A1 = Matrix([[ 0          , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0      
              [ 0          , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
              [ 0          , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
              [ 0          , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [-P_beta     ,  DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
+             [-P_beta     , DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
              [-P_gamma    , DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
 
 A2 = Matrix([[GaCrCr       , 0            ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
@@ -339,11 +333,9 @@ dA5 = A5.det()
 dA6 = A6.det()
 
 # Lambdify composition shifts
-DXAB = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA1/dA) # Cr in gamma phase
-DXAC = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA2/dA) # Nb in gamma phase
-
-DXBB = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA3/dA) # Cr in delta phase
-DXBC = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA4/dA) # Nb in delta phase
-
-DXGB = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA5/dA) # Cr in Laves phase
-DXGC = lambdify([s_beta, r_beta, s_gamma, r_gamma], dA6/dA) # Nb in Laves phase
+DXAB = lambdify([P_beta, P_gamma], dA1 / dA) # Cr in gamma phase
+DXAC = lambdify([P_beta, P_gamma], dA2 / dA) # Nb in gamma phase
+DXBB = lambdify([P_beta, P_gamma], dA3 / dA) # Cr in delta phase
+DXBC = lambdify([P_beta, P_gamma], dA4 / dA) # Nb in delta phase
+DXGB = lambdify([P_beta, P_gamma], dA5 / dA) # Cr in Laves phase
+DXGC = lambdify([P_beta, P_gamma], dA6 / dA) # Nb in Laves phase
