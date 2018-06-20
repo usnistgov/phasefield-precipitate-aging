@@ -131,9 +131,6 @@ xd, yd = symbols('xd yd')
 from sympy.abc import x, y
 levers = solve_linear_system(Matrix( ((yo - yb, xb - xo, xb * yo - xo * yb),
                                       (yc - yd, xd - xc, xd * yc - xc * yd)) ), x, y)
-leverCr = lambdify([xo, yo, xb, yb, xc, yc, xd, yd], levers[y])
-leverNb = lambdify([xo, yo, xb, yb, xc, yc, xd, yd], levers[x])
-
 def draw_bisector(A, B):
     bNb = (A * xe_del_Nb + B * xe_lav_Nb) / (A + B)
     bCr = (A * xe_del_Cr + B * xe_lav_Cr) / (A + B)
@@ -218,35 +215,9 @@ p_d2Glav_dxCrNb = diff(p_laves, XCR, XNB)
 p_d2Glav_dxNbCr = diff(p_laves, XNB, XCR)
 p_d2Glav_dxNbNb = diff(p_laves, XNB, XNB)
 
-# Write parabolic functions as C code
-codegen([# Constants
-         ('xe_gam_Cr', xe_gam_Cr),  ('xe_gam_Nb', xe_gam_Nb),
-         ('xe_del_Cr', xe_del_Cr),  ('xe_del_Nb', xe_del_Nb),
-         ('xe_lav_Cr', xe_lav_Cr),  ('xe_lav_Nb', xe_lav_Nb),
-         ('r_delta', r_delta),  ('r_laves', r_laves),
-         ('s_delta', s_delta),  ('s_laves', s_laves),
-         # Gibbs energies
-         ('g_gam', p_gamma),  ('g_del', p_delta),  ('g_lav', p_laves),
-         # First derivatives
-         ('dg_gam_dxCr', p_dGgam_dxCr),  ('dg_gam_dxNb', p_dGgam_dxNb),
-         ('dg_del_dxCr', p_dGdel_dxCr),  ('dg_del_dxNb', p_dGdel_dxNb),
-         ('dg_lav_dxCr', p_dGlav_dxCr),  ('dg_lav_dxNb', p_dGlav_dxNb),
-         # Second derivatives
-         ('d2g_gam_dxCrCr', p_d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', p_d2Ggam_dxCrNb),
-         ('d2g_gam_dxNbCr', p_d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', p_d2Ggam_dxNbNb),
-         ('d2g_del_dxCrCr', p_d2Gdel_dxCrCr), ('d2g_del_dxCrNb', p_d2Gdel_dxCrNb),
-         ('d2g_del_dxNbCr', p_d2Gdel_dxNbCr), ('d2g_del_dxNbNb', p_d2Gdel_dxNbNb),
-         ('d2g_lav_dxCrCr', p_d2Glav_dxCrCr), ('d2g_lav_dxCrNb', p_d2Glav_dxCrNb),
-         ('d2g_lav_dxNbCr', p_d2Glav_dxNbCr), ('d2g_lav_dxNbNb', p_d2Glav_dxNbNb)],
-        language='C', prefix='parabola625', project='phasefield-precipitate-aging', to_files=True)
-
-# Lambdify parabolic expressions
-PG = lambdify([XCR, XNB], p_gamma)
-PD = lambdify([XCR, XNB], p_delta)
-PL = lambdify([XCR, XNB], p_laves)
 
 # ============ COMPOSITION SHIFTS ============
-P_beta, P_gamma = symbols('P_beta, P_gamma')
+P_del, P_lav = symbols('P_del, P_lav')
 
 GaCrCr = p_d2Ggam_dxCrCr
 GaCrNb = p_d2Ggam_dxCrNb
@@ -286,56 +257,92 @@ A1 = Matrix([[ 0          , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0      
              [ 0          , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
              [ 0          , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
              [ 0          , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [-P_beta     , DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
-             [-P_gamma    , DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+             [-P_del      , DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
+             [-P_lav      , DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
 
 A2 = Matrix([[GaCrCr       , 0            ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
              [GaCrNb       , 0            ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
              [GaCrCr       , 0            , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
              [GaCrNb       , 0            , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [DaCrCr+DaNbCr,-P_beta       ,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
-             [DaCrCr+DaNbCr,-P_gamma      , 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+             [DaCrCr+DaNbCr,-P_del        ,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
+             [DaCrCr+DaNbCr,-P_lav        , 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
 
 A3 = Matrix([[GaCrCr       , GaCrNb       , 0            ,-GbCrNb       , 0            , 0            ],
              [GaCrNb       , GaNbNb       , 0            ,-GbNbNb       , 0            , 0            ],
              [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
              [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-P_beta       ,-DbCrNb-DbNbNb, 0            , 0            ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-P_gamma      , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-P_del        ,-DbCrNb-DbNbNb, 0            , 0            ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-P_lav        , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
 
 A4 = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       , 0            , 0            , 0            ],
              [GaCrNb       , GaNbNb       ,-GbCrNb       , 0            , 0            , 0            ],
              [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
              [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-P_beta       , 0            , 0            ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            ,-P_gamma      ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-P_del        , 0            , 0            ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            ,-P_lav        ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
 
 A5 = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
              [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
              [GaCrCr       , GaCrNb       , 0            , 0            , 0            ,-GgCrNb       ],
              [GaCrNb       , GaNbNb       , 0            , 0            , 0            ,-GgNbNb       ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb,-P_beta       , 0            ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-P_gamma      ,-DgCrNb-DgNbNb]])
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb,-P_del        , 0            ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-P_lav        ,-DgCrNb-DgNbNb]])
 
 A6 = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
              [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
              [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       , 0            ],
              [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       , 0            ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            ,-P_beta       ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-P_gamma      ]])
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            ,-P_del        ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-P_lav        ]])
 
 dA  = A.det()
-dA1 = A1.det()
-dA2 = A2.det()
-dA3 = A3.det()
-dA4 = A4.det()
-dA5 = A5.det()
-dA6 = A6.det()
 
-# Lambdify composition shifts
-DXAB = lambdify([P_beta, P_gamma], dA1 / dA) # Cr in gamma phase
-DXAC = lambdify([P_beta, P_gamma], dA2 / dA) # Nb in gamma phase
-DXBB = lambdify([P_beta, P_gamma], dA3 / dA) # Cr in delta phase
-DXBC = lambdify([P_beta, P_gamma], dA4 / dA) # Nb in delta phase
-DXGB = lambdify([P_beta, P_gamma], dA5 / dA) # Cr in Laves phase
-DXGC = lambdify([P_beta, P_gamma], dA6 / dA) # Nb in Laves phase
+dx_r_gam_Cr = A1.det() / dA
+dx_r_gam_Nb = A2.det() / dA
+dx_r_del_Cr = A3.det() / dA
+dx_r_del_Nb = A4.det() / dA
+dx_r_lav_Cr = A5.det() / dA
+dx_r_lav_Nb = A6.det() / dA
+
+# Generate numerically efficient C-code
+
+codegen([# Equilibrium Compositions
+         ('xe_gam_Cr', xe_gam_Cr),  ('xe_gam_Nb', xe_gam_Nb),
+         ('xe_del_Cr', xe_del_Cr),  ('xe_del_Nb', xe_del_Nb),
+         ('xe_lav_Cr', xe_lav_Cr),  ('xe_lav_Nb', xe_lav_Nb),
+         # Curvature-Corrected Compositions
+         ('xr_gam_Cr', xe_gam_Cr + dx_r_gam_Cr),  ('xr_gam_Nb', xe_gam_Nb + dx_r_gam_Nb),
+         ('xr_del_Cr', xe_del_Cr + dx_r_del_Cr),  ('xr_del_Nb', xe_del_Nb + dx_r_del_Nb),
+         ('xr_lav_Cr', xe_lav_Cr + dx_r_lav_Cr),  ('xr_lav_Nb', xe_lav_Nb + dx_r_lav_Nb),
+         # Precipitate Properties
+         ('r_delta', r_delta),  ('r_laves', r_laves),
+         ('s_delta', s_delta),  ('s_laves', s_laves),
+         # Gibbs energies
+         ('g_gam', p_gamma),  ('g_del', p_delta),  ('g_lav', p_laves),
+         # First derivatives
+         ('dg_gam_dxCr', p_dGgam_dxCr),  ('dg_gam_dxNb', p_dGgam_dxNb),
+         ('dg_del_dxCr', p_dGdel_dxCr),  ('dg_del_dxNb', p_dGdel_dxNb),
+         ('dg_lav_dxCr', p_dGlav_dxCr),  ('dg_lav_dxNb', p_dGlav_dxNb),
+         # Second derivatives
+         ('d2g_gam_dxCrCr', p_d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', p_d2Ggam_dxCrNb),
+         ('d2g_gam_dxNbCr', p_d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', p_d2Ggam_dxNbNb),
+         ('d2g_del_dxCrCr', p_d2Gdel_dxCrCr), ('d2g_del_dxCrNb', p_d2Gdel_dxCrNb),
+         ('d2g_del_dxNbCr', p_d2Gdel_dxNbCr), ('d2g_del_dxNbNb', p_d2Gdel_dxNbNb),
+         ('d2g_lav_dxCrCr', p_d2Glav_dxCrCr), ('d2g_lav_dxCrNb', p_d2Glav_dxCrNb),
+         ('d2g_lav_dxNbCr', p_d2Glav_dxNbCr), ('d2g_lav_dxNbNb', p_d2Glav_dxNbNb)],
+        language='C', prefix='parabola625', project='PrecipitateAging', to_files=True)
+
+# Generate numerically efficient Python code
+leverCr = lambdify([xo, yo, xb, yb, xc, yc, xd, yd], levers[y])
+leverNb = lambdify([xo, yo, xb, yb, xc, yc, xd, yd], levers[x])
+
+PG = lambdify([XCR, XNB], p_gamma)
+PD = lambdify([XCR, XNB], p_delta)
+PL = lambdify([XCR, XNB], p_laves)
+
+DXAB = lambdify([P_del, P_lav], dx_r_gam_Cr) # Cr in gamma phase
+DXAC = lambdify([P_del, P_lav], dx_r_gam_Nb) # Nb in gamma phase
+DXBB = lambdify([P_del, P_lav], dx_r_del_Cr) # Cr in delta phase
+DXBC = lambdify([P_del, P_lav], dx_r_del_Nb) # Nb in delta phase
+DXGB = lambdify([P_del, P_lav], dx_r_lav_Cr) # Cr in Laves phase
+DXGC = lambdify([P_del, P_lav], dx_r_lav_Nb) # Nb in Laves phase

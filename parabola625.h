@@ -3,12 +3,12 @@
  *                                                                            *
  *              See http://www.sympy.org/ for more information.               *
  *                                                                            *
- *            This file is part of 'phasefield-precipitate-aging'             *
+ *                  This file is part of 'PrecipitateAging'                   *
  ******************************************************************************/
 
 
-#ifndef PHASEFIELD-PRECIPITATE-AGING__PARABOLA625__H
-#define PHASEFIELD-PRECIPITATE-AGING__PARABOLA625__H
+#ifndef PRECIPITATEAGING__PARABOLA625__H
+#define PRECIPITATEAGING__PARABOLA625__H
 
 double xe_gam_Cr();
 double xe_gam_Nb();
@@ -16,6 +16,12 @@ double xe_del_Cr();
 double xe_del_Nb();
 double xe_lav_Cr();
 double xe_lav_Nb();
+double xr_gam_Cr(double P_del, double P_lav);
+double xr_gam_Nb(double P_del, double P_lav);
+double xr_del_Cr(double P_del, double P_lav);
+double xr_del_Nb(double P_del, double P_lav);
+double xr_lav_Cr(double P_del, double P_lav);
+double xr_lav_Nb(double P_del, double P_lav);
 double r_delta();
 double r_laves();
 double s_delta();

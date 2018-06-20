@@ -6,7 +6,7 @@
 # compilers: Intel, GCC, MPI
 icompiler = /usr/local/intel/bin/icc
 gcompiler = /usr/bin/g++-4.9
-pcompiler = mpicxx
+pcompiler = /usr/local/bin/mpicxx
 
 # libraries: z, gsl
 stdlinks = -lz -lgsl -lgslcblas

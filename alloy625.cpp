@@ -129,7 +129,7 @@ const field_t Lmob[NP] = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns),
 //const field_t Lmob[NP] = {1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns), Xu's numbers
 
 //                        delta   Laves
-const field_t sigma[NP] = {1.010, 1.111}; // (J/m^2)
+const field_t sigma[NP] = {1.010, 1.010}; // (J/m^2)
 
 // Interfacial width
 const field_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
@@ -394,15 +394,18 @@ void generate(int dim, const char* filename)
 		bool withinRange = false;
 		double xCr0;
 		double xNb0;
-		/*
-		  while (!withinRange) {
-		  xCr0 = 0.43 + unidist(mtrand) * (0.47 - 0.43);
-		  xNb0 = 0.05 + unidist(mtrand) * (0.09 - 0.05);
-		  withinRange = (std::pow(xCr0 - 0.45, 2.0) + std::pow(xNb0 - 0.07, 2.0) < std::pow(0.02, 2.0));
-		  }
-		*/
+
 		while (!withinRange) {
-			// Rotate and scale unit squareB
+			const double xo = 0.4125;
+			const double yo = 0.10;
+			const double ro = 0.05;
+			xCr0 = yo + ro * (unidist(mtrand) - 1.);
+			xNb0 = xo + ro * (unidist(mtrand) - 1.);
+			withinRange = (std::pow(xCr0 - yo, 2.0) + std::pow(xNb0 - xo, 2.0) < std::pow(ro, 2.0));
+		}
+		/*
+		while (!withinRange) {
+			// Rotate and scale unit square
 			const double    dX = 0.0275;
 			const double    dY = 0.4700;
 			const double   scX = 0.2000;
@@ -416,6 +419,7 @@ void generate(int dim, const char* filename)
 			bool aboveLowerBound = (xCr0 > (0.250 - 0.490)/(0.136 - 0.025) * (xNb0 - 0.025) + 0.49);
 			withinRange = (belowUpperBound && aboveLowerBound);
 		}
+		*/
 
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
@@ -425,10 +429,16 @@ void generate(int dim, const char* filename)
 		MPI::COMM_WORLD.Bcast(&xNb0, 1, MPI_DOUBLE, 0);
 		#endif
 
+		// curvature-dependent initial compositions
+		const field_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
+		const field_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
+		const field_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav), xr_del_Cr(P_del, P_lav), xr_lav_Cr(P_del, P_lav)};
+		const field_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav), xr_del_Nb(P_del, P_lav), xr_lav_Nb(P_del, P_lav)};
+
 		for (int j = 0; j < NP; j++) {
 			origin[0] = (j%2==0) ? -d/2 : d/2;
 			origin[1] = 0;
-			comp += embedParticle(initGrid, origin, j+NC, r, xCr[j+1], xNb[j+1]);
+			comp += embedParticle(initGrid, origin, j+NC, r, xrCr[j+1], xrNb[j+1]);
 		}
 
 		// Synchronize global initial condition parameters
@@ -436,7 +446,7 @@ void generate(int dim, const char* filename)
 		Composition myComp;
 		myComp += comp;
 		MPI::COMM_WORLD.Barrier();
-		// Caution: Primitive. Will not scale to large MPI systems.
+		// Caution: Will not scale to "large" MPI systems.
 		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
 		for (int j = 0; j < NP+1; j++) {
 			MPI::COMM_WORLD.Barrier();
