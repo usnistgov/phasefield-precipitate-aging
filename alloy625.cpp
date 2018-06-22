@@ -410,6 +410,7 @@ void generate(int dim, const char* filename)
 		/* Randomly choose system composition in a rectangular
 		 * region of the phase diagram along the gamma bisector
 		 * of three-phase coexistence triangular phase field
+		 */
 		/*
 		while (!withinRange) {
 			// Rotate and scale unit square
