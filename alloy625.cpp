@@ -395,14 +395,21 @@ void generate(int dim, const char* filename)
 		double xCr0;
 		double xNb0;
 
+		/* Randomly choose system composition in a circular
+		 * region of the phase diagram near the gamma corner
+		 * of three-phase coexistence triangular phase field
+		 */
 		while (!withinRange) {
 			const double xo = 0.4125;
 			const double yo = 0.10;
 			const double ro = 0.05;
-			xCr0 = yo + ro * (unidist(mtrand) - 1.);
-			xNb0 = xo + ro * (unidist(mtrand) - 1.);
-			withinRange = (std::pow(xCr0 - yo, 2.0) + std::pow(xNb0 - xo, 2.0) < std::pow(ro, 2.0));
+			xCr0 = xo + ro * (unidist(mtrand) - 1.);
+			xNb0 = yo + ro * (unidist(mtrand) - 1.);
+			withinRange = (std::pow(xCr0 - xo, 2.0) + std::pow(xNb0 - yo, 2.0) < std::pow(ro, 2.0));
 		}
+		/* Randomly choose system composition in a rectangular
+		 * region of the phase diagram along the gamma bisector
+		 * of three-phase coexistence triangular phase field
 		/*
 		while (!withinRange) {
 			// Rotate and scale unit square
