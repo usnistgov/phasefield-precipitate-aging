@@ -3,7 +3,7 @@
  *                                                                            *
  *              See http://www.sympy.org/ for more information.               *
  *                                                                            *
- *            This file is part of 'phasefield-precipitate-aging'             *
+ *                  This file is part of 'PrecipitateAging'                   *
  ******************************************************************************/
 #include "parabola625.h"
 #include <math.h>
@@ -53,6 +53,54 @@ double xe_lav_Nb() {
    double xe_lav_Nb_result;
    xe_lav_Nb_result = 0.328;
    return xe_lav_Nb_result;
+
+}
+
+double xr_gam_Cr(double P_del, double P_lav) {
+
+   double xr_gam_Cr_result;
+   xr_gam_Cr_result = -1.35745662070089e-9*P_del + 6.39244600941495e-10*P_lav + 0.49;
+   return xr_gam_Cr_result;
+
+}
+
+double xr_gam_Nb(double P_del, double P_lav) {
+
+   double xr_gam_Nb_result;
+   xr_gam_Nb_result = 2.47594876167461e-10*P_del - 6.66222300558978e-11*P_lav + 0.025;
+   return xr_gam_Nb_result;
+
+}
+
+double xr_del_Cr(double P_del, double P_lav) {
+
+   double xr_del_Cr_result;
+   xr_del_Cr_result = -4.44614260967702e-11*P_del + 2.79333077660349e-11*P_lav + 0.015;
+   return xr_del_Cr_result;
+
+}
+
+double xr_del_Nb(double P_del, double P_lav) {
+
+   double xr_del_Nb_result;
+   xr_del_Nb_result = -5.43111816527597e-12*P_del + 2.05131716667735e-11*P_lav + 0.245;
+   return xr_del_Nb_result;
+
+}
+
+double xr_lav_Cr(double P_del, double P_lav) {
+
+   double xr_lav_Cr_result;
+   xr_lav_Cr_result = -1.42576885211229e-10*P_del + 1.05186220574483e-10*P_lav + 0.3;
+   return xr_lav_Cr_result;
+
+}
+
+double xr_lav_Nb(double P_del, double P_lav) {
+
+   double xr_lav_Nb_result;
+   xr_lav_Nb_result = -7.60450759974508e-12*P_del + 1.63559527488478e-11*P_lav + 0.328;
+   return xr_lav_Nb_result;
 
 }
 

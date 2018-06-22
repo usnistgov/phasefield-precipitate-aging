@@ -129,7 +129,7 @@ const field_t Lmob[NP] = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns),
 //const field_t Lmob[NP] = {1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns), Xu's numbers
 
 //                        delta   Laves
-const field_t sigma[NP] = {1.010, 1.111}; // (J/m^2)
+const field_t sigma[NP] = {1.010, 1.010}; // (J/m^2)
 
 // Interfacial width
 const field_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
@@ -177,7 +177,14 @@ void generate(int dim, const char* filename)
 	std::uniform_real_distribution<double> unidist(0, 1); // uniform distribution on [0, 1)
 
 	if (dim==1) {
-		// Construct grid
+		/* ============================================= *
+		 * Three-phase Stripe Growth test configuration  *
+		 *                                               *
+		 * Seed a 1.0 um domain with 3 stripes (one of   *
+		 * each secondary phase) to test competitive     *
+		 * growth without curvature                      *
+		 * ============================================= */
+
 		const int Nx = 768; // divisible by 12 and 64
 		double dV = 1.0;
 		double Ntot = 1.0;
@@ -216,29 +223,12 @@ void generate(int dim, const char* filename)
 		Composition comp;
 		//comp += enrichMatrix(initGrid, bell[0], bell[1]);
 
+		vector<int> origin(dim, 0);
+		const int xoffset[NP] = {int(-16 * (5e-9 / meshres)), int(16 * (5e-9 / meshres))}; //  80 nm
 
-
-		if (1) {
-			/* ============================================= *
-			 * Three-phase Stripe Growth test configuration  *
-			 *                                               *
-			 * Seed a 1.0 um domain with 3 stripes (one of   *
-			 * each secondary phase) to test competitive     *
-			 * growth without curvature                      *
-			 * ============================================= */
-
-			vector<int> origin(dim, 0);
-			const int xoffset[NP] = {int(-16 * (5e-9 / meshres)), int(16 * (5e-9 / meshres))}; //  80 nm
-
-			for (int j = 0; j < NP; j++) {
-				origin[0] = Nx / 2 + xoffset[j];
-				comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-			}
-
-		} else {
-			if (rank == 0)
-				std::cerr << "Error: specify an initial condition!" << std::endl;
-			MMSP::Abort(-1);
+		for (int j = 0; j < NP; j++) {
+			origin[0] = Nx / 2 + xoffset[j];
+			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
 		}
 
 		// Synchronize global initial condition parameters
@@ -253,7 +243,6 @@ void generate(int dim, const char* filename)
 			MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
 		}
 		#endif
-
 
 		// Initialize matrix to achieve specified system composition
 		field_t matCr = Ntot * xCr[0];
@@ -336,13 +325,15 @@ void generate(int dim, const char* filename)
 
 
 
-
 	} else if (dim==2) {
+		/* =============================================== *
+		 * Two-phase Particle Growth test configuration    *
+		 *            Small-Precipitate Region             *
+		 * Seed a 1.0 um x 0.05 um domain with 2 particles *
+		 * (one of each secondary phase) in a single row   *
+		 * to test competitive growth with Gibbs-Thomson   *
+		 * =============================================== */
 
-
-
-
-		// Construct grid
 		const int Nx = 320; // divisible by 12 and 64
 		const int Ny = 192;
 		double dV = 1.0;
@@ -364,7 +355,6 @@ void generate(int dim, const char* filename)
 		//                    minimum for numerical stability is 14*dx (due to interface width).
 		const field_t rPrecip[NP] = {5.0*7.5e-9 / dx(initGrid,0),  // delta
 		                             5.0*7.5e-9 / dx(initGrid,0)}; // Laves
-
 
 		// Sanity check on system size and  particle spacing
 		if (rank == 0)
@@ -390,241 +380,98 @@ void generate(int dim, const char* filename)
 		field_t matNb = 0.0;
 		//comp += enrichMatrix(initGrid, bell[0], bell[1]);
 
-		if (0) {
-			/* ================================================ *
-			 * Multi-precipitate particle test configuration    *
-			 *                                                  *
-			 * Seed a 1.0 um x 0.25 um domain with N particles  *
-			 * test full numerical and physical model           *
-			 * ================================================ */
+		vector<int> origin(dim, 0);
 
-			std::vector<vector<int> > seeds;
-			vector<int> seed(dim+2, 0);
-			unsigned int nprcp = std::pow(2, std::ceil(std::log2(96*Nx*Ny/(768*192))));
+		// Set precipitate radius
+		// int r = std::floor((0.525 + unidist(mtrand)) * rPrecip[0]);
+		int r = rPrecip[0];
 
-			#ifdef MPI_VERSION
-			int np = MPI::COMM_WORLD.Get_size();
-			nprcp = std::max(1, int(nprcp / np));
-			#endif
-			unsigned int attempts = 0;
+		// Set precipitate separation (min=2r, max=Nx-2r)
+		// int d = unidist(mtrand) * 16 + (g1(initGrid, 0) - g0(initGrid, 0))/2;
+		int d = 8 + (g1(initGrid, 0) - g0(initGrid, 0))/2;
 
-			// Generate non-overlapping seeds with random size and phase
-			while (seeds.size() < nprcp && attempts < 500 * nprcp) {
-				// Set precipitate ID between [0, NP+1)
-				double rnd = unidist(mtrand);
-				seed[dim] = std::floor(rnd * (NP + 1));
+		// Set system composition
+		bool withinRange = false;
+		double xCr0;
+		double xNb0;
 
-				// Set precipitate radius
-				rnd = unidist(mtrand);
-				seed[dim+1] = std::floor((0.525 + rnd) * rPrecip[seed[dim]]);
+		/* Randomly choose system composition in a circular
+		 * region of the phase diagram near the gamma corner
+		 * of three-phase coexistence triangular phase field
+		 */
+		while (!withinRange) {
+			const double xo = 0.4125;
+			const double yo = 0.10;
+			const double ro = 0.05;
+			xCr0 = xo + ro * (unidist(mtrand) - 1.);
+			xNb0 = yo + ro * (unidist(mtrand) - 1.);
+			withinRange = (std::pow(xCr0 - xo, 2.0) + std::pow(xNb0 - yo, 2.0) < std::pow(ro, 2.0));
+		}
+		/* Randomly choose system composition in a rectangular
+		 * region of the phase diagram along the gamma bisector
+		 * of three-phase coexistence triangular phase field
+		/*
+		while (!withinRange) {
+			// Rotate and scale unit square
+			const double    dX = 0.0275;
+			const double    dY = 0.4700;
+			const double   scX = 0.2000;
+			const double   scY = 0.0250;
+			const double theta = 0.9250;
+			const double X = scX * unidist(mtrand);
+			const double Y = scY * unidist(mtrand);
+			xNb0 =  std::cos(theta) * X + std::sin(theta) * Y + dX;
+			xCr0 = -std::sin(theta) * X + std::cos(theta) * Y + dY;
+			bool belowUpperBound = (xCr0 < (0.349 - 0.490)/(0.250 - 0.025) * (xNb0 - 0.025) + 0.49);
+			bool aboveLowerBound = (xCr0 > (0.250 - 0.490)/(0.136 - 0.025) * (xNb0 - 0.025) + 0.49);
+			withinRange = (belowUpperBound && aboveLowerBound);
+		}
+		*/
 
-				// Set precipitate origin
-				for (int d = 0; d < dim; d++) {
-					rnd = unidist(mtrand);
-					seed[d] = x0(initGrid, d) + seed[dim+1] + int(rnd * (x1(initGrid, d) - x0(initGrid, d) - 2 * seed[dim+1]));
-				}
+		#ifdef MPI_VERSION
+		MPI::COMM_WORLD.Barrier();
+		MPI::COMM_WORLD.Bcast(&r,    1, MPI_INT,    0);
+		MPI::COMM_WORLD.Bcast(&d,    1, MPI_INT,    0);
+		MPI::COMM_WORLD.Bcast(&xCr0, 1, MPI_DOUBLE, 0);
+		MPI::COMM_WORLD.Bcast(&xNb0, 1, MPI_DOUBLE, 0);
+		#endif
 
-				bool clearSpace = true;
-				for (size_t i = 0; clearSpace && i < seeds.size(); i++) {
-					double r = 0;
-					for (int d = 0; d < dim; d++)
-						r += pow(seeds[i][d] - seed[d], 2);
-					if (std::sqrt(r) < seed[dim+1] + seeds[i][dim+1])
-						clearSpace = false;
-				}
+		// curvature-dependent initial compositions
+		const field_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
+		const field_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
+		const field_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav), xr_del_Cr(P_del, P_lav), xr_lav_Cr(P_del, P_lav)};
+		const field_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav), xr_del_Nb(P_del, P_lav), xr_lav_Nb(P_del, P_lav)};
 
-				if (clearSpace)
-					seeds.push_back(seed);
-
-				attempts++;
-			}
-
-			for (size_t i = 0; i < seeds.size(); i++) {
-				vector<int> origin(dim, 0);
-				for (int d = 0; d < dim; d++)
-					origin[d] = seeds[i][d];
-				int pid = seeds[i][dim];
-				assert(pid < NP+1);
-
-				// Embed this precipitate
-				comp += embedParticle(initGrid, origin, NC+pid, seeds[i][dim+1], xCr[pid+1], xNb[pid+1]);
-			}
-
-			// Synchronize global initial condition parameters
-			#ifdef MPI_VERSION
-			Composition myComp;
-			myComp += comp;
-			MPI::COMM_WORLD.Barrier();
-			// Caution: Primitive. Will not scale to large MPI systems.
-			MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
-			for (int j = 0; j < NP+1; j++) {
-				MPI::COMM_WORLD.Barrier();
-				MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
-			}
-			#endif
-
-			// Initialize matrix to achieve specified system composition
-			matCr = Ntot * xCr[0];
-			matNb = Ntot * xNb[0];
-			double Nmat  = Ntot;
-			for (int i = 0; i < NP+1; i++) {
-				Nmat  -= comp.N[i];
-				matCr -= comp.x[i][0];
-				matNb -= comp.x[i][1];
-			}
-			matCr /= Nmat;
-			matNb /= Nmat;
-
-		} else if (0) {
-			/* =============================================== *
-			 * Two-phase Particle Growth test configuration    *
-			 *                                                 *
-			 * Seed a 1.0 um x 0.05 um domain with 2 particles *
-			 * (one of each secondary phase) in a single row   *
-			 * to test competitive growth with Gibbs-Thomson   *
-			 * =============================================== */
-
-			vector<int> origin(dim, 0);
-
-			// Set precipitate radius
-			int r = std::floor((0.525 + unidist(mtrand)) * rPrecip[0]);
-
-			// Set precipitate separation (min=2r, max=Nx-2r
-			int d = unidist(mtrand) * (g1(initGrid, 0) - g0(initGrid, 0) - 2*std::max(r, 70));
-
-			// Set system composition
-			double xCr0 = 0.05 + unidist(mtrand) * (0.45 - 0.05);
-			double xNb0 = 0.15 + unidist(mtrand) * (0.25 - 0.15);
-
-			#ifdef MPI_VERSION
-			MPI::COMM_WORLD.Bcast(&r,    1, MPI_INT,    0);
-			MPI::COMM_WORLD.Bcast(&d,    1, MPI_INT,    0);
-			MPI::COMM_WORLD.Bcast(&xCr0, 1, MPI_DOUBLE, 0);
-			MPI::COMM_WORLD.Bcast(&xNb0, 1, MPI_DOUBLE, 0);
-			#endif
-
-			for (int j = 0; j < NP; j++) {
-				origin[0] = (j%2==0) ? -d/2 : d/2;
-				origin[1] = 0;
-				comp += embedParticle(initGrid, origin, j+NC, r, xCr[j+1], xNb[j+1]);
-			}
-
-			// Synchronize global initial condition parameters
-			#ifdef MPI_VERSION
-			Composition myComp;
-			myComp += comp;
-			MPI::COMM_WORLD.Barrier();
-			// Caution: Primitive. Will not scale to large MPI systems.
-			MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
-			for (int j = 0; j < NP+1; j++) {
-				MPI::COMM_WORLD.Barrier();
-				MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
-			}
-			#endif
-
-			// Initialize matrix to achieve specified system composition
-			matCr = Ntot * xCr0;
-			matNb = Ntot * xNb0;
-			double Nmat  = Ntot;
-			for (int i = 0; i < NP+1; i++) {
-				Nmat  -= comp.N[i];
-				matCr -= comp.x[i][0];
-				matNb -= comp.x[i][1];
-			}
-			matCr /= Nmat;
-			matNb /= Nmat;
-
-		} else if (1) {
-			/* =============================================== *
-			 * Two-phase Particle Growth test configuration    *
-			 *            Small-Precipitate Region             *
-			 * Seed a 1.0 um x 0.05 um domain with 2 particles *
-			 * (one of each secondary phase) in a single row   *
-			 * to test competitive growth with Gibbs-Thomson   *
-			 * =============================================== */
-
-			vector<int> origin(dim, 0);
-
-			// Set precipitate radius
-			// int r = std::floor((0.525 + unidist(mtrand)) * rPrecip[0]);
-			int r = rPrecip[0];
-
-			// Set precipitate separation (min=2r, max=Nx-2r)
-			// int d = unidist(mtrand) * 16 + (g1(initGrid, 0) - g0(initGrid, 0))/2;
-			int d = 8 + (g1(initGrid, 0) - g0(initGrid, 0))/2;
-
-			// Set system composition
-			bool withinRange = false;
-			double xCr0;
-			double xNb0;
-			/*
-			while (!withinRange) {
-				xCr0 = 0.43 + unidist(mtrand) * (0.47 - 0.43);
-				xNb0 = 0.05 + unidist(mtrand) * (0.09 - 0.05);
-				withinRange = (std::pow(xCr0 - 0.45, 2.0) + std::pow(xNb0 - 0.07, 2.0) < std::pow(0.02, 2.0));
-			}
-			*/
-			while (!withinRange) {
-				// Rotate and scale unit squareB
-				const double    dX = 0.0275;
-				const double    dY = 0.4700;
-				const double   scX = 0.2000;
-				const double   scY = 0.0250;
-				const double theta = 0.9250;
-				const double X = scX * unidist(mtrand);
-				const double Y = scY * unidist(mtrand);
-				xNb0 =  std::cos(theta) * X + std::sin(theta) * Y + dX;
-				xCr0 = -std::sin(theta) * X + std::cos(theta) * Y + dY;
-				bool belowUpperBound = (xCr0 < (0.349 - 0.490)/(0.250 - 0.025) * (xNb0 - 0.025) + 0.49);
-				bool aboveLowerBound = (xCr0 > (0.250 - 0.490)/(0.136 - 0.025) * (xNb0 - 0.025) + 0.49);
-				withinRange = (belowUpperBound && aboveLowerBound);
-			}
-
-			#ifdef MPI_VERSION
-			MPI::COMM_WORLD.Barrier();
-			MPI::COMM_WORLD.Bcast(&r,    1, MPI_INT,    0);
-			MPI::COMM_WORLD.Bcast(&d,    1, MPI_INT,    0);
-			MPI::COMM_WORLD.Bcast(&xCr0, 1, MPI_DOUBLE, 0);
-			MPI::COMM_WORLD.Bcast(&xNb0, 1, MPI_DOUBLE, 0);
-			#endif
-
-			for (int j = 0; j < NP; j++) {
-				origin[0] = (j%2==0) ? -d/2 : d/2;
-				origin[1] = 0;
-				comp += embedParticle(initGrid, origin, j+NC, r, xCr[j+1], xNb[j+1]);
-			}
-
-			// Synchronize global initial condition parameters
-			#ifdef MPI_VERSION
-			Composition myComp;
-			myComp += comp;
-			MPI::COMM_WORLD.Barrier();
-			// Caution: Primitive. Will not scale to large MPI systems.
-			MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
-			for (int j = 0; j < NP+1; j++) {
-				MPI::COMM_WORLD.Barrier();
-				MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
-			}
-			#endif
-
-			// Initialize matrix to achieve specified system composition
-			matCr = Ntot * xCr0;
-			matNb = Ntot * xNb0;
-			double Nmat  = Ntot;
-			for (int i = 0; i < NP+1; i++) {
-				Nmat  -= comp.N[i];
-				matCr -= comp.x[i][0];
-				matNb -= comp.x[i][1];
-			}
-			matCr /= Nmat;
-			matNb /= Nmat;
-
-		} else {
-			if (rank == 0)
-				std::cerr << "Error: specify an initial condition!" << std::endl;
-			MMSP::Abort(-1);
+		for (int j = 0; j < NP; j++) {
+			origin[0] = (j%2==0) ? -d/2 : d/2;
+			origin[1] = 0;
+			comp += embedParticle(initGrid, origin, j+NC, r, xrCr[j+1], xrNb[j+1]);
 		}
 
+		// Synchronize global initial condition parameters
+		#ifdef MPI_VERSION
+		Composition myComp;
+		myComp += comp;
+		MPI::COMM_WORLD.Barrier();
+		// Caution: Will not scale to "large" MPI systems.
+		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
+		for (int j = 0; j < NP+1; j++) {
+			MPI::COMM_WORLD.Barrier();
+			MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
+		}
+		#endif
+
+		// Initialize matrix to achieve specified system composition
+		matCr = Ntot * xCr0;
+		matNb = Ntot * xNb0;
+		double Nmat  = Ntot;
+		for (int i = 0; i < NP+1; i++) {
+			Nmat  -= comp.N[i];
+			matCr -= comp.x[i][0];
+			matNb -= comp.x[i][1];
+		}
+		matCr /= Nmat;
+		matNb /= Nmat;
 
 		/* =========================== *
 		 * Solve for parallel tangents *
@@ -698,7 +545,6 @@ void generate(int dim, const char* filename)
 		fclose(cfile);
 
 }
-
 
 
 

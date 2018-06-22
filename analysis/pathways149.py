@@ -38,7 +38,7 @@ skipsz = 9
 labels = [r'$\gamma$', r'$\delta$', 'Laves']
 colors = ['red', 'green', 'blue']
 
-for datdir in glob.glob("data/alloy625/TKR4p149/run*"): #{0}".format(j) for j in (2,3,6,12,21,63)]:
+for datdir in glob.glob("data/alloy625/TKR4p149/run*/"):
     if path.isdir(datdir) and len(glob.glob("{0}/*.xy".format(datdir))) > 0:
         base = path.basename(datdir)
         # Plot phase diagram

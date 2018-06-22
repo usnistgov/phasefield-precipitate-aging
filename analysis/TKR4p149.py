@@ -50,7 +50,7 @@ plt.plot((0, tmax), (0, 0), color='black', zorder=1)
 # Generate combined plots (ternary and trajectories); store individual data
 datasets = []
 fmax = 0.
-for datdir in tqdm(glob.glob('/data/tnk10/phase-field/alloy625/TKR4p149/run*')):
+for datdir in tqdm(glob.glob('/data/tnk10/phase-field/alloy625/TKR4p149/run*/')):
     if path.isdir(datdir) and len(glob.glob("{0}/c.log".format(datdir))) > 0:
         base = path.basename(datdir)
         try:
