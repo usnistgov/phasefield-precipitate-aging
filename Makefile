@@ -4,9 +4,9 @@
 # Compiler optimizations after http://www.nersc.gov/users/computational-systems/retired-systems/hopper/performance-and-optimization/compiler-comparisons/
 
 # compilers: Intel, GCC, MPI
-icompiler = /usr/local/intel/bin/icc
-gcompiler = /usr/bin/g++-4.9
-pcompiler = /usr/local/bin/mpicxx
+icompiler = icc
+gcompiler = g++
+pcompiler = mpicxx
 
 # libraries: z, gsl
 stdlinks = -lz -lgsl -lgslcblas
