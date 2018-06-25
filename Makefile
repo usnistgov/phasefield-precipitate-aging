@@ -78,4 +78,4 @@ analysis:
 
 .PHONY: clean
 clean:
-	rm -f alloy625 ibtest iserial parallel pgparallel serial smp smpi
+	rm -f alloy625 ibtest iserial ismpi parallel pgparallel serial smp smpi
