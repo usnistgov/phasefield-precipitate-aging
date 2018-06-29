@@ -40,13 +40,6 @@ fr1by2 = 0.5
 rt3by2 = sqrt(3.0)/2
 epsilon = 1e-10 # tolerance for comparing floating-point numbers to zero
 
-# Specify upper limit compositions
-xcr_del_hi = fr3by4
-xnb_del_hi = fr1by4
-xnb_lav_hi = fr1by3
-xni_lav_hi = fr2by3
-xni_lav_hi = fr2by3
-
 # Helper functions to convert compositions into (x,y) coordinates
 def simX(x2, x3):
     return x2 + fr1by2 * x3

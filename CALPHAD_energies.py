@@ -51,7 +51,8 @@
 #      * $y_\mathrm{Nb}' = x_\mathrm{Nb}$
 #      * $y_\mathrm{Ni}' = x_\mathrm{Ni}$
 #
-# - δ: eliminate Nb from the second (Ni) sublattice, $\mathrm{(\mathbf{Nb}, Ni)_1(Cr, \mathbf{Ni})_3}$
+# - δ: eliminate Nb from the second (Ni) sublattice,
+#      $\mathrm{(\mathbf{Nb}, Ni)_1(Cr, \mathbf{Ni})_3}$
 #      * $y_\mathrm{Nb}'  = 4x_\mathrm{Nb}$
 #      * $y_\mathrm{Ni}'  = 1 - 4x_\mathrm{Nb}$
 #      * $y_\mathrm{Cr}'' = \frac{4}{3}x_\mathrm{Cr}$
@@ -59,7 +60,8 @@
 #      * Constraints: $x_\mathrm{Nb}\leq\frac{1}{4}$
 #                     $x_\mathrm{Cr}\leq\frac{3}{4}$
 #
-# - Laves: eliminate Nb from the first (Cr) sublattice, $\mathrm{(\mathbf{Cr}, Ni)_2(Cr, \mathbf{Nb})_1}$
+# - Laves: eliminate Nb from the first (Cr) sublattice,
+#      $\mathrm{(\mathbf{Cr}, Ni)_2(Cr, \mathbf{Nb})_1}$
 #      * $y_\mathrm{Cr}'  = 1 - \frac{3}{2}x_\mathrm{Ni}$
 #      * $y_\mathrm{Ni}'  = \frac{3}{2}x_\mathrm{Ni}$
 #      * $y_\mathrm{Cr}'' = 1 - 3x_\mathrm{Nb}$
@@ -68,18 +70,14 @@
 #                     $0\leq x_\mathrm{Nb}\leq\frac{1}{3}$
 
 # Numerical libraries
-import numpy as np
+from sympy.abc import x, y
 from sympy.utilities.lambdify import lambdify
-
-# Thermodynamics and computer-algebra libraries
-from pycalphad import Database, calculate, Model
 from sympy.utilities.codegen import codegen
 from sympy.parsing.sympy_parser import parse_expr
-from sympy import And, Ge, Gt, Le, Lt, Or, Piecewise, true
-from sympy import diff, Function, Lambda, Matrix, symbols, simplify, sympify
-from sympy import Abs, exp, log, pi, tanh, solve_linear_system
+from sympy import diff, Matrix, solve_linear_system, symbols
 
-# Constants
+# Thermodynamics libraries
+from pycalphad import Database, Model
 from constants import *
 
 # Read CALPHAD database from disk, specify phases and elements of interest
@@ -104,13 +102,16 @@ XCR, XNB, XNI = symbols('XCR XNB XNI')
 T = symbols('T')
 
 # Gamma
-FCC_A10CR, FCC_A10NB, FCC_A10NI, FCC_A11VA = symbols('FCC_A10CR FCC_A10NB FCC_A10NI FCC_A11VA')
+FCC_A10CR, FCC_A10NB, FCC_A10NI = symbols('FCC_A10CR FCC_A10NB FCC_A10NI')
+FCC_A11VA = symbols('FCC_A11VA')
 
 # Delta
-D0A_NBNI30NI, D0A_NBNI30NB, D0A_NBNI31CR, D0A_NBNI31NI = symbols('D0A_NBNI30NI D0A_NBNI30NB D0A_NBNI31CR D0A_NBNI31NI')
+D0A_NBNI30NI, D0A_NBNI30NB = symbols('D0A_NBNI30NI D0A_NBNI30NB')
+D0A_NBNI31CR, D0A_NBNI31NI = symbols('D0A_NBNI31CR D0A_NBNI31NI')
 
 # Laves
-C14_LAVES0CR, C14_LAVES0NI, C14_LAVES1CR, C14_LAVES1NB = symbols('C14_LAVES0CR C14_LAVES0NI C14_LAVES1CR C14_LAVES1NB')
+C14_LAVES0CR, C14_LAVES0NI = symbols('C14_LAVES0CR C14_LAVES0NI')
+C14_LAVES1CR, C14_LAVES1NB = symbols('C14_LAVES1CR C14_LAVES1NB')
 
 # Specify gamma-delta-Laves corners (from phase diagram)
 xe_gam_Cr = 0.490
@@ -128,15 +129,15 @@ xb, yb = symbols('xb yb')
 xc, yc = symbols('xc yc')
 xd, yd = symbols('xd yd')
 
-from sympy.abc import x, y
 levers = solve_linear_system(Matrix( ((yo - yb, xb - xo, xb * yo - xo * yb),
                                       (yc - yd, xd - xc, xd * yc - xc * yd)) ), x, y)
-def draw_bisector(A, B):
-    bNb = (A * xe_del_Nb + B * xe_lav_Nb) / (A + B)
-    bCr = (A * xe_del_Cr + B * xe_lav_Cr) / (A + B)
-    x = [simX(xe_gam_Nb, xe_gam_Cr), simX(bNb, bCr)]
-    y = [simY(xe_gam_Cr), simY(bCr)]
-    return x, y
+
+def draw_bisector(weightA, weightB):
+    bNb = (weightA * xe_del_Nb + weightB * xe_lav_Nb) / (weightA + weightB)
+    bCr = (weightA * xe_del_Cr + weightB * xe_lav_Cr) / (weightA + weightB)
+    xPrime = [simX(xe_gam_Nb, xe_gam_Cr), simX(bNb, bCr)]
+    yPrime = [simY(xe_gam_Cr), simY(bCr)]
+    return xPrime, yPrime
 
 # triangle bounding three-phase coexistence
 X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_lav_Nb, xe_lav_Cr)]
@@ -215,7 +216,6 @@ p_d2Glav_dxCrNb = diff(p_laves, XCR, XNB)
 p_d2Glav_dxNbCr = diff(p_laves, XNB, XCR)
 p_d2Glav_dxNbNb = diff(p_laves, XNB, XNB)
 
-
 # ============ COMPOSITION SHIFTS ============
 P_del, P_lav = symbols('P_del, P_lav')
 
@@ -246,63 +246,30 @@ DgCrNb = xe_lav_Cr * GgCrNb
 DgNbCr = xe_lav_Nb * GgCrNb
 DgNbNb = xe_lav_Nb * GgNbNb
 
-A = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
-            [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
-            [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
-            [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-            [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
-            [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+# Three-Component Points: Gamma-Delta-Laves Equilibrium with Curvature
 
-A1 = Matrix([[ 0          , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
-             [ 0          , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
-             [ 0          , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
-             [ 0          , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [-P_del      , DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
-             [-P_lav      , DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
-
-A2 = Matrix([[GaCrCr       , 0            ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
-             [GaCrNb       , 0            ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
-             [GaCrCr       , 0            , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
-             [GaCrNb       , 0            , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [DaCrCr+DaNbCr,-P_del        ,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
-             [DaCrCr+DaNbCr,-P_lav        , 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
-
-A3 = Matrix([[GaCrCr       , GaCrNb       , 0            ,-GbCrNb       , 0            , 0            ],
-             [GaCrNb       , GaNbNb       , 0            ,-GbNbNb       , 0            , 0            ],
+A  = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
+             [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
              [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
              [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-P_del        ,-DbCrNb-DbNbNb, 0            , 0            ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-P_lav        , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
+             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
 
-A4 = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       , 0            , 0            , 0            ],
-             [GaCrNb       , GaNbNb       ,-GbCrNb       , 0            , 0            , 0            ],
-             [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
-             [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-P_del        , 0            , 0            ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            ,-P_lav        ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+br = Matrix([[ 0    ],
+             [ 0    ],
+             [ 0    ],
+             [ 0    ],
+             [-P_del],
+             [-P_lav]])
 
-A5 = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
-             [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
-             [GaCrCr       , GaCrNb       , 0            , 0            , 0            ,-GgCrNb       ],
-             [GaCrNb       , GaNbNb       , 0            , 0            , 0            ,-GgNbNb       ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb,-P_del        , 0            ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-P_lav        ,-DgCrNb-DgNbNb]])
+xr = A.cholesky_solve(br)
 
-A6 = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
-             [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
-             [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       , 0            ],
-             [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       , 0            ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            ,-P_del        ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-P_lav        ]])
-
-dA  = A.det()
-
-dx_r_gam_Cr = A1.det() / dA
-dx_r_gam_Nb = A2.det() / dA
-dx_r_del_Cr = A3.det() / dA
-dx_r_del_Nb = A4.det() / dA
-dx_r_lav_Cr = A5.det() / dA
-dx_r_lav_Nb = A6.det() / dA
+dx_r_gam_Cr = xr[0]
+dx_r_gam_Nb = xr[1]
+dx_r_del_Cr = xr[2]
+dx_r_del_Nb = xr[3]
+dx_r_lav_Cr = xr[4]
+dx_r_lav_Nb = xr[5]
 
 # Generate numerically efficient C-code
 
