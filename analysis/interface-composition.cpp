@@ -38,12 +38,33 @@
  */
 
 template <typename T>
-T h(const T& p) {return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);}
+double h(const T& p) {return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);}
 
 template<int dim, typename T>
 void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 {
 	std::cout << std::setprecision(6);
+
+	double dV = 1.0;
+	for (int d=0; d<dim; d++)
+		dV *= MMSP::dx(GRID,d);
+
+	// compute phase fractions
+	double fDel = 0.0;
+	double fLav = 0.0;
+	const int N = MMSP::nodes(GRID);
+	for (int n=0; n<N; n++) {
+		fDel += h(GRID(n)[2]);
+		fLav += h(GRID(n)[3]);
+	}
+	fDel /= double(N);
+	fLav /= double(N);
+
+	// approximate precipitate radii and "pressures"
+	const double rDel = std::sqrt(N * dV * fDel / M_PI);
+	const double rLav = std::sqrt(N * dV * fLav / M_PI);
+	const double pDel = 2.0 * s_delta() / rDel;
+	const double pLav = 2.0 * s_laves() / rLav;
 
 	// Perform a line-scan parallel to the x-axis through the center of the grid
 	MMSP::vector<int> x(dim, 0);
@@ -62,10 +83,36 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	T preCr = GRID(x)[6];
 	T preNb = GRID(x)[7];
 
+	T dx1 = matCr - xe_gam_Cr();
+	T dx2 = matNb - xe_gam_Nb();
+	T dx3 = preCr - xe_del_Cr();
+	T dx4 = preNb - xe_del_Nb();
+
+	T A1 = d2g_gam_dxCrCr();
+	T A2 = d2g_gam_dxCrNb();
+	T A3 = d2g_del_dxCrCr();
+	T A4 = d2g_del_dxCrNb();
+
+	T B1 = d2g_gam_dxNbCr();
+	T B2 = d2g_gam_dxNbNb();
+	T B3 = d2g_del_dxNbCr();
+	T B4 = d2g_del_dxNbNb();
+
+	T C1 = matCr * d2g_gam_dxCrCr() + matNb * d2g_gam_dxNbCr();
+	T C2 = matCr * d2g_gam_dxCrNb() + matNb * d2g_gam_dxNbNb();
+	T C3 = preCr * d2g_del_dxCrCr() + preNb * d2g_del_dxNbCr();
+	T C4 = preCr * d2g_del_dxCrNb() + preNb * d2g_del_dxNbNb();
+
+	double r1 = std::pow(A1*dx1 + A2*dx2 - A3*dx3 - A4*dx4, 2.);
+	double r2 = std::pow(B1*dx1 + B2*dx2 - B3*dx3 - B4*dx4, 2.);
+	double r3 = std::pow(C1*dx1 + C2*dx2 - C3*dx3 - C4*dx4 + pDel, 2.);
+	double res = std::sqrt((r1+r2+r3) / 3.);
+
 	std::cout << x[0];
 	std::cout << ',' << xCr << ',' << xNb;
 	std::cout << ',' << matCr << ',' << matNb;
 	std::cout << ',' << preCr << ',' << preNb;
+	std::cout << ',' << res << ' ';
 
 	// Find gamma-Laves interface
 	x[0] = 0;
@@ -79,11 +126,36 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	preCr = GRID(x)[8];
 	preNb = GRID(x)[9];
 
+	dx1 = matCr - xe_gam_Cr();
+	dx2 = matNb - xe_gam_Nb();
+	dx3 = preCr - xe_lav_Cr();
+	dx4 = preNb - xe_lav_Nb();
+
+	A1 = d2g_gam_dxCrCr();
+	A2 = d2g_gam_dxCrNb();
+	A3 = d2g_lav_dxCrCr();
+	A4 = d2g_lav_dxCrNb();
+
+	B1 = d2g_gam_dxNbCr();
+	B2 = d2g_gam_dxNbNb();
+	B3 = d2g_lav_dxNbCr();
+	B4 = d2g_lav_dxNbNb();
+
+	C1 = matCr * d2g_gam_dxCrCr() + matNb * d2g_gam_dxNbCr();
+	C2 = matCr * d2g_gam_dxCrNb() + matNb * d2g_gam_dxNbNb();
+	C3 = preCr * d2g_lav_dxCrCr() + preNb * d2g_lav_dxNbCr();
+	C4 = preCr * d2g_lav_dxCrNb() + preNb * d2g_lav_dxNbNb();
+
+	r1 = std::pow(A1*dx1 + A2*dx2 - A3*dx3 - A4*dx4, 2.);
+	r2 = std::pow(B1*dx1 + B2*dx2 - B3*dx3 - B4*dx4, 2.);
+	r3 = std::pow(C1*dx1 + C2*dx2 - C3*dx3 - C4*dx4 + pLav, 2.);
+	res = std::sqrt((r1+r2+r3) / 3.);
+
 	std::cout << ',' << x[0];
 	std::cout << ',' << xCr << ',' << xNb;
 	std::cout << ',' << matCr << ',' << matNb;
 	std::cout << ',' << preCr << ',' << preNb;
-	std::cout << '\n';
+	std::cout << ',' << res << '\n';
 }
 
 int main(int argc, char* argv[]) {
