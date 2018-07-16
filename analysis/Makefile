@@ -31,5 +31,9 @@ mmsp2comp: mmsp2comp.cpp
 mmsp2frac: mmsp2frac.cpp
 	$(gcompiler) $(stdflags) $(stddirect) -O2 $< -o $@ -lz
 
+# compare Newton-Raphson (numerical) to linear root solver
+fictitious-comparison: fictitious-comparison.cpp
+	$(gcompiler) $(stdflags) $(stddirect) -g $< -o $@ -lz
+
 clean:
 	rm -f adsorption ifcomp mmsp2comp mmsp2frac
