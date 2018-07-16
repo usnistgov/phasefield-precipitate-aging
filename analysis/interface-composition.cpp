@@ -45,6 +45,7 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 {
 	std::cout << std::setprecision(6);
 
+	MMSP::vector<int> x(dim, 0);
 	double dV = 1.0;
 	for (int d=0; d<dim; d++)
 		dV *= MMSP::dx(GRID,d);
@@ -66,15 +67,13 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	const double pDel = 2.0 * s_delta() / rDel;
 	const double pLav = 2.0 * s_laves() / rLav;
 
-	// Perform a line-scan parallel to the x-axis through the center of the grid
-	MMSP::vector<int> x(dim, 0);
-	for (int d=0; d<dim; d++)
-		x[d] = (MMSP::g1(GRID,d)+MMSP::g0(GRID,d))/2;
 
-	// Find gamma-delta interface
-	x[0] = 0;
-	while (h((GRID(x)[2])) < 0.5)
-		x[0]--;
+	// Find composition at gamma-delta interface
+	x[0] = -8 - 0.5 * (MMSP::g1(GRID, 0) - MMSP::g0(GRID, 0));
+	x[1] = MMSP::g1(GRID, 1);
+	while (h((GRID(x)[2])) > 0.5)
+		x[1]--;
+	const int delTop = x[1];
 
 	T xCr = GRID(x)[0];
 	T xNb = GRID(x)[1];
@@ -82,6 +81,11 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	T matNb = GRID(x)[5];
 	T preCr = GRID(x)[6];
 	T preNb = GRID(x)[7];
+
+	x[1] = MMSP::g0(GRID, 1);
+	while (h((GRID(x)[2])) > 0.5)
+		x[1]++;
+	const int delBot = x[1];
 
 	T dx1 = matCr - xe_gam_Cr();
 	T dx2 = matNb - xe_gam_Nb();
@@ -107,17 +111,20 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	double r2 = std::pow(B1*dx1 + B2*dx2 - B3*dx3 - B4*dx4, 2.);
 	double r3 = std::pow(C1*dx1 + C2*dx2 - C3*dx3 - C4*dx4 + pDel, 2.);
 	double res = std::sqrt((r1+r2+r3) / 3.);
+	double rad = MMSP::dx(GRID,1) * (delTop - delBot);
 
-	std::cout << x[0];
+	std::cout << rad;
 	std::cout << ',' << xCr << ',' << xNb;
 	std::cout << ',' << matCr << ',' << matNb;
 	std::cout << ',' << preCr << ',' << preNb;
-	std::cout << ',' << res << ' ';
+	std::cout << ',' << res;
 
-	// Find gamma-Laves interface
-	x[0] = 0;
-	while (h((GRID(x)[3])) < 0.5)
-		x[0]++;
+	// Find composition at gamma-delta interface
+	x[0] = 8 + 0.5 * (MMSP::g1(GRID, 0) - MMSP::g0(GRID, 0));
+	x[1] = MMSP::g1(GRID, 1);
+	while (h((GRID(x)[3])) > 0.5)
+		x[1]--;
+	const int lavTop = x[1];
 
 	xCr = GRID(x)[0];
 	xNb = GRID(x)[1];
@@ -125,6 +132,11 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	matNb = GRID(x)[5];
 	preCr = GRID(x)[8];
 	preNb = GRID(x)[9];
+
+	x[1] = MMSP::g0(GRID, 1);
+	while (h((GRID(x)[3])) > 0.5)
+		x[1]++;
+	const int lavBot = x[1];
 
 	dx1 = matCr - xe_gam_Cr();
 	dx2 = matNb - xe_gam_Nb();
@@ -150,8 +162,9 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	r2 = std::pow(B1*dx1 + B2*dx2 - B3*dx3 - B4*dx4, 2.);
 	r3 = std::pow(C1*dx1 + C2*dx2 - C3*dx3 - C4*dx4 + pLav, 2.);
 	res = std::sqrt((r1+r2+r3) / 3.);
+	rad = MMSP::dx(GRID,1) * (lavTop - lavBot);
 
-	std::cout << ',' << x[0];
+	std::cout << ',' << rad;
 	std::cout << ',' << xCr << ',' << xNb;
 	std::cout << ',' << matCr << ',' << matNb;
 	std::cout << ',' << preCr << ',' << preNb;

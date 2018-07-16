@@ -130,12 +130,20 @@ for base, xCr, xNb, fd, fl in tqdm(datasets):
     dx_lav_Cr = xe_lav_Cr + DXGB(P_delta, P_laves)
     dx_lav_Nb = xe_lav_Nb + DXGC(P_delta, P_laves)
 
-    # Compute equilibrium delta fraction
+    # Compute planar equilibrium delta fraction
+    aCr = leverCr(xNb, xCr, xe_del_Nb, xe_del_Cr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr)
+    aNb = leverNb(xNb, xCr, xe_del_Nb, xe_del_Cr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr)
+    fde = np.sqrt(((aNb - xNb)**2 + (aCr - xCr)**2) / ((aNb - xe_del_Nb)**2 + (aCr - xe_del_Cr)**2))
+    # Compute Gibbs-Thomson equilibrium delta fraction
     aCr = leverCr(xNb, xCr, dx_del_Nb, dx_del_Cr, dx_lav_Nb, dx_lav_Cr, dx_gam_Nb, dx_gam_Cr)
     aNb = leverNb(xNb, xCr, dx_del_Nb, dx_del_Cr, dx_lav_Nb, dx_lav_Cr, dx_gam_Nb, dx_gam_Cr)
     fd0 = np.sqrt(((aNb - xNb)**2 + (aCr - xCr)**2) / ((aNb - dx_del_Nb)**2 + (aCr - dx_del_Cr)**2))
 
-    # Compute equilibrium Laves fraction
+    # Compute planar equilibrium Laves fraction
+    aCr = leverCr(xNb, xCr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr, xe_del_Nb, xe_del_Cr)
+    aNb = leverNb(xNb, xCr, xe_lav_Nb, xe_lav_Cr, xe_gam_Nb, xe_gam_Cr, xe_del_Nb, xe_del_Cr)
+    fle = np.sqrt(((aNb - xNb)**2 + (aCr - xCr)**2) / ((aNb - xe_lav_Nb)**2 + (aCr - xe_lav_Cr)**2))
+    # Compute Gibbs-Thomson equilibrium Laves fraction
     aCr = leverCr(xNb, xCr, dx_lav_Nb, dx_lav_Cr, dx_gam_Nb, dx_gam_Cr, dx_del_Nb, dx_del_Cr)
     aNb = leverNb(xNb, xCr, dx_lav_Nb, dx_lav_Cr, dx_gam_Nb, dx_gam_Cr, dx_del_Nb, dx_del_Cr)
     fl0 = np.sqrt(((aNb - xNb)**2 + (aCr - xCr)**2) / ((aNb - dx_lav_Nb)**2 + (aCr - dx_lav_Cr)**2))
@@ -148,8 +156,8 @@ for base, xCr, xNb, fd, fl in tqdm(datasets):
     plt.ylim([0, 0.3])
     plt.plot(t, fd, c=colors[1], label=r'$f_{\delta}$', zorder=2)
     plt.plot(t, fl, c=colors[2], label=r'$f_{\mathrm{L}}$', zorder=2)
-    plt.plot((0,t[-1]), (fd0,fd0), c=colors[1], ls="--", zorder=1)
-    plt.plot((0,t[-1]), (fl0,fl0), c=colors[2], ls="--", zorder=1)
+    plt.plot((0,t[-1]), (fde,fde), c=colors[1], ls="--", zorder=1)
+    plt.plot((0,t[-1]), (fle,fle), c=colors[2], ls="--", zorder=1)
     plt.plot(t, fd0, c=colors[1], ls=":", zorder=1)
     plt.plot(t, fl0, c=colors[2], ls=":", zorder=1)
     plt.legend(loc='best')

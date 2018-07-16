@@ -16,6 +16,7 @@ double xe_del_Cr();
 double xe_del_Nb();
 double xe_lav_Cr();
 double xe_lav_Nb();
+double Vm();
 double xr_gam_Cr(double P_del, double P_lav);
 double xr_gam_Nb(double P_del, double P_lav);
 double xr_del_Cr(double P_del, double P_lav);

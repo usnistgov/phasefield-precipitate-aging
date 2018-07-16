@@ -140,8 +140,8 @@ def draw_bisector(weightA, weightB):
     return xPrime, yPrime
 
 # triangle bounding three-phase coexistence
-X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_lav_Nb, xe_lav_Cr)]
-Y0 = [simY(xe_gam_Cr),            simY(xe_del_Cr),            simY(xe_lav_Cr)]
+X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_lav_Nb, xe_lav_Cr), simX(xe_gam_Nb, xe_gam_Cr)]
+Y0 = [simY(xe_gam_Cr),            simY(xe_del_Cr),            simY(xe_lav_Cr),            simY(xe_gam_Cr)]
 
 # Make sublattice -> system substitutions
 g_gamma = inVm * g_gamma.subs({FCC_A10CR: XCR,
@@ -277,6 +277,7 @@ codegen([# Equilibrium Compositions
          ('xe_gam_Cr', xe_gam_Cr),  ('xe_gam_Nb', xe_gam_Nb),
          ('xe_del_Cr', xe_del_Cr),  ('xe_del_Nb', xe_del_Nb),
          ('xe_lav_Cr', xe_lav_Cr),  ('xe_lav_Nb', xe_lav_Nb),
+         ('Vm', Vm),
          # Curvature-Corrected Compositions
          ('xr_gam_Cr', xe_gam_Cr + dx_r_gam_Cr),  ('xr_gam_Nb', xe_gam_Nb + dx_r_gam_Nb),
          ('xr_del_Cr', xe_del_Cr + dx_r_del_Cr),  ('xr_del_Nb', xe_del_Nb + dx_r_del_Nb),

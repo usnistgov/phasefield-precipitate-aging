@@ -45,7 +45,7 @@ def draw_bisector(A, B):
     y = [simY(xe_gam_Cr), simY(bCr)]
     return x, y
 
-for datdir in glob.glob('/data/tnk10/phase-field/alloy625/TKR4p158/run*/'): #{0}".format(j) for j in (2,3,6,12,21,63)]:
+for datdir in glob.glob('/data/tnk10/phase-field/alloy625/TKR4p158/run*'): #{0}".format(j) for j in (2,3,6,12,21,63)]:
     if path.isdir(datdir) and len(glob.glob("{0}/*.xy".format(datdir))) > 0:
         base = path.basename(datdir)
         # Plot phase diagram
