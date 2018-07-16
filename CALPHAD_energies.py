@@ -70,13 +70,22 @@
 #                     $0\leq x_\mathrm{Nb}\leq\frac{1}{3}$
 
 # Numerical libraries
-from sympy.abc import x, y
+import numpy as np
 from sympy.utilities.lambdify import lambdify
-from sympy.utilities.codegen import codegen
-from sympy.parsing.sympy_parser import parse_expr
-from sympy import diff, Matrix, solve_linear_system, symbols
 
-# Thermodynamics libraries
+# Thermodynamics and computer-algebra libraries
+from pycalphad import Database, calculate, Model
+from sympy import diff, expand, factor, Matrix, symbols, simplify
+from sympy.abc import x, y
+from sympy.core.numbers import pi
+from sympy.functions.elementary.complexes import Abs
+from sympy.functions.elementary.exponential import exp, log
+from sympy.functions.elementary.trigonometric import tanh
+from sympy.parsing.sympy_parser import parse_expr
+from sympy.solvers import solve, solve_linear_system
+from sympy.utilities.codegen import codegen
+
+# Thermodynamic information
 from pycalphad import Database, Model
 from constants import *
 
@@ -216,6 +225,34 @@ p_d2Glav_dxCrNb = diff(p_laves, XCR, XNB)
 p_d2Glav_dxNbCr = diff(p_laves, XNB, XCR)
 p_d2Glav_dxNbNb = diff(p_laves, XNB, XNB)
 
+# ========= FICTITIOUS COMPOSITIONS ==========
+gamCr, gamNb = symbols('gamCr, gamNb')
+delCr, delNb = symbols('delCr, delNb')
+lavCr, lavNb = symbols('lavCr, lavNb')
+f_gam, f_del, f_lav = symbols('f_gam, f_del, f_lav')
+
+ficGdCr = p_dGgam_dxCr.subs({XCR: gamCr, XNB: gamNb})
+ficGdNb = p_dGgam_dxNb.subs({XCR: gamCr, XNB: gamNb})
+ficDdCr = p_dGdel_dxCr.subs({XCR: delCr, XNB: delNb})
+ficDdNb = p_dGdel_dxNb.subs({XCR: delCr, XNB: delNb})
+ficLdCr = p_dGlav_dxCr.subs({XCR: lavCr, XNB: lavNb})
+ficLdNb = p_dGlav_dxNb.subs({XCR: lavCr, XNB: lavNb})
+
+ficEqns = (XCR - f_gam*gamCr - f_del*delCr - f_lav*lavCr,
+                      XNB - f_gam*gamNb - f_del*delNb - f_lav*lavNb,
+                      ficGdCr - ficDdCr,
+                      ficGdNb - ficDdNb,
+                      ficGdCr - ficLdCr,
+                      ficGdNb - ficLdNb
+           )
+
+ficVars = (gamCr, gamNb,
+                      delCr, delNb,
+                      lavCr, lavNb
+           )
+
+fictitious = solve(ficEqns, ficVars, dict=True)
+
 # ============ COMPOSITION SHIFTS ============
 P_del, P_lav = symbols('P_del, P_lav')
 
@@ -282,6 +319,13 @@ codegen([# Equilibrium Compositions
          ('xr_gam_Cr', xe_gam_Cr + dx_r_gam_Cr),  ('xr_gam_Nb', xe_gam_Nb + dx_r_gam_Nb),
          ('xr_del_Cr', xe_del_Cr + dx_r_del_Cr),  ('xr_del_Nb', xe_del_Nb + dx_r_del_Nb),
          ('xr_lav_Cr', xe_lav_Cr + dx_r_lav_Cr),  ('xr_lav_Nb', xe_lav_Nb + dx_r_lav_Nb),
+         # Fictitious compositions
+         ('fict_gam_Cr', factor(expand(fictitious[0][gamCr]))),
+         ('fict_gam_Nb', factor(expand(fictitious[0][gamNb]))),
+         ('fict_del_Cr', factor(expand(fictitious[0][delCr]))),
+         ('fict_del_Nb', factor(expand(fictitious[0][delNb]))),
+         ('fict_lav_Cr', factor(expand(fictitious[0][lavCr]))),
+         ('fict_lav_Nb', factor(expand(fictitious[0][lavNb]))),
          # Precipitate Properties
          ('r_delta', r_delta),  ('r_laves', r_laves),
          ('s_delta', s_delta),  ('s_laves', s_laves),
@@ -307,6 +351,13 @@ leverNb = lambdify([xo, yo, xb, yb, xc, yc, xd, yd], levers[x])
 PG = lambdify([XCR, XNB], p_gamma)
 PD = lambdify([XCR, XNB], p_delta)
 PL = lambdify([XCR, XNB], p_laves)
+
+PGdxCr = lambdify([XCR, XNB], p_dGgam_dxCr)
+PGdxNb = lambdify([XCR, XNB], p_dGgam_dxNb)
+PDdxCr = lambdify([XCR, XNB], p_dGdel_dxCr)
+PDdxNb = lambdify([XCR, XNB], p_dGdel_dxNb)
+PLdxCr = lambdify([XCR, XNB], p_dGlav_dxCr)
+PLdxNb = lambdify([XCR, XNB], p_dGlav_dxNb)
 
 DXAB = lambdify([P_del, P_lav], dx_r_gam_Cr) # Cr in gamma phase
 DXAC = lambdify([P_del, P_lav], dx_r_gam_Nb) # Nb in gamma phase
