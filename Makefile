@@ -8,8 +8,8 @@ icompiler = icc
 gcompiler = g++
 pcompiler = mpicxx
 
-# libraries: z, gsl
-stdlinks = -lz -lgsl -lgslcblas
+# libraries: z
+stdlinks = -lz
 
 # precompiler directives
 # Options: -DCALPHAD	-DPARABOLA	-DNDEBUG
