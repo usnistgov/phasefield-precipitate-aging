@@ -34,7 +34,8 @@ typedef MMSP::grid<3,MMSP::vector<field_t> > GRID3D;
 /**
    Container for system composition and phase fractions
 */
-class Composition {
+class Composition
+{
 public:
 	// constructor
 	Composition()
@@ -46,7 +47,7 @@ public:
 		for (int i=0; i<NP+1; i++)
 			N[i] = 0;
 	}
-	~Composition(){}
+	~Composition() {}
 
 	// modifier
 	Composition& operator+=(const Composition& c);
@@ -63,7 +64,7 @@ Composition& Composition::operator+=(const Composition& c)
 {
 	for (int i=0; i<NP+1; i++) {
 		for (int j=0; j<NC; j++)
-		this->x[i][j] += c.x[i][j];
+			this->x[i][j] += c.x[i][j];
 	}
 	for (int i=0; i<NP+1; i++)
 		this->N[i] += c.N[i];
@@ -74,8 +75,14 @@ Composition& Composition::operator+=(const Composition& c)
 /**
    Smoothly interpolate between (0,0) and (1,1)
 */
-inline field_t h(const field_t& p) {return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);}
-inline field_t hprime(const field_t& p) {return 30.0 * p * p * (1.0 - p) * (1.0 - p);}
+inline field_t h(const field_t& p)
+{
+	return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);
+}
+inline field_t hprime(const field_t& p)
+{
+	return 30.0 * p * p * (1.0 - p) * (1.0 - p);
+}
 
 /**
    Compute Gibbs free energy density
@@ -107,21 +114,10 @@ MMSP::vector<T> pointerlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, c
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx);
 
 /**
-   Compute location-dependent number usinf Gaussian function
-*/
-double bellCurve(double x, double m, double s);
-
-/**
    Compute fictitious compositions using analytical expressions
 */
 template<typename T>
 void update_compositions(MMSP::vector<T>& GRIDN);
-
-/**
-   Modify flat initial matrix composition with spatial variation
-*/
-template<int dim, typename T>
-Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double bellCr, const double bellNb);
 
 /**
    Insert particle into matrix at specified location with given phase, radius, and composition
@@ -147,17 +143,17 @@ Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
    Compute maximum velocity of the interface (phi~0.5 level set) for this timestep
 */
 template<int dim, typename T>
-T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt,
-              MMSP::grid<dim,MMSP::vector<T> > const & newGrid);
+T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const& oldGrid, const double& dt,
+              MMSP::grid<dim,MMSP::vector<T> > const& newGrid);
 
 /**
    Integrate composition and phase fractions over the whole grid to make sure mass is conserved and phase transformations are sane
 */
 template<int dim, typename T>
-MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const & GRID);
+MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GRID);
 
 /**
    Integrate free energy over the whole grid to make sure it decreases with time
 */
 template<int dim, typename T>
-double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const & GRID);
+double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const& GRID);
