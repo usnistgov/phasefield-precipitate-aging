@@ -4,72 +4,59 @@
 # Compiler optimizations after http://www.nersc.gov/users/computational-systems/retired-systems/hopper/performance-and-optimization/compiler-comparisons/
 
 # compilers: Intel, GCC, MPI
-icompiler = icc
 gcompiler = g++
+icompiler = icc
 pcompiler = mpicxx
-
-# libraries: z, gsl
-stdlinks = -lz -lgsl -lgslcblas
-
-# precompiler directives
-# Options: -DCALPHAD	-DPARABOLA	-DNDEBUG
-stddirect = -DPARABOLA -DNDEBUG
-dbgdirect = -DPARABOLA
 
 # flags: common, debug, Intel, GNU, and MPI
 stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include -I ..
 dbgflags  = -pedantic $(stdflags) $(dbgdirect) -O0 -pg
 idbgflags = $(stdflags) $(dbgdirect) -O0 -profile-functions -profile-loops=all -profile-loops-report=2
 
-#iccflags = $(stdflags) $(stddirect) -gcc-name=/usr/bin/g++-4.9 -w3 -diag-disable:remark -O3 -funroll-loops -opt-prefetch
-iccflags = $(stdflags) $(stddirect) -w3 -diag-disable:remark -O3 -funroll-loops -qopt-prefetch
-gccflags = $(stdflags) $(stddirect) -pedantic -O3 -funroll-loops -ffast-math
-pgiflags = -I $(MMSP_PATH)/include $(stddirect) -fast -Mipa=fast,inline,safe -Mfprelaxed -std=c++11
+gccflags = $(stdflags) -pedantic -O3 -funroll-loops -ffast-math
+iccflags = $(stdflags) -w3 -diag-disable:remark -O3 -funroll-loops -qopt-prefetch
 mpiflags = $(gccflags) -include mpi.h
 
+deps = alloy625.h parabola625.c
+
 # WORKSTATION EXECUTABLES
+all: alloy625 analysis
+.PHONY: all alloy625.h
+
+# free energy landscape
+parabola625.c: CALPHAD_energies.py
+	python2 $<
 
 # default program (shared memory, OpenMP)
-alloy625: alloy625.cpp
-	$(icompiler) $< -o $@ $(iccflags) $(stdlinks) -qopenmp
+alloy625: alloy625.cpp $(deps)
+	$(icompiler) $< -o $@ $(iccflags) -lz -qopenmp
 
 # profiling program (no parallelism or optimization)
-serial: alloy625.cpp
-	$(gcompiler) $< -o $@ $(dbgflags) $(stdlinks)
+serial: alloy625.cpp $(deps)
+	$(gcompiler) $< -o $@ $(dbgflags) -lz
 
-iserial: alloy625.cpp
-	$(icompiler) $< -o $@ $(idbgflags) $(stdlinks)
+iserial: alloy625.cpp $(deps)
+	$(icompiler) $< -o $@ $(idbgflags) -lz
+
 
 # CLUSTER EXECUTABLES
 
-# threaded program (shared memory, OpenMP)
-smp: alloy625.cpp
-	$(gcompiler) $< -o $@ $(gccflags) $(stdlinks) -fopenmp
+# shared thread memory (OpenMP) parallelism
+smp: alloy625.cpp $(deps)
+	$(gcompiler) $< -o $@ $(gccflags) -lz -fopenmp
 
-# parallel program (distributed memory, MPI)
-parallel: alloy625.cpp $(core)
-	$(pcompiler) $< -o $@ $(mpiflags) $(stdlinks)
+# distributed node memory (MPI), distributed thread memory (MPI) parallelism
+parallel: alloy625.cpp $(deps)
+	$(pcompiler) $< -o $@ $(mpiflags) -lz
 
-smpi: alloy625.cpp
-	$(pcompiler) $< -o $@ $(mpiflags) $(stdlinks) -fopenmp
+# distributed node memory (MPI), shared thread memory (OpenMP) parallelism
+smpi: alloy625.cpp $(deps)
+	$(pcompiler) $< -o $@ $(mpiflags) -lz -fopenmp
 
-ismpi: alloy625.cpp
-	$(pcompiler) $< -o $@ $(iccflags) -include mpi.h -L/usr/lib64 $(stdlinks) -fopenmp
+# distributed node memory (MPI), shared thread memory (OpenMP) parallelism
+ismpi: alloy625.cpp $(deps)
+	$(pcompiler) $< -o $@ $(iccflags) -include mpi.h -L/usr/lib64 -lz -fopenmp
 
-# PGI compiler
-pgparallel: alloy625.cpp
-	$(pcompiler) $(pgiflags) -include mpi.h $< -o $@ $(stdlinks) -mp
-
-
-# DOCUMENTATION
-.PHONY: docs
-docs:
-	$(MAKE) -C docs
-
-# THERMODYNAMICS EXECUTABLES
-.PHONY: thermo
-thermo:
-	$(MAKE) -C thermo
 
 # ANALYSIS EXECUTABLES
 .PHONY: analysis
@@ -78,4 +65,4 @@ analysis:
 
 .PHONY: clean
 clean:
-	rm -f alloy625 ibtest iserial ismpi parallel pgparallel serial smp smpi
+	rm -f alloy625 ibtest iserial ismpi parallel serial smp smpi *.pyc

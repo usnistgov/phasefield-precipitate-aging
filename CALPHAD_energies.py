@@ -107,20 +107,7 @@ g_laves = parse_expr(str(model.ast))
 
 
 # Declare sublattice variables used in Pycalphad expressions
-XCR, XNB, XNI = symbols('XCR XNB XNI')
-T = symbols('T')
-
-# Gamma
-FCC_A10CR, FCC_A10NB, FCC_A10NI = symbols('FCC_A10CR FCC_A10NB FCC_A10NI')
-FCC_A11VA = symbols('FCC_A11VA')
-
-# Delta
-D0A_NBNI30NI, D0A_NBNI30NB = symbols('D0A_NBNI30NI D0A_NBNI30NB')
-D0A_NBNI31CR, D0A_NBNI31NI = symbols('D0A_NBNI31CR D0A_NBNI31NI')
-
-# Laves
-C14_LAVES0CR, C14_LAVES0NI = symbols('C14_LAVES0CR C14_LAVES0NI')
-C14_LAVES1CR, C14_LAVES1NB = symbols('C14_LAVES1CR C14_LAVES1NB')
+XCR, XNB = symbols('XCR XNB')
 
 # Specify gamma-delta-Laves corners (from phase diagram)
 xe_gam_Cr = 0.490
@@ -153,23 +140,23 @@ X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_lav_Nb, xe
 Y0 = [simY(xe_gam_Cr),            simY(xe_del_Cr),            simY(xe_lav_Cr),            simY(xe_gam_Cr)]
 
 # Make sublattice -> system substitutions
-g_gamma = inVm * g_gamma.subs({FCC_A10CR: XCR,
-                               FCC_A10NB: XNB,
-                               FCC_A10NI: 1 - XCR - XNB,
-                               FCC_A11VA: 1,
-                               T: temp})
+g_gamma = inVm * g_gamma.subs({symbols('FCC_A10CR'): XCR,
+                               symbols('FCC_A10NB'): XNB,
+                               symbols('FCC_A10NI'): 1 - XCR - XNB,
+                               symbols('FCC_A11VA'): 1,
+                               symbols('T'): temp})
 
-g_delta = inVm * g_delta.subs({D0A_NBNI30NB: 4*XNB,
-                               D0A_NBNI30NI: 1 - 4*XNB,
-                               D0A_NBNI31CR: fr4by3 * XCR,
-                               D0A_NBNI31NI: 1 - fr4by3 * XCR,
-                               T: temp})
+g_delta = inVm * g_delta.subs({symbols('D0A_NBNI30NB'): 4*XNB,
+                               symbols('D0A_NBNI30NI'): 1 - 4*XNB,
+                               symbols('D0A_NBNI31CR'): fr4by3 * XCR,
+                               symbols('D0A_NBNI31NI'): 1 - fr4by3 * XCR,
+                               symbols('T'): temp})
 
-g_laves = inVm * g_laves.subs({C14_LAVES0CR: 1 - fr3by2 * (1 - XCR - XNB),
-                               C14_LAVES0NI: fr3by2 * (1 - XCR - XNB),
-                               C14_LAVES1CR: 1 - 3*XNB,
-                               C14_LAVES1NB: 3 * XNB,
-                               T: temp})
+g_laves = inVm * g_laves.subs({symbols('C14_LAVES0CR'): 1 - fr3by2 * (1 - XCR - XNB),
+                               symbols('C14_LAVES0NI'): fr3by2 * (1 - XCR - XNB),
+                               symbols('C14_LAVES1CR'): 1 - 3*XNB,
+                               symbols('C14_LAVES1NB'): 3 * XNB,
+                               symbols('T'): temp})
 
 # Generate paraboloid expressions (2nd-order Taylor series approximations)
 

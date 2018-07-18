@@ -21,7 +21,6 @@
  * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
  *************************************************************************************/
 
-
 #ifndef ALLOY625_UPDATE
 #define ALLOY625_UPDATE
 #include<set>
@@ -32,32 +31,14 @@
 #ifdef _OPENMP
 #include"omp.h"
 #endif
-#include<gsl/gsl_blas.h>
-#include<gsl/gsl_math.h>
-#include<gsl/gsl_roots.h>
-#include<gsl/gsl_vector.h>
-#include<gsl/gsl_multiroots.h>
 #include"MMSP.hpp"
 #include"alloy625.hpp"
-
-// Taylor series is your best bet.
-#if defined CALPHAD
-	#include"energy625.c"
-#elif defined PARABOLA
-	#include"parabola625.c"
-#else
-	#include"taylor625.c"
-#endif
-
-
-// Note: alloy625.hpp contains important declarations and comments. Have a look.
+#include"parabola625.c"
 
 /* Free energy expressions are generated from CALPHAD using pycalphad and SymPy
- * by the Python script CALPHAD_energy.py. It produces three versions:
- * * energy625.c:   pure CALPHAD expression with derivatives; neither smooth nor continuously differentiable
- * * taylor625.c:   Taylor series expansion of CALPHAD surface about invariant points on phase diagram, RECOMMENDED
+ * by the Python script CALPHAD_energy.py. Run it (python CALPHAD_energy.py)
+ * to generate parabola625.c.
  */
-
 
 /* =============================================== *
  * Implement MMSP kernels: generate() and update() *
@@ -65,17 +46,17 @@
 
 /* Representation includes ten field variables:
  *
- * X0.  molar fraction of Cr + Mo
- * X1.  molar fraction of Nb
+ * X0. molar fraction of Cr + Mo
+ * X1. molar fraction of Nb
  *
- * P2.  phase fraction of delta
- * P3.  phase fraction of Laves
+ * P2. phase fraction of delta
+ * P3. phase fraction of Laves
  *
- * C4.  Cr molar fraction in pure gamma
- * C5.  Nb molar fraction in pure gamma
+ * C4. Cr molar fraction in pure gamma
+ * C5. Nb molar fraction in pure gamma
  *
- * C6.  Cr molar fraction in pure delta
- * C7.  Nb molar fraction in pure delta
+ * C6. Cr molar fraction in pure delta
+ * C7. Nb molar fraction in pure delta
  *
  * C8. Cr molar fraction in pure Laves
  * C9. Nb molar fraction in pure Laves
@@ -91,76 +72,61 @@
  */
 
 
-// Define equilibrium phase compositions at global scope. Gamma is nominally 30% Cr, 2% Nb,
-// as defined in the first elements of the two following arrays. The generate() function
-// will adjust the initial gamma composition depending on the type, amount, and composition
-// of the secondary phases to maintain the system's nominal composition.
-#ifdef PARABOLA
-// Parabolic free energy requires a system composition inside the three-phase coexistence region
-//                        nominal   delta        laves         gamma-enrichment
+/* Define equilibrium phase compositions at global scope. Gamma is nominally
+   30% Cr, 2% Nb, as defined in the first elements of the two following arrays.
+   The generate() function will adjust the initial gamma composition depending
+   on the type, amount, and composition of the secondary phases to maintain the
+   system's nominal composition. Parabolic free energy requires a system
+   composition inside the three-phase coexistence region.
+                          nominal   delta        laves         enriched  */
 const field_t xCr[NP+2] = {0.250,   xe_del_Cr(), xe_lav_Cr(),  0.005};
 const field_t xNb[NP+2] = {0.150,   xe_del_Nb(), xe_lav_Nb(),  0.050};
-#else
-// CALPHAD and Taylor approximations admit any system composition
-//                        nominal   delta        laves         gamma-enrichment
-const field_t xCr[NP+2] = {0.300,   xe_del_Cr(), xe_lav_Cr(),  0.310 - 0.300};
-const field_t xNb[NP+2] = {0.020,   xe_del_Nb(), xe_lav_Nb(),  0.130 - 0.020};
-#endif
 
-// Define st.dev. of Gaussians for alloying element segregation
-//                       Cr        Nb
+/* Define st.dev. of Gaussians for alloying element segregation
+                         Cr      Nb                                      */
 const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
 const double meshres = 5e-9; // grid spacing (m)
 const field_t alpha = 1.07e11;  // three-phase coexistence coefficient (J/m^3)
 
-// Diffusion constants in FCC Ni from Xu (m^2/s)
-//                        Cr        Nb
+/* Diffusion constants in FCC Ni from Xu (m^2/s)
+                          Cr        Nb                                   */
 const field_t D_Cr[NC] = {2.16e-15, 0.56e-15}; // first column of diffusivity matrix
 const field_t D_Nb[NC] = {2.97e-15, 4.29e-15}; // second column of diffusivity matrix
 
-//                         delta    Laves
-const field_t kappa[NP] = {1.24e-8, 1.24e-8}; // gradient energy coefficient (J/m)
+/* Choose numerical diffusivity to lock chemical and transformational timescales
+                           delta      Laves                              */
+const field_t kappa[NP] = {1.24e-8, 1.24e-8};     // gradient energy coefficient (J/m)
+const field_t Lmob[NP]  = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
+const field_t sigma[NP] = {1.010, 1.010};         // interfacial energy (J/m^2)
 
-// Choose numerical diffusivity to lock chemical and transformational timescales
-//                        delta      Laves
-const field_t Lmob[NP] = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns), Zhou's numbers
-//const field_t Lmob[NP] = {1.92e-12, 1.92e-12}; // numerical mobility (m^2/Ns), Xu's numbers
-
-//                        delta   Laves
-const field_t sigma[NP] = {1.010, 1.010}; // (J/m^2)
-
-// Interfacial width
+// Compute interfacial width (nm) and well height (J/m^3)
+const field_t ifce_width = 10.0*meshres;
 const field_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
-const field_t ifce_width = 10.0*meshres; // ensure at least 7 points through the interface
-const field_t omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width, // delta
-                           3.0 * width_factor * sigma[1] / ifce_width  // Laves
-                          };       // multiwell height (J/m^3)
+const field_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,  // delta
+                           3.0 * width_factor* sigma[1] / ifce_width}; // Laves
 
 // Numerical considerations
-const bool useNeumann = true;     // apply zero-flux boundaries (Neumann type)?
-const bool useTanh = false;       // apply tanh profile to initial profile of composition and phase
-const double epsilon = 1e-12;     // what to consider zero to avoid log(c) explosions
-
-const field_t root_tol  = 1e-4;   // residual tolerance (default is 1e-7)
-const int root_max_iter = 1e6;    // default is 1000, increasing probably won't change anything but your runtime
-
-#ifdef PARABOLA
+const double epsilon = 1e-12;           // what to consider zero to avoid log(c) explosions
 const field_t LinStab = 1.0 / 19.42501; // threshold of linear stability (von Neumann stability condition)
-#else
-const field_t LinStab = 1.0 / 2913.753; // threshold of linear stability (von Neumann stability condition)
-#endif
+
+/* Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
+   minimum for numerical stability is 14*dx (due to interface width).    */
+const field_t rPrecip[NP] = {5.0*7.5e-9 / meshres,  // delta
+                             5.0*7.5e-9 / meshres}; // Laves
+
 
 namespace MMSP
 {
+
 
 void generate(int dim, const char* filename)
 {
 	int rank = 0;
 	#ifdef MPI_VERSION
 	rank = MPI::COMM_WORLD.Get_rank();
- 	#endif
+	#endif
 
 	FILE* cfile = NULL;
 
@@ -174,7 +140,7 @@ void generate(int dim, const char* filename)
 	// Initialize pseudo-random number generator
 	std::random_device rd; // PRNG seed generator
 	std::mt19937 mtrand(rd()); // Mersenne Twister
-	std::uniform_real_distribution<double> unidist(0, 1); // uniform distribution on [0, 1)
+	std::uniform_real_distribution<double> unidist(0, 1);
 
 	if (dim==1) {
 		/* ============================================= *
@@ -190,25 +156,21 @@ void generate(int dim, const char* filename)
 		double Ntot = 1.0;
 		GRID1D initGrid(NC+NP+NC*(NP+1), 0, Nx);
 		for (int d = 0; d < dim; d++) {
-			dx(initGrid,d)=meshres;
+			dx(initGrid,d) = meshres;
 			dV *= meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
-			if (useNeumann) {
-				if (x0(initGrid, d) == g0(initGrid, d))
-					b0(initGrid, d) = Neumann;
-				if (x1(initGrid, d) == g1(initGrid, d))
-					b1(initGrid, d) = Neumann;
-			}
+			if (x0(initGrid, d) == g0(initGrid, d))
+				b0(initGrid, d) = Neumann;
+			if (x1(initGrid, d) == g1(initGrid, d))
+				b1(initGrid, d) = Neumann;
 		}
 
 		// Sanity check on system size and  particle spacing
 		if (rank == 0)
-			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
-
-		// Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
-		//                    minimum for numerical stability is 14*dx (due to interface width).
-		const field_t rPrecip[NP] = {5.0*7.5e-9 / dx(initGrid,0),  // delta
-		                             5.0*7.5e-9 / dx(initGrid,0)}; // Laves
+			std::cout << "Timestep dt=" << dt
+					  << ". Linear stability limits: dtp=" << dtp
+					  << " (transformation-limited), dtc=" << dtc
+					  << " (diffusion-limited)." << std::endl;
 
 		// Zero initial condition
 		const vector<field_t> blank(fields(initGrid), 0);
@@ -219,10 +181,7 @@ void generate(int dim, const char* filename)
 			initGrid(n) = blank;
 		}
 
-		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
 		Composition comp;
-		//comp += enrichMatrix(initGrid, bell[0], bell[1]);
-
 		vector<int> origin(dim, 0);
 		const int xoffset[NP] = {int(-16 * (5e-9 / meshres)), int(16 * (5e-9 / meshres))}; //  80 nm
 
@@ -236,7 +195,6 @@ void generate(int dim, const char* filename)
 		Composition myComp;
 		myComp += comp;
 		MPI::COMM_WORLD.Barrier();
-		// Caution: Primitive. Will not scale to large MPI systems.
 		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
 		for (int j = 0; j < NP+1; j++) {
 			MPI::COMM_WORLD.Barrier();
@@ -256,51 +214,17 @@ void generate(int dim, const char* filename)
 		matCr /= Nmat;
 		matNb /= Nmat;
 
-
-		/* =========================== *
-		 * Solve for parallel tangents *
-		 * =========================== */
-
-		rootsolver parallelTangentSolver;
-		unsigned int totBadTangents = 0;
-
 		#ifdef _OPENMP
-		#pragma omp parallel for private(parallelTangentSolver)
+		#pragma omp parallel for
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
-			field_t nx = 0.0;
 			vector<field_t>& initGridN = initGrid(n);
-
-			for (int i = NC; i < NC+NP; i++)
-				nx += h(initGridN[i]);
-
-			if (nx < 0.01) { // pure gamma
-				initGridN[0] += matCr;
-				initGridN[1] += matNb;
-			}
-
-			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-			guessGamma(initGridN);
-			guessDelta(initGridN);
-			guessLaves(initGridN);
-
-			double res = parallelTangentSolver.solve(initGridN);
-
-			if (res>root_tol) {
-				// Invalid roots: substitute guesses.
-				#ifdef _OPENMP
-				#pragma omp atomic
-				#endif
-				totBadTangents++;
-			}
+			update_compositions(initGridN);
 		}
 
 		ghostswap(initGrid);
 
 		#ifdef MPI_VERSION
-		MPI::COMM_WORLD.Barrier();
-		unsigned int myBad(totBadTangents);
-		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
 		MPI::COMM_WORLD.Barrier();
 		double mydt(dt);
 		MPI::COMM_WORLD.Allreduce(&mydt, &dt, 1, MPI_DOUBLE, MPI_MIN);
@@ -310,15 +234,15 @@ void generate(int dim, const char* filename)
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-					"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "ifce_vel");
-			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\n",
-			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy);
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+			               "ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "free_energy", "ifce_vel");
+			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
+			               dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
 			printf("%9s %9s %9s %9s %9s %9s\n",
-			"x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", "p_l");
+			       "x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", "p_l");
 			printf("%9g %9g %9g %9g %9g %9g\n",
-			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
+			       summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
 		}
 
 		output(initGrid,filename);
@@ -343,26 +267,23 @@ void generate(int dim, const char* filename)
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
-			if (useNeumann) {
-				if (x0(initGrid, d) == g0(initGrid, d))
-					b0(initGrid, d) = Neumann;
-				if (x1(initGrid, d) == g1(initGrid, d))
-					b1(initGrid, d) = Neumann;
-			}
+			if (x0(initGrid, d) == g0(initGrid, d))
+				b0(initGrid, d) = Neumann;
+			if (x1(initGrid, d) == g1(initGrid, d))
+				b1(initGrid, d) = Neumann;
 		}
-
-		// Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
-		//                    minimum for numerical stability is 14*dx (due to interface width).
-		const field_t rPrecip[NP] = {5.0*7.5e-9 / dx(initGrid,0),  // delta
-		                             5.0*7.5e-9 / dx(initGrid,0)}; // Laves
 
 		// Sanity check on system size and  particle spacing
 		if (rank == 0)
-			std::cout << "Timestep dt=" << dt << ". Linear stability limits: dtp=" << dtp << " (transformation-limited), dtc="<< dtc << " (diffusion-limited)." << std::endl;
+			std::cout << "Timestep dt=" << dt
+					  << ". Linear stability limits: dtp=" << dtp
+					  << " (transformation-limited), dtc=" << dtc
+					  << " (diffusion-limited)." << std::endl;
 
 		for (int i = 0; i < NP; i++) {
 			if (rPrecip[i] > Ny/2)
-				std::cerr << "Warning: domain too small to accommodate phase " << i << ", expand beyond " << 2.0*rPrecip[i] << " pixels." << std::endl;
+				std::cerr << "Warning: domain too small to accommodate phase " << i
+						  << ", expand beyond " << 2.0*rPrecip[i] << " pixels." << std::endl;
 		}
 
 		// Zero initial condition
@@ -374,11 +295,10 @@ void generate(int dim, const char* filename)
 			initGrid(n) = blank;
 		}
 
-		// Initialize matrix (gamma phase): bell curve along x, each stripe in y is identical (with small fluctuations)
+		// Initialize matrix (gamma phase)
 		Composition comp;
 		field_t matCr = 0.0;
 		field_t matNb = 0.0;
-		//comp += enrichMatrix(initGrid, bell[0], bell[1]);
 
 		vector<int> origin(dim, 0);
 
@@ -405,29 +325,9 @@ void generate(int dim, const char* filename)
 			const double ro = 0.05;
 			xCr0 = xo + ro * (unidist(mtrand) - 1.);
 			xNb0 = yo + ro * (unidist(mtrand) - 1.);
-			withinRange = (std::pow(xCr0 - xo, 2.0) + std::pow(xNb0 - yo, 2.0) < std::pow(ro, 2.0));
+			withinRange = (std::pow(xCr0 - xo, 2.0) + std::pow(xNb0 - yo, 2.0)
+						   < std::pow(ro, 2.0));
 		}
-		/* Randomly choose system composition in a rectangular
-		 * region of the phase diagram along the gamma bisector
-		 * of three-phase coexistence triangular phase field
-		 */
-		/*
-		while (!withinRange) {
-			// Rotate and scale unit square
-			const double    dX = 0.0275;
-			const double    dY = 0.4700;
-			const double   scX = 0.2000;
-			const double   scY = 0.0250;
-			const double theta = 0.9250;
-			const double X = scX * unidist(mtrand);
-			const double Y = scY * unidist(mtrand);
-			xNb0 =  std::cos(theta) * X + std::sin(theta) * Y + dX;
-			xCr0 = -std::sin(theta) * X + std::cos(theta) * Y + dY;
-			bool belowUpperBound = (xCr0 < (0.349 - 0.490)/(0.250 - 0.025) * (xNb0 - 0.025) + 0.49);
-			bool aboveLowerBound = (xCr0 > (0.250 - 0.490)/(0.136 - 0.025) * (xNb0 - 0.025) + 0.49);
-			withinRange = (belowUpperBound && aboveLowerBound);
-		}
-		*/
 
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
@@ -454,7 +354,6 @@ void generate(int dim, const char* filename)
 		Composition myComp;
 		myComp += comp;
 		MPI::COMM_WORLD.Barrier();
-		// Caution: Will not scale to "large" MPI systems.
 		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
 		for (int j = 0; j < NP+1; j++) {
 			MPI::COMM_WORLD.Barrier();
@@ -474,65 +373,29 @@ void generate(int dim, const char* filename)
 		matCr /= Nmat;
 		matNb /= Nmat;
 
-		/* =========================== *
-		 * Solve for parallel tangents *
-		 * =========================== */
-
-		rootsolver parallelTangentSolver;
-		unsigned int totBadTangents = 0;
-
 		#ifdef _OPENMP
-		#pragma omp parallel for private(parallelTangentSolver)
+		#pragma omp parallel for
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
-			field_t nx = 0.0;
 			vector<field_t>& initGridN = initGrid(n);
-
-			for (int i = NC; i < NC+NP; i++)
-				nx += h(initGridN[i]);
-
-			if (nx < 0.01) { // pure gamma
-				initGridN[0] += matCr;
-				initGridN[1] += matNb;
-			}
-
-			// Initialize compositions in a manner compatible with OpenMP and MPI parallelization
-			guessGamma(initGridN);
-			guessDelta(initGridN);
-			guessLaves(initGridN);
-
-			double res = parallelTangentSolver.solve(initGridN);
-
-			if (res>root_tol) {
-				// Invalid roots: substitute guesses.
-				#ifdef _OPENMP
-				#pragma omp atomic
-				#endif
-				totBadTangents++;
-			}
+			update_compositions(initGridN);
 		}
 
 		ghostswap(initGrid);
-
-		#ifdef MPI_VERSION
-		MPI::COMM_WORLD.Barrier();
-		unsigned int myBad(totBadTangents);
-		MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
-		#endif
 
 		vector<double> summary = summarize_fields(initGrid);
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-					"ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "bad_roots", "free_energy", "ifce_vel");
-			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\n",
-			dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy);
+			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
+			               "ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "free_energy", "ifce_vel");
+			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
+			               dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
 			printf("%9s %9s %9s %9s %9s %9s\n",
-			"x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", " p_l");
+			       "x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", " p_l");
 			printf("%9g %9g %9g %9g %9g %9g\n",
-			summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
+			       summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
 		}
 
 		output(initGrid,filename);
@@ -560,9 +423,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	grid<dim,vector<T> > newGrid(oldGrid);
 	grid<dim,vector<T> > lapGrid(oldGrid, 2*NC+NP); // excludes fictitious secondary compositions
 
-	const double dtp = (meshres*meshres)/(2.0 * dim * Lmob[0]*kappa[0]); // transformation-limited timestep
-	const double dtc = (meshres*meshres)/(2.0 * dim * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
-	const double dt = LinStab * std::min(dtp, dtc);
+	const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
+	const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
+	const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 
 	double dV = 1.0;
 	double Ntot = 1.0;
@@ -571,15 +434,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		dx(newGrid,d) = meshres;
 		dV *= dx(oldGrid,d);
 		Ntot *= double(g1(oldGrid, d) - g0(oldGrid, d));
-		if (useNeumann) {
-			if (x0(oldGrid, d) == g0(oldGrid, d)) {
-				b0(oldGrid, d) = Neumann;
-				b0(newGrid, d) = Neumann;
-			}
-			if (x1(oldGrid, d) == g1(oldGrid, d)) {
-				b1(oldGrid, d) = Neumann;
-				b1(newGrid, d) = Neumann;
-			}
+		if (x0(oldGrid, d) == g0(oldGrid, d)) {
+			b0(oldGrid, d) = Neumann;
+			b0(newGrid, d) = Neumann;
+		}
+		if (x1(oldGrid, d) == g1(oldGrid, d)) {
+			b1(oldGrid, d) = Neumann;
+			b1(newGrid, d) = Neumann;
 		}
 	}
 
@@ -606,14 +467,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (rank == 0)
 			print_progress(step, steps);
 
-		rootsolver parallelTangentSolver;
-		unsigned int totBadTangents = 0;
-
 		/* ================= *
 		 * Compute Laplacian *
 		 * ================= */
 		#ifdef _OPENMP
-		#pragma omp parallel for private(parallelTangentSolver)
+		#pragma omp parallel for
 		#endif
 		for (int n = 0; n < nodes(oldGrid); n++) {
 			vector<int> x = position(oldGrid, n);
@@ -621,7 +479,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		}
 
 		#ifdef _OPENMP
-		#pragma omp parallel for private(parallelTangentSolver)
+		#pragma omp parallel for
 		#endif
 		for (int n = 0; n < nodes(oldGrid); n++) {
 			/* ============================================== *
@@ -639,8 +497,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			const T PhaseEnergy[NP+1] = {g_del(oldGridN[2*NC+NP],  oldGridN[2*NC+NP+1]),
 			                             g_lav(oldGridN[3*NC+NP],  oldGridN[3*NC+NP+1]),
-			                             g_gam(oldGridN[  NC+NP],  oldGridN[  NC+NP+1]) // matrix phase last
-			                            };
+			                             g_gam(oldGridN[  NC+NP],  oldGridN[  NC+NP+1])};
 
 			// Diffusion potential in matrix (will equal chemical potential at equilibrium)
 			const field_t dgGdxCr = dg_gam_dxCr(oldGridN[NC+NP], oldGridN[NC+NP+1]);
@@ -655,15 +512,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			// Laplacians of field variables, including fictitious compositions of matrix phase
 			const vector<T>& laplac = lapGrid(n); //maskedlaplacian(oldGrid, x, 2*NC+NP);
 
-
 			/* ============================================= *
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
 
 			for (int i = 0; i < NC; i++) // Recall that D_Cr and D_Nb are columns of diffusivity matrix
 				newGridN[i] = oldGridN[i] + current_dt * ( D_Cr[i] * laplac[NC+NP  ]
-				                                         + D_Nb[i] * laplac[NC+NP+1]);
-
+				              + D_Nb[i] * laplac[NC+NP+1]);
 
 			/* ======================================== *
 			 * Solve the Equation of Motion for Phases  *
@@ -687,24 +542,11 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				newGridN[NC+j] = phiOld - current_dt * Lmob[j] * delF_delPhi;
 			}
 
+			/* =============================== *
+			 * Compute Fictitious Compositions *
+			 * =============================== */
 
-			/* =========================== *
-			 * Solve for parallel tangents *
-			 * =========================== */
-
-			// Copy old values as initial guesses
-			for (int i = NC+NP; i < NC+NP+NC*(NP+1); i++)
-				newGridN[i] = oldGridN[i];
-
-			double res = parallelTangentSolver.solve(newGridN);
-
-			if (res > root_tol) {
-				// Invalid roots: substitute guesses.
-				#ifdef _OPENMP
-				#pragma omp atomic
-				#endif
-				totBadTangents++;
-			}
+			update_compositions(newGridN);
 
 		} // end loop over grid points
 
@@ -714,7 +556,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (logcount >= logstep) {
 			logcount = 0;
 
-			// Update timestep based on interfacial velocity. If v==0, there's no interface: march ahead with current dt.
+			/* Update timestep based on interfacial velocity.
+			 * If v==0, there's no interface: march ahead with current dt.
+			 */
 			double interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
 			double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
 
@@ -737,13 +581,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 				 * ====================================================================== */
 
-				#ifdef MPI_VERSION
-				MPI::COMM_WORLD.Barrier();
-				unsigned int myBad(totBadTangents);
-				MPI::COMM_WORLD.Reduce(&myBad, &totBadTangents, 1, MPI_UNSIGNED, MPI_SUM, 0);
-				#endif
-
-
 				// Warning: placement matters for MPI. Be careful.
 				vector<double> summary = summarize_fields(newGrid);
 				double energy = summarize_energy(newGrid);
@@ -751,8 +588,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				char buffer[4096];
 
 				if (rank == 0) {
-					sprintf(buffer, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9u\t%9g\t%9g\n",
-							ideal_dt, current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], totBadTangents, energy, interfacialVelocity);
+					sprintf(buffer, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
+					        ideal_dt, current_dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy, interfacialVelocity);
 					ostr << buffer;
 				}
 			} else {
@@ -796,9 +633,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 }
 
 
+
 } // namespace MMSP
-
-
 
 
 
@@ -810,90 +646,22 @@ double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const doub
 	return dx*std::sqrt(r);
 }
 
-
-double bellCurve(double x, double m, double s)
-{
-	return std::exp(-std::pow(x-m,2.0) / (2.0*s*s));
-}
-
-
-// Initial guesses for gamma, delta, and Laves equilibrium compositions
 template<typename T>
-void guessGamma(MMSP::vector<T>& GRIDN)
+void update_compositions(MMSP::vector<T>& GRIDN)
 {
-	// Coarsely approximate gamma using a line compound with x_Nb = 0.025
-	// Interpolate x_Cr from (-0.01, 1.01) into (0.2, 0.4)
-
 	const T& xcr = GRIDN[0];
-	const T  xnb = 0.10;
+	const T& xnb = GRIDN[1];
 
-	GRIDN[NC+NP  ] = 0.20 + 0.20/1.02 * (xcr + 0.01);
-	GRIDN[NC+NP+1] = xnb;
-}
+	const T fdel = h(GRIDN[2]);
+	const T flav = h(GRIDN[3]);
+	const T fgam = 1.-fdel-flav;
 
-
-template<typename T>
-void guessDelta(MMSP::vector<T>& GRIDN)
-{
-	// Coarsely approximate delta using a line compound with x_Nb = 0.225
-	// Interpolate x_Cr from (-0.01, 1.01) into (0.0, 0.05)
-
-	const T& xcr = GRIDN[0];
-	const T  xnb = 0.225;
-
-	GRIDN[2*NC+NP  ] = 0.05/1.02 * (xcr + 0.01);
-	GRIDN[2*NC+NP+1] = xnb;
-}
-
-
-template<typename T>
-void guessLaves(MMSP::vector<T>& GRIDN)
-{
-	// Coarsely approximate Laves using a line compound with x_Nb = 30.0%
-	// Interpolate x_Cr from (-0.01, 1.01) into (0.30, 0.45)
-
-	const T& xcr = GRIDN[0];
-	const T  xnb = 0.25;
-
-	GRIDN[3*NC+NP  ] = 0.30 + 0.15/1.02 * (xcr + 0.01);
-	GRIDN[3*NC+NP+1] = xnb;
-}
-
-
-template<int dim, typename T>
-Composition enrichMatrix(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double bellCr, const double bellNb)
-{
-	/* Not the most efficient: to simplify n-dimensional grid compatibility,   *
-	 * this function computes the excess compositions at each point. A slight  *
-	 * speed-up could be obtained by allocating an array of size Nx, computing *
-	 * the excess for each entry, then copying from the array into the grid.   *
-	 *                                                                         *
-	 * For small grids (e.g., 768 x 192), the speedup is not worth the effort. */
-
-	const int Nx = MMSP::g1(GRID, 0) - MMSP::g0(GRID, 0);
-	const double h = MMSP::dx(GRID, 0);
-	Composition comp;
-
-	#ifdef _OPENMP
-	#pragma omp parallel for
-	#endif
-	for (int n = 0; n < MMSP::nodes(GRID); n++) {
-		MMSP::vector<int> x = MMSP::position(GRID, n);
-		T matrixCr = xCr[NP+1] * bellCurve(h*x[0], h*(Nx/2), bellCr); // centerline
-		//    matrixCr += xCr[4] * bellCurve(h*x[0], 0,        bellCr); // left wall
-		//    matrixCr += xCr[4] * bellCurve(h*x[0], h*Nx,     bellCr); // right wall
-		T matrixNb = xNb[NP+1] * bellCurve(h*x[0], h*(Nx/2), bellNb); // centerline
-		//    matrixNb += xNb[4] * bellCurve(h*x[0], 0,        bellNb); // left wall
-		//    matrixNb += xNb[4] * bellCurve(h*x[0], h*Nx,     bellNb); // right wall
-
-		GRID(n)[0] = matrixCr;
-		GRID(n)[1] = matrixNb;
-
-		comp.x[NP][0] += matrixCr;
-		comp.x[NP][1] += matrixNb;
-	}
-
-	return comp;
+	GRIDN[1*NC+NP  ] = fict_gam_Cr(xcr, xnb, fdel, fgam, flav);
+	GRIDN[1*NC+NP+1] = fict_gam_Nb(xcr, xnb, fdel, fgam, flav);
+	GRIDN[2*NC+NP  ] = fict_del_Cr(xcr, xnb, fdel, fgam, flav);
+	GRIDN[2*NC+NP+1] = fict_del_Nb(xcr, xnb, fdel, fgam, flav);
+	GRIDN[3*NC+NP  ] = fict_lav_Cr(xcr, xnb, fdel, fgam, flav);
+	GRIDN[3*NC+NP+1] = fict_lav_Nb(xcr, xnb, fdel, fgam, flav);
 }
 
 template<typename T>
@@ -905,14 +673,6 @@ void embedParticle(MMSP::vector<T>& v, const int& pid, const T& xCr, const T& xN
 	comp.x[pid-NC][0] += xCr;
 	comp.x[pid-NC][1] += xNb;
 	comp.N[pid-NC] += 1;
-}
-
-template<typename T>
-void applyParticleTanh(MMSP::vector<T>& v, const int& pid, const T& tanh)
-{
-	v[0]  -=  tanh*v[0];
-	v[1]  -=  tanh*v[1];
-	v[pid] -= tanh*v[pid];
 }
 
 template<int dim, typename T>
@@ -964,57 +724,8 @@ Composition embedParticle(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 		}
 	}
 
-	if (useTanh) {
-		// Create a tanh profile in composition surrounding the precipitate to reduce initial Laplacian
-		double del = 3.0 + epsilon;
-		if (dim==1) {
-			for (x[0] = origin[0] - R - 2*del; x[0] <= origin[0] + R + 2*del; x[0]++) {
-				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-					continue;
-				const double r = radius(origin, x, 1);
-				if (r >= R - del && r < R + del) {
-					const T tanhprof = 0.5*(1.0 + std::tanh(double(r - R - del)/(del)));
-					applyParticleTanh(GRID(x), pid, tanhprof);
-				}
-			}
-		} else if (dim==2) {
-			for (x[0] = origin[0] - R - 2*del; x[0] <= origin[0] + R + 2*del; x[0]++) {
-				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-					continue;
-				for (x[1] = origin[1] - R - 2*del; x[1] <= origin[1] + R + 2*del; x[1]++) {
-					if (x[1] < x0(GRID, 1) || x[1] >= x1(GRID, 1))
-						continue;
-					const double r = radius(origin, x, 1);
-					if (r >= R - del && r < R + del) {
-						const T tanhprof = 0.5*(1.0 + std::tanh(double(r - R - del)/(del)));
-						applyParticleTanh(GRID(x), pid, tanhprof);
-					}
-				}
-			}
-		} else if (dim==3) {
-			for (x[0] = origin[0] - R - 2*del; x[0] <= origin[0] + R + 2*del; x[0]++) {
-				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-					continue;
-				for (x[1] = origin[1] - R - 2*del; x[1] <= origin[1] + R + 2*del; x[1]++) {
-					if (x[1] < x0(GRID, 1) || x[1] >= x1(GRID, 1))
-						continue;
-					for (x[2] = origin[2] - R - 2*del; x[2] <= origin[2] + R + 2*del; x[2]++) {
-						if (x[2] < x0(GRID, 2) || x[2] >= x1(GRID, 2))
-							continue;
-						const double r = radius(origin, x, 1);
-						if (r >= R - del && r < R + del) {
-							const T tanhprof = 0.5*(1.0 + std::tanh(double(r - R - del)/(del)));
-							applyParticleTanh(GRID(x), pid, tanhprof);
-						}
-					}
-				}
-			}
-		}
-	}
-
 	return comp;
 }
-
 
 template<typename T>
 void embedStripe(MMSP::vector<T>& v, const int& pid, const T& xCr, const T& xNb, Composition& comp)
@@ -1025,20 +736,6 @@ void embedStripe(MMSP::vector<T>& v, const int& pid, const T& xCr, const T& xNb,
 	comp.x[pid-NC][0] += xCr;
 	comp.x[pid-NC][1] += xNb;
 	comp.N[pid-NC] += 1;
-}
-
-template<typename T>
-void applyStripeTanh(MMSP::vector<T>& v, const bool lowSide, const int& p, const T& xCr, const T& xNb, const T& tanh)
-{
-	if (lowSide) {
-		v[0] = (1.0 - tanh) * v[0] + tanh * xCr;
-		v[1] = (1.0 - tanh) * v[1] + tanh * xNb;
-		v[p] = (1.0 - tanh) * v[p] + tanh;
-	} else {
-		v[0] = (1.0 - tanh) * xCr + tanh * v[0];
-		v[1] = (1.0 - tanh) * xNb + tanh * v[1];
-		v[p] = (1.0 - tanh)       + tanh * v[p];
-	}
 }
 
 template<int dim, typename T>
@@ -1078,67 +775,6 @@ Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 		}
 	}
 
-	if (useTanh) {
-		// Create a tanh profile in composition surrounding the precipitate to reduce initial Laplacian
-		T del = 4.3875e-9 / meshres; // empirically determined tanh profile thickness
-		if (dim==1) {
-			for (x[0] = origin[0] - R - 2*del; x[0] < origin[0] - R; x[0]++) {
-				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-					continue;
-				const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] + R + del)/(del)));
-				applyStripeTanh(GRID(x), true, pid, xCr, xNb, tanhprof);
-			}
-		} else if (dim==2) {
-			for (x[0] = origin[0] - R - 2*del; x[0] < origin[0] - R; x[0]++) {
-				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-					continue;
-				for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
-					const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] + R + del)/(del)));
-					applyStripeTanh(GRID(x), true, pid, xCr, xNb, tanhprof);
-				}
-			}
-		} else if (dim==3) {
-			for (x[0] = origin[0] - R - 2*del; x[0] < origin[0] - R; x[0]++) {
-				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-					continue;
-				for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
-					for (x[2] = x0(GRID, 2); x[2] < x1(GRID, 2); x[2]++) {
-						const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] + R + del)/(del)));
-						applyStripeTanh(GRID(x), true, pid, xCr, xNb, tanhprof);
-					}
-				}
-			}
-		}
-		if (dim==1) {
-			for (x[0] = origin[0] + R; x[0] < origin[0] + R + 2*del; x[0]++) {
-				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-					continue;
-				const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] - R - del)/(del)));
-				applyStripeTanh(GRID(x), false, pid, xCr, xNb, tanhprof);
-			}
-		} else if (dim==2) {
-			for (x[0] = origin[0] + R; x[0] < origin[0] + R + 2*del; x[0]++) {
-				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-					continue;
-				for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
-					const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] - R - del)/(del)));
-					applyStripeTanh(GRID(x), false, pid, xCr, xNb, tanhprof);
-				}
-			}
-		} else if (dim==3) {
-			for (x[0] = origin[0] + R; x[0] < origin[0] + R + 2*del; x[0]++) {
-				if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-					continue;
-				for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
-					for (x[2] = x0(GRID, 2); x[2] < x1(GRID, 2); x[2]++) {
-						const T tanhprof = 0.5*(1.0 + std::tanh(double(x[0] - origin[0] - R - del)/(del)));
-						applyStripeTanh(GRID(x), false, pid, xCr, xNb, tanhprof);
-					}
-				}
-			}
-		}
-	}
-
 	return comp;
 }
 
@@ -1170,11 +806,10 @@ T gibbs(const MMSP::vector<T>& v)
 	return g;
 }
 
-
 template <int dim, typename T>
 MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N)
 {
-    MMSP::vector<T> gradient(dim);
+	MMSP::vector<T> gradient(dim);
 	MMSP::vector<int> s = x;
 
 	for (int i = 0; i < dim; i++) {
@@ -1187,14 +822,13 @@ MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, con
 		double weight = 1.0 / (2.0 * dx(GRID, i));
 		gradient[i] = weight * (yh - yl);
 	}
+
 	return gradient;
 }
-
 
 template <int dim, typename T>
 MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N)
 {
-	// Compute Laplacian of first N fields, ignore the rest
 	MMSP::vector<T> laplacian(N, 0.0);
 	MMSP::vector<int> s = x;
 
@@ -1211,29 +845,23 @@ MMSP::vector<T> maskedlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, co
 		for (int j = 0; j < N; j++)
 			laplacian[j] += weight * (yh[j] - 2.0 * y[j] + yl[j]);
 	}
+
 	return laplacian;
 }
-
 
 template <int dim, typename T>
 MMSP::vector<T> pointerlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N)
 {
-	// Compute Laplacian of first N fields, ignore the rest; use pointers instead of accessor operators
+	if (dim > 2) {
+		std::cerr << "ERROR: pointedlaplacian is only available for 1- and 2-D fields." << std::endl;
+		MMSP::Abort(-1);
+	}
+
 	MMSP::vector<T> laplacian(N, 0.0);
 
 	const double wx = 1.0 / (MMSP::dx(GRID, 0) * MMSP::dx(GRID, 0));
-	int deltax = 1;
-	int deltay = 1;
-	int deltaz = 1;
-	if (dim > 1) {
-		// Why does this work!?
-		deltax = 2 * MMSP::ghosts(GRID) + MMSP::y1(GRID) - MMSP::y0(GRID);
-		deltay = 1;
-	} else {
-		deltax = 2 * MMSP::ghosts(GRID) + MMSP::z1(GRID) - MMSP::z0(GRID);
-		deltay = 2 * MMSP::ghosts(GRID) + MMSP::y1(GRID) - MMSP::y0(GRID);
-		deltaz = 1;
-	}
+	const int deltax = (dim == 1) ? 1 : 2 * MMSP::ghosts(GRID) + MMSP::y1(GRID) - MMSP::y0(GRID);
+	const int deltay = 1;
 
 	const MMSP::vector<T>* const c = &(GRID(x));
 	const MMSP::vector<T>* const l = (MMSP::b0(GRID,0)==MMSP::Neumann && x[0]==MMSP::x0(GRID)  ) ? c : c - deltax;
@@ -1241,23 +869,12 @@ MMSP::vector<T> pointerlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, c
 	for (int j = 0; j < N; j++)
 		laplacian[j] += wx * ((*h)[j] - 2. * (*c)[j] + (*l)[j]);
 
-	if (dim > 1) {
+	if (dim == 2) {
 		const double wy = 1.0 / (MMSP::dx(GRID, 1) * MMSP::dx(GRID, 1));
 		const MMSP::vector<T>* const cl = (MMSP::b0(GRID,1)==MMSP::Neumann && x[1]==MMSP::y0(GRID)  ) ? c : c - deltay;
 		const MMSP::vector<T>* const ch = (MMSP::b1(GRID,1)==MMSP::Neumann && x[1]==MMSP::y1(GRID)-1) ? c : c + deltay;
-		for (int j = 0; j < N; j++)
+		for (int j = 0; j < N; j++) {
 			laplacian[j] +=  wy * ((*ch)[j] - 2. * (*c)[j] + (*cl)[j]);
-
-		if (dim > 2) {
-			// UNTESTED and UNSAFE!
-			std::cerr << "ERROR: pointedlaplacian is only available for dim<3." << std::endl;
-			MMSP::Abort(-1);
-
-			const double wz = 1.0 / (MMSP::dx(GRID, 2) * MMSP::dx(GRID, 2));
-			const MMSP::vector<T>* const ccl = (MMSP::b0(GRID,2)==MMSP::Neumann && x[2]==MMSP::z0(GRID)  ) ? c : c - deltaz;
-			const MMSP::vector<T>* const cch = (MMSP::b1(GRID,2)==MMSP::Neumann && x[2]==MMSP::z1(GRID)-1) ? c : c + deltaz;
-			for (int j = 0; j < N; j++)
-				laplacian[j] += wz * ((*cch)[j] - 2. * (*c)[j] + (*ccl)[j]);
 		}
 	}
 
@@ -1265,255 +882,9 @@ MMSP::vector<T> pointerlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, c
 }
 
 
-/* ========================================= *
- * Invoke GSL to solve for parallel tangents *
- * ========================================= */
-
-int parallelTangent_f(const gsl_vector* x, void* params, gsl_vector* f)
-{
-	/* ======================================================= *
-	 * Build Vector of Mass and Chemical Potential Differences *
-	 * ======================================================= */
-
-	// Initialize vector
-	gsl_vector_set_zero(f);
-
-	// Prepare constants
-	const field_t x_Cr = ((struct rparams*) params)->x_Cr;
-	const field_t x_Nb = ((struct rparams*) params)->x_Nb;
-	const field_t h_del = ((struct rparams*) params)->h_del;
-	const field_t h_lav = ((struct rparams*) params)->h_lav;
-	const field_t h_gam = 1.0 - h_del - h_lav;
-
-	// Prepare variables
-	const field_t C_gam_Cr = gsl_vector_get(x, 0);
-	const field_t C_gam_Nb = gsl_vector_get(x, 1);
-
-	const field_t C_del_Cr = gsl_vector_get(x, 2);
-	const field_t C_del_Nb = gsl_vector_get(x, 3);
-
-	const field_t C_lav_Cr  = gsl_vector_get(x, 4);
-	const field_t C_lav_Nb  = gsl_vector_get(x, 5);
-
-
-	// Prepare derivatives
-	const field_t dgGdxCr = dg_gam_dxCr(C_gam_Cr, C_gam_Nb);
-	const field_t dgGdxNb = dg_gam_dxNb(C_gam_Cr, C_gam_Nb);
-
-	const field_t dgDdxCr = dg_del_dxCr(C_del_Cr, C_del_Nb);
-	const field_t dgDdxNb = dg_del_dxNb(C_del_Cr, C_del_Nb);
-
-	const field_t dgLdxCr = dg_lav_dxCr(C_lav_Cr, C_lav_Nb);
-	const field_t dgLdxNb = dg_lav_dxNb(C_lav_Cr, C_lav_Nb);
-
-
-	// Update vector
-	gsl_vector_set(f, 0, x_Cr - h_gam*C_gam_Cr - h_del*C_del_Cr - h_lav*C_lav_Cr);
-	gsl_vector_set(f, 1, x_Nb - h_gam*C_gam_Nb - h_del*C_del_Nb - h_lav*C_lav_Nb);
-
-	gsl_vector_set(f, 2, dgGdxCr - dgDdxCr);
-	gsl_vector_set(f, 3, dgGdxNb - dgDdxNb);
-
-	gsl_vector_set(f, 4, dgGdxCr - dgLdxCr);
-	gsl_vector_set(f, 5, dgGdxNb - dgLdxNb);
-
-
-	return GSL_SUCCESS;
-}
-
-
-int parallelTangent_df(const gsl_vector* x, void* params, gsl_matrix* J)
-{
-	/* ========================================================= *
-	 * Build Jacobian of Mass and Chemical Potential Differences *
-	 * ========================================================= */
-
-	// Prepare constants
-	const double h_del = ((struct rparams*) params)->h_del;
-	const double h_lav = ((struct rparams*) params)->h_lav;
-	const double h_gam = 1.0 - h_del - h_lav;
-
-	// Prepare variables
-	#ifndef PARABOLA
-	const double C_gam_Cr = gsl_vector_get(x, 0);
-	const double C_gam_Nb = gsl_vector_get(x, 1);
-
-	const double C_del_Cr = gsl_vector_get(x, 2);
-	const double C_del_Nb = gsl_vector_get(x, 3);
-
-	const double C_lav_Cr = gsl_vector_get(x, 4);
-	const double C_lav_Nb = gsl_vector_get(x, 5);
-	#endif
-
-	gsl_matrix_set_zero(J);
-
-	// Conservation of mass (Cr, Nb)
-	gsl_matrix_set(J, 0, 0, -h_gam);
-	gsl_matrix_set(J, 1, 1, -h_gam);
-
-	gsl_matrix_set(J, 0, 2, -h_del);
-	gsl_matrix_set(J, 1, 3, -h_del);
-
-	gsl_matrix_set(J, 0, 4, -h_lav);
-	gsl_matrix_set(J, 1, 5, -h_lav);
-
-
-	// Equal chemical potential involving gamma phase (Cr, Nb, Ni)
-	// Cross-derivatives must needs be equal, d2G_dxCrNb == d2G_dxNbCr. Cf. Arfken Sec. 1.9.
-	#ifdef PARABOLA
-	const double jac_gam_CrCr = d2g_gam_dxCrCr();
-	const double jac_gam_CrNb = d2g_gam_dxCrNb();
-	const double jac_gam_NbCr = jac_gam_CrNb;
-	const double jac_gam_NbNb = d2g_gam_dxNbNb();
-	#else
-	const double jac_gam_CrCr = d2g_gam_dxCrCr(C_gam_Cr, C_gam_Nb);
-	const double jac_gam_CrNb = d2g_gam_dxCrNb(C_gam_Cr, C_gam_Nb);
-	const double jac_gam_NbCr = jac_gam_CrNb;
-	const double jac_gam_NbNb = d2g_gam_dxNbNb(C_gam_Cr, C_gam_Nb);
-	#endif
-
-	gsl_matrix_set(J, 2, 0, jac_gam_CrCr);
-	gsl_matrix_set(J, 2, 1, jac_gam_CrNb);
-	gsl_matrix_set(J, 3, 0, jac_gam_NbCr);
-	gsl_matrix_set(J, 3, 1, jac_gam_NbNb);
-
-	gsl_matrix_set(J, 4, 0, jac_gam_CrCr);
-	gsl_matrix_set(J, 4, 1, jac_gam_CrNb);
-	gsl_matrix_set(J, 5, 0, jac_gam_NbCr);
-	gsl_matrix_set(J, 5, 1, jac_gam_NbNb);
-
-
-	// Equal chemical potential involving delta phase (Cr, Nb)
-	#ifdef PARABOLA
-	const double jac_del_CrCr = d2g_del_dxCrCr();
-	const double jac_del_CrNb = d2g_del_dxCrNb();
-	const double jac_del_NbCr = jac_del_CrNb;
-	const double jac_del_NbNb = d2g_del_dxNbNb();
-	#elif defined CALPHAD
-	const double jac_del_CrCr = d2g_del_dxCrCr(C_del_Cr, C_del_Nb);
-	const double jac_del_CrNb = d2g_del_dxCrNb(C_del_Cr, C_del_Nb);
-	const double jac_del_NbCr = jac_del_CrNb;
-	const double jac_del_NbNb = d2g_del_dxNbNb(C_del_Cr, C_del_Nb);
-	#else
-	const double jac_del_CrCr = d2g_del_dxCrCr(C_del_Cr);
-	const double jac_del_CrNb = d2g_del_dxCrNb(C_del_Nb);
-	const double jac_del_NbCr = jac_del_CrNb;
-	const double jac_del_NbNb = d2g_del_dxNbNb(C_del_Cr, C_del_Nb);
-	#endif
-
-	gsl_matrix_set(J, 2, 2, -jac_del_CrCr);
-	gsl_matrix_set(J, 2, 3, -jac_del_CrNb);
-	gsl_matrix_set(J, 3, 2, -jac_del_NbCr);
-	gsl_matrix_set(J, 3, 3, -jac_del_NbNb);
-
-
-	// Equal chemical potential involving Laves phase (Nb, Ni)
-	#ifdef PARABOLA
-	const double jac_lav_CrCr = d2g_lav_dxCrCr();
-	const double jac_lav_CrNb = d2g_lav_dxCrNb();
-	const double jac_lav_NbCr = jac_lav_CrNb;
-	const double jac_lav_NbNb = d2g_lav_dxNbNb();
-	#else
-	const double jac_lav_CrCr = d2g_lav_dxCrCr(C_lav_Cr, C_lav_Nb);
-	const double jac_lav_CrNb = d2g_lav_dxCrNb(C_lav_Cr, C_lav_Nb);
-	const double jac_lav_NbCr = jac_lav_CrNb;
-	const double jac_lav_NbNb = d2g_lav_dxNbNb(C_lav_Cr, C_lav_Nb);
-	#endif
-
-	gsl_matrix_set(J, 4, 4, -jac_lav_CrCr);
-	gsl_matrix_set(J, 4, 5, -jac_lav_CrNb);
-	gsl_matrix_set(J, 5, 4, -jac_lav_NbCr);
-	gsl_matrix_set(J, 5, 5, -jac_lav_NbNb);
-
-	return GSL_SUCCESS;
-}
-
-
-int parallelTangent_fdf(const gsl_vector* x, void* params, gsl_vector* f, gsl_matrix* J)
-{
-	parallelTangent_f( x, params, f);
-	parallelTangent_df(x, params, J);
-
-	return GSL_SUCCESS;
-}
-
-
-rootsolver::rootsolver() :
-	n(NC*(NP+1)), // one equation per component per phase, including the matrix but not Ni
-	maxiter(root_max_iter),
-	tolerance(root_tol)
-{
-	x = gsl_vector_alloc(n);
-
-	/* Choose the multidimensional root finding algorithm.
-	 * Do the math and specify the Jacobian if at all possible. Consult the GSL manual for details:
-	 * https://www.gnu.org/software/gsl/manual/html_node/Multidimensional-Root_002dFinding.html
-	 *
-	 * If GSL finds the matrix to be singular, select a hybrid algorithm, then consult a numerical
-	 * methods reference (human or paper) to get your system of equations sorted.
-	 *
-	 * Available algorithms are, in order of *decreasing* efficiency:
-	 * 1. gsl_multiroot_fdfsolver_hybridsj
-	 * 2. gsl_multiroot_fdfsolver_hybridj
-	 * 3. gsl_multiroot_fdfsolver_newton
-	 * 4. gsl_multiroot_fdfsolver_gnewton
-	 */
-	algorithm = gsl_multiroot_fdfsolver_hybridsj;
-	solver = gsl_multiroot_fdfsolver_alloc(algorithm, n);
-	mrf = {&parallelTangent_f, &parallelTangent_df, &parallelTangent_fdf, n, &par};
-}
-
-
-template<typename T>
-double rootsolver::solve(MMSP::vector<T>& GRIDN)
-{
-	int status;
-	size_t iter = 0;
-
-	par.x_Cr = GRIDN[0];
-	par.x_Nb = GRIDN[1];
-
-	par.h_del = h(GRIDN[NC  ]);
-	par.h_lav = h(GRIDN[NC+1]);
-
-
-	// copy initial guesses from grid
-	for (int i = 0; i < int(n); i++)
-		gsl_vector_set(x, i, static_cast<double>(GRIDN[NC+NP+i]));
-
-	gsl_multiroot_fdfsolver_set(solver, &mrf, x);
-
-	do {
-		iter++;
-
-		status = gsl_multiroot_fdfsolver_iterate(solver);
-		if (status) // solver either converged or got stuck
-			break;
-
-		status = gsl_multiroot_test_residual(solver->f, tolerance);
-	} while (status == GSL_CONTINUE && iter < maxiter);
-
-	double residual = gsl_blas_dnrm2(solver->f);
-
-	if (status == GSL_SUCCESS)
-		for (int i = 0; i < int(n); i++)
-			GRIDN[NC+NP+i] = static_cast<T>(gsl_vector_get(solver->x, i));
-
-	return residual;
-}
-
-
-rootsolver::~rootsolver()
-{
-	gsl_multiroot_fdfsolver_free(solver);
-	gsl_vector_free(x);
-}
-
-
-
 template<int dim,class T>
-T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt,
-              MMSP::grid<dim,MMSP::vector<T> > const & newGrid)
+T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const& oldGrid, const double& dt,
+              MMSP::grid<dim,MMSP::vector<T> > const& newGrid)
 {
 	double vmax = 0.0;
 
@@ -1547,10 +918,10 @@ T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt
 		#pragma omp critical (critVel)
 		{
 		#endif
-		vmax = std::max(vmax, myVel);
-		#ifdef _OPENMP
+			vmax = std::max(vmax, myVel);
+			#ifdef _OPENMP
 		}
-		#endif
+			#endif
 	}
 
 	#ifdef MPI_VERSION
@@ -1564,13 +935,8 @@ T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const & oldGrid, const double& dt
 
 
 template<int dim,class T>
-MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const & GRID)
+MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
 {
-	/* ================================================================== *
-	 * Integrate composition and phase fractions over the whole grid      *
-	 * to make sure mass is conserved and phase transformations are sane  *
-	 * ================================================================== */
-
 	double Ntot = 1.0;
 	for (int d = 0; d<dim; d++)
 		Ntot *= double(MMSP::g1(GRID, d) - MMSP::g0(GRID, d));
@@ -1601,10 +967,10 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const & G
 		#pragma omp critical (critSum)
 		{
 		#endif
-		summary += mySummary;
-		#ifdef _OPENMP
+			summary += mySummary;
+			#ifdef _OPENMP
 		}
-		#endif
+			#endif
 	}
 
 	for (int i = 0; i < NC+NP+1; i++)
@@ -1619,12 +985,8 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const & G
 }
 
 template<int dim,class T>
-double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const & GRID)
+double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
 {
-	/* ============================================================================= *
-	 * Integrate free energy over the whole grid to make sure it decreases with time *
-	 * ============================================================================= */
-
 	double dV = 1.0;
 	for (int d = 0; d<dim; d++)
 		dV *= MMSP::dx(GRID, d);

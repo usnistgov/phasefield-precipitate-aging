@@ -1,12 +1,23 @@
-// adsorption.cpp
-// INPUT: MMSP grid containing stable interface between two phases
-// OUTPUT: adsorption of species A, B, C=1-A-B
-// Questions/comments to trevor.keller@gmail.com (Trevor Keller)
-
-// Reference: W. Villanueva, W.J. Boettinger, G.B. McFadden, J.A. Warren.
-// "A Diffuse-interface model of reactive wetting with intermetallic formation."
-// Acta Mater. 60 (2012) 3799-3814, Eqn. 30. This implementation defines the
-// integral equal to zero far from the interface.
+/*************************************************************************************
+ * File: adsorption.cpp                                                              *
+ * Input: MMSP grid containing stable interface between two phases                   *
+ * Output: adsorption of species A, B, C=1-A-B on phase boundaries                   *
+ *                                                                                   *
+ * Questions/comments to trevor.keller@nist.gov (Trevor Keller, Ph.D.)               *
+ *                                                                                   *
+ * This software was developed at the National Institute of Standards and Technology *
+ * by employees of the Federal Government in the course of their official duties.    *
+ * Pursuant to title 17 section 105 of the United States Code this software is not   *
+ * subject to copyright protection and is in the public domain. NIST assumes no      *
+ * responsibility whatsoever for the use of this code by other parties, and makes no *
+ * guarantees, expressed or implied, about its quality, reliability, or any other    *
+ * characteristic. We would appreciate acknowledgement if the software is used.      *
+ *                                                                                   *
+ * This software can be redistributed and/or modified freely provided that any       *
+ * derivative works bear some notice that they are derived from it, and any modified *
+ * versions bear some notice that they have been modified. Derivative works that     *
+ * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
+ *************************************************************************************/
 
 #include"MMSP.hpp"
 #include<vector>
@@ -22,7 +33,8 @@ double coeffC(double xah, double xbh, double xch, double xal, double xbl, double
 	return (xah*xbl - xal*xbh)/(xch*xbl - xcl*xbh);
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
 	// command line error check
 	if (argc < 2) {
 		std::cout << "Usage: " << argv[0] << " [--help] infile [outfile]\n\n";
@@ -140,15 +152,15 @@ int main(int argc, char* argv[]) {
 
 					// Adsorption of A
 					gamma[0] += inVm * (xa - coeffB(xah, xbh, xch, xal, xbl, xcl) * xb
-					                       - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
+					                    - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
 
 					// Adsorption of B (xa->xz, xb->xa, xz->xb)
 					gamma[1] += inVm * (xb - coeffB(xbh, xah, xch, xbl, xal, xcl) * xa
-					                       - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
+					                    - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
 
 					// Adsorption of C (xa->xz, xc->xa, xz->xc
 					gamma[2] += inVm * (xc - coeffB(xch, xbh, xah, xcl, xbl, xal) * xb
-					                       - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
+					                    - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
 
 				}
 			} else {
@@ -179,15 +191,15 @@ int main(int argc, char* argv[]) {
 
 					// Adsorption of A
 					gamma[0] += inVm * (xa - coeffB(xah, xbh, xch, xal, xbl, xcl) * xb
-					                       - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
+					                    - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
 
 					// Adsorption of B (xa->xz, xb->xa, xz->xb)
 					gamma[1] += inVm * (xb - coeffB(xbh, xah, xch, xbl, xal, xcl) * xa
-					                       - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
+					                    - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
 
 					// Adsorption of C (xa->xz, xc->xa, xz->xc
 					gamma[2] += inVm * (xc - coeffB(xch, xbh, xah, xcl, xbl, xal) * xb
-					                       - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
+					                    - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
 
 				}
 			} else {
@@ -218,15 +230,15 @@ int main(int argc, char* argv[]) {
 
 					// Adsorption of A
 					gamma[0] += inVm * (xa - coeffB(xah, xbh, xch, xal, xbl, xcl) * xb
-					                       - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
+					                    - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
 
 					// Adsorption of B (xa->xz, xb->xa, xz->xb)
 					gamma[1] += inVm * (xb - coeffB(xbh, xah, xch, xbl, xal, xcl) * xa
-					                       - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
+					                    - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
 
 					// Adsorption of C (xa->xz, xc->xa, xz->xc
 					gamma[2] += inVm * (xc - coeffB(xch, xbh, xah, xcl, xbl, xal) * xb
-					                       - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
+					                    - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
 
 				}
 			} else {

@@ -1,7 +1,23 @@
-// mmsp2frac.cpp
-// INPUT: MMSP grid containing vector data with at least two fields
-// OUTPUT: comma-separated values representing phase fraction
-// Questions/comments to trevor.keller@nist.gov (Trevor Keller)
+/*************************************************************************************
+ * File: mmsp2frac.cpp                                                               *
+ * Input: MMSP grid containing vector data with at least two fields                  *
+ * Output: comma-separated values representing phase fraction                        *
+ *                                                                                   *
+ * Questions/comments to trevor.keller@nist.gov (Trevor Keller, Ph.D.)               *
+ *                                                                                   *
+ * This software was developed at the National Institute of Standards and Technology *
+ * by employees of the Federal Government in the course of their official duties.    *
+ * Pursuant to title 17 section 105 of the United States Code this software is not   *
+ * subject to copyright protection and is in the public domain. NIST assumes no      *
+ * responsibility whatsoever for the use of this code by other parties, and makes no *
+ * guarantees, expressed or implied, about its quality, reliability, or any other    *
+ * characteristic. We would appreciate acknowledgement if the software is used.      *
+ *                                                                                   *
+ * This software can be redistributed and/or modified freely provided that any       *
+ * derivative works bear some notice that they are derived from it, and any modified *
+ * versions bear some notice that they have been modified. Derivative works that     *
+ * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
+ *************************************************************************************/
 
 #include"MMSP.hpp"
 #include<vector>
@@ -39,7 +55,8 @@ void vectorFrac(const MMSP::grid<dim,MMSP::vector<T> >& GRID, MMSP::vector<doubl
 		f[i] *= unity;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
 	// command line error check
 	if (argc < 2) {
 		std::cout << "Usage: " << argv[0] << " [--help] infile [outfile]\n\n";

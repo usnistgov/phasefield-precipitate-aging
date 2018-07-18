@@ -51,7 +51,6 @@ compiler are recommended. You will need to satisfy the following dependencies:
   - [SymPy](http://www.sympy.org/en/index.html)
 
 - C++
-  - [GNU Scientific Library](https://www.gnu.org/software/gsl/)
   - [MMSP](https://github.com/mesoscale/mmsp)
   
 After downloading MMSP, the core dependency of this model implementation,

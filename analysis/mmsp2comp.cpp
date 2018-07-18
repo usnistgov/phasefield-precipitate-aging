@@ -1,20 +1,29 @@
-// mmsp2comp.cpp
-// INPUT: MMSP grid containing vector data with at least two fields
-// OUTPUT: Pairs of comma-delimited coordinates representing position in (v0,v1) phase space
-//         Expected usage is for composition spaces, hence comp.
-// Questions/comments to trevor.keller@nist.gov (Trevor Keller)
+/*************************************************************************************
+ * File: mmsp2comp.cpp                                                               *
+ * Input: MMSP grid containing vector data with at least two fields                  *
+ * Output: Pairs of comma-delimited coordinates representing position in (v0,v1)     *
+ *         phase space. Expected usage is for composition spaces, hence comp.        *
+ *                                                                                   *
+ * Questions/comments to trevor.keller@nist.gov (Trevor Keller, Ph.D.)               *
+ *                                                                                   *
+ * This software was developed at the National Institute of Standards and Technology *
+ * by employees of the Federal Government in the course of their official duties.    *
+ * Pursuant to title 17 section 105 of the United States Code this software is not   *
+ * subject to copyright protection and is in the public domain. NIST assumes no      *
+ * responsibility whatsoever for the use of this code by other parties, and makes no *
+ * guarantees, expressed or implied, about its quality, reliability, or any other    *
+ * characteristic. We would appreciate acknowledgement if the software is used.      *
+ *                                                                                   *
+ * This software can be redistributed and/or modified freely provided that any       *
+ * derivative works bear some notice that they are derived from it, and any modified *
+ * versions bear some notice that they have been modified. Derivative works that     *
+ * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
+ *************************************************************************************/
 
-#include"MMSP.hpp"
-#include<vector>
-#include<algorithm>
-
-#if defined CALPHAD
-	#include"energy625.c"
-#elif defined PARABOLA
-	#include"parabola625.c"
-#else
-	#include"taylor625.c"
-#endif
+#include "MMSP.hpp"
+#include <vector>
+#include <algorithm>
+#include "parabola625.c"
 
 #define NC 2
 #define NP 2
@@ -37,21 +46,6 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID, std::vector<double
 
 	// for (x[0] = MMSP::g0(GRID,0); x[0] < MMSP::g1(GRID,0); x[0]++) {
 	for (x[0] = -d/2; x[0] < d/2; x[0]++) {
-		/*
-		  for (int n=0; n<MMSP::nodes(GRID); n++) {
-		  MMSP::vector<int> x = MMSP::position(GRID, n);
-		*/
-
-		/*
-		T fd = h((GRID(x)[NC]));
-		T fl = h((GRID(x)[NC+1]));
-		T fg = 1. - fd - fl;
-		bool isDelta = fd > 0.975; // && fd < 0.625;
-		bool isLaves = fl > 0.975; // && fl < 0.625;
-		bool isGamma = fg > 0.975; // && fg < 0.625;
-
-		if (isDelta || isLaves || isGamma) {
-		*/
 		if (1) {
 			// Record position
 			idx.push_back(dx(GRID) * x[0]);
@@ -62,12 +56,13 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID, std::vector<double
 
 			// Compute diffusion potential in matrix
 			const double chempot[NC] = {dg_gam_dxCr(GRID(x)[NC+NP], GRID(x)[NC+NP+1]),
-										dg_gam_dxNb(GRID(x)[NC+NP], GRID(x)[NC+NP+1])};
+			                            dg_gam_dxNb(GRID(x)[NC+NP], GRID(x)[NC+NP+1])
+			                           };
 
 			double PhaseEnergy[NP+1] = {g_del(GRID(x)[2*NC+NP], GRID(x)[2*NC+NP+1]),
-										g_lav(GRID(x)[3*NC+NP], GRID(x)[3*NC+NP+1]),
-										g_gam(GRID(x)[  NC+NP], GRID(x)[  NC+NP+1]) // matrix phase last
-			};
+			                            g_lav(GRID(x)[3*NC+NP], GRID(x)[3*NC+NP+1]),
+			                            g_gam(GRID(x)[  NC+NP], GRID(x)[  NC+NP+1]) // matrix phase last
+			                           };
 
 			// Record driving force for phase transformation
 			double Pressure[NP] = {0.0};
@@ -81,7 +76,8 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID, std::vector<double
 	}
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
 	// command line error check
 	if (argc < 2) {
 		std::cout << "Usage: " << argv[0] << " [--help] infile [outfile]\n\n";
@@ -220,5 +216,6 @@ int main(int argc, char* argv[]) {
 		output << idx[i] << ',' << xcr[i] << ',' << xnb[i] << ',' << P[i] << '\n';
 
 	output.close();
+
 	return 0;
 }
