@@ -89,8 +89,8 @@ from sympy.utilities.codegen import codegen
 from pycalphad import Database, Model
 from constants import *
 
-interpolator = x**3 * (6*x**2 - 15*x - 10)
-dinterpdx = 30 * x**2 * (1.0 - x)**2
+interpolator = x**3 * (6.*x**2 - 15.*x + 10.)
+dinterpdx = 30. * x**2 * (1.0 - x)**2
 
 # Read CALPHAD database from disk, specify phases and elements of interest
 tdb = Database('thermo/Du_Cr-Nb-Ni_simple.tdb')
