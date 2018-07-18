@@ -95,7 +95,7 @@ const field_t Lmob[NP]  = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
 const field_t sigma[NP] = {1.010, 1.010};         // interfacial energy (J/m^2)
 
 // Compute interfacial width (nm) and well height (J/m^3)
-const field_t ifce_width = 10.0*meshres;
+const field_t ifce_width = 10. * meshres;
 const field_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const field_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,  // delta
                            3.0 * width_factor* sigma[1] / ifce_width}; // Laves
@@ -541,9 +541,9 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 				// Variational derivatives (scalar minus gradient term in Euler-Lagrange eqn)
 				T delF_delPhi = -hprime(phiOld) * Pressure;
-				delF_delPhi += 2.0 * omega[j] * phiOld * (phiOld - 1.0) * (2.0*phiOld - 1.0);
-				delF_delPhi += 2.0 * alpha * phiOld * (sumPhiSq - phiOld * phiOld);
-				delF_delPhi -= kappa[j] * laplac[NC+j];
+				  delF_delPhi += 2.0 * omega[j] * phiOld * (phiOld - 1.0) * (2.0*phiOld - 1.0);
+				  delF_delPhi += 2.0 * alpha * phiOld * (sumPhiSq - phiOld * phiOld);
+				  delF_delPhi -= kappa[j] * laplac[NC+j];
 
 				newGridN[NC+j] = phiOld - current_dt * Lmob[j] * delF_delPhi;
 			}

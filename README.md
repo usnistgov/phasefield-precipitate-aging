@@ -27,16 +27,13 @@ additive manufacturing get enriched to Ni–31%Cr–13%Nb.
 The four-phase three-component model is represented using two composition fields
 (Cr and Nb) and three phase fields (δ, μ, and Laves). There is one
 dependent composition (Ni) and one dependent phase (γ).
-For a more thorough discussion of the model, please build the PDF description:
-
-```
-    make docs
-```
 
 Free energies for each constituent phase are computed using a CALPHAD database,
 simplified from [Du *et al.*](#du-2005) to enable one-to-one mapping of sublattice
 compositions to system compositions. This database is provided in
-[Du_Cr-Nb-Ni_simple.tdb](Du_Cr-Nb-Ni_simple.tdb).
+[Du_Cr-Nb-Ni_simple.tdb](Du_Cr-Nb-Ni_simple.tdb). The CALPHAD expressions are
+further simplified using 2<sup>nd</sup>-order Taylor series (paraboloid)
+approximations.
 
 
 
@@ -71,7 +68,7 @@ as described in the MMSP documentation.
 
 1. ```python CALPHAD_energies.py```
    This will use pycalphad to read the database and extract expressions,
-   which are then manipulated and written into C-code by sympy.
+   which are then manipulated and written into C-code by SymPy.
 
 2. ```make``` (OpenMP, Intel compiler).
   This will compile the source code into a binary, ```alloy625```.
@@ -82,23 +79,22 @@ as described in the MMSP documentation.
 
 3. Run the code. Since your executable is built against ```MMSP.main.hpp```,
   the options of that program apply to your binary. For usage suggestions,
-  run ```alloy625 --help``` or ```serial --help``` or
-  ```mpirun -np 1 parallel --help```. A typical MMSP run comprises two steps:
-  initialization and update loops. So you would normally do:
-  - ```./alloy625 --example 1 data.dat```
-  - ```./alloy625 data.dat 1000000 100000```
+  run ```./alloy625 --help``` or ```./serial --help``` or
+  ```mpirun -np 1 parallel --help```, depending on which executable you built.
+  A typical MMSP run comprises two steps: initialization and update loops.
+  So you would normally do:
+  - ```./alloy625 --example 2 data.dat```
+  - ```./alloy625 data.dat 10000000 1000000```
   - ```mmsp2pvd data.dat data.*.dat``` to generate VTK visualization files,
-    then use a VTK viewer such as ParaView or Mayavi to see the results
-  - or ```for f in *.dat; do mmsp2tsv $f; done``` to generate tab-delimited
-  text files.
+    then use a VTK viewer such as ParaView or Mayavi to see the results.
 
-4. Remix, run, and distribute your own variants.
+4. Remix, run, and analyze your own variants.
 
 
 
 ## Contribute
 
-Pull requests are invited. Comments are welcome through issues and by e-mail.
+Pull requests are welcome! Comments are also appreciated via [issues](https://github.com/usnistgov/phasefield-precipitate-aging/issues) and e-mail.
 
 
 
