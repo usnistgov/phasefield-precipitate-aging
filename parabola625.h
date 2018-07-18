@@ -10,6 +10,8 @@
 #ifndef PRECIPITATEAGING__PARABOLA625__H
 #define PRECIPITATEAGING__PARABOLA625__H
 
+double h(double x);
+double hprime(double x);
 double xe_gam_Cr();
 double xe_gam_Nb();
 double xe_del_Cr();

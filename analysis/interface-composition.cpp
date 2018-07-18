@@ -19,10 +19,10 @@
  * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
  *************************************************************************************/
 
-#include "MMSP.hpp"
 #include <iomanip>
 #include <vector>
 #include <algorithm>
+#include "MMSP.hpp"
 #include "parabola625.c"
 
 #define NC 2
@@ -30,24 +30,21 @@
 
 /* Representation includes ten field variables:
  *
- * X0.  molar fraction of Cr + Mo
- * X1.  molar fraction of Nb
+ * X0. molar fraction of Cr + Mo
+ * X1. molar fraction of Nb
  *
- * P2.  phase fraction of delta
- * P3.  phase fraction of Laves
+ * P2. phase fraction of delta
+ * P3. phase fraction of Laves
  *
- * C4.  Cr molar fraction in pure gamma
- * C5.  Nb molar fraction in pure gamma
+ * C4. Cr molar fraction in pure gamma
+ * C5. Nb molar fraction in pure gamma
  *
- * C6.  Cr molar fraction in pure delta
- * C7.  Nb molar fraction in pure delta
+ * C6. Cr molar fraction in pure delta
+ * C7. Nb molar fraction in pure delta
  *
  * C8. Cr molar fraction in pure Laves
  * C9. Nb molar fraction in pure Laves
  */
-
-template <typename T>
-double h(const T& p) {return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);}
 
 template<int dim, typename T>
 void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
@@ -75,7 +72,6 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	const double rLav = std::sqrt(N * dV * fLav / M_PI);
 	const double pDel = 2.0 * s_delta() / rDel;
 	const double pLav = 2.0 * s_laves() / rLav;
-
 
 	// Find composition at gamma-delta interface
 	x[0] = -8 - 0.5 * (MMSP::g1(GRID, 0) - MMSP::g0(GRID, 0));

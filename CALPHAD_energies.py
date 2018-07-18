@@ -89,6 +89,9 @@ from sympy.utilities.codegen import codegen
 from pycalphad import Database, Model
 from constants import *
 
+interpolator = x**3 * (6*x**2 - 15*x - 10)
+dinterpdx = 30 * x**2 * (1.0 - x)**2
+
 # Read CALPHAD database from disk, specify phases and elements of interest
 tdb = Database('thermo/Du_Cr-Nb-Ni_simple.tdb')
 elements = ['CR', 'NB', 'NI']
@@ -297,7 +300,10 @@ dx_r_lav_Nb = xr[5]
 
 # Generate numerically efficient C-code
 
-codegen([# Equilibrium Compositions
+codegen([# Interpolator
+         ('h', interpolator),
+         ('hprime', dinterpdx),
+         # Equilibrium Compositions
          ('xe_gam_Cr', xe_gam_Cr),  ('xe_gam_Nb', xe_gam_Nb),
          ('xe_del_Cr', xe_del_Cr),  ('xe_del_Nb', xe_del_Nb),
          ('xe_lav_Cr', xe_lav_Cr),  ('xe_lav_Nb', xe_lav_Nb),

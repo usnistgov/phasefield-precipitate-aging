@@ -38,13 +38,8 @@
 /* Free energy expressions are generated from CALPHAD using pycalphad and SymPy
  * by the Python script CALPHAD_energy.py. Run it (python CALPHAD_energy.py)
  * to generate parabola625.c.
- */
-
-/* =============================================== *
- * Implement MMSP kernels: generate() and update() *
- * =============================================== */
-
-/* Representation includes ten field variables:
+ *
+ * Representation includes ten field variables:
  *
  * X0. molar fraction of Cr + Mo
  * X1. molar fraction of Nb
@@ -60,9 +55,8 @@
  *
  * C8. Cr molar fraction in pure Laves
  * C9. Nb molar fraction in pure Laves
- */
-
-/* Based on experiments (EDS) and simulations (DICTRA),
+ *
+ * Based on experiments (EDS) and simulations (DICTRA),
  * additively manufactured IN625 has these compositions:
  *
  * Element  Nominal  Interdendritic (mol %)
@@ -71,19 +65,18 @@
  * Ni         68%      56%
  */
 
-
 /* Define equilibrium phase compositions at global scope. Gamma is nominally
    30% Cr, 2% Nb, as defined in the first elements of the two following arrays.
    The generate() function will adjust the initial gamma composition depending
    on the type, amount, and composition of the secondary phases to maintain the
    system's nominal composition. Parabolic free energy requires a system
    composition inside the three-phase coexistence region.
-                          nominal   delta        laves         enriched  */
+                          nominal   delta        laves         enriched       */
 const field_t xCr[NP+2] = {0.250,   xe_del_Cr(), xe_lav_Cr(),  0.005};
 const field_t xNb[NP+2] = {0.150,   xe_del_Nb(), xe_lav_Nb(),  0.050};
 
 /* Define st.dev. of Gaussians for alloying element segregation
-                         Cr      Nb                                      */
+                         Cr      Nb                                           */
 const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
 // Kinetic and model parameters
@@ -91,12 +84,12 @@ const double meshres = 5e-9; // grid spacing (m)
 const field_t alpha = 1.07e11;  // three-phase coexistence coefficient (J/m^3)
 
 /* Diffusion constants in FCC Ni from Xu (m^2/s)
-                          Cr        Nb                                   */
+                          Cr        Nb                                        */
 const field_t D_Cr[NC] = {2.16e-15, 0.56e-15}; // first column of diffusivity matrix
 const field_t D_Nb[NC] = {2.97e-15, 4.29e-15}; // second column of diffusivity matrix
 
 /* Choose numerical diffusivity to lock chemical and transformational timescales
-                           delta      Laves                              */
+                           delta      Laves                                   */
 const field_t kappa[NP] = {1.24e-8, 1.24e-8};     // gradient energy coefficient (J/m)
 const field_t Lmob[NP]  = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
 const field_t sigma[NP] = {1.010, 1.010};         // interfacial energy (J/m^2)
@@ -109,10 +102,10 @@ const field_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,  // delta
 
 // Numerical considerations
 const double epsilon = 1e-12;           // what to consider zero to avoid log(c) explosions
-const field_t LinStab = 1.0 / 19.42501; // threshold of linear stability (von Neumann stability condition)
+const field_t LinStab = 1.0 / 19.42501; // threshold of linear (von Neumann) stability
 
 /* Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
-   minimum for numerical stability is 14*dx (due to interface width).    */
+   minimum for numerical stability is 14*dx (due to interface width).         */
 const field_t rPrecip[NP] = {5.0*7.5e-9 / meshres,  // delta
                              5.0*7.5e-9 / meshres}; // Laves
 
@@ -133,9 +126,9 @@ void generate(int dim, const char* filename)
 	if (rank == 0)
 		cfile = fopen("c.log", "w"); // existing log will be overwritten
 
-	const double dtp = (meshres*meshres)/(std::pow(2.0, dim) * Lmob[0]*kappa[0]); // transformation-limited timestep
-	const double dtc = (meshres*meshres)/(std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1])); // diffusion-limited timestep
-	double dt = LinStab * std::min(dtp, dtc);
+	const double dtTransformLimited = (meshres*meshres) / (std::pow(2.0, dim) * Lmob[0]*kappa[0]);
+	const double dtDiffusionLimited = (meshres*meshres) / (std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1]));
+	double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 
 	// Initialize pseudo-random number generator
 	std::random_device rd; // PRNG seed generator
@@ -168,9 +161,9 @@ void generate(int dim, const char* filename)
 		// Sanity check on system size and  particle spacing
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
-					  << ". Linear stability limits: dtp=" << dtp
-					  << " (transformation-limited), dtc=" << dtc
-					  << " (diffusion-limited)." << std::endl;
+					  << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
+					  << ", dtDiffusionLimited=" << dtDiffusionLimited
+					  << '.' << std::endl;
 
 		// Zero initial condition
 		const vector<field_t> blank(fields(initGrid), 0);
@@ -202,7 +195,7 @@ void generate(int dim, const char* filename)
 		}
 		#endif
 
-		// Initialize matrix to achieve specified system composition
+		// Initialize matrix phase to achieve specified system composition
 		field_t matCr = Ntot * xCr[0];
 		field_t matNb = Ntot * xNb[0];
 		double Nmat  = Ntot;
@@ -219,6 +212,16 @@ void generate(int dim, const char* filename)
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<field_t>& initGridN = initGrid(n);
+			field_t nx = 0.0;
+
+			for (int i = NC; i < NC+NP; i++)
+				nx += h(initGridN[i]);
+
+			if (nx < 0.01) { // pure gamma
+				initGridN[0] += matCr;
+				initGridN[1] += matNb;
+			}
+
 			update_compositions(initGridN);
 		}
 
@@ -258,7 +261,7 @@ void generate(int dim, const char* filename)
 		 * to test competitive growth with Gibbs-Thomson   *
 		 * =============================================== */
 
-		const int Nx = 320; // divisible by 12 and 64
+		const int Nx = 320; // product divisible by 12 and 64
 		const int Ny = 192;
 		double dV = 1.0;
 		double Ntot = 1.0;
@@ -276,14 +279,14 @@ void generate(int dim, const char* filename)
 		// Sanity check on system size and  particle spacing
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
-					  << ". Linear stability limits: dtp=" << dtp
-					  << " (transformation-limited), dtc=" << dtc
-					  << " (diffusion-limited)." << std::endl;
+					  << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
+					  << ", dtDiffusionLimited=" << dtDiffusionLimited
+					  << '.' << std::endl;
 
 		for (int i = 0; i < NP; i++) {
 			if (rPrecip[i] > Ny/2)
 				std::cerr << "Warning: domain too small to accommodate phase " << i
-						  << ", expand beyond " << 2.0*rPrecip[i] << " pixels." << std::endl;
+						  << ", expand beyond " << 2.0 * rPrecip[i] << " pixels." << std::endl;
 		}
 
 		// Zero initial condition
@@ -378,6 +381,16 @@ void generate(int dim, const char* filename)
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<field_t>& initGridN = initGrid(n);
+			field_t nx = 0.0;
+
+			for (int i = NC; i < NC+NP; i++)
+				nx += h(initGridN[i]);
+
+			if (nx < 0.01) { // pure gamma
+				initGridN[0] += matCr;
+				initGridN[1] += matNb;
+			}
+
 			update_compositions(initGridN);
 		}
 
@@ -402,12 +415,13 @@ void generate(int dim, const char* filename)
 
 
 
-	} else
+	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
+		MMSP::Abort(-1);
+	}
 
 	if (rank == 0)
 		fclose(cfile);
-
 }
 
 
@@ -421,7 +435,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	#endif
 
 	grid<dim,vector<T> > newGrid(oldGrid);
-	grid<dim,vector<T> > lapGrid(oldGrid, 2*NC+NP); // excludes fictitious secondary compositions
+	grid<dim,vector<T> > lapGrid(oldGrid, 2*NC+NP); // excludes secondary phases' fictitious compositions
 
 	const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 	const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
@@ -449,7 +463,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	std::ofstream cfile;
 	if (rank == 0)
 		cfile.open("c.log", std::ofstream::out | std::ofstream::app); // new results will be appended
-
 
 	double current_time = 0.0;
 	static double current_dt = dt;
@@ -490,11 +503,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			const vector<T>& oldGridN = oldGrid(n);
 			vector<T>& newGridN = newGrid(n);
 
-
-			/* ================= *
-			 * Collect Constants *
-			 * ================= */
-
 			const T PhaseEnergy[NP+1] = {g_del(oldGridN[2*NC+NP],  oldGridN[2*NC+NP+1]),
 			                             g_lav(oldGridN[3*NC+NP],  oldGridN[3*NC+NP+1]),
 			                             g_gam(oldGridN[  NC+NP],  oldGridN[  NC+NP+1])};
@@ -510,20 +518,18 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				sumPhiSq += oldGridN[i] * oldGridN[i];
 
 			// Laplacians of field variables, including fictitious compositions of matrix phase
-			const vector<T>& laplac = lapGrid(n); //maskedlaplacian(oldGrid, x, 2*NC+NP);
+			const vector<T>& laplac = lapGrid(n);
 
 			/* ============================================= *
 			 * Solve the Equation of Motion for Compositions *
 			 * ============================================= */
-
 			for (int i = 0; i < NC; i++) // Recall that D_Cr and D_Nb are columns of diffusivity matrix
 				newGridN[i] = oldGridN[i] + current_dt * ( D_Cr[i] * laplac[NC+NP  ]
-				              + D_Nb[i] * laplac[NC+NP+1]);
+				                                         + D_Nb[i] * laplac[NC+NP+1]);
 
 			/* ======================================== *
 			 * Solve the Equation of Motion for Phases  *
 			 * ======================================== */
-
 			for (int j = 0; j < NP; j++) {
 				const T& phiOld = oldGridN[NC+j];
 				assert(phiOld > -1);
@@ -545,7 +551,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			/* =============================== *
 			 * Compute Fictitious Compositions *
 			 * =============================== */
-
 			update_compositions(newGridN);
 
 		} // end loop over grid points
@@ -556,9 +561,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		if (logcount >= logstep) {
 			logcount = 0;
 
-			/* Update timestep based on interfacial velocity.
-			 * If v==0, there's no interface: march ahead with current dt.
-			 */
+			// Update timestep based on interfacial velocity.
+			// If v==0, there's no interface: march ahead with current dt.
 			double interfacialVelocity = maxVelocity(newGrid, current_dt, oldGrid);
 			double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
 
@@ -570,7 +574,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 			if (current_dt < ideal_dt + epsilon) {
 				// Update succeeded: process solution
-				current_time += current_dt; // increment before output block
+				current_time += current_dt;
 
 				if (interfacialVelocity < velocity_range[0])
 					velocity_range[0] = interfacialVelocity;
@@ -581,10 +585,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
 				 * ====================================================================== */
 
-				// Warning: placement matters for MPI. Be careful.
 				vector<double> summary = summarize_fields(newGrid);
 				double energy = summarize_energy(newGrid);
-
 				char buffer[4096];
 
 				if (rank == 0) {
@@ -597,7 +599,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 				MPI::COMM_WORLD.Barrier();
 				#endif
 
-				// Update failed: solution is unstable
 				if (rank == 0) {
 					std::cerr << "ERROR: Interface swept more than (dx/" << meshres/advectionlimit << "), timestep is too aggressive!" << std::endl;
 					cfile.close();
@@ -612,7 +613,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 		logcount++; // increment after output block
 
 		#ifdef MPI_VERSION
-		// Synchronize watches
 		MPI::COMM_WORLD.Barrier();
 		int myL(logcount);
 		MPI::COMM_WORLD.Allreduce(&myL, &logcount, 1, MPI_INT, MPI_MAX);
@@ -654,7 +654,7 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 
 	const T fdel = h(GRIDN[2]);
 	const T flav = h(GRIDN[3]);
-	const T fgam = 1.-fdel-flav;
+	const T fgam = 1. - fdel - flav;
 
 	GRIDN[1*NC+NP  ] = fict_gam_Cr(xcr, xnb, fdel, fgam, flav);
 	GRIDN[1*NC+NP+1] = fict_gam_Nb(xcr, xnb, fdel, fgam, flav);
@@ -853,7 +853,7 @@ template <int dim, typename T>
 MMSP::vector<T> pointerlaplacian(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N)
 {
 	if (dim > 2) {
-		std::cerr << "ERROR: pointedlaplacian is only available for 1- and 2-D fields." << std::endl;
+		std::cerr << "ERROR: pointerlaplacian is only available for 1- and 2-D fields." << std::endl;
 		MMSP::Abort(-1);
 	}
 
@@ -919,9 +919,9 @@ T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const& oldGrid, const double& dt,
 		{
 		#endif
 			vmax = std::max(vmax, myVel);
-			#ifdef _OPENMP
+		#ifdef _OPENMP
 		}
-			#endif
+		#endif
 	}
 
 	#ifdef MPI_VERSION
@@ -968,9 +968,9 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GR
 		{
 		#endif
 			summary += mySummary;
-			#ifdef _OPENMP
+		#ifdef _OPENMP
 		}
-			#endif
+		#endif
 	}
 
 	for (int i = 0; i < NC+NP+1; i++)

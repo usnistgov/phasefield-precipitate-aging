@@ -73,18 +73,6 @@ Composition& Composition::operator+=(const Composition& c)
 }
 
 /**
-   Smoothly interpolate between (0,0) and (1,1)
-*/
-inline field_t h(const field_t& p)
-{
-	return p * p * p * (6.0 * p * p - 15.0 * p + 10.0);
-}
-inline field_t hprime(const field_t& p)
-{
-	return 30.0 * p * p * (1.0 - p) * (1.0 - p);
-}
-
-/**
    Compute Gibbs free energy density
 */
 template<typename T>
