@@ -69,32 +69,29 @@ as described in the MMSP documentation.
 1. ```python CALPHAD_energies.py```
    This will use pycalphad to read the database and extract expressions,
    which are then manipulated and written into C-code by SymPy.
-
 2. ```make``` (OpenMP, Intel compiler).
-  This will compile the source code into a binary, ```alloy625```.
-  - or ```make serial``` (serial, GNU compiler).
-  This will compile the source code into a binary, ```serial```.
-  - or ```make parallel``` (MPI, GNU compiler).
-  This will compile the source code into a binary, ```parallel```.
-
+   This will compile the source code into a binary, ```alloy625```.
+   - or ```make serial``` (serial, GNU compiler).
+     This will compile the source code into a binary, ```serial```.
+   - or ```make parallel``` (MPI, GNU compiler).
+     This will compile the source code into a binary, ```parallel```.
 3. Run the code. Since your executable is built against ```MMSP.main.hpp```,
-  the options of that program apply to your binary. For usage suggestions,
-  run ```./alloy625 --help``` or ```./serial --help``` or
-  ```mpirun -np 1 parallel --help```, depending on which executable you built.
-  A typical MMSP run comprises two steps: initialization and update loops.
-  So you would normally do:
-  - ```./alloy625 --example 2 data.dat```
-  - ```./alloy625 data.dat 10000000 1000000```
-  - ```mmsp2pvd data.dat data.*.dat``` to generate VTK visualization files,
-    then use a VTK viewer such as ParaView or Mayavi to see the results.
-
+   the options of that program apply to your binary. For usage suggestions,
+   run ```./alloy625 --help``` or ```./serial --help``` or
+   ```mpirun -np 1 parallel --help```, depending on which executable you built.
+   A typical MMSP run comprises two steps: initialization and update loops.
+   So you would normally do:
+   - ```./alloy625 --example 2 data.dat```
+   - ```./alloy625 data.dat 10000000 1000000```
+   - ```mmsp2pvd data.dat data.*.dat``` to generate VTK visualization files,
+     then use a VTK viewer such as ParaView or Mayavi to see the results.
 4. Remix, run, and analyze your own variants.
 
 
 
 ## Contribute
 
-Pull requests are welcome! Comments are also appreciated via [issues](https://github.com/usnistgov/phasefield-precipitate-aging/issues) and e-mail.
+Pull requests are welcome! Comments are also appreciated via [issues](https://github.com/usnistgov/phasefield-precipitate-aging/issues) and [e-mail](mailto:trevor.keller@nist.gov).
 
 
 
