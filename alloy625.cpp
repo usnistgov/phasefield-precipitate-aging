@@ -266,7 +266,7 @@ void generate(int dim, const char* filename)
 		const int Ny = 192;
 		double dV = 1.0;
 		double Ntot = 1.0;
-		GRID2D initGrid(NC+NP+NC*(NP+1), -6*Nx/2, 6*Nx/2, -6*Ny/2, 6*Ny/2);
+		GRID2D initGrid(NC+NP+NC*(NP+1), -10*Nx/2, 10*Nx/2, -9*Ny/2, 9*Ny/2);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d)=meshres;
 			dV *= meshres;
@@ -311,7 +311,7 @@ void generate(int dim, const char* filename)
 		MPI::COMM_WORLD.Bcast(&xNb0, 1, MPI_DOUBLE, 0);
 		#endif
 
-		init_2D_tiles(initGrid, Ntot, Nx, Ny, xCr0, xNb0);
+		init_2D_tiles(initGrid, Ntot, Nx, Ny, xCr0, xNb0, unidist, mtrand);
 
 		ghostswap(initGrid);
 
@@ -697,11 +697,11 @@ Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 	return comp;
 }
 
-
 template<int dim, typename T>
 void init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double Ntot,
 				   const int width, const int height,
-				   const double xCr0, const double xNb0)
+				   const double xCr0, const double xNb0,
+				   std::uniform_real_distribution<double>& unidist, std::mt19937& mtrand)
 {
 	// Zero initial condition
 	const MMSP::vector<field_t> blank(MMSP::fields(GRID), 0);
@@ -712,36 +712,38 @@ void init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double Ntot,
 		GRID(n) = blank;
 	}
 
-	// Set precipitate radius
-	// int r = std::floor((0.525 + unidist(mtrand)) * rPrecip[0]);
-	const int r = rPrecip[0];
-
-	// Set precipitate separation (min=2r, max=Nx-2r)
-	// int d = unidist(mtrand) * 16 + height/2;
-	const int d = 8 + height / 2;
-
-	// curvature-dependent initial compositions
-	const field_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
-	const field_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
-	const field_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav),
-								xr_del_Cr(P_del, P_lav),
-								xr_lav_Cr(P_del, P_lav)};
-	const field_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav),
-								xr_del_Nb(P_del, P_lav),
-								xr_lav_Nb(P_del, P_lav)};
-
 	Composition comp;
 	MMSP::vector<int> tileOrigin(dim, 0);
+	int n = 0;
 
-	for (tileOrigin[1] = MMSP::y0(GRID) + height/2 - MMSP::g0(GRID,1) % height; tileOrigin[1] < MMSP::g1(GRID,1); tileOrigin[1] += height) {
-		for (tileOrigin[0] = MMSP::x0(GRID) + width/2 - MMSP::g0(GRID,0) % width; tileOrigin[0] < MMSP::g1(GRID,0); tileOrigin[0] += width) {
+	for (tileOrigin[1] = MMSP::y0(GRID) - MMSP::g0(GRID,1) % height; tileOrigin[1] < MMSP::g1(GRID,1); tileOrigin[1] += height) {
+		for (tileOrigin[0] = MMSP::x0(GRID) + height - (n%2)*width/4 - MMSP::g0(GRID,0) % width; tileOrigin[0] < MMSP::g1(GRID,0); tileOrigin[0] += width) {
 			MMSP::vector<int> origin = tileOrigin;
 			for (int j = 0; j < NP; j++) {
+				// Set precipitate radius
+				//const int r = std::floor((3. + 4.5 * unidist(mtrand)) * (5.0e-9 / meshres));
+				const int r = rPrecip[0];
+
+				// Set precipitate separation (min=2r, max=Nx-2r)
+				//const int d = 8 + height / 2 - (unidist(mtrand) * height)/4;
+				const int d = 8 + height / 2;
+
+				// curvature-dependent initial compositions
+				const field_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
+				const field_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
+				const field_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav),
+											xr_del_Cr(P_del, P_lav),
+											xr_lav_Cr(P_del, P_lav)};
+				const field_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav),
+											xr_del_Nb(P_del, P_lav),
+											xr_lav_Nb(P_del, P_lav)};
+
 				origin[0] = tileOrigin[0] + ((j%2==0) ? -d/2 : d/2);
 				origin[1] = tileOrigin[1];
 				comp += embedParticle(GRID, origin, j+NC, r, xrCr[j+1], xrNb[j+1]);
 			}
 		}
+		n++;
 	}
 
 	// Synchronize global initial condition parameters
