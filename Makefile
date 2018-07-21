@@ -38,7 +38,6 @@ serial: alloy625.cpp $(deps)
 iserial: alloy625.cpp $(deps)
 	$(icompiler) $< -o $@ $(idbgflags) -lz
 
-
 # CLUSTER EXECUTABLES
 
 # shared thread memory (OpenMP) parallelism
@@ -65,4 +64,4 @@ analysis:
 
 .PHONY: clean
 clean:
-	rm -f alloy625 ibtest iserial ismpi parallel serial smp smpi *.pyc
+	rm -f alloy625 ibtest iserial ismpi parallel serial smp smpi *.o *.pyc
