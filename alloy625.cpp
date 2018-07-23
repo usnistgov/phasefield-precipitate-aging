@@ -107,8 +107,8 @@ const field_t LinStab = 1.0 / 19.42501; // threshold of linear (von Neumann) sta
 
 /* Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
    minimum for numerical stability is 14*dx (due to interface width).         */
-const field_t rPrecip[NP] = {5.0*7.5e-9 / meshres,  // delta
-                             5.0*7.5e-9 / meshres}; // Laves
+const field_t rPrecip[NP] = {7.5 * 5e-9 / meshres,  // delta
+                             7.5 * 5e-9 / meshres}; // Laves
 
 
 namespace MMSP
