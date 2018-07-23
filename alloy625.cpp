@@ -266,6 +266,7 @@ void generate(int dim, const char* filename)
 		const int Ny = 192;
 		double dV = 1.0;
 		double Ntot = 1.0;
+		// GRID2D initGrid(NC+NP+NC*(NP+1), -Nx/2, Nx/2, -Ny/2, Ny/2);
 		GRID2D initGrid(NC+NP+NC*(NP+1), -10*Nx/2, 10*Nx/2, -9*Ny/2, 9*Ny/2);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d)=meshres;
@@ -289,14 +290,14 @@ void generate(int dim, const char* filename)
 		 * of three-phase coexistence triangular phase field
 		 */
 		// Set system composition
+		const double xo = 0.4125;
+		const double yo = 0.1000;
+		const double ro = 0.0025;
 		bool withinRange = false;
 		double xCr0;
 		double xNb0;
 
 		while (!withinRange) {
-			const double xo = 0.4125;
-			const double yo = 0.10;
-			const double ro = 0.05;
 			xCr0 = xo + ro * (unidist(mtrand) - 1.);
 			xNb0 = yo + ro * (unidist(mtrand) - 1.);
 			withinRange = (std::pow(xCr0 - xo, 2.0) + std::pow(xNb0 - yo, 2.0)
@@ -305,13 +306,50 @@ void generate(int dim, const char* filename)
 
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
-		MPI::COMM_WORLD.Bcast(&r,    1, MPI_INT,    0);
-		MPI::COMM_WORLD.Bcast(&d,    1, MPI_INT,    0);
 		MPI::COMM_WORLD.Bcast(&xCr0, 1, MPI_DOUBLE, 0);
 		MPI::COMM_WORLD.Bcast(&xNb0, 1, MPI_DOUBLE, 0);
 		#endif
 
-		init_2D_tiles(initGrid, Ntot, Nx, Ny, xCr0, xNb0, unidist, mtrand);
+		// Zero initial condition
+		const MMSP::vector<field_t> blank(MMSP::fields(initGrid), 0);
+		#ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
+		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
+			initGrid(n) = blank;
+		}
+
+		Composition comp = init_2D_tiles(initGrid, Ntot, Nx, Ny, xCr0, xNb0, unidist, mtrand);
+
+		// Initialize matrix to achieve specified system composition
+		field_t matCr = Ntot * xCr0;
+		field_t matNb = Ntot * xNb0;
+		double Nmat  = Ntot;
+		for (int i = 0; i < NP+1; i++) {
+			Nmat  -= comp.N[i];
+			matCr -= comp.x[i][0];
+			matNb -= comp.x[i][1];
+		}
+		matCr /= Nmat;
+		matNb /= Nmat;
+
+		#ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
+		for (int n = 0; n < nodes(initGrid); n++) {
+			MMSP::vector<field_t>& initGridN = initGrid(n);
+			field_t nx = 0.0;
+
+			for (int i = NC; i < NC+NP; i++)
+				nx += h(initGridN[i]);
+
+			if (nx < 0.01) { // pure gamma
+				initGridN[0] += matCr;
+				initGridN[1] += matNb;
+			}
+
+			update_compositions(initGridN);
+		}
 
 		ghostswap(initGrid);
 
@@ -698,46 +736,43 @@ Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 }
 
 template<int dim, typename T>
-void init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double Ntot,
-				   const int width, const int height,
-				   const double xCr0, const double xNb0,
-				   std::uniform_real_distribution<double>& unidist, std::mt19937& mtrand)
+Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double Ntot,
+						  const int width, const int height,
+						  const double xCr0, const double xNb0,
+						  std::uniform_real_distribution<double>& unidist, std::mt19937& mtrand)
 {
-	// Zero initial condition
-	const MMSP::vector<field_t> blank(MMSP::fields(GRID), 0);
-	#ifdef _OPENMP
-	#pragma omp parallel for
+	// Set precipitate radius
+	//const int r = std::floor((3. + 4.5 * unidist(mtrand)) * (5.0e-9 / meshres));
+	int r = rPrecip[0];
+
+	// Set precipitate separation (min=2r, max=Nx-2r)
+	//const int d = 8 + height / 2 - (unidist(mtrand) * height)/4;
+	int d = 8 + height / 2;
+
+	#ifdef MPI_VERSION
+	MPI::COMM_WORLD.Barrier();
+	MPI::COMM_WORLD.Bcast(&r,1, MPI_INT, 0);
+	MPI::COMM_WORLD.Bcast(&d,1, MPI_INT, 0);
 	#endif
-	for (int n = 0; n < MMSP::nodes(GRID); n++) {
-		GRID(n) = blank;
-	}
+
+	// curvature-dependent initial compositions
+	const field_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
+	const field_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
+	const field_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav),
+								xr_del_Cr(P_del, P_lav),
+								xr_lav_Cr(P_del, P_lav)};
+	const field_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav),
+								xr_del_Nb(P_del, P_lav),
+								xr_lav_Nb(P_del, P_lav)};
 
 	Composition comp;
 	MMSP::vector<int> tileOrigin(dim, 0);
 	int n = 0;
 
-	for (tileOrigin[1] = MMSP::y0(GRID) - MMSP::g0(GRID,1) % height; tileOrigin[1] < MMSP::g1(GRID,1); tileOrigin[1] += height) {
-		for (tileOrigin[0] = MMSP::x0(GRID) + height - (n%2)*width/4 - MMSP::g0(GRID,0) % width; tileOrigin[0] < MMSP::g1(GRID,0); tileOrigin[0] += width) {
+	for (tileOrigin[1] = MMSP::g0(GRID,1) - MMSP::g0(GRID,1) % height; tileOrigin[1] < 1 + MMSP::g1(GRID,1); tileOrigin[1] += height) {
+		for (tileOrigin[0] = MMSP::g0(GRID,0) - (n%2)*(3*width)/8 - MMSP::g0(GRID,0) % width; tileOrigin[0] < 1 + MMSP::g1(GRID,0); tileOrigin[0] += width) {
 			MMSP::vector<int> origin = tileOrigin;
 			for (int j = 0; j < NP; j++) {
-				// Set precipitate radius
-				//const int r = std::floor((3. + 4.5 * unidist(mtrand)) * (5.0e-9 / meshres));
-				const int r = rPrecip[0];
-
-				// Set precipitate separation (min=2r, max=Nx-2r)
-				//const int d = 8 + height / 2 - (unidist(mtrand) * height)/4;
-				const int d = 8 + height / 2;
-
-				// curvature-dependent initial compositions
-				const field_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
-				const field_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
-				const field_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav),
-											xr_del_Cr(P_del, P_lav),
-											xr_lav_Cr(P_del, P_lav)};
-				const field_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav),
-											xr_del_Nb(P_del, P_lav),
-											xr_lav_Nb(P_del, P_lav)};
-
 				origin[0] = tileOrigin[0] + ((j%2==0) ? -d/2 : d/2);
 				origin[1] = tileOrigin[1];
 				comp += embedParticle(GRID, origin, j+NC, r, xrCr[j+1], xrNb[j+1]);
@@ -758,35 +793,7 @@ void init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double Ntot,
 	}
 	#endif
 
-	// Initialize matrix to achieve specified system composition
-	field_t matCr = Ntot * xCr0;
-	field_t matNb = Ntot * xNb0;
-	double Nmat  = Ntot;
-	for (int i = 0; i < NP+1; i++) {
-		Nmat  -= comp.N[i];
-		matCr -= comp.x[i][0];
-		matNb -= comp.x[i][1];
-	}
-	matCr /= Nmat;
-	matNb /= Nmat;
-
-	#ifdef _OPENMP
-	#pragma omp parallel for
-	#endif
-	for (int n = 0; n < nodes(GRID); n++) {
-		MMSP::vector<field_t>& GRIDN = GRID(n);
-		field_t nx = 0.0;
-
-		for (int i = NC; i < NC+NP; i++)
-			nx += h(GRIDN[i]);
-
-		if (nx < 0.01) { // pure gamma
-			GRIDN[0] += matCr;
-			GRIDN[1] += matNb;
-		}
-
-		update_compositions(GRIDN);
-	}
+	return comp;
 }
 
 
