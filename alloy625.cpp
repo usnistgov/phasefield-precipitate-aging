@@ -188,8 +188,8 @@ void generate(int dim, const char* filename)
 		#ifdef MPI_VERSION
 		Composition myComp;
 		myComp += comp;
-		MPI::COMM_WORLD.Barrier();
 		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
+		MPI::COMM_WORLD.Barrier();
 		for (int j = 0; j < NP+1; j++) {
 			MPI::COMM_WORLD.Barrier();
 			MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
@@ -267,6 +267,7 @@ void generate(int dim, const char* filename)
 		double dV = 1.0;
 		double Ntot = 1.0;
 		// GRID2D initGrid(NC+NP+NC*(NP+1), -Nx/2, Nx/2, -Ny/2, Ny/2);
+		// GRID2D initGrid(NC+NP+NC*(NP+1), -5*Nx/2, 5*Nx/2, -4*Ny/2, 4*Ny/2);
 		GRID2D initGrid(NC+NP+NC*(NP+1), -10*Nx/2, 10*Nx/2, -9*Ny/2, 9*Ny/2);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d)=meshres;
@@ -389,6 +390,8 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	int rank = 0;
 	#ifdef MPI_VERSION
 	rank = MPI::COMM_WORLD.Get_rank();
+	MPI_Request reqs;
+	MPI_Status stat;
 	#endif
 
 	grid<dim,vector<T> > newGrid(oldGrid);
@@ -427,8 +430,6 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 	const int logstep = std::min(1000, steps); // steps between logging status
 	const T advectionlimit = 0.1 * meshres;
-
-	T velocity_range[2] = {1.0, -1.0};
 
 	std::stringstream ostr;
 
@@ -524,19 +525,14 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 			double ideal_dt = (interfacialVelocity>epsilon) ? advectionlimit / interfacialVelocity : current_dt;
 
 			#ifdef MPI_VERSION
-			MPI::COMM_WORLD.Barrier();
 			double myt(ideal_dt);
-			MPI::COMM_WORLD.Allreduce(&myt, &ideal_dt, 1, MPI_DOUBLE, MPI_MIN);
+			MPI_Iallreduce(&myt, &ideal_dt, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD, &reqs);
+			MPI_Wait(&reqs, &stat);
 			#endif
 
 			if (current_dt < ideal_dt + epsilon) {
 				// Update succeeded: process solution
 				current_time += current_dt;
-
-				if (interfacialVelocity < velocity_range[0])
-					velocity_range[0] = interfacialVelocity;
-				else if (interfacialVelocity > velocity_range[1])
-					velocity_range[1] = interfacialVelocity;
 
 				/* ====================================================================== *
 				 * Collate summary & diagnostic data in OpenMP- and MPI-compatible manner *
@@ -552,15 +548,10 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 					ostr << buffer;
 				}
 			} else {
-				#ifdef MPI_VERSION
-				MPI::COMM_WORLD.Barrier();
-				#endif
-
 				if (rank == 0) {
-					std::cerr << "ERROR: Interface swept more than (dx/" << meshres/advectionlimit << "), timestep is too aggressive!" << std::endl;
 					cfile.close();
 				}
-
+				std::cerr << "ERROR: Interface swept more than (dx/" << meshres/advectionlimit << "), timestep is too aggressive!" << std::endl;
 				MMSP::Abort(-1);
 			}
 
@@ -569,14 +560,13 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 
 		logcount++; // increment after output block
 
+		/*
 		#ifdef MPI_VERSION
-		MPI::COMM_WORLD.Barrier();
-		int myL(logcount);
-		MPI::COMM_WORLD.Allreduce(&myL, &logcount, 1, MPI_INT, MPI_MAX);
 		MPI::COMM_WORLD.Barrier();
 		double mydt(current_dt);
 		MPI::COMM_WORLD.Allreduce(&mydt, &current_dt, 1, MPI_DOUBLE, MPI_MIN);
 		#endif
+		*/
 	} // end timestepping loop
 
 	if (rank == 0) {
@@ -587,6 +577,7 @@ template <int dim, typename T> void update(grid<dim,vector<T> >& oldGrid, int st
 	if (rank == 0) {
 		cfile.close();
 	}
+
 }
 
 
@@ -741,19 +732,26 @@ Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double N
 						  const double xCr0, const double xNb0,
 						  std::uniform_real_distribution<double>& unidist, std::mt19937& mtrand)
 {
-	// Set precipitate radius
-	//const int r = std::floor((3. + 4.5 * unidist(mtrand)) * (5.0e-9 / meshres));
-	int r = rPrecip[0];
+	#ifdef MPI_VERSION
+	MPI_Request* reqs = new MPI_Request[NP + 2];
+	MPI_Status* stat = new MPI_Status[NP + 2];
+	#endif
 
-	// Set precipitate separation (min=2r, max=Nx-2r)
-	//const int d = 8 + height / 2 - (unidist(mtrand) * height)/4;
+	// Set constant precipitate radii and separation
+	int r = rPrecip[0];
 	int d = 8 + height / 2;
+
+	/*
+    // Set precipitate radii and separation with jitter
+	const int d = 8 + height / 2 - (unidist(mtrand) * height)/4;
+	const int r = std::floor((3. + 4.5 * unidist(mtrand)) * (5.0e-9 / meshres));
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
 	MPI::COMM_WORLD.Bcast(&r,1, MPI_INT, 0);
 	MPI::COMM_WORLD.Bcast(&d,1, MPI_INT, 0);
 	#endif
+	*/
 
 	// curvature-dependent initial compositions
 	const field_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
@@ -786,11 +784,16 @@ Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double N
 	Composition myComp;
 	myComp += comp;
 	MPI::COMM_WORLD.Barrier();
-	MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
+	MPI_Iallreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM, MPI_COMM_WORLD, &(reqs[0]));
 	for (int j = 0; j < NP+1; j++) {
-		MPI::COMM_WORLD.Barrier();
-		MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
+		MPI_Iallreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD, &(reqs[1+j]));
 	}
+	MPI_Waitall(NP+2, reqs, stat);
+	#endif
+
+	#ifdef MPI_VERSION
+	delete [] reqs;
+	delete [] stat;
 	#endif
 
 	return comp;
@@ -904,6 +907,11 @@ template<int dim,class T>
 T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const& oldGrid, const double& dt,
               MMSP::grid<dim,MMSP::vector<T> > const& newGrid)
 {
+	#ifdef MPI_VERSION
+	MPI_Request reqs;
+	MPI_Status stat;
+	#endif
+
 	double vmax = 0.0;
 
 	#ifdef _OPENMP
@@ -943,9 +951,9 @@ T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const& oldGrid, const double& dt,
 	}
 
 	#ifdef MPI_VERSION
-	MPI::COMM_WORLD.Barrier();
 	double temp(vmax);
-	MPI::COMM_WORLD.Allreduce(&temp, &vmax, 1, MPI_DOUBLE, MPI_MAX);
+	MPI_Iallreduce(&temp, &vmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD, &reqs);
+	MPI_Wait(&reqs, &stat);
 	#endif
 
 	return vmax;
@@ -955,6 +963,11 @@ T maxVelocity(MMSP::grid<dim,MMSP::vector<T> > const& oldGrid, const double& dt,
 template<int dim,class T>
 MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
 {
+	#ifdef MPI_VERSION
+	MPI_Request reqs;
+	MPI_Status stat;
+	#endif
+
 	double Ntot = 1.0;
 	for (int d = 0; d<dim; d++)
 		Ntot *= double(MMSP::g1(GRID, d) - MMSP::g0(GRID, d));
@@ -996,7 +1009,8 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GR
 
 	#ifdef MPI_VERSION
 	MMSP::vector<double> temp(summary);
-	MPI::COMM_WORLD.Reduce(&(temp[0]), &(summary[0]), NC+NP+1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI_Ireduce(&(temp[0]), &(summary[0]), NC+NP+1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD, &reqs);
+	MPI_Wait(&reqs, &stat);
 	#endif
 
 	return summary;
@@ -1005,6 +1019,11 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GR
 template<int dim,class T>
 double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
 {
+	#ifdef MPI_VERSION
+	MPI_Request reqs;
+	MPI_Status stat;
+	#endif
+
 	double dV = 1.0;
 	for (int d = 0; d<dim; d++)
 		dV *= MMSP::dx(GRID, d);
@@ -1036,7 +1055,8 @@ double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
 
 	#ifdef MPI_VERSION
 	double temp(energy);
-	MPI::COMM_WORLD.Reduce(&temp, &energy, 1, MPI_DOUBLE, MPI_SUM, 0);
+	MPI_Ireduce(&temp, &energy, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD, &reqs);
+	MPI_Wait(&reqs, &stat);
 	#endif
 
 	return energy;

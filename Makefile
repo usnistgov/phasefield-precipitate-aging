@@ -3,23 +3,23 @@
 # Questions/comments to trevor.keller@nist.gov (Trevor Keller)
 # Compiler optimizations after http://www.nersc.gov/users/computational-systems/retired-systems/hopper/performance-and-optimization/compiler-comparisons/
 
-# compilers: Intel, GCC, MPI
+# compilers: GCC, Intel, MPI
 gcompiler = g++
 icompiler = icc
 pcompiler = mpicxx
 
-# flags: common, debug, Intel, GNU, and MPI
-stdflags  = -Wall -std=c++11 -I $(MMSP_PATH)/include -I ..
-dbgflags  = -pedantic $(stdflags) $(dbgdirect) -O0 -pg
-idbgflags = $(stdflags) $(dbgdirect) -O0 -profile-functions -profile-loops=all -profile-loops-report=2
-
+# flags: common, debug, GNU, Intel, and MPI
+stdflags  = -Wall -pedantic -std=c++11 -I$(MMSP_PATH)/include -I..
+dbgflags  = $(stdflags) -O0 -pg
 gccflags = $(stdflags) -pedantic -O3 -funroll-loops -ffast-math
 iccflags = $(stdflags) -w3 -diag-disable:remark -O3 -funroll-loops -qopt-prefetch
-mpiflags = $(gccflags) -include mpi.h
+mpiflags = $(gccflags) -I$(MPI_PATH) -include mpi.h
 
-deps = alloy625.h parabola625.c
+deps = alloy625.h
 
-# WORKSTATION EXECUTABLES
+
+# === WORKSTATION EXECUTABLES ===
+
 all: alloy625 analysis
 .PHONY: all alloy625.h
 
@@ -35,10 +35,8 @@ alloy625: alloy625.cpp $(deps)
 serial: alloy625.cpp $(deps)
 	$(gcompiler) $< -o $@ $(dbgflags) -lz
 
-iserial: alloy625.cpp $(deps)
-	$(icompiler) $< -o $@ $(idbgflags) -lz
 
-# CLUSTER EXECUTABLES
+# === CLUSTER EXECUTABLES ===
 
 # shared thread memory (OpenMP) parallelism
 smp: alloy625.cpp $(deps)
@@ -57,11 +55,14 @@ ismpi: alloy625.cpp $(deps)
 	$(pcompiler) $< -o $@ $(iccflags) -include mpi.h -L/usr/lib64 -lz -fopenmp
 
 
-# ANALYSIS EXECUTABLES
+# === ANALYSIS EXECUTABLES ===
+
 .PHONY: analysis
 analysis:
 	$(MAKE) -C analysis
 
+# === CLEANUP ===
+
 .PHONY: clean
 clean:
-	rm -f alloy625 ibtest iserial ismpi parallel serial smp smpi *.o *.pyc
+	rm -f alloy625 ismpi parallel serial smp smpi *.o *.pyc
