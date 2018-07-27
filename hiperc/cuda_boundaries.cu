@@ -31,19 +31,6 @@ extern "C" {
 
 #include "cuda_kernels.cuh"
 
-void apply_initial_conditions(struct HostData* host, const int nx, const int ny, const int nm)
-{
-	#pragma omp parallel
-	{
-		#pragma omp for collapse(2)
-		for (int j = 0; j < ny; j++) {
-			for (int i = 0; i < nx; i++) {
-              /* do something */
-			}
-		}
-	}
-}
-
 __global__ void boundary_kernel(fp_t* d_conc,
                                 const int nx,
                                 const int ny,

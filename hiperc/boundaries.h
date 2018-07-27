@@ -30,11 +30,6 @@
 #include "type.h"
 
 /**
- \brief Initialize zero-flux boundary conditions
-*/
-void apply_initial_conditions(struct HostData* host, const int nx, const int ny, const int nm);
-
-/**
  \brief Set zero-flux boundary values
 */
 void apply_boundary_conditions(struct HostData* host, const int nx, const int ny, const int nm);

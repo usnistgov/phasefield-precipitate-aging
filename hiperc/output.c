@@ -29,20 +29,15 @@
 #include <png.h>
 #include "output.h"
 
-void param_parser(int argc, char* argv[], int* bx, int* by, int* checks, int* code,
+void param_parser(int* bx, int* by, int* checks, int* code,
 				  fp_t* M, fp_t* kappa, fp_t* linStab, int* nm,
 				  int* nx, int* ny, int* steps)
 {
 	FILE * input;
 
-	if (argc != 2) {
-		printf("Error: improper arguments supplied.\nUsage: ./%s filename\n", argv[0]);
-		exit(-1);
-	}
-
-	input = fopen(argv[1], "r");
+	input = fopen("params.txt", "r");
 	if (input == NULL) {
-		printf("Warning: unable to open parameter file %s. Marching with default values.\n", argv[1]);
+		printf("Warning: unable to open parameter file 'params.txt'. Marching with default values.\n");
 	} else {
 		char buffer[256];
 		char* pch;
