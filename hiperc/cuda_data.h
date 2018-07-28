@@ -89,45 +89,42 @@ void free_cuda(struct CudaData* dev);
 /**
  \brief Apply boundary conditions on device
 */
-void device_boundaries(struct CudaData* dev,
-					   const int nx, const int ny, const int nm,
-					   const int bx, const int by);
+void device_boundaries(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                       fp_t* d_phi_del,
+                       fp_t* d_phi_lav,
+                       fp_t* d_gam_Cr, fp_t* d_gam_Nb,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by);
 
 /**
-   \brief Compute interior Laplacian on device
+   \brief Compute Laplacian on device
 */
-void device_laplacian(struct CudaData* dev, const fp_t kappa,
-					  const int nx, const int ny, const int nm,
-					  const int bx, const int by);
-
-/**
-   \brief Compute exterior Laplacian on device
-*/
-void device_divergence(fp_t* conc_lap, fp_t* conc_div,
-					   const int nx, const int ny, const int nm,
-					   const int bx, const int by);
+void device_laplacian(fp_t* d_conc_old, fp_t* d_conc_lap,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by);
 
 /**
  \brief Step diffusion equation on device
 */
-void device_composition(fp_t* conc_old, fp_t* conc_div, fp_t* conc_new,
-						const int nx, const int ny, const int nm,
-                        const int bx, const int by,
-                        const fp_t M, const fp_t dt);
-
-/**
- \brief Solve diffusion equation on the GPU
-*/
-void cuda_diffusion_solver(struct CudaData* dev, struct HostData* host,
-                           const int bx, const int by,
-                           const int nm, const int nx, const int ny,
-                           const fp_t M, const fp_t dt,
-                           struct Stopwatch* sw);
+void device_evolution(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
+                      fp_t* d_phi_del_old,
+                      fp_t* d_phi_lav_old,
+                      fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
+                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+                      fp_t* d_phi_del_new,
+                      fp_t* d_phi_lav_new,
+                      fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by,
+                      const fp_t D_CrCr, const fp_t D_CrNb,
+                      const fp_t D_NbCr, const fp_t D_NbNb,
+                      const fp_t M_del, const fp_t M_lav,
+                      const fp_t dt);
 
 /**
   \brief Read data from device
 */
-void read_out_result(struct HostData* host, struct CudaData* dev, const int nx, const int ny);
+void read_out_result(struct CudaData* dev, struct HostData* host, const int nx, const int ny);
 
 /** \cond SuppressGuard */
 #endif /* _CUDA_DATA_H_ */

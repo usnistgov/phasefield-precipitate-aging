@@ -35,6 +35,15 @@
 #include<cctype>
 #include<time.h>
 
+/* common includes */
+#include "mesh.h"
+#include "numerics.h"
+#include "output.h"
+#include "timer.h"
+
+/* specific includes */
+#include "cuda_data.h"
+
 int main(int argc, char* argv[]) {
 	MMSP::Init(argc, argv);
 
@@ -231,7 +240,6 @@ int main(int argc, char* argv[]) {
 		// read grid dimension
 		int dim;
 		input >> dim;
-
 		input.close();
 
 		// set output file basename
@@ -269,7 +277,6 @@ int main(int argc, char* argv[]) {
 			length += slength.str().length();
 		}
 
-
 		if (dim == 1) {
 			// construct grid object
 			GRID1D grid(argv[1]);
@@ -299,15 +306,80 @@ int main(int argc, char* argv[]) {
 		} else if (dim == 2) {
 			// construct grid objects
 			GRID2D grid(argv[1]);
-			fp_t** conc_old, **conc_new, **conc_lap, **conc_div, **mask_lap;
+			/* declare host and device data structures */
+			struct HostData host;
+			struct CudaData dev;
+			fp_t** mask_lap;
+
+			/* declare default materials and numerical parameters */
+			fp_t M=5.0, kappa=2.0, linStab=0.25, elapsed=0., energy=0.;
+			int step=0, steps=5000000, checks=100000;
+			param_parser(&bx, &by, &checks, &code, &M, &kappa, &linStab, &nm, &nx, &ny, &steps);
 
 			/* initialize memory */
-			make_arrays(&conc_old, &conc_new, &conc_lap, &conc_div, &mask_lap, nx, ny, nm);
+			make_arrays(&host, &mask_lap, nx, ny, nm);
 			set_mask(dx, dy, code, mask_lap, nm);
+
+			/* initialize memory */
+			make_arrays(&host, &mask_lap, nx, ny, nm);
+			set_mask(dx, dy, code, mask_lap, nm);
+			for (int n = 0; n < nodes(GRID); n++) {
+				(host->conc_Cr_old)[n] = GRID(n)[0];
+				(host->conc_Nb_old)[n] = GRID(n)[1];
+				(host->phi_del_old)[n] = GRID(n)[2];
+				(host->phi_lav_old)[n] = GRID(n)[3];
+				(host->gam_Cr_old)[n]  = GRID(n)[4];
+				(host->gam_Nb_old)[n]  = GRID(n)[5];
+			}
+
+			/* initialize GPU */
+			init_cuda(&host, mask_lap, nx, ny, nm, &dev);
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
-				MMSP::update(grid, increment);
+				for (int j = 0; j < increment; j++) {
+					/* MMSP::update(grid, increment); */
+					/* === Start Architecture-Specific Kernel === */
+					device_boundaries(dev.conc_Cr_old, dev.conc_Nb_old
+									  dev.phi_del_old, dev.phi_lav_old,
+									  dev.gam_Cr_old, dev.gam_Nb_old,
+									  nx, ny, nm, bx, by);
+
+					device_laplacian(dev.conc_Cr_old, dev.conc_Cr_new, nx, ny, nm, bx, by);
+					device_laplacian(dev.conc_Nb_old, dev.conc_Nb_new, nx, ny, nm, bx, by);
+					device_laplacian(dev.phi_del_old, dev.phi_del_new, nx, ny, nm, bx, by);
+					device_laplacian(dev.phi_lav_old, dev.phi_lav_new, nx, ny, nm, bx, by);
+					device_laplacian(dev.gam_Cr_old,  dev.gam_Cr_new,  nx, ny, nm, bx, by);
+					device_laplacian(dev.gam_Nb_old,  dev.gam_Nb_new,  nx, ny, nm, bx, by);
+
+					device_boundaries(dev.conc_Cr_new, dev.conc_Nb_new
+									  dev.phi_del_new, dev.phi_lav_new,
+									  dev.gam_Cr_new, dev.gam_Nb_new,
+									  nx, ny, nm, bx, by);
+
+					device_evolution(dev.conc_Cr_old, dev.conc_Nb_old,
+									 dev.phi_del_old, dev.phi_lav_old,
+									 dev.gam_Cr_old,  dev.gam_Nb_old,
+									 dev.conc_Cr_new, dev.conc_Nb_new,
+									 dev.phi_del_new, dev.phi_lav_new,
+									 dev.gam_Cr_new,  dev.gam_Nb_new,
+									 nx, ny, nm,
+									 bx, by,
+									 D_Cr[0], D_Cr[1],
+									 D_Nb[0], D_Nb[1],
+									 Lmob[0], Lmob[1],
+									 dt);
+
+					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
+					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
+					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
+					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
+					swap_pointers_1D(&(dev.gam_Cr_old),  &(dev.gam_Cr_new));
+					swap_pointers_1D(&(dev.gam_Nb_old),  &(dev.gam_Nb_new));
+					/* === Finish Architecture-Specific Kernel === */
+				}
+				read_out_result(&dev, &host, nx, ny);
+			}
 
 				// generate output filename
 				std::stringstream outstr;
@@ -325,6 +397,14 @@ int main(int argc, char* argv[]) {
 					filename[j]=outstr.str()[j];
 
 				// write grid output to file
+				for (int n = 0; n < nodes(GRID); n++) {
+					GRID(n)[0] = (host->conc_Cr_old)[n];
+					GRID(n)[1] = (host->conc_Nb_old)[n];
+					GRID(n)[2] = (host->phi_del_old)[n];
+					GRID(n)[3] = (host->phi_lav_old)[n];
+					GRID(n)[4] = (host->gam_Cr_old)[n];
+					GRID(n)[5] = (host->gam_Nb_old)[n];
+				}
 				MMSP::output(grid, filename);
 			}
 		} else if (dim == 3) {

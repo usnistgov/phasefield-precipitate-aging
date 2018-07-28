@@ -29,7 +29,6 @@
 #include <string.h>
 
 /* common includes */
-#include "boundaries.h"
 #include "mesh.h"
 #include "numerics.h"
 #include "output.h"
@@ -86,7 +85,7 @@ int main(int argc, char* argv[])
 
 		if (step % checks == 0) {
 			/* transfer result to host (conc_new) from device (dev.conc_old) */
-			read_out_result(&host, &dev, nx, ny);
+			read_out_result(&dev, &host, nx, ny);
 		}
 	}
 

@@ -38,60 +38,38 @@ __constant__ extern fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
 /**
  \brief Boundary condition kernel for execution on the GPU
-
- This function accesses 1D data rather than the 2D array representation of the
- scalar composition field
 */
-__global__ void boundary_kernel(fp_t* conc,
-                                const int nx, const int ny, const int nm);
+__global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                                fp_t* d_phi_del,
+                                fp_t* d_phi_lav,
+                                fp_t* d_gam_Cr, fp_t* d_gam_Nb,
+                                const int nx,
+                                const int ny,
+                                const int nm);
 
 /**
  \brief Tiled convolution algorithm for execution on the GPU
-
- This function accesses 1D data rather than the 2D array representation of the
- scalar composition field, mapping into 2D tiles on the GPU with halo cells
- before computing the convolution.
-
- Note:
- - The source matrix (\a conc_old) and destination matrix (\a conc_lap) must be identical in size
- - One CUDA core operates on one array index: there is no nested loop over matrix elements
- - The halo (\a nm/2 perimeter cells) in \a conc_lap are unallocated garbage
- - The same cells in \a conc_old are boundary values, and contribute to the convolution
- - \a conc_tile is the shared tile of input data, accessible by all threads in this block
 */
-__global__ void convolution_kernel(fp_t* conc_old,
-                                   fp_t* conc_lap,
-                                   const fp_t kappa,
+__global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_lap,
                                    const int nx,
                                    const int ny,
                                    const int nm);
 
 /**
- \brief Tiled convolution (divergence of the gradient) algorithm for execution on the GPU
+ \brief Monolithic kernel to update all field variables, minimizing syncthreads
 */
-__global__ void divergence_kernel(fp_t* conc_lap,
-                                   fp_t* conc_div,
-                                   const int nx,
-                                   const int ny,
-                                   const int nm);
-
-/**
- \brief Vector addition algorithm for execution on the GPU
-
- This function accesses 1D data rather than the 2D array representation of the
- scalar composition field. Memory allocation, data transfer, and array release
- are handled in cuda_init(), with arrays on the host and device managed through
- CudaData, which is a struct passed by reference into the function. In this way,
- device kernels can be called in isolation without incurring the cost of data
- transfers and with reduced risk of memory leaks.
-*/
-__global__ void diffusion_kernel(fp_t* conc_old,
-                                 fp_t* conc_div,
-                                 fp_t* conc_new,
-                                 const int nx,
-                                 const int ny,
-                                 const int nm,
-                                 const fp_t D,
+__global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
+                                 fp_t* d_phi_del_old,
+                                 fp_t* d_phi_lav_old,
+                                 fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
+                                 fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+                                 fp_t* d_phi_del_new,
+                                 fp_t* d_phi_lav_new,
+                                 fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
+                                 const int nx, const int ny, const int nm,
+                                 const fp_t D_CrCr, const fp_t D_CrNb,
+                                 const fp_t D_NbCr, const fp_t D_NbNb,
+                                 const fp_t M_del, const fp_t M_lav,
                                  const fp_t dt);
 
 /** \cond SuppressGuard */

@@ -29,7 +29,6 @@
 
 extern "C" {
 #include "cuda_data.h"
-#include "boundaries.h"
 #include "numerics.h"
 #include "mesh.h"
 #include "timer.h"
@@ -39,12 +38,7 @@ extern "C" {
 
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
-__device__ fp_t dfdc(const fp_t C)
-{
-  /* do something */
-}
-
-__global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_lap, const fp_t kappa,
+__global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_lap,
                                    const int nx, const int ny, const int nm)
 {
 	int dst_x, dst_y, dst_nx, dst_ny;
@@ -101,66 +95,19 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_lap, const fp_
 	__syncthreads();
 }
 
-__global__ void divergence_kernel(fp_t* d_conc_lap, fp_t* d_conc_div,
-                                  const int nx, const int ny, const int nm)
-{
-	int dst_x, dst_y, dst_nx, dst_ny;
-	int src_x, src_y, src_nx, src_ny;
-	int til_x, til_y, til_nx;
-	fp_t value=0.;
-
-	/* source and tile width include the halo cells */
-	src_nx = blockDim.x;
-	src_ny = blockDim.y;
-	til_nx = src_nx;
-
-	/* destination width excludes the halo cells */
-	dst_nx = src_nx - nm + 1;
-	dst_ny = src_ny - nm + 1;
-
-	/* determine tile indices on which to operate */
-	til_x = threadIdx.x;
-	til_y = threadIdx.y;
-
-	dst_x = blockIdx.x * dst_nx + til_x;
-	dst_y = blockIdx.y * dst_ny + til_y;
-
-	src_x = dst_x - nm/2;
-	src_y = dst_y - nm/2;
-
-	/* copy tile: __shared__ gives access to all threads working on this tile */
-	extern __shared__ fp_t d_conc_tile[];
-
-	if (src_x >= 0 && src_x < nx &&
-	    src_y >= 0 && src_y < ny ) {
-		/* if src_y==0, then dst_y==nm/2: this is a halo row */
-		d_conc_tile[til_nx * til_y + til_x] = d_conc_lap[nx * src_y + src_x];
-	}
-
-	/* tile data is shared: wait for all threads to finish copying */
-	__syncthreads();
-
-	/* compute the convolution */
-	if (til_x < dst_nx && til_y < dst_ny) {
-		for (int j = 0; j < nm; j++) {
-			for (int i = 0; i < nm; i++) {
-				value += d_mask[j * nm + i] * d_conc_tile[til_nx * (til_y+j) + til_x+i];
-			}
-		}
-		/* record value */
-		if (dst_y < ny && dst_x < nx) {
-			d_conc_div[nx * dst_y + dst_x] = value;
-		}
-	}
-
-	/* wait for all threads to finish writing */
-	__syncthreads();
-}
-
-
-__global__ void diffusion_kernel(fp_t* d_conc_old, fp_t* d_conc_div, fp_t* d_conc_new,
+__global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
+                                 fp_t* d_phi_del_old,
+                                 fp_t* d_phi_lav_old,
+                                 fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
+                                 fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+                                 fp_t* d_phi_del_new,
+                                 fp_t* d_phi_lav_new,
+                                 fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
                                  const int nx, const int ny, const int nm,
-                                 const fp_t D, const fp_t dt)
+                                 const fp_t D_CrCr, const fp_t D_CrNb,
+                                 const fp_t D_NbCr, const fp_t D_NbNb,
+                                 const fp_t M_del, const fp_t M_lav,
+                                 const fp_t dt)
 {
 	int thr_x, thr_y, x, y;
 
@@ -173,14 +120,89 @@ __global__ void diffusion_kernel(fp_t* d_conc_old, fp_t* d_conc_div, fp_t* d_con
 
 	/* explicit Euler solution to the equation of motion */
 	if (x < nx && y < ny) {
-      /* do something */
-	}
+      const fp_t xCr = d_conc_Cr_old[nx * thr_y + thr_x];
+      const fp_t xNb = d_conc_Nb_old[nx * thr_y + thr_x];
+      const fp_t phi_del = d_phi_del_old[nx * thr_y + thr_x];
+      const fp_t phi_lav = d_phi_lav_old[nx * thr_y + thr_x];
+      const fp_t f_del = h(phi_del);
+      const fp_t f_lav = h(phi_lav);
+      const fp_t f_gam = 1. - f_del - f_lav;
+
+      /* compute fictitious compositions */
+      const fp_t gam_Cr = d_gam_Cr_old[nx * thr_y + thr_x];
+      const fp_t gam_Nb = d_gam_Nb_old[nx * thr_y + thr_x];
+      const fp_t del_Cr = fict_del_Cr(d_conc_Cr_old[nx * thr_y + thr_x],
+                                d_conc_Cr_old[nx * thr_y + thr_x],
+                                f_del, f_gam, f_lav);
+      const fp_t del_Nb = fict_del_Nb(d_conc_Cr_old[nx * thr_y + thr_x],
+                                d_conc_Cr_old[nx * thr_y + thr_x],
+                                f_del, f_gam, f_lav);
+      const fp_t lav_Cr = fict_lav_Cr(d_conc_Cr_old[nx * thr_y + thr_x],
+                                d_conc_Cr_old[nx * thr_y + thr_x],
+                                f_del, f_gam, f_lav);
+      const fp_t lav_Nb = fict_lav_Nb(d_conc_Cr_old[nx * thr_y + thr_x],
+                                d_conc_Cr_old[nx * thr_y + thr_x],
+                                f_del, f_gam, f_lav);
+
+      /* pure phase energies */
+      const fp_t gam_nrg = g_gam(gam_Cr, gam_Nb);
+      const fp_t del_nrg = g_del(del_Cr, del_Nb);
+      const fp_t lav_nrg = g_lav(lav_Cr, lav_Nb);
+
+      /* effective chemical potential */
+      const fp_t mu_Cr = dg_gam_dxCr(gam_Cr, gam_Nb);
+      const fp_t mu_Nb = dg_gam_dxNb(gam_Cr, gam_Nb);
+
+      /* pressure */
+      const fp_t P_del = gam_nrg - del_nrg
+                       - mu_Cr * (gam_Cr - del_Cr)
+                       - mu_Nb * (gam_Nb - del_Nb);
+      const fp_t P_lav = gam_nrg - lav_nrg
+                       - mu_Cr * (gam_Cr - lav_Cr)
+                       - mu_Nb * (gam_Nb - lav_Nb);
+
+      /* variational derivatives */
+      const fp_t dFdPhi_del = -hprime(phi_del) * P_del
+                            + 2. * omega * phi_del * (phi_del - 1.) * (2. * phi_del - 1.)
+                            + 2. * alpha * phi_del * (phi_lav * phi_lav)
+                            - kappa * d_phi_del_new[nx * thr_y + thr_x];
+      const fp_t dFdPhi_lav = -hprime(phi_lav) * P_lav
+                            + 2. * omega * phi_lav * (phi_lav - 1.) * (2. * phi_lav - 1.)
+                            + 2. * alpha * phi_lav * (phi_del * phi_del)
+                            - kappa * d_phi_lav_new[nx * thr_y + thr_x];
+
+      /* Cahn-Hilliard equations of motion for composition */
+      d_conc_Cr_new[nx * thr_y + thr_x] = d_conc_Cr_old[nx * thr_y + thr_x]
+                                        + dt * ( D_CrCr * d_gam_Cr_lap[nx * thr_y + thr_x]
+                                               + D_CrNb * d_Gam_Nb_lap[nx * thr_y + thr_x]);
+      d_conc_Nb_new[nx * thr_y + thr_x] = d_conc_Nb_old[nx * thr_y + thr_x]
+                                        + dt * ( D_NbCr * d_gam_Cr_lap[nx * thr_y + thr_x]
+                                               + D_NbNb * d_Gam_Nb_lap[nx * thr_y + thr_x]);
+
+      /* Allen-Cahn equations of motion for phase */
+      d_phi_del_new[nx * thr_y + thr_x] = d_phi_del_old[nx * thr_y + thr_x] - dt * M_del * dFdPhi_del;
+      d_phi_lav_new[nx * thr_y + thr_x] = d_phi_lav_old[nx * thr_y + thr_x] - dt * M_lav * dFdPhi_lav;
+
+      /* fictitious compositions */
+      const fp_t f_del_new = h(d_phi_del_new[nx * thr_y + thr_x]);
+      const fp_t f_lav_new = h(d_phi_lav_new[nx * thr_y + thr_x]);
+      const fp_t f_gam_new = 1. - f_del - f_lav;
+      d_conc_Cr_old[nx * thr_y + thr_x] = fict_gam_Cr(d_conc_Cr_old[nx * thr_y + thr_x],
+                                                      d_conc_Cr_old[nx * thr_y + thr_x],
+                                                      f_del_new, f_gam_new, f_lav_new);
+      d_conc_Nb_old[nx * thr_y + thr_x] = fict_gam_Nb(d_conc_Cr_old[nx * thr_y + thr_x],
+                                                      d_conc_Cr_old[nx * thr_y + thr_x],
+                                                      f_del_new, f_gam_new, f_lav_new);
+    }
 
 	/* wait for all threads to finish writing */
 	__syncthreads();
 }
 
-void device_boundaries(fp_t* conc,
+void device_boundaries(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                       fp_t* d_phi_del,
+                       fp_t* d_phi_lav,
+                       fp_t* d_gam_Cr, fp_t* d_gam_Nb,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by)
 {
@@ -191,13 +213,17 @@ void device_boundaries(fp_t* conc,
 	               1);
 
 	boundary_kernel<<<num_tiles,tile_size>>> (
-	    conc, nx, ny, nm
+        d_conc_Cr, d_conc_Nb,
+        d_phi_del,
+        d_phi_lav,
+        d_gam_Cr, d_gam_Nb,
+        nx, ny, nm
 	);
 }
 
-void device_laplacian(fp_t* conc_old, fp_t* conc_lap, const fp_t kappa,
-                        const int nx, const int ny, const int nm,
-                        const int bx, const int by)
+void device_laplacian(fp_t* d_conc_old, fp_t* d_conc_lap,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by)
 {
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
@@ -207,43 +233,56 @@ void device_laplacian(fp_t* conc_old, fp_t* conc_lap, const fp_t kappa,
 	size_t buf_size = (tile_size.x + nm) * (tile_size.y + nm) * sizeof(fp_t);
 
 	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
-    	conc_old, conc_lap, kappa, nx, ny, nm
+    	d_conc_old, d_conc_lap, nx, ny, nm
 	);
 }
 
-void device_divergence(fp_t* conc_lap, fp_t* conc_div,
-                        const int nx, const int ny, const int nm,
-                        const int bx, const int by)
+void device_evolution(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
+                      fp_t* d_phi_del_old,
+                      fp_t* d_phi_lav_old,
+                      fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
+                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+                      fp_t* d_phi_del_new,
+                      fp_t* d_phi_lav_new,
+                      fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by,
+                      const fp_t D_CrCr, const fp_t D_CrNb,
+                      const fp_t D_NbCr, const fp_t D_NbNb,
+                      const fp_t M_del, const fp_t M_lav,
+                      const fp_t dt)
 {
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(ceil(float(nx) / (tile_size.x - nm + 1)),
 	               ceil(float(ny) / (tile_size.y - nm + 1)),
 	               1);
-	size_t buf_size = (tile_size.x + nm) * (tile_size.y + nm) * sizeof(fp_t);
-
-	divergence_kernel<<<num_tiles,tile_size,buf_size>>> (
-		conc_lap, conc_div, nx, ny, nm
-	);
+	evolution_kernel<<<num_tiles,tile_size>>> (
+	    d_conc_Cr_old, d_conc_Nb_old,
+        d_phi_del_old, d_phi_lav_old,
+        d_gam_Cr_old, d_gam_Nb_old,
+        d_conc_Cr_new, d_conc_Nb_new,
+        d_phi_del_new, d_phi_lav_new,
+        d_gam_Cr_new, d_gam_Nb_new,
+        nx, ny, nm,
+        D_CrCr, D_CrNb,
+        D_NbCr, D_NbNb,
+        M_del, M_lav,
+        dt);
 }
 
-void device_composition(fp_t* conc_old, fp_t* conc_lap, fp_t* conc_new,
-                        const int nx, const int ny, const int nm,
-                        const int bx, const int by,
-                        const fp_t D, const fp_t dt)
+void read_out_result(struct CudaData* dev, Struct HostData* host, const int nx, const int ny)
 {
-	/* divide matrices into blocks of bx * by threads */
-	dim3 tile_size(bx, by, 1);
-	dim3 num_tiles(ceil(float(nx) / (tile_size.x - nm + 1)),
-	               ceil(float(ny) / (tile_size.y - nm + 1)),
-	               1);
-	diffusion_kernel<<<num_tiles,tile_size>>> (
-	    conc_old, conc_lap, conc_new, nx, ny, nm, D, dt
-	);
-}
-
-void read_out_result(fp_t** conc, fp_t* d_conc, const int nx, const int ny)
-{
-	cudaMemcpy(conc[0], d_conc, nx * ny * sizeof(fp_t),
+  cudaMemcpy(host->conc_Cr, dev->conc_Cr, nx * ny * sizeof(fp_t),
+               cudaMemcpyDeviceToHost);
+  cudaMemcpy(host->conc_Nb, dev->conc_Nb, nx * ny * sizeof(fp_t),
+               cudaMemcpyDeviceToHost);
+  cudaMemcpy(host->phi_del, dev->phi_del, nx * ny * sizeof(fp_t),
+               cudaMemcpyDeviceToHost);
+  cudaMemcpy(host->phi_lav, dev->phi_lav, nx * ny * sizeof(fp_t),
+               cudaMemcpyDeviceToHost);
+  cudaMemcpy(host->gam_Cr, dev->gam_Cr, nx * ny * sizeof(fp_t),
+               cudaMemcpyDeviceToHost);
+  cudaMemcpy(host->gam_Nb, dev->gam_Nb, nx * ny * sizeof(fp_t),
                cudaMemcpyDeviceToHost);
 }
