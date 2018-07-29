@@ -22,9 +22,7 @@
  \brief Implementation of functions to create and destroy CudaData struct
 */
 
-extern "C" {
 #include "cuda_data.h"
-}
 
 #include "cuda_kernels.cuh"
 

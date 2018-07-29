@@ -34,14 +34,11 @@
 #endif
 #include "MMSP.hpp"
 #include "cuda625.hpp"
-#include "parabola625.h"
-
-extern "C" {
+#include "cuda_data.h"
 #include "mesh.h"
 #include "numerics.h"
 #include "output.h"
-#include "cuda_data.h"
-}
+#include "parabola625.h"
 
 /* Define equilibrium phase compositions at global scope. Gamma is nominally
    30% Cr, 2% Nb, as defined in the first elements of the two following arrays.
@@ -88,7 +85,6 @@ const fp_t LinStab = 1.0 / 19.42501; // threshold of linear (von Neumann) stabil
 const fp_t rPrecip[NP] = {7.5 * 5e-9 / meshres,  // delta
                           7.5 * 5e-9 / meshres
                          }; // Laves
-
 
 namespace MMSP
 {

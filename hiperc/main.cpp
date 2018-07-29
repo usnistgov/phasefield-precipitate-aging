@@ -17,8 +17,8 @@
  * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
  *************************************************************************************/
 
-#ifndef __MAIN_CPP__
-#define __MAIN_CPP__
+#ifndef __MMSP_MAIN_CPP__
+#define __MMSP_MAIN_CPP__
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -263,8 +263,6 @@ int main(int argc, char* argv[])
 		if (dim == 2) {
 			// construct grid objects
 			GRID2D grid(argv[1]);
-			const int nx = g1(grid, 0) - g0(grid, 0);
-			const int ny = g1(grid, 1) - g0(grid, 1);
 
 			/* declare host and device data structures */
 			struct HostData host;
@@ -273,18 +271,24 @@ int main(int argc, char* argv[])
 			/* declare default materials and numerical parameters */
 			int bx=32, by=32, nm=3, code=53;
 			param_parser(&bx, &by, &code, &nm);
+			const int nx = g1(grid, 0) - g0(grid, 0) + nm - 1;
+			const int ny = g1(grid, 1) - g0(grid, 1) + nm - 1;
 
 			/* initialize memory */
 			make_arrays(&host, nx, ny, nm);
 			set_mask(dx(grid, 0), dx(grid, 1), code, host.mask_lap, nm);
 
 			for (int n = 0; n < MMSP::nodes(grid); n++) {
-				(*host.conc_Cr_old)[n] = grid(n)[0];
-				(*host.conc_Nb_old)[n] = grid(n)[1];
-				(*host.phi_del_old)[n] = grid(n)[2];
-				(*host.phi_lav_old)[n] = grid(n)[3];
-				(*host.gam_Cr_old)[n]  = grid(n)[4];
-				(*host.gam_Nb_old)[n]  = grid(n)[5];
+				MMSP::vector<fp_t>& gridN = grid(n);
+				MMSP::vector<int> x = MMSP::position(grid, n);
+				const int i = x[0] - MMSP::g0(grid, 0) + nm / 2;
+				const int j = x[1] - MMSP::g0(grid, 1) + nm / 2;
+				host.conc_Cr_old[j][i] = gridN[0];
+				host.conc_Nb_old[j][i] = gridN[1];
+				host.phi_del_old[j][i] = gridN[2];
+				host.phi_lav_old[j][i] = gridN[3];
+				host.gam_Cr_old[j][i]  = gridN[4];
+				host.gam_Nb_old[j][i]  = gridN[5];
 			}
 
 			/* initialize GPU */
@@ -297,7 +301,7 @@ int main(int argc, char* argv[])
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
 				for (int j = 0; j < increment; j++) {
-					/* MMSP::update(grid, increment); */
+					print_progress(j, increment);
 					/* === Start Architecture-Specific Kernel === */
 					device_boundaries(&dev, nx, ny, nm, bx, by);
 
@@ -318,6 +322,7 @@ int main(int argc, char* argv[])
 					swap_pointers_1D(&(dev.gam_Nb_old),  &(dev.gam_Nb_new));
 					/* === Finish Architecture-Specific Kernel === */
 				}
+
 				read_out_result(&dev, &host, nx, ny);
 
 				// generate output filename
@@ -336,16 +341,23 @@ int main(int argc, char* argv[])
 					filename[j]=outstr.str()[j];
 
 				// write grid output to file
-				for (int n = 0; n < nodes(grid); n++) {
-					grid(n)[0] = (*host.conc_Cr_old)[n];
-					grid(n)[1] = (*host.conc_Nb_old)[n];
-					grid(n)[2] = (*host.phi_del_old)[n];
-					grid(n)[3] = (*host.phi_lav_old)[n];
-					grid(n)[4] = (*host.gam_Cr_old)[n];
-					grid(n)[5] = (*host.gam_Nb_old)[n];
+				for (int n = 0; n < MMSP::nodes(grid); n++) {
+					MMSP::vector<fp_t>& gridN = grid(n);
+					MMSP::vector<int> x = MMSP::position(grid, n);
+					const int i = x[0] - MMSP::g0(grid, 0) + nm / 2;
+					const int j = x[1] - MMSP::g0(grid, 1) + nm / 2;
+					gridN[0] = host.conc_Cr_old[j][i];
+					gridN[1] = host.conc_Nb_old[j][i];
+					gridN[2] = host.phi_del_old[j][i];
+					gridN[3] = host.phi_lav_old[j][i];
+					gridN[4] = host.gam_Cr_old[j][i];
+					gridN[5] = host.gam_Nb_old[j][i];
 				}
 				MMSP::output(grid, filename);
+				print_progress(increment, increment);
 			}
+			free_cuda(&dev);
+			free_arrays(&host);
 		} else {
 			std::cerr << dim << "-dimensional grids are unsupported in the CUDA version." << std::endl;
 			MMSP::Abort(-1);
@@ -354,6 +366,7 @@ int main(int argc, char* argv[])
 	}
 
 	MMSP::Finalize();
+	return 0;
 }
 
 #endif

@@ -27,9 +27,7 @@
 #define _CUDA_KERNELS_H_
 /** \endcond */
 
-extern "C" {
 #include "numerics.h"
-}
 
 /**
  \brief Convolution mask array on the GPU, allocated in protected memory

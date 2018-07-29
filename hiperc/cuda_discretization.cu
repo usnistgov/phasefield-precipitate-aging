@@ -27,12 +27,9 @@
 #include <omp.h>
 #include <cuda.h>
 
-extern "C" {
 #include "cuda_data.h"
 #include "numerics.h"
 #include "mesh.h"
-#include "timer.h"
-}
 
 #include "cuda_kernels.cuh"
 #include "parabola625.cuh"
@@ -126,26 +123,26 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		const fp_t xNb = d_conc_Nb_old[nx * thr_y + thr_x];
 		const fp_t phi_del = d_phi_del_old[nx * thr_y + thr_x];
 		const fp_t phi_lav = d_phi_lav_old[nx * thr_y + thr_x];
-		const fp_t f_del = h(phi_del);
-		const fp_t f_lav = h(phi_lav);
+		const fp_t f_del = d_h(phi_del);
+		const fp_t f_lav = d_h(phi_lav);
 		const fp_t f_gam = 1. - f_del - f_lav;
 
 		/* compute fictitious compositions */
 		const fp_t gam_Cr = d_gam_Cr_old[nx * thr_y + thr_x];
 		const fp_t gam_Nb = d_gam_Nb_old[nx * thr_y + thr_x];
-		const fp_t del_Cr = fict_del_Cr(xCr, xNb, f_del, f_gam, f_lav);
-		const fp_t del_Nb = fict_del_Nb(xCr, xNb, f_del, f_gam, f_lav);
-		const fp_t lav_Cr = fict_lav_Cr(xCr, xNb, f_del, f_gam, f_lav);
-		const fp_t lav_Nb = fict_lav_Nb(xCr, xNb, f_del, f_gam, f_lav);
+		const fp_t del_Cr = d_fict_del_Cr(xCr, xNb, f_del, f_gam, f_lav);
+		const fp_t del_Nb = d_fict_del_Nb(xCr, xNb, f_del, f_gam, f_lav);
+		const fp_t lav_Cr = d_fict_lav_Cr(xCr, xNb, f_del, f_gam, f_lav);
+		const fp_t lav_Nb = d_fict_lav_Nb(xCr, xNb, f_del, f_gam, f_lav);
 
 		/* pure phase energies */
-		const fp_t gam_nrg = g_gam(gam_Cr, gam_Nb);
-		const fp_t del_nrg = g_del(del_Cr, del_Nb);
-		const fp_t lav_nrg = g_lav(lav_Cr, lav_Nb);
+		const fp_t gam_nrg = d_g_gam(gam_Cr, gam_Nb);
+		const fp_t del_nrg = d_g_del(del_Cr, del_Nb);
+		const fp_t lav_nrg = d_g_lav(lav_Cr, lav_Nb);
 
 		/* effective chemical potential */
-		const fp_t mu_Cr = dg_gam_dxCr(gam_Cr, gam_Nb);
-		const fp_t mu_Nb = dg_gam_dxNb(gam_Cr, gam_Nb);
+		const fp_t mu_Cr = d_dg_gam_dxCr(gam_Cr, gam_Nb);
+		const fp_t mu_Nb = d_dg_gam_dxNb(gam_Cr, gam_Nb);
 
 		/* pressure */
 		const fp_t P_del = gam_nrg - del_nrg
@@ -156,11 +153,11 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		                   - mu_Nb * (gam_Nb - lav_Nb);
 
 		/* variational derivatives */
-		const fp_t dFdPhi_del = -hprime(phi_del) * P_del
+		const fp_t dFdPhi_del = -d_hprime(phi_del) * P_del
 		                        + 2. * omega * phi_del * (phi_del - 1.) * (2. * phi_del - 1.)
 		                        + 2. * alpha * phi_del * (phi_lav * phi_lav)
 		                        - kappa * d_phi_del_new[nx * thr_y + thr_x];
-		const fp_t dFdPhi_lav = -hprime(phi_lav) * P_lav
+		const fp_t dFdPhi_lav = -d_hprime(phi_lav) * P_lav
 		                        + 2. * omega * phi_lav * (phi_lav - 1.) * (2. * phi_lav - 1.)
 		                        + 2. * alpha * phi_lav * (phi_del * phi_del)
 		                        - kappa * d_phi_lav_new[nx * thr_y + thr_x];
@@ -178,13 +175,13 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		d_phi_lav_new[nx * thr_y + thr_x] = d_phi_lav_old[nx * thr_y + thr_x] - dt * M_lav * dFdPhi_lav;
 
 		/* fictitious compositions */
-		const fp_t f_del_new = h(d_phi_del_new[nx * thr_y + thr_x]);
-		const fp_t f_lav_new = h(d_phi_lav_new[nx * thr_y + thr_x]);
+		const fp_t f_del_new = d_h(d_phi_del_new[nx * thr_y + thr_x]);
+		const fp_t f_lav_new = d_h(d_phi_lav_new[nx * thr_y + thr_x]);
 		const fp_t f_gam_new = 1. - f_del - f_lav;
-		d_conc_Cr_old[nx * thr_y + thr_x] = fict_gam_Cr(d_conc_Cr_old[nx * thr_y + thr_x],
+		d_conc_Cr_old[nx * thr_y + thr_x] = d_fict_gam_Cr(d_conc_Cr_old[nx * thr_y + thr_x],
 		                                    d_conc_Cr_old[nx * thr_y + thr_x],
 		                                    f_del_new, f_gam_new, f_lav_new);
-		d_conc_Nb_old[nx * thr_y + thr_x] = fict_gam_Nb(d_conc_Cr_old[nx * thr_y + thr_x],
+		d_conc_Nb_old[nx * thr_y + thr_x] = d_fict_gam_Nb(d_conc_Cr_old[nx * thr_y + thr_x],
 		                                    d_conc_Cr_old[nx * thr_y + thr_x],
 		                                    f_del_new, f_gam_new, f_lav_new);
 	}
@@ -284,16 +281,16 @@ void device_evolution(struct CudaData* dev,
 
 void read_out_result(struct CudaData* dev, struct HostData* host, const int nx, const int ny)
 {
-	cudaMemcpy(host->conc_Cr_new, dev->conc_Cr_old, nx * ny * sizeof(fp_t),
+	cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_old, nx * ny * sizeof(fp_t),
 	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->conc_Nb_new, dev->conc_Nb_old, nx * ny * sizeof(fp_t),
+	cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_old, nx * ny * sizeof(fp_t),
 	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->phi_del_new, dev->phi_del_old, nx * ny * sizeof(fp_t),
+	cudaMemcpy(host->phi_del_new[0], dev->phi_del_old, nx * ny * sizeof(fp_t),
 	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->phi_lav_new, dev->phi_lav_old, nx * ny * sizeof(fp_t),
+	cudaMemcpy(host->phi_lav_new[0], dev->phi_lav_old, nx * ny * sizeof(fp_t),
 	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->gam_Cr_new, dev->gam_Cr_old, nx * ny * sizeof(fp_t),
+	cudaMemcpy(host->gam_Cr_new[0], dev->gam_Cr_old, nx * ny * sizeof(fp_t),
 	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->gam_Nb_new, dev->gam_Nb_old, nx * ny * sizeof(fp_t),
+	cudaMemcpy(host->gam_Nb_new[0], dev->gam_Nb_old, nx * ny * sizeof(fp_t),
 	           cudaMemcpyDeviceToHost);
 }
