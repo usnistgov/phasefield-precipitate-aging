@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include "mesh.h"
 
-void make_arrays(struct HostData* host, fp_t*** mask_lap,
+void make_arrays(struct HostData* host,
                  const int nx, const int ny, const int nm)
 {
 	int i;
@@ -44,7 +44,7 @@ void make_arrays(struct HostData* host, fp_t*** mask_lap,
 	*(host->gam_Cr_new)  = (fp_t **)calloc(nx, sizeof(fp_t *));
 	*(host->gam_Nb_old)  = (fp_t **)calloc(nx, sizeof(fp_t *));
 	*(host->gam_Nb_new)  = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*mask_lap = (fp_t **)calloc(nm, sizeof(fp_t *));
+	*(host->mask_lap)    = (fp_t **)calloc(nm, sizeof(fp_t *));
 
 	/* allocate 1D data */
 	(*(host->conc_Cr_old))[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
@@ -59,7 +59,7 @@ void make_arrays(struct HostData* host, fp_t*** mask_lap,
 	(*(host->gam_Cr_new))[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
 	(*(host->gam_Nb_old))[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
 	(*(host->gam_Nb_new))[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*mask_lap)[0] = (fp_t *)calloc(nm * nm, sizeof(fp_t));
+	(*(host->mask_lap))[0]    = (fp_t *)calloc(nm * nm, sizeof(fp_t));
 
 	/* map 2D pointers onto 1D data */
 	for (i = 1; i < ny; i++) {
@@ -70,11 +70,11 @@ void make_arrays(struct HostData* host, fp_t*** mask_lap,
 	}
 
 	for (i = 1; i < nm; i++) {
-		(*mask_lap)[i] = &(*mask_lap[0])[nm * i];
+		(*(host->mask_lap))[i] = &(*(host->mask_lap)[0])[nm * i];
 	}
 }
 
-void free_arrays(struct HostData* host, fp_t** mask_lap)
+void free_arrays(struct HostData* host)
 {
 	free((host->conc_Cr_old)[0]);
 	free((host->conc_Cr_new)[0]);
@@ -88,7 +88,7 @@ void free_arrays(struct HostData* host, fp_t** mask_lap)
 	free((host->gam_Cr_new )[0]);
 	free((host->gam_Nb_old )[0]);
 	free((host->gam_Nb_new )[0]);
-	free(mask_lap[0]);
+	free((host->mask_lap   )[0]);
 
 	free(host->conc_Cr_old);
 	free(host->conc_Cr_new);
@@ -102,7 +102,7 @@ void free_arrays(struct HostData* host, fp_t** mask_lap)
 	free(host->gam_Cr_new);
 	free(host->gam_Nb_old);
 	free(host->gam_Nb_new);
-	free(mask_lap);
+	free(host->mask_lap);
 }
 
 void swap_pointers(fp_t*** conc_old, fp_t*** conc_new)
@@ -114,11 +114,12 @@ void swap_pointers(fp_t*** conc_old, fp_t*** conc_new)
 	*conc_new = temp;
 }
 
+
 void swap_pointers_1D(fp_t** conc_old, fp_t** conc_new)
 {
 	fp_t* temp;
 
-	temp = *conc_old;
-	*conc_old = *conc_new;
-	*conc_new = temp;
+	temp = (*conc_old);
+	(*conc_old) = (*conc_new);
+	(*conc_new) = temp;
 }

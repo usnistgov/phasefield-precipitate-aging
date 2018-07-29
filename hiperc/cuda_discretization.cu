@@ -199,10 +199,7 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	__syncthreads();
 }
 
-void device_boundaries(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
-                       fp_t* d_phi_del,
-                       fp_t* d_phi_lav,
-                       fp_t* d_gam_Cr, fp_t* d_gam_Nb,
+void device_boundaries(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by)
 {
@@ -213,15 +210,15 @@ void device_boundaries(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	               1);
 
 	boundary_kernel<<<num_tiles,tile_size>>> (
-        d_conc_Cr, d_conc_Nb,
-        d_phi_del,
-        d_phi_lav,
-        d_gam_Cr, d_gam_Nb,
+        dev->conc_Cr, dev->conc_Nb,
+        dev->phi_del,
+        dev->phi_lav,
+        dev->gam_Cr, dev->gam_Nb,
         nx, ny, nm
 	);
 }
 
-void device_laplacian(fp_t* d_conc_old, fp_t* d_conc_lap,
+void device_laplacian(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by)
 {
@@ -233,18 +230,22 @@ void device_laplacian(fp_t* d_conc_old, fp_t* d_conc_lap,
 	size_t buf_size = (tile_size.x + nm) * (tile_size.y + nm) * sizeof(fp_t);
 
 	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
-    	d_conc_old, d_conc_lap, nx, ny, nm
-	);
+    	dev->conc_Cr_old, dev->conc_Cr_new, nx, ny, nm);
+	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+    	dev->conc_Nb_old, dev->conc_Nb_new, nx, ny, nm);
+
+	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+    	dev->phi_del_old, dev->phi_del_new, nx, ny, nm);
+	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+    	dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
+
+	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+    	dev->gam_Cr_old, dev->gam_Cr_new, nx, ny, nm);
+	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+    	dev->gam_Nb_old, dev->gam_Nb_new, nx, ny, nm);
 }
 
-void device_evolution(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                      fp_t* d_phi_del_old,
-                      fp_t* d_phi_lav_old,
-                      fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                      fp_t* d_phi_del_new,
-                      fp_t* d_phi_lav_new,
-                      fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
+void device_evolution(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by,
                       const fp_t D_CrCr, const fp_t D_CrNb,
@@ -258,12 +259,12 @@ void device_evolution(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	               ceil(float(ny) / (tile_size.y - nm + 1)),
 	               1);
 	evolution_kernel<<<num_tiles,tile_size>>> (
-	    d_conc_Cr_old, d_conc_Nb_old,
-        d_phi_del_old, d_phi_lav_old,
-        d_gam_Cr_old, d_gam_Nb_old,
-        d_conc_Cr_new, d_conc_Nb_new,
-        d_phi_del_new, d_phi_lav_new,
-        d_gam_Cr_new, d_gam_Nb_new,
+	    dev->conc_Cr_old, dev->conc_Nb_old,
+        dev->phi_del_old, dev->phi_lav_old,
+        dev->gam_Cr_old, dev->gam_Nb_old,
+        dev->conc_Cr_new, dev->conc_Nb_new,
+        dev->phi_del_new, dev->phi_lav_new,
+        dev->gam_Cr_new, dev->gam_Nb_new,
         nx, ny, nm,
         D_CrCr, D_CrNb,
         D_NbCr, D_NbNb,

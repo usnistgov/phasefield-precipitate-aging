@@ -36,13 +36,13 @@
  top. This facilitates use of either 1D or 2D data access, depending on whether
  the task is spatially dependent or not.
 */
-void make_arrays(struct HostData* host, fp_t*** mask_lap,
+void make_arrays(struct HostData* host,
                  const int nx, const int ny, const int nm);
 
 /**
  \brief Free dynamically allocated memory
 */
-void free_arrays(struct HostData* host, fp_t** mask_lap);
+void free_arrays(struct HostData* host);
 
 /**
  \brief Swap pointers to 2D arrays

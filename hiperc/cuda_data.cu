@@ -28,7 +28,7 @@ extern "C" {
 
 #include "cuda_kernels.cuh"
 
-void init_cuda(struct HostData* host, fp_t** mask_lap,
+void init_cuda(struct HostData* host,
                const int nx, const int ny, const int nm, struct CudaData* dev)
 {
 	/* allocate memory on device */
@@ -48,7 +48,7 @@ void init_cuda(struct HostData* host, fp_t** mask_lap,
 	cudaMalloc((void**) &(dev->gam_Nb_new), nx * ny * sizeof(fp_t));
 
 	/* transfer mask and boundary conditions to protected memory on GPU */
-	cudaMemcpyToSymbol(d_mask, mask_lap[0], nm * nm * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t));
 
 	/* transfer data from host in to GPU */
 	cudaMemcpy(dev->conc_Cr_old, (host->conc_Cr_old)[0], nx * ny * sizeof(fp_t),

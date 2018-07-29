@@ -78,7 +78,7 @@ struct CudaData {
 /**
  \brief Initialize CUDA device memory before marching
 */
-void init_cuda(struct HostData* host, fp_t** mask_lap,
+void init_cuda(struct HostData* host,
 			   const int nx, const int ny, const int nm,
 			   struct CudaData* dev);
 /**
@@ -89,32 +89,22 @@ void free_cuda(struct CudaData* dev);
 /**
  \brief Apply boundary conditions on device
 */
-void device_boundaries(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
-                       fp_t* d_phi_del,
-                       fp_t* d_phi_lav,
-                       fp_t* d_gam_Cr, fp_t* d_gam_Nb,
+void device_boundaries(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by);
 
 /**
    \brief Compute Laplacian on device
 */
-void device_laplacian(fp_t* d_conc_old, fp_t* d_conc_lap,
+void device_laplacian(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by);
 
 /**
  \brief Step diffusion equation on device
 */
-void device_evolution(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                      fp_t* d_phi_del_old,
-                      fp_t* d_phi_lav_old,
-                      fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                      fp_t* d_phi_del_new,
-                      fp_t* d_phi_lav_new,
-                      fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
-                      const int nx, const int ny, const int nm,
+void device_evolution(struct CudaData* dev,
+					  const int nx, const int ny, const int nm,
                       const int bx, const int by,
                       const fp_t D_CrCr, const fp_t D_CrNb,
                       const fp_t D_NbCr, const fp_t D_NbNb,
