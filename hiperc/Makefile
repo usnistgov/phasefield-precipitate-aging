@@ -2,14 +2,14 @@
 # CUDA implementation
 
 NVCXX = nvcc
-NVCXXFLAGS = -D_FORCE_INLINES -Wno-deprecated-gpu-targets -std=c++11 \
-             --compiler-options="-O3 -Wall -fopenmp"
-LINKS = -lm -lpng -lcuda
+NVCXXFLAGS = -D_FORCE_INLINES -Wno-deprecated-gpu-targets -std=c++11 -I$(MMSP_PATH)/include \
+             --compiler-options="-O3 -Wall -ffast-math -fopenmp -funroll-loops"
+LINKS = -lcuda -lm -lpng -lz
 
-OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o timer.o
+OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o d_parabola625.o parabola625.o
 
 # Executable
-spinodal: cuda_main.c $(OBJS)
+cuda625: cuda625.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
 # CUDA objects
@@ -23,6 +23,9 @@ data.o: cuda_data.cu
 discretization.o: cuda_discretization.cu
 	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
+d_parabola625.o: parabola625.cu
+	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
+
 # Common objects
 
 mesh.o: mesh.c
@@ -34,26 +37,12 @@ numerics.o: numerics.c
 output.o: output.c
 	$(NVCXX) $(NVCXXFLAGS) -c $< -o $@
 
-timer.o: timer.c
+parabola625.o: parabola625.c
 	$(NVCXX) $(NVCXXFLAGS) -c $< -o $@
-
-# Helper scripts
-
-.PHONY: run
-run: spinodal
-	/usr/bin/time -f' Time (%E wall, %U user, %S sys)' ./spinodal params.txt
 
 .PHONY: cleanobjects
 cleanobjects:
-	rm -f spinodal *.o
-
-.PHONY: cleanoutputs
-cleanoutputs:
-	rm -f spinodal.*.csv spinodal.*.png runlog.csv
+	rm -f cuda625 *.o
 
 .PHONY: clean
 clean: cleanobjects
-
-.PHONY: cleanall
-cleanall: cleanobjects cleanoutputs
-

@@ -35,6 +35,7 @@ extern "C" {
 }
 
 #include "cuda_kernels.cuh"
+#include "parabola625.cuh"
 
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
@@ -106,6 +107,7 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                  const int nx, const int ny, const int nm,
                                  const fp_t D_CrCr, const fp_t D_CrNb,
                                  const fp_t D_NbCr, const fp_t D_NbNb,
+                                 const fp_t alpha, const fp_t kappa, const fp_t omega,
                                  const fp_t M_del, const fp_t M_lav,
                                  const fp_t dt)
 {
@@ -131,18 +133,10 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
       /* compute fictitious compositions */
       const fp_t gam_Cr = d_gam_Cr_old[nx * thr_y + thr_x];
       const fp_t gam_Nb = d_gam_Nb_old[nx * thr_y + thr_x];
-      const fp_t del_Cr = fict_del_Cr(d_conc_Cr_old[nx * thr_y + thr_x],
-                                d_conc_Cr_old[nx * thr_y + thr_x],
-                                f_del, f_gam, f_lav);
-      const fp_t del_Nb = fict_del_Nb(d_conc_Cr_old[nx * thr_y + thr_x],
-                                d_conc_Cr_old[nx * thr_y + thr_x],
-                                f_del, f_gam, f_lav);
-      const fp_t lav_Cr = fict_lav_Cr(d_conc_Cr_old[nx * thr_y + thr_x],
-                                d_conc_Cr_old[nx * thr_y + thr_x],
-                                f_del, f_gam, f_lav);
-      const fp_t lav_Nb = fict_lav_Nb(d_conc_Cr_old[nx * thr_y + thr_x],
-                                d_conc_Cr_old[nx * thr_y + thr_x],
-                                f_del, f_gam, f_lav);
+      const fp_t del_Cr = fict_del_Cr(xCr, xNb, f_del, f_gam, f_lav);
+      const fp_t del_Nb = fict_del_Nb(xCr, xNb, f_del, f_gam, f_lav);
+      const fp_t lav_Cr = fict_lav_Cr(xCr, xNb, f_del, f_gam, f_lav);
+      const fp_t lav_Nb = fict_lav_Nb(xCr, xNb, f_del, f_gam, f_lav);
 
       /* pure phase energies */
       const fp_t gam_nrg = g_gam(gam_Cr, gam_Nb);
@@ -173,11 +167,11 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 
       /* Cahn-Hilliard equations of motion for composition */
       d_conc_Cr_new[nx * thr_y + thr_x] = d_conc_Cr_old[nx * thr_y + thr_x]
-                                        + dt * ( D_CrCr * d_gam_Cr_lap[nx * thr_y + thr_x]
-                                               + D_CrNb * d_Gam_Nb_lap[nx * thr_y + thr_x]);
+                                        + dt * ( D_CrCr * d_gam_Cr_new[nx * thr_y + thr_x]
+                                               + D_CrNb * d_gam_Nb_new[nx * thr_y + thr_x]);
       d_conc_Nb_new[nx * thr_y + thr_x] = d_conc_Nb_old[nx * thr_y + thr_x]
-                                        + dt * ( D_NbCr * d_gam_Cr_lap[nx * thr_y + thr_x]
-                                               + D_NbNb * d_Gam_Nb_lap[nx * thr_y + thr_x]);
+                                        + dt * ( D_NbCr * d_gam_Cr_new[nx * thr_y + thr_x]
+                                               + D_NbNb * d_gam_Nb_new[nx * thr_y + thr_x]);
 
       /* Allen-Cahn equations of motion for phase */
       d_phi_del_new[nx * thr_y + thr_x] = d_phi_del_old[nx * thr_y + thr_x] - dt * M_del * dFdPhi_del;
@@ -210,12 +204,26 @@ void device_boundaries(struct CudaData* dev,
 	               1);
 
 	boundary_kernel<<<num_tiles,tile_size>>> (
-        dev->conc_Cr, dev->conc_Nb,
-        dev->phi_del,
-        dev->phi_lav,
-        dev->gam_Cr, dev->gam_Nb,
+        dev->conc_Cr_old, dev->conc_Nb_old,
+        dev->phi_del_old,
+        dev->phi_lav_old,
+        dev->gam_Cr_old, dev->gam_Nb_old,
         nx, ny, nm
 	);
+}
+
+void device_fict_boundaries(struct CudaData* dev,
+                            const int nx, const int ny, const int nm,
+                            const int bx, const int by)
+{
+	/* divide matrices into blocks of bx * by threads */
+	dim3 tile_size(bx, by, 1);
+	dim3 num_tiles(ceil(float(nx) / (tile_size.x - nm + 1)),
+	               ceil(float(ny) / (tile_size.y - nm + 1)),
+	               1);
+
+	fict_boundary_kernel<<<num_tiles,tile_size>>> (
+        dev->gam_Cr_new, dev->gam_Nb_new, nx, ny, nm);
 }
 
 void device_laplacian(struct CudaData* dev,
@@ -250,6 +258,7 @@ void device_evolution(struct CudaData* dev,
                       const int bx, const int by,
                       const fp_t D_CrCr, const fp_t D_CrNb,
                       const fp_t D_NbCr, const fp_t D_NbNb,
+                      const fp_t alpha, const fp_t kappa, const fp_t omega,
                       const fp_t M_del, const fp_t M_lav,
                       const fp_t dt)
 {
@@ -268,22 +277,23 @@ void device_evolution(struct CudaData* dev,
         nx, ny, nm,
         D_CrCr, D_CrNb,
         D_NbCr, D_NbNb,
+        alpha, kappa, omega,
         M_del, M_lav,
         dt);
 }
 
-void read_out_result(struct CudaData* dev, Struct HostData* host, const int nx, const int ny)
+void read_out_result(struct CudaData* dev, struct HostData* host, const int nx, const int ny)
 {
-  cudaMemcpy(host->conc_Cr, dev->conc_Cr, nx * ny * sizeof(fp_t),
+  cudaMemcpy(host->conc_Cr_new, dev->conc_Cr_old, nx * ny * sizeof(fp_t),
                cudaMemcpyDeviceToHost);
-  cudaMemcpy(host->conc_Nb, dev->conc_Nb, nx * ny * sizeof(fp_t),
+  cudaMemcpy(host->conc_Nb_new, dev->conc_Nb_old, nx * ny * sizeof(fp_t),
                cudaMemcpyDeviceToHost);
-  cudaMemcpy(host->phi_del, dev->phi_del, nx * ny * sizeof(fp_t),
+  cudaMemcpy(host->phi_del_new, dev->phi_del_old, nx * ny * sizeof(fp_t),
                cudaMemcpyDeviceToHost);
-  cudaMemcpy(host->phi_lav, dev->phi_lav, nx * ny * sizeof(fp_t),
+  cudaMemcpy(host->phi_lav_new, dev->phi_lav_old, nx * ny * sizeof(fp_t),
                cudaMemcpyDeviceToHost);
-  cudaMemcpy(host->gam_Cr, dev->gam_Cr, nx * ny * sizeof(fp_t),
+  cudaMemcpy(host->gam_Cr_new, dev->gam_Cr_old, nx * ny * sizeof(fp_t),
                cudaMemcpyDeviceToHost);
-  cudaMemcpy(host->gam_Nb, dev->gam_Nb, nx * ny * sizeof(fp_t),
+  cudaMemcpy(host->gam_Nb_new, dev->gam_Nb_old, nx * ny * sizeof(fp_t),
                cudaMemcpyDeviceToHost);
 }

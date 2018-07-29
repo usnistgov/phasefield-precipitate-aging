@@ -32,45 +32,55 @@ void make_arrays(struct HostData* host,
 	int i;
 
 	/* create 2D pointers */
-	*(host->conc_Cr_old) = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->conc_Cr_new) = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->conc_Nb_old) = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->conc_Nb_new) = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->phi_del_old) = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->phi_del_new) = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->phi_lav_old) = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->phi_lav_new) = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->gam_Cr_old)  = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->gam_Cr_new)  = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->gam_Nb_old)  = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->gam_Nb_new)  = (fp_t **)calloc(nx, sizeof(fp_t *));
-	*(host->mask_lap)    = (fp_t **)calloc(nm, sizeof(fp_t *));
+	host->conc_Cr_old = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->conc_Cr_new = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->conc_Nb_old = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->conc_Nb_new = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->phi_del_old = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->phi_del_new = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->phi_lav_old = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->phi_lav_new = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->gam_Cr_old  = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->gam_Cr_new  = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->gam_Nb_old  = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->gam_Nb_new  = (fp_t **)calloc(nx, sizeof(fp_t *));
+	host->mask_lap    = (fp_t **)calloc(nm, sizeof(fp_t *));
 
 	/* allocate 1D data */
-	(*(host->conc_Cr_old))[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->conc_Cr_new))[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->conc_Nb_old))[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->conc_Nb_new))[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->phi_del_old))[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->phi_del_new))[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->phi_lav_old))[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->phi_lav_new))[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->gam_Cr_old))[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->gam_Cr_new))[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->gam_Nb_old))[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->gam_Nb_new))[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
-	(*(host->mask_lap))[0]    = (fp_t *)calloc(nm * nm, sizeof(fp_t));
+	(host->conc_Cr_old)[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->conc_Cr_new)[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->conc_Nb_old)[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->conc_Nb_new)[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->phi_del_old)[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->phi_del_new)[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->phi_lav_old)[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->phi_lav_new)[0] = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->gam_Cr_old)[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->gam_Cr_new)[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->gam_Nb_old)[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->gam_Nb_new)[0]  = (fp_t *)calloc(nx * ny, sizeof(fp_t));
+	(host->mask_lap)[0]    = (fp_t *)calloc(nm * nm, sizeof(fp_t));
 
 	/* map 2D pointers onto 1D data */
 	for (i = 1; i < ny; i++) {
-		(*(host->conc_old))[i] = &(*(host->conc_old)[0])[nx * i];
-		(*(host->conc_new))[i] = &(*(host->conc_new)[0])[nx * i];
-		(*(host->conc_lap))[i] = &(*(host->conc_lap)[0])[nx * i];
-		(*(host->conc_div))[i] = &(*(host->conc_div)[0])[nx * i];
+		(host->conc_Cr_old)[i] = &(host->conc_Cr_old[0])[nx * i];
+		(host->conc_Cr_new)[i] = &(host->conc_Cr_new[0])[nx * i];
+		(host->conc_Nb_old)[i] = &(host->conc_Nb_old[0])[nx * i];
+		(host->conc_Nb_new)[i] = &(host->conc_Nb_new[0])[nx * i];
+
+		(host->phi_del_old)[i] = &(host->phi_del_old[0])[nx * i];
+		(host->phi_del_new)[i] = &(host->phi_del_new[0])[nx * i];
+		(host->phi_lav_old)[i] = &(host->phi_lav_old[0])[nx * i];
+		(host->phi_lav_new)[i] = &(host->phi_lav_new[0])[nx * i];
+
+		(host->gam_Cr_old)[i] = &(host->gam_Cr_old[0])[nx * i];
+		(host->gam_Cr_new)[i] = &(host->gam_Cr_new[0])[nx * i];
+		(host->gam_Nb_old)[i] = &(host->gam_Nb_old[0])[nx * i];
+		(host->gam_Nb_new)[i] = &(host->gam_Nb_new[0])[nx * i];
 	}
 
 	for (i = 1; i < nm; i++) {
-		(*(host->mask_lap))[i] = &(*(host->mask_lap)[0])[nm * i];
+		(host->mask_lap)[i] = &(host->mask_lap[0])[nm * i];
 	}
 }
 

@@ -35,15 +35,6 @@
 #include<cctype>
 #include<time.h>
 
-/* common includes */
-#include "mesh.h"
-#include "numerics.h"
-#include "output.h"
-#include "timer.h"
-
-/* specific includes */
-#include "cuda_data.h"
-
 int main(int argc, char* argv[]) {
 	MMSP::Init(argc, argv);
 
@@ -277,76 +268,55 @@ int main(int argc, char* argv[]) {
 			length += slength.str().length();
 		}
 
-		if (dim == 1) {
-			// construct grid object
-			GRID1D grid(argv[1]);
-
-			// perform computation
-			for (int i = iterations_start; i < steps; i += increment) {
-				MMSP::update(grid, increment);
-
-				// generate output filename
-				std::stringstream outstr;
-				int n = outstr.str().length();
-				for (int j = 0; n < length; j++) {
-					outstr.str("");
-					outstr << base;
-					for (int k = 0; k < j; k++) outstr << 0;
-					outstr << i + increment << suffix;
-					n = outstr.str().length();
-				}
-
-				char filename[FILENAME_MAX] = {}; // initialize null characters
-				for (unsigned int j=0; j<outstr.str().length(); j++)
-					filename[j]=outstr.str()[j];
-
-				// write grid output to file
-				MMSP::output(grid, filename);
-			}
-		} else if (dim == 2) {
+		if (dim == 2) {
 			// construct grid objects
 			GRID2D grid(argv[1]);
+			const int nx = g1(grid, 0) - g0(grid, 0);
+			const int ny = g1(grid, 1) - g0(grid, 1);
+
 			/* declare host and device data structures */
 			struct HostData host;
 			struct CudaData dev;
 
 			/* declare default materials and numerical parameters */
-			fp_t M=5.0, kappa=2.0, linStab=0.25, elapsed=0., energy=0.;
-			int step=0, steps=5000000, checks=100000;
-			param_parser(&bx, &by, &checks, &code, &M, &kappa, &linStab, &nm, &nx, &ny, &steps);
+			int bx=32, by=32, nm=3, code=53;
+			param_parser(&bx, &by, &code, &nm);
 
 			/* initialize memory */
 			make_arrays(&host, nx, ny, nm);
-			set_mask(dx, dy, code, host->mask_lap, nm);
+			set_mask(dx(grid, 0), dx(grid, 1), code, host.mask_lap, nm);
 
-			for (int n = 0; n < MMSP::nodes(GRID); n++) {
-				(host->conc_Cr_old)[n] = GRID(n)[0];
-				(host->conc_Nb_old)[n] = GRID(n)[1];
-				(host->phi_del_old)[n] = GRID(n)[2];
-				(host->phi_lav_old)[n] = GRID(n)[3];
-				(host->gam_Cr_old)[n]  = GRID(n)[4];
-				(host->gam_Nb_old)[n]  = GRID(n)[5];
+			for (int n = 0; n < MMSP::nodes(grid); n++) {
+				(*host.conc_Cr_old)[n] = grid(n)[0];
+				(*host.conc_Nb_old)[n] = grid(n)[1];
+				(*host.phi_del_old)[n] = grid(n)[2];
+				(*host.phi_lav_old)[n] = grid(n)[3];
+				(*host.gam_Cr_old)[n]  = grid(n)[4];
+				(*host.gam_Nb_old)[n]  = grid(n)[5];
 			}
 
 			/* initialize GPU */
-			init_cuda(&host nx, ny, nm, &dev);
+			init_cuda(&host, nx, ny, nm, &dev);
+
+			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
+			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
+			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
 				for (int j = 0; j < increment; j++) {
 					/* MMSP::update(grid, increment); */
 					/* === Start Architecture-Specific Kernel === */
-					device_boundaries(dev.conc_Cr_old, dev.conc_Nb_old
-									  dev.phi_del_old, dev.phi_lav_old,
-									  dev.gam_Cr_old, dev.gam_Nb_old,
-									  nx, ny, nm, bx, by);
+					device_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_laplacian(&dev, nx, ny, nm, bx, by);
 
-					device_boundaries(&dev, nx, ny, nm, bx, by);
+					device_fict_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_evolution(&dev, nx, ny, nm, bx, by,
 									 D_Cr[0], D_Cr[1], D_Nb[0], D_Nb[1],
+									 alpha, kappa[0], omega[0],
 									 Lmob[0], Lmob[1], dt);
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
@@ -358,7 +328,6 @@ int main(int argc, char* argv[]) {
 					/* === Finish Architecture-Specific Kernel === */
 				}
 				read_out_result(&dev, &host, nx, ny);
-			}
 
 				// generate output filename
 				std::stringstream outstr;
@@ -376,45 +345,23 @@ int main(int argc, char* argv[]) {
 					filename[j]=outstr.str()[j];
 
 				// write grid output to file
-				for (int n = 0; n < nodes(GRID); n++) {
-					GRID(n)[0] = (host->conc_Cr_old)[n];
-					GRID(n)[1] = (host->conc_Nb_old)[n];
-					GRID(n)[2] = (host->phi_del_old)[n];
-					GRID(n)[3] = (host->phi_lav_old)[n];
-					GRID(n)[4] = (host->gam_Cr_old)[n];
-					GRID(n)[5] = (host->gam_Nb_old)[n];
+				for (int n = 0; n < nodes(grid); n++) {
+					grid(n)[0] = (*host.conc_Cr_old)[n];
+					grid(n)[1] = (*host.conc_Nb_old)[n];
+					grid(n)[2] = (*host.phi_del_old)[n];
+					grid(n)[3] = (*host.phi_lav_old)[n];
+					grid(n)[4] = (*host.gam_Cr_old)[n];
+					grid(n)[5] = (*host.gam_Nb_old)[n];
 				}
 				MMSP::output(grid, filename);
 			}
-		} else if (dim == 3) {
-			// construct grid object
-			GRID3D grid(argv[1]);
-
-			// perform computation
-			for (int i = iterations_start; i < steps; i += increment) {
-				MMSP::update(grid, increment);
-
-				// generate output filename
-				std::stringstream outstr;
-				int n = outstr.str().length();
-				for (int j = 0; n < length; j++) {
-					outstr.str("");
-					outstr << base;
-					for (int k = 0; k < j; k++) outstr << 0;
-					outstr << i + increment << suffix;
-					n = outstr.str().length();
-				}
-				char filename[FILENAME_MAX] = {}; // initialize null characters
-				for (unsigned int j=0; j<outstr.str().length(); j++)
-					filename[j]=outstr.str()[j];
-
-				// write grid output to file
-				MMSP::output(grid, filename);
-			}
+		} else {
+			std::cerr << dim << "-dimensional grids are unsupported in the CUDA version." << std::endl;
+			MMSP::Abort(-1);
 		}
-	}
 
-	MMSP::Finalize();
+		MMSP::Finalize();
+	}
 }
 
 #endif

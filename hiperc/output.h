@@ -32,8 +32,7 @@
 /**
  \brief Read parameters from file specified on the command line
 */
-void param_parser(int* bx, int* by, int* checks, int* code,
-                  fp_t* M, fp_t* kappa, fp_t* linStab, int* nm, int* nx, int* ny, int* steps);
+void param_parser(int* bx, int* by, int* code, int* nm);
 
 /**
  \brief Prints timestamps and a 20-point progress bar to stdout

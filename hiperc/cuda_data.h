@@ -30,52 +30,6 @@
 #include "type.h"
 
 /**
-   \brief Container for pointers to arrays on the CPU
-*/
-struct HostData {
-	fp_t** conc_Cr_old;
-	fp_t** conc_Cr_new;
-
-	fp_t** conc_Nb_old;
-	fp_t** conc_Nb_new;
-
-	fp_t** phi_del_old;
-	fp_t** phi_del_new;
-
-	fp_t** phi_lav_old;
-	fp_t** phi_lav_new;
-
-	fp_t** gam_Cr_old;
-	fp_t** gam_Cr_new;
-
-	fp_t** gam_Nb_old;
-	fp_t** gam_Nb_new;
-};
-
-/**
-   \brief Container for pointers to arrays on the GPU
-*/
-struct CudaData {
-	fp_t* conc_Cr_old;
-	fp_t* conc_Cr_new;
-
-	fp_t* conc_Nb_old;
-	fp_t* conc_Nb_new;
-
-	fp_t* phi_del_old;
-	fp_t* phi_del_new;
-
-	fp_t* phi_lav_old;
-	fp_t* phi_lav_new;
-
-	fp_t* gam_Cr_old;
-	fp_t* gam_Cr_new;
-
-	fp_t* gam_Nb_old;
-	fp_t* gam_Nb_new;
-};
-
-/**
  \brief Initialize CUDA device memory before marching
 */
 void init_cuda(struct HostData* host,
@@ -94,6 +48,13 @@ void device_boundaries(struct CudaData* dev,
                        const int bx, const int by);
 
 /**
+   \brief Apply boundary conditions on device
+*/
+void device_fict_boundaries(struct CudaData* dev,
+							const int nx, const int ny, const int nm,
+							const int bx, const int by);
+
+/**
    \brief Compute Laplacian on device
 */
 void device_laplacian(struct CudaData* dev,
@@ -108,6 +69,7 @@ void device_evolution(struct CudaData* dev,
                       const int bx, const int by,
                       const fp_t D_CrCr, const fp_t D_CrNb,
                       const fp_t D_NbCr, const fp_t D_NbNb,
+                      const fp_t alpha, const fp_t kappa, const fp_t omega,
                       const fp_t M_del, const fp_t M_lav,
                       const fp_t dt);
 

@@ -104,19 +104,6 @@ fp_t grad_sq(fp_t** conc, const int x, const int y,
              const fp_t dx, const fp_t dy,
              const int nx, const int ny);
 
-/**
-   \brief Compute chemical free energy density
-*/
-fp_t chem_energy(const fp_t C);
-
-/**
- \brief Compute total free energy
-*/
-void free_energy(fp_t** conc_new, fp_t** conc_lap,
-                 const fp_t dx, const fp_t dy,
-                 const int nx, const int ny, const int nm,
-                 const fp_t kappa, fp_t* energy);
-
 /** \cond SuppressGuard */
 #endif /* _NUMERICS_H_ */
 /** \endcond */

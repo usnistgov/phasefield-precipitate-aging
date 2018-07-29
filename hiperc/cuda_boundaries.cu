@@ -90,3 +90,48 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		__syncthreads();
 	}
 }
+
+__global__ void fict_boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                                const int nx,
+                                const int ny,
+                                const int nm)
+{
+	/* determine indices on which to operate */
+	const int tx = threadIdx.x;
+	const int ty = threadIdx.y;
+
+	const int row = blockDim.y * blockIdx.y + ty;
+	const int col = blockDim.x * blockIdx.x + tx;
+
+	/* apply no-flux boundary conditions: inside to out, sequence matters */
+
+	for (int offset = 0; offset < nm/2; offset++) {
+		const int ilo = nm/2 - offset;
+		const int ihi = nx - 1 - nm/2 + offset;
+		const int jlo = nm/2 - offset;
+		const int jhi = ny - 1 - nm/2 + offset;
+
+		if (ilo-1 == col && row < ny) {
+            /* left condition */
+			d_conc_Cr[row * nx + ilo-1] = d_conc_Cr[row * nx + ilo];
+			d_conc_Nb[row * nx + ilo-1] = d_conc_Nb[row * nx + ilo];
+		}
+		if (ihi+1 == col && row < ny) {
+            /* right condition */
+			d_conc_Cr[row * nx + ihi+1] = d_conc_Cr[row * nx + ihi];
+			d_conc_Nb[row * nx + ihi+1] = d_conc_Nb[row * nx + ihi];
+		}
+		if (jlo-1 == row && col < nx) {
+            /* bottom condition */
+			d_conc_Cr[(jlo-1) * nx + col] = d_conc_Cr[jlo * nx + col];
+			d_conc_Nb[(jlo-1) * nx + col] = d_conc_Nb[jlo * nx + col];
+		}
+		if (jhi+1 == row && col < nx) {
+            /* top condition */
+			d_conc_Cr[(jhi+1) * nx + col] = d_conc_Cr[jhi * nx + col];
+			d_conc_Nb[(jhi+1) * nx + col] = d_conc_Nb[jhi * nx + col];
+		}
+
+		__syncthreads();
+	}
+}

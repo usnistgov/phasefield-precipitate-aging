@@ -23,6 +23,7 @@
 
 # simulation executables
 alloy625
+cuda625
 debug
 ibtest
 iserial

@@ -36,28 +36,51 @@
 typedef double fp_t;
 
 /**
- Container for timing data
+   \brief Container for pointers to arrays on the CPU
 */
-struct Stopwatch {
-	/**
-	   Cumulative time executing compute_laplacian() and compute_divergence()
-	*/
-	fp_t conv;
+struct HostData {
+	fp_t** mask_lap;
 
-	/**
-	 Cumulative time executing solve_diffusion_equation()
-	*/
-	fp_t step;
+	fp_t** conc_Cr_old;
+	fp_t** conc_Cr_new;
 
-	/**
-	 Cumulative time executing write_csv() and write_png()
-	*/
-	fp_t file;
+	fp_t** conc_Nb_old;
+	fp_t** conc_Nb_new;
 
-	/**
-	 Cumulative time executing check_solution()
-	*/
-	fp_t soln;
+	fp_t** phi_del_old;
+	fp_t** phi_del_new;
+
+	fp_t** phi_lav_old;
+	fp_t** phi_lav_new;
+
+	fp_t** gam_Cr_old;
+	fp_t** gam_Cr_new;
+
+	fp_t** gam_Nb_old;
+	fp_t** gam_Nb_new;
+};
+
+/**
+   \brief Container for pointers to arrays on the GPU
+*/
+struct CudaData {
+	fp_t* conc_Cr_old;
+	fp_t* conc_Cr_new;
+
+	fp_t* conc_Nb_old;
+	fp_t* conc_Nb_new;
+
+	fp_t* phi_del_old;
+	fp_t* phi_del_new;
+
+	fp_t* phi_lav_old;
+	fp_t* phi_lav_new;
+
+	fp_t* gam_Cr_old;
+	fp_t* gam_Cr_new;
+
+	fp_t* gam_Nb_old;
+	fp_t* gam_Nb_new;
 };
 
 /** \cond SuppressGuard */
