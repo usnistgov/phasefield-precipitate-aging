@@ -51,9 +51,9 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
  \brief Boundary condition kernel for execution on the GPU
 */
 __global__ void fict_boundary_kernel(fp_t* d_gam_Cr, fp_t* d_gam_Nb,
-                                const int nx,
-                                const int ny,
-                                const int nm);
+                                     const int nx,
+                                     const int ny,
+                                     const int nm);
 
 /**
  \brief Tiled convolution algorithm for execution on the GPU

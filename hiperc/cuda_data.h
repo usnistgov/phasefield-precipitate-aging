@@ -33,8 +33,8 @@
  \brief Initialize CUDA device memory before marching
 */
 void init_cuda(struct HostData* host,
-			   const int nx, const int ny, const int nm,
-			   struct CudaData* dev);
+               const int nx, const int ny, const int nm,
+               struct CudaData* dev);
 /**
  \brief Free CUDA device memory after marching
 */
@@ -51,8 +51,8 @@ void device_boundaries(struct CudaData* dev,
    \brief Apply boundary conditions on device
 */
 void device_fict_boundaries(struct CudaData* dev,
-							const int nx, const int ny, const int nm,
-							const int bx, const int by);
+                            const int nx, const int ny, const int nm,
+                            const int bx, const int by);
 
 /**
    \brief Compute Laplacian on device
@@ -65,7 +65,7 @@ void device_laplacian(struct CudaData* dev,
  \brief Step diffusion equation on device
 */
 void device_evolution(struct CudaData* dev,
-					  const int nx, const int ny, const int nm,
+                      const int nx, const int ny, const int nm,
                       const int bx, const int by,
                       const fp_t D_CrCr, const fp_t D_CrNb,
                       const fp_t D_NbCr, const fp_t D_NbNb,

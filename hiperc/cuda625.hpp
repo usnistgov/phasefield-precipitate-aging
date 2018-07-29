@@ -122,9 +122,9 @@ Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 */
 template<int dim, typename T>
 Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double Ntot,
-				   const int width, const int height,
-				   const double xCr0, const double xNb0,
-				   std::uniform_real_distribution<double>& unidist, std::mt19937& mtrand);
+                          const int width, const int height,
+                          const double xCr0, const double xNb0,
+                          std::uniform_real_distribution<double>& unidist, std::mt19937& mtrand);
 
 /**
    Integrate composition and phase fractions over the whole grid to make sure mass is conserved and phase transformations are sane

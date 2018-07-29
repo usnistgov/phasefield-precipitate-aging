@@ -30,16 +30,16 @@
 #include "timer.h"
 
 #ifdef WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #else
-	#ifndef __USE_BSD
-		#define __USE_BSD
-	#endif
-	#ifndef __USE_MISC
-		#define __USE_MISC
-	#endif
-	#include <sys/time.h>
+#ifndef __USE_BSD
+#define __USE_BSD
+#endif
+#ifndef __USE_MISC
+#define __USE_MISC
+#endif
+#include <sys/time.h>
 #endif
 
 /**
@@ -54,30 +54,30 @@ struct timeval timerStart;
 
 void StartTimer()
 {
-#ifdef WIN32
-    LARGE_INTEGER li;
-    if(!QueryPerformanceFrequency(&li))
-        printf("QueryPerformanceFrequency failed!\n");
+	#ifdef WIN32
+	LARGE_INTEGER li;
+	if (!QueryPerformanceFrequency(&li))
+		printf("QueryPerformanceFrequency failed!\n");
 
-    PCFreq = (double)li.QuadPart/1000000.0;
+	PCFreq = (double)li.QuadPart/1000000.0;
 
-    QueryPerformanceCounter(&li);
-    timerStart = li.QuadPart;
-#else
-    gettimeofday(&timerStart, NULL);
-#endif
+	QueryPerformanceCounter(&li);
+	timerStart = li.QuadPart;
+	#else
+	gettimeofday(&timerStart, NULL);
+	#endif
 }
 
 double GetTimer()
 {
-#ifdef WIN32
-    LARGE_INTEGER li;
-    QueryPerformanceCounter(&li);
-    return (double)(li.QuadPart-timerStart)/PCFreq;
-#else
-    struct timeval timerStop, timerElapsed;
-    gettimeofday(&timerStop, NULL);
-    timersub(&timerStop, &timerStart, &timerElapsed);
-    return timerElapsed.tv_sec+timerElapsed.tv_usec/1000000.0;
-#endif
+	#ifdef WIN32
+	LARGE_INTEGER li;
+	QueryPerformanceCounter(&li);
+	return (double)(li.QuadPart-timerStart)/PCFreq;
+	#else
+	struct timeval timerStop, timerElapsed;
+	gettimeofday(&timerStop, NULL);
+	timersub(&timerStop, &timerStart, &timerElapsed);
+	return timerElapsed.tv_sec+timerElapsed.tv_usec/1000000.0;
+	#endif
 }

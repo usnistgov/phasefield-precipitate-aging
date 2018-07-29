@@ -76,7 +76,8 @@ const fp_t sigma[NP] = {1.010, 1.010};         // interfacial energy (J/m^2)
 const fp_t ifce_width = 10. * meshres;
 const fp_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const fp_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,  // delta
-                           3.0 * width_factor* sigma[1] / ifce_width}; // Laves
+                        3.0 * width_factor* sigma[1] / ifce_width
+                       }; // Laves
 
 // Numerical considerations
 const double epsilon = 1e-12;           // what to consider zero to avoid log(c) explosions
@@ -85,7 +86,8 @@ const fp_t LinStab = 1.0 / 19.42501; // threshold of linear (von Neumann) stabil
 /* Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
    minimum for numerical stability is 14*dx (due to interface width).         */
 const fp_t rPrecip[NP] = {7.5 * 5e-9 / meshres,  // delta
-                             7.5 * 5e-9 / meshres}; // Laves
+                          7.5 * 5e-9 / meshres
+                         }; // Laves
 
 
 namespace MMSP
@@ -139,9 +141,9 @@ void generate(int dim, const char* filename)
 		// Sanity check on system size and  particle spacing
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
-					  << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
-					  << ", dtDiffusionLimited=" << dtDiffusionLimited
-					  << '.' << std::endl;
+			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
+			          << ", dtDiffusionLimited=" << dtDiffusionLimited
+			          << '.' << std::endl;
 
 		// Zero initial condition
 		const vector<fp_t> blank(fields(initGrid), 0);
@@ -216,9 +218,9 @@ void generate(int dim, const char* filename)
 
 		if (rank == 0) {
 			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-			               "ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "free_energy", "ifce_vel");
+			        "ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "free_energy", "ifce_vel");
 			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
-			               dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+			        dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
 			printf("%9s %9s %9s %9s %9s %9s\n",
 			       "x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", "p_l");
@@ -259,9 +261,9 @@ void generate(int dim, const char* filename)
 		// Sanity check on system size and  particle spacing
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
-					  << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
-					  << ", dtDiffusionLimited=" << dtDiffusionLimited
-					  << '.' << std::endl;
+			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
+			          << ", dtDiffusionLimited=" << dtDiffusionLimited
+			          << '.' << std::endl;
 
 		/* Randomly choose system composition in a circular
 		 * region of the phase diagram near the gamma corner
@@ -279,7 +281,7 @@ void generate(int dim, const char* filename)
 			xCr0 = xo + ro * (unidist(mtrand) - 1.);
 			xNb0 = yo + ro * (unidist(mtrand) - 1.);
 			withinRange = (std::pow(xCr0 - xo, 2.0) + std::pow(xNb0 - yo, 2.0)
-						   < std::pow(ro, 2.0));
+			               < std::pow(ro, 2.0));
 		}
 
 		#ifdef MPI_VERSION
@@ -336,9 +338,9 @@ void generate(int dim, const char* filename)
 
 		if (rank == 0) {
 			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-			               "ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "free_energy", "ifce_vel");
+			        "ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "free_energy", "ifce_vel");
 			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
-			               dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+			        dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
 			printf("%9s %9s %9s %9s %9s %9s\n",
 			       "x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", " p_l");
@@ -504,9 +506,9 @@ Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 
 template<int dim, typename T>
 Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double Ntot,
-						  const int width, const int height,
-						  const double xCr0, const double xNb0,
-						  std::uniform_real_distribution<double>& unidist, std::mt19937& mtrand)
+                          const int width, const int height,
+                          const double xCr0, const double xNb0,
+                          std::uniform_real_distribution<double>& unidist, std::mt19937& mtrand)
 {
 	#ifdef MPI_VERSION
 	MPI_Request* reqs = new MPI_Request[NP + 2];
@@ -518,7 +520,7 @@ Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double N
 	int d = 8 + height / 2;
 
 	/*
-    // Set precipitate radii and separation with jitter
+	// Set precipitate radii and separation with jitter
 	const int d = 8 + height / 2 - (unidist(mtrand) * height)/4;
 	const int r = std::floor((3. + 4.5 * unidist(mtrand)) * (5.0e-9 / meshres));
 
@@ -533,11 +535,13 @@ Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double N
 	const fp_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
 	const fp_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
 	const fp_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav),
-								xr_del_Cr(P_del, P_lav),
-								xr_lav_Cr(P_del, P_lav)};
+	                         xr_del_Cr(P_del, P_lav),
+	                         xr_lav_Cr(P_del, P_lav)
+	                        };
 	const fp_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav),
-								xr_del_Nb(P_del, P_lav),
-								xr_lav_Nb(P_del, P_lav)};
+	                         xr_del_Nb(P_del, P_lav),
+	                         xr_lav_Nb(P_del, P_lav)
+	                        };
 
 	Composition comp;
 	MMSP::vector<int> tileOrigin(dim, 0);
@@ -589,8 +593,8 @@ T gibbs(const MMSP::vector<T>& v)
 		vsq[i] = v[NC+i]*v[NC+i];
 
 	T g  = h_gam * g_gam(v[  NC+NP], v[  NC+NP+1]);
-	  g += h_del * g_del(v[2*NC+NP], v[2*NC+NP+1]);
-	  g += h_lav * g_lav(v[3*NC+NP], v[3*NC+NP+1]);
+	g += h_del * g_del(v[2*NC+NP], v[2*NC+NP+1]);
+	g += h_lav * g_lav(v[3*NC+NP], v[3*NC+NP+1]);
 
 	for (int i = 0; i < NP; i++)
 		g += omega[i] * vsq[i] * pow(1.0 - v[NC+i], 2);
@@ -662,9 +666,9 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GR
 		{
 		#endif
 			summary += mySummary;
-		#ifdef _OPENMP
+			#ifdef _OPENMP
 		}
-		#endif
+			#endif
 	}
 
 	for (int i = 0; i < NC+NP+1; i++)

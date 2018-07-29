@@ -30,19 +30,19 @@
 
 void set_mask(const fp_t dx, const fp_t dy, const int code, fp_t** mask_lap, const int nm)
 {
-    switch(code) {
-	    case 53:
-	    	five_point_Laplacian_stencil(dx, dy, mask_lap, nm);
-	    	break;
-	    case 93:
-	    	nine_point_Laplacian_stencil(dx, dy, mask_lap, nm);
-	    	break;
-	    case 135:
-	    	biharmonic_stencil(dx, dy, mask_lap, nm);
-	    	break;
-	    default :
-	    	five_point_Laplacian_stencil(dx, dy, mask_lap, nm);
-    }
+	switch (code) {
+	case 53:
+		five_point_Laplacian_stencil(dx, dy, mask_lap, nm);
+		break;
+	case 93:
+		nine_point_Laplacian_stencil(dx, dy, mask_lap, nm);
+		break;
+	case 135:
+		biharmonic_stencil(dx, dy, mask_lap, nm);
+		break;
+	default :
+		five_point_Laplacian_stencil(dx, dy, mask_lap, nm);
+	}
 
 	assert(nm <= MAX_MASK_W);
 	assert(nm <= MAX_MASK_H);
@@ -100,8 +100,8 @@ void biharmonic_stencil(const fp_t dx, const fp_t dy, fp_t** mask_lap, const int
 }
 
 fp_t grad_sq(fp_t** conc, const int x, const int y,
-			 const fp_t dx, const fp_t dy,
-			 const int nx, const int ny)
+             const fp_t dx, const fp_t dy,
+             const int nx, const int ny)
 {
 	assert(x > 0 && x < nx-1);
 	assert(y > 0 && y < ny-1);

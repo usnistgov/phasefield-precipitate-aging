@@ -1,41 +1,33 @@
-// MMSP.main.hpp
-// Boilerplate source code for MMSP executables
-// Questions/comments to gruberja@gmail.com (Jason Gruber)
+/*************************************************************************************
+ * File: main.cpp                                                                    *
+ *                                                                                   *
+ * Questions/comments to trevor.keller@nist.gov (Trevor Keller, Ph.D.)               *
+ *                                                                                   *
+ * This software was developed at the National Institute of Standards and Technology *
+ * by employees of the Federal Government in the course of their official duties.    *
+ * Pursuant to title 17 section 105 of the United States Code this software is not   *
+ * subject to copyright protection and is in the public domain. NIST assumes no      *
+ * responsibility whatsoever for the use of this code by other parties, and makes no *
+ * guarantees, expressed or implied, about its quality, reliability, or any other    *
+ * characteristic. We would appreciate acknowledgement if the software is used.      *
+ *                                                                                   *
+ * This software can be redistributed and/or modified freely provided that any       *
+ * derivative works bear some notice that they are derived from it, and any modified *
+ * versions bear some notice that they have been modified. Derivative works that     *
+ * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
+ *************************************************************************************/
 
-// The user must supply the following in any source
-// code that includes this file:
-//
-//     #include"..."
-//
-//     void generate(int dim,
-//                   char* filename);
-//		 template<int dim>
-//		 void update(GRID<dim>& grid, int steps);
-//
-//     #include"MMSP.main.hpp"
-//
-// The first include must provide the functions
-//
-//     std::string PROGRAM = "...";
-//     std::string MESSAGE = "...";
-//     typedef ... GRID1D;
-//     typedef ... GRID2D;
-//     typedef ... GRID3D;
-//
-// which the main() function calls to generate
-// example grids or to perform computations.
+#ifndef __MAIN_CPP__
+#define __MAIN_CPP__
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <cstdlib>
+#include <cctype>
+#include <time.h>
 
-
-#ifndef MMSP_MAIN
-#define MMSP_MAIN
-#include<iostream>
-#include<fstream>
-#include<sstream>
-#include<cstdlib>
-#include<cctype>
-#include<time.h>
-
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
 	MMSP::Init(argc, argv);
 
 	// check argument list
@@ -302,7 +294,6 @@ int main(int argc, char* argv[]) {
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 
-
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
 				for (int j = 0; j < increment; j++) {
@@ -315,9 +306,9 @@ int main(int argc, char* argv[]) {
 					device_fict_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_evolution(&dev, nx, ny, nm, bx, by,
-									 D_Cr[0], D_Cr[1], D_Nb[0], D_Nb[1],
-									 alpha, kappa[0], omega[0],
-									 Lmob[0], Lmob[1], dt);
+					                 D_Cr[0], D_Cr[1], D_Nb[0], D_Nb[1],
+					                 alpha, kappa[0], omega[0],
+					                 Lmob[0], Lmob[1], dt);
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
@@ -360,8 +351,9 @@ int main(int argc, char* argv[]) {
 			MMSP::Abort(-1);
 		}
 
-		MMSP::Finalize();
 	}
+
+	MMSP::Finalize();
 }
 
 #endif

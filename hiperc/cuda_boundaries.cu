@@ -51,16 +51,16 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		const int jhi = ny - 1 - nm/2 + offset;
 
 		if (ilo-1 == col && row < ny) {
-            /* left condition */
+			/* left condition */
 			d_conc_Cr[row * nx + ilo-1] = d_conc_Cr[row * nx + ilo];
 			d_conc_Nb[row * nx + ilo-1] = d_conc_Nb[row * nx + ilo];
-            d_phi_del[row * nx + ilo-1] = d_phi_del[row * nx + ilo];
+			d_phi_del[row * nx + ilo-1] = d_phi_del[row * nx + ilo];
 			d_phi_lav[row * nx + ilo-1] = d_phi_lav[row * nx + ilo];
 			d_gam_Cr[row * nx + ilo-1]  = d_gam_Cr[row * nx + ilo];
 			d_gam_Nb[row * nx + ilo-1]  = d_gam_Nb[row * nx + ilo];
 		}
 		if (ihi+1 == col && row < ny) {
-            /* right condition */
+			/* right condition */
 			d_conc_Cr[row * nx + ihi+1] = d_conc_Cr[row * nx + ihi];
 			d_conc_Nb[row * nx + ihi+1] = d_conc_Nb[row * nx + ihi];
 			d_phi_del[row * nx + ihi+1] = d_phi_del[row * nx + ihi];
@@ -69,7 +69,7 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			d_gam_Nb[row * nx + ihi+1]  = d_gam_Nb[row * nx + ihi];
 		}
 		if (jlo-1 == row && col < nx) {
-            /* bottom condition */
+			/* bottom condition */
 			d_conc_Cr[(jlo-1) * nx + col] = d_conc_Cr[jlo * nx + col];
 			d_conc_Nb[(jlo-1) * nx + col] = d_conc_Nb[jlo * nx + col];
 			d_phi_del[(jlo-1) * nx + col] = d_phi_del[jlo * nx + col];
@@ -78,7 +78,7 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			d_gam_Nb[(jlo-1) * nx + col]  = d_gam_Nb[jlo * nx + col];
 		}
 		if (jhi+1 == row && col < nx) {
-            /* top condition */
+			/* top condition */
 			d_conc_Cr[(jhi+1) * nx + col] = d_conc_Cr[jhi * nx + col];
 			d_conc_Nb[(jhi+1) * nx + col] = d_conc_Nb[jhi * nx + col];
 			d_gam_Cr[(jhi+1) * nx + col] = d_gam_Cr[jhi * nx + col];
@@ -92,9 +92,9 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 }
 
 __global__ void fict_boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
-                                const int nx,
-                                const int ny,
-                                const int nm)
+                                     const int nx,
+                                     const int ny,
+                                     const int nm)
 {
 	/* determine indices on which to operate */
 	const int tx = threadIdx.x;
@@ -112,22 +112,22 @@ __global__ void fict_boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		const int jhi = ny - 1 - nm/2 + offset;
 
 		if (ilo-1 == col && row < ny) {
-            /* left condition */
+			/* left condition */
 			d_conc_Cr[row * nx + ilo-1] = d_conc_Cr[row * nx + ilo];
 			d_conc_Nb[row * nx + ilo-1] = d_conc_Nb[row * nx + ilo];
 		}
 		if (ihi+1 == col && row < ny) {
-            /* right condition */
+			/* right condition */
 			d_conc_Cr[row * nx + ihi+1] = d_conc_Cr[row * nx + ihi];
 			d_conc_Nb[row * nx + ihi+1] = d_conc_Nb[row * nx + ihi];
 		}
 		if (jlo-1 == row && col < nx) {
-            /* bottom condition */
+			/* bottom condition */
 			d_conc_Cr[(jlo-1) * nx + col] = d_conc_Cr[jlo * nx + col];
 			d_conc_Nb[(jlo-1) * nx + col] = d_conc_Nb[jlo * nx + col];
 		}
 		if (jhi+1 == row && col < nx) {
-            /* top condition */
+			/* top condition */
 			d_conc_Cr[(jhi+1) * nx + col] = d_conc_Cr[jhi * nx + col];
 			d_conc_Nb[(jhi+1) * nx + col] = d_conc_Nb[jhi * nx + col];
 		}

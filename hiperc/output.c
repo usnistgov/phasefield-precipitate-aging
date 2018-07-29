@@ -31,7 +31,7 @@
 
 void param_parser(int* bx, int* by, int* code, int* nm)
 {
-	FILE * input;
+	FILE* input;
 
 	input = fopen("params.txt", "r");
 	if (input == NULL) {
@@ -42,11 +42,9 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 		int ibx=0, iby=0, isc=0;
 
 		/* read parameters */
-		while ( !feof(input))
-		{
+		while ( !feof(input)) {
 			/* process key-value pairs line-by-line */
-			if (fgets(buffer, 256, input) != NULL)
-			{
+			if (fgets(buffer, 256, input) != NULL) {
 				pch = strtok(buffer, " ");
 
 				if (strcmp(pch, "bx") == 0) {
@@ -223,8 +221,8 @@ void write_png(fp_t** conc, const int nx, const int ny, const int step)
 		exit(-1);
 	}
 	png_set_IHDR(png_ptr, info_ptr, w, h,
-	                 bit_depth, color_type, PNG_INTERLACE_NONE,
-	                 PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+	             bit_depth, color_type, PNG_INTERLACE_NONE,
+	             PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 
 	png_write_info(png_ptr, info_ptr);
 
