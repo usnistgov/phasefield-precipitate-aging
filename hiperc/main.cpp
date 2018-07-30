@@ -264,17 +264,17 @@ int main(int argc, char* argv[])
 			// construct grid objects
 			GRID2D grid(argv[1]);
 
-			/* declare host and device data structures */
+			// declare host and device data structures
 			struct HostData host;
 			struct CudaData dev;
 
-			/* declare default materials and numerical parameters */
+			// declare default materials and numerical parameters
 			int bx=32, by=32, nm=3, code=53;
 			param_parser(&bx, &by, &code, &nm);
 			const int nx = g1(grid, 0) - g0(grid, 0) + nm - 1;
 			const int ny = g1(grid, 1) - g0(grid, 1) + nm - 1;
 
-			/* initialize memory */
+			// initialize memory
 			make_arrays(&host, nx, ny, nm);
 			set_mask(dx(grid, 0), dx(grid, 1), code, host.mask_lap, nm);
 
@@ -291,7 +291,7 @@ int main(int argc, char* argv[])
 				host.gam_Nb_old[j][i]  = gridN[5];
 			}
 
-			/* initialize GPU */
+			// initialize GPU
 			init_cuda(&host, nx, ny, nm, &dev);
 
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
@@ -302,7 +302,7 @@ int main(int argc, char* argv[])
 			for (int i = iterations_start; i < steps; i += increment) {
 				for (int j = 0; j < increment; j++) {
 					print_progress(j, increment);
-					/* === Start Architecture-Specific Kernel === */
+					// === Start Architecture-Specific Kernel ===
 					device_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_laplacian(&dev, nx, ny, nm, bx, by);
@@ -310,9 +310,11 @@ int main(int argc, char* argv[])
 					device_fict_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_evolution(&dev, nx, ny, nm, bx, by,
-					                 D_Cr[0], D_Cr[1], D_Nb[0], D_Nb[1],
-					                 alpha, kappa[0], omega[0],
-					                 Lmob[0], Lmob[1], dt);
+									 D_Cr[0], D_Cr[1],
+									 D_Nb[0], D_Nb[1],
+									 alpha, kappa[0], omega[0],
+									 Lmob[0], Lmob[1],
+									 dt);
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
@@ -320,7 +322,8 @@ int main(int argc, char* argv[])
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
 					swap_pointers_1D(&(dev.gam_Cr_old),  &(dev.gam_Cr_new));
 					swap_pointers_1D(&(dev.gam_Nb_old),  &(dev.gam_Nb_new));
-					/* === Finish Architecture-Specific Kernel === */
+
+					// === Finish Architecture-Specific Kernel ===
 				}
 
 				read_out_result(&dev, &host, nx, ny);
@@ -346,12 +349,12 @@ int main(int argc, char* argv[])
 					MMSP::vector<int> x = MMSP::position(grid, n);
 					const int i = x[0] - MMSP::g0(grid, 0) + nm / 2;
 					const int j = x[1] - MMSP::g0(grid, 1) + nm / 2;
-					gridN[0] = host.conc_Cr_old[j][i];
-					gridN[1] = host.conc_Nb_old[j][i];
-					gridN[2] = host.phi_del_old[j][i];
-					gridN[3] = host.phi_lav_old[j][i];
-					gridN[4] = host.gam_Cr_old[j][i];
-					gridN[5] = host.gam_Nb_old[j][i];
+					gridN[0] = host.conc_Cr_new[j][i];
+					gridN[1] = host.conc_Nb_new[j][i];
+					gridN[2] = host.phi_del_new[j][i];
+					gridN[3] = host.phi_lav_new[j][i];
+					gridN[4] = host.gam_Cr_new[j][i];
+					gridN[5] = host.gam_Nb_new[j][i];
 				}
 				MMSP::output(grid, filename);
 				print_progress(increment, increment);

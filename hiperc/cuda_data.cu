@@ -49,19 +49,19 @@ void init_cuda(struct HostData* host,
 	cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t));
 
 	/* transfer data from host in to GPU */
-	cudaMemcpy(dev->conc_Cr_old, (host->conc_Cr_old)[0], nx * ny * sizeof(fp_t),
+	cudaMemcpy(dev->conc_Cr_old, host->conc_Cr_old[0], nx * ny * sizeof(fp_t),
 	           cudaMemcpyHostToDevice);
-	cudaMemcpy(dev->conc_Nb_old, (host->conc_Nb_old)[0], nx * ny * sizeof(fp_t),
-	           cudaMemcpyHostToDevice);
-
-	cudaMemcpy(dev->phi_del_old, (host->phi_del_old)[0], nx * ny * sizeof(fp_t),
-	           cudaMemcpyHostToDevice);
-	cudaMemcpy(dev->phi_lav_old, (host->phi_lav_old)[0], nx * ny * sizeof(fp_t),
+	cudaMemcpy(dev->conc_Nb_old, host->conc_Nb_old[0], nx * ny * sizeof(fp_t),
 	           cudaMemcpyHostToDevice);
 
-	cudaMemcpy(dev->gam_Cr_old, (host->gam_Cr_old)[0], nx * ny * sizeof(fp_t),
+	cudaMemcpy(dev->phi_del_old, host->phi_del_old[0], nx * ny * sizeof(fp_t),
 	           cudaMemcpyHostToDevice);
-	cudaMemcpy(dev->gam_Nb_old, (host->gam_Nb_old)[0], nx * ny * sizeof(fp_t),
+	cudaMemcpy(dev->phi_lav_old, host->phi_lav_old[0], nx * ny * sizeof(fp_t),
+	           cudaMemcpyHostToDevice);
+
+	cudaMemcpy(dev->gam_Cr_old, host->gam_Cr_old[0], nx * ny * sizeof(fp_t),
+	           cudaMemcpyHostToDevice);
+	cudaMemcpy(dev->gam_Nb_old, host->gam_Nb_old[0], nx * ny * sizeof(fp_t),
 	           cudaMemcpyHostToDevice);
 }
 

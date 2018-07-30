@@ -36,32 +36,27 @@
 
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
-__global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_lap,
+__global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
                                    const int nx, const int ny, const int nm)
 {
-	int dst_x, dst_y, dst_nx, dst_ny;
-	int src_x, src_y, src_nx, src_ny;
-	int til_x, til_y, til_nx;
-	fp_t value = 0.;
-
 	/* source and tile width include the halo cells */
-	src_nx = blockDim.x;
-	src_ny = blockDim.y;
-	til_nx = src_nx;
+	const int src_nx = blockDim.x;
+	const int src_ny = blockDim.y;
+	const int til_nx = src_nx;
 
 	/* destination width excludes the halo cells */
-	dst_nx = src_nx - nm + 1;
-	dst_ny = src_ny - nm + 1;
+	const int dst_nx = src_nx - nm + 1;
+	const int dst_ny = src_ny - nm + 1;
 
 	/* determine tile indices on which to operate */
-	til_x = threadIdx.x;
-	til_y = threadIdx.y;
+	const int til_x = threadIdx.x;
+	const int til_y = threadIdx.y;
 
-	dst_x = blockIdx.x * dst_nx + til_x;
-	dst_y = blockIdx.y * dst_ny + til_y;
+	const int dst_x = blockIdx.x * dst_nx + til_x;
+	const int dst_y = blockIdx.y * dst_ny + til_y;
 
-	src_x = dst_x - nm/2;
-	src_y = dst_y - nm/2;
+	const int src_x = dst_x - nm/2;
+	const int src_y = dst_y - nm/2;
 
 	/* copy tile: __shared__ gives access to all threads working on this tile */
 	extern __shared__ fp_t d_conc_tile[];
@@ -77,6 +72,7 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_lap,
 
 	/* compute the convolution */
 	if (til_x < dst_nx && til_y < dst_ny) {
+		fp_t value = 0.;
 		for (int j = 0; j < nm; j++) {
 			for (int i = 0; i < nm; i++) {
 				value += d_mask[j * nm + i] * d_conc_tile[til_nx * (til_y+j) + til_x+i];
@@ -85,7 +81,7 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_lap,
 		/* record value */
 		/* Note: tile is centered on [til_nx*(til_y+nm/2) + (til_x+nm/2)], NOT [til_nx*til_y + til_x] */
 		if (dst_y < ny && dst_x < nx) {
-			d_conc_lap[nx * dst_y + dst_x] = value;
+			d_conc_new[nx * dst_y + dst_x] = value;
 		}
 	}
 
@@ -108,28 +104,33 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                  const fp_t M_del, const fp_t M_lav,
                                  const fp_t dt)
 {
-	int thr_x, thr_y, x, y;
-
 	/* determine indices on which to operate */
-	thr_x = threadIdx.x;
-	thr_y = threadIdx.y;
+	const int thr_x = threadIdx.x;
+	const int thr_y = threadIdx.y;
 
-	x = blockDim.x * blockIdx.x + thr_x;
-	y = blockDim.y * blockIdx.y + thr_y;
+	const int x = blockDim.x * blockIdx.x + thr_x;
+	const int y = blockDim.y * blockIdx.y + thr_y;
 
 	/* explicit Euler solution to the equation of motion */
 	if (x < nx && y < ny) {
-		const fp_t xCr = d_conc_Cr_old[nx * thr_y + thr_x];
-		const fp_t xNb = d_conc_Nb_old[nx * thr_y + thr_x];
-		const fp_t phi_del = d_phi_del_old[nx * thr_y + thr_x];
-		const fp_t phi_lav = d_phi_lav_old[nx * thr_y + thr_x];
+		const int idx = nx * y + x;
+
+		const fp_t xCr = d_conc_Cr_old[idx];
+		const fp_t xNb = d_conc_Nb_old[idx];
+		const fp_t phi_del = d_phi_del_old[idx];
+		const fp_t phi_lav = d_phi_lav_old[idx];
 		const fp_t f_del = d_h(phi_del);
 		const fp_t f_lav = d_h(phi_lav);
 		const fp_t f_gam = 1. - f_del - f_lav;
 
+		const fp_t lap_Cr = d_gam_Cr_new[idx];
+		const fp_t lap_Nb = d_gam_Nb_new[idx];
+		const fp_t lap_del = d_phi_del_new[idx];
+		const fp_t lap_lav = d_phi_lav_new[idx];
+
 		/* compute fictitious compositions */
-		const fp_t gam_Cr = d_gam_Cr_old[nx * thr_y + thr_x];
-		const fp_t gam_Nb = d_gam_Nb_old[nx * thr_y + thr_x];
+		const fp_t gam_Cr = d_gam_Cr_old[idx];
+		const fp_t gam_Nb = d_gam_Nb_old[idx];
 		const fp_t del_Cr = d_fict_del_Cr(xCr, xNb, f_del, f_gam, f_lav);
 		const fp_t del_Nb = d_fict_del_Nb(xCr, xNb, f_del, f_gam, f_lav);
 		const fp_t lav_Cr = d_fict_lav_Cr(xCr, xNb, f_del, f_gam, f_lav);
@@ -141,49 +142,54 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		const fp_t lav_nrg = d_g_lav(lav_Cr, lav_Nb);
 
 		/* effective chemical potential */
-		const fp_t mu_Cr = d_dg_gam_dxCr(gam_Cr, gam_Nb);
-		const fp_t mu_Nb = d_dg_gam_dxNb(gam_Cr, gam_Nb);
+		const fp_t dgGdxCr = d_dg_gam_dxCr(gam_Cr, gam_Nb);
+		const fp_t dgGdxNb = d_dg_gam_dxNb(gam_Cr, gam_Nb);
 
 		/* pressure */
+        const fp_t sumPhiSq = phi_del * phi_del + phi_lav * phi_lav;
+
 		const fp_t P_del = gam_nrg - del_nrg
-		                   - mu_Cr * (gam_Cr - del_Cr)
-		                   - mu_Nb * (gam_Nb - del_Nb);
+		                 - dgGdxCr * (gam_Cr - del_Cr)
+		                 - dgGdxNb * (gam_Nb - del_Nb);
 		const fp_t P_lav = gam_nrg - lav_nrg
-		                   - mu_Cr * (gam_Cr - lav_Cr)
-		                   - mu_Nb * (gam_Nb - lav_Nb);
+		                 - dgGdxCr * (gam_Cr - lav_Cr)
+		                 - dgGdxNb * (gam_Nb - lav_Nb);
 
 		/* variational derivatives */
 		const fp_t dFdPhi_del = -d_hprime(phi_del) * P_del
-		                        + 2. * omega * phi_del * (phi_del - 1.) * (2. * phi_del - 1.)
-		                        + 2. * alpha * phi_del * (phi_lav * phi_lav)
-		                        - kappa * d_phi_del_new[nx * thr_y + thr_x];
+		                      + 2. * omega * phi_del * (phi_del - 1.) * (2. * phi_del - 1.)
+		                      + 2. * alpha * phi_del * (sumPhiSq - phi_del * phi_del)
+		                      - kappa * lap_del;
 		const fp_t dFdPhi_lav = -d_hprime(phi_lav) * P_lav
-		                        + 2. * omega * phi_lav * (phi_lav - 1.) * (2. * phi_lav - 1.)
-		                        + 2. * alpha * phi_lav * (phi_del * phi_del)
-		                        - kappa * d_phi_lav_new[nx * thr_y + thr_x];
+		                      + 2. * omega * phi_lav * (phi_lav - 1.) * (2. * phi_lav - 1.)
+		                      + 2. * alpha * phi_lav * (sumPhiSq - phi_lav * phi_lav)
+		                      - kappa * lap_lav;
 
 		/* Cahn-Hilliard equations of motion for composition */
-		d_conc_Cr_new[nx * thr_y + thr_x] = d_conc_Cr_old[nx * thr_y + thr_x]
-		                                    + dt * ( D_CrCr * d_gam_Cr_new[nx * thr_y + thr_x]
-		                                            + D_CrNb * d_gam_Nb_new[nx * thr_y + thr_x]);
-		d_conc_Nb_new[nx * thr_y + thr_x] = d_conc_Nb_old[nx * thr_y + thr_x]
-		                                    + dt * ( D_NbCr * d_gam_Cr_new[nx * thr_y + thr_x]
-		                                            + D_NbNb * d_gam_Nb_new[nx * thr_y + thr_x]);
+		const fp_t lap_mu_Cr = D_CrCr * lap_Cr
+		                     + D_CrNb * lap_Nb;
+		const fp_t lap_mu_Nb = D_NbCr * lap_Cr
+		                     + D_NbNb * lap_Nb;
+
+		const fp_t conc_Cr_new = xCr + dt * lap_mu_Cr;
+		const fp_t conc_Nb_new = xNb + dt * lap_mu_Nb;
+		d_conc_Cr_new[idx] = conc_Cr_new;
+		d_conc_Nb_new[idx] = conc_Nb_new;
 
 		/* Allen-Cahn equations of motion for phase */
-		d_phi_del_new[nx * thr_y + thr_x] = d_phi_del_old[nx * thr_y + thr_x] - dt * M_del * dFdPhi_del;
-		d_phi_lav_new[nx * thr_y + thr_x] = d_phi_lav_old[nx * thr_y + thr_x] - dt * M_lav * dFdPhi_lav;
+		const fp_t phi_del_new = phi_del - dt * M_del * dFdPhi_del;
+		const fp_t phi_lav_new = phi_lav - dt * M_lav * dFdPhi_lav;
+		d_phi_del_new[idx] = phi_del_new;
+		d_phi_lav_new[idx] = phi_lav_new;
 
 		/* fictitious compositions */
-		const fp_t f_del_new = d_h(d_phi_del_new[nx * thr_y + thr_x]);
-		const fp_t f_lav_new = d_h(d_phi_lav_new[nx * thr_y + thr_x]);
+		const fp_t f_del_new = d_h(phi_del_new);
+		const fp_t f_lav_new = d_h(phi_lav_new);
 		const fp_t f_gam_new = 1. - f_del - f_lav;
-		d_conc_Cr_old[nx * thr_y + thr_x] = d_fict_gam_Cr(d_conc_Cr_old[nx * thr_y + thr_x],
-		                                    d_conc_Cr_old[nx * thr_y + thr_x],
-		                                    f_del_new, f_gam_new, f_lav_new);
-		d_conc_Nb_old[nx * thr_y + thr_x] = d_fict_gam_Nb(d_conc_Cr_old[nx * thr_y + thr_x],
-		                                    d_conc_Cr_old[nx * thr_y + thr_x],
-		                                    f_del_new, f_gam_new, f_lav_new);
+		d_gam_Cr_new[idx] = d_fict_gam_Cr(conc_Cr_new, conc_Nb_new,
+		                                  f_del_new, f_gam_new, f_lav_new);
+		d_gam_Nb_new[idx] = d_fict_gam_Nb(conc_Cr_new, conc_Nb_new,
+		                                  f_del_new, f_gam_new, f_lav_new);
 	}
 
 	/* wait for all threads to finish writing */

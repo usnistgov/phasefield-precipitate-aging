@@ -56,7 +56,7 @@ __global__ void fict_boundary_kernel(fp_t* d_gam_Cr, fp_t* d_gam_Nb,
 /**
  \brief Tiled convolution algorithm for execution on the GPU
 */
-__global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_lap,
+__global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
                                    const int nx,
                                    const int ny,
                                    const int nm);
@@ -75,6 +75,7 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                  const int nx, const int ny, const int nm,
                                  const fp_t D_CrCr, const fp_t D_CrNb,
                                  const fp_t D_NbCr, const fp_t D_NbNb,
+                                 const fp_t alpha, const fp_t kappa, const fp_t omega,
                                  const fp_t M_del, const fp_t M_lav,
                                  const fp_t dt);
 

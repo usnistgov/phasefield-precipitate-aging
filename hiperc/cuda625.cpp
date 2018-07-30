@@ -77,7 +77,6 @@ const fp_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,  // delta
                        }; // Laves
 
 // Numerical considerations
-const double epsilon = 1e-12;           // what to consider zero to avoid log(c) explosions
 const fp_t LinStab = 1.0 / 19.42501; // threshold of linear (von Neumann) stability
 
 /* Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
@@ -111,124 +110,7 @@ void generate(int dim, const char* filename)
 	std::mt19937 mtrand(rd()); // Mersenne Twister
 	std::uniform_real_distribution<double> unidist(0, 1);
 
-	if (dim==1) {
-		/* ============================================= *
-		 * Three-phase Stripe Growth test configuration  *
-		 *                                               *
-		 * Seed a 1.0 um domain with 3 stripes (one of   *
-		 * each secondary phase) to test competitive     *
-		 * growth without curvature                      *
-		 * ============================================= */
-
-		const int Nx = 768; // divisible by 12 and 64
-		double dV = 1.0;
-		double Ntot = 1.0;
-		GRID1D initGrid(NC+NP+NC*(NP+1), 0, Nx);
-		for (int d = 0; d < dim; d++) {
-			dx(initGrid,d) = meshres;
-			dV *= meshres;
-			Ntot *= g1(initGrid, d) - g0(initGrid, d);
-			if (x0(initGrid, d) == g0(initGrid, d))
-				b0(initGrid, d) = Neumann;
-			if (x1(initGrid, d) == g1(initGrid, d))
-				b1(initGrid, d) = Neumann;
-		}
-
-		// Sanity check on system size and  particle spacing
-		if (rank == 0)
-			std::cout << "Timestep dt=" << dt
-			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
-			          << ", dtDiffusionLimited=" << dtDiffusionLimited
-			          << '.' << std::endl;
-
-		// Zero initial condition
-		const vector<fp_t> blank(fields(initGrid), 0);
-		#ifdef _OPENMP
-		#pragma omp parallel for
-		#endif
-		for (int n = 0; n < nodes(initGrid); n++) {
-			initGrid(n) = blank;
-		}
-
-		Composition comp;
-		vector<int> origin(dim, 0);
-		const int xoffset[NP] = {int(-16 * (5e-9 / meshres)), int(16 * (5e-9 / meshres))}; //  80 nm
-
-		for (int j = 0; j < NP; j++) {
-			origin[0] = Nx / 2 + xoffset[j];
-			comp += embedStripe(initGrid, origin, j+NC, rPrecip[j], xCr[j+1], xNb[j+1]);
-		}
-
-		// Synchronize global initial condition parameters
-		#ifdef MPI_VERSION
-		Composition myComp;
-		myComp += comp;
-		MPI::COMM_WORLD.Allreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM);
-		MPI::COMM_WORLD.Barrier();
-		for (int j = 0; j < NP+1; j++) {
-			MPI::COMM_WORLD.Barrier();
-			MPI::COMM_WORLD.Allreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM);
-		}
-		#endif
-
-		// Initialize matrix phase to achieve specified system composition
-		fp_t matCr = Ntot * xCr[0];
-		fp_t matNb = Ntot * xNb[0];
-		double Nmat  = Ntot;
-		for (int i = 0; i < NP+1; i++) {
-			Nmat  -= comp.N[i];
-			matCr -= comp.x[i][0];
-			matNb -= comp.x[i][1];
-		}
-		matCr /= Nmat;
-		matNb /= Nmat;
-
-		#ifdef _OPENMP
-		#pragma omp parallel for
-		#endif
-		for (int n = 0; n < nodes(initGrid); n++) {
-			vector<fp_t>& initGridN = initGrid(n);
-			fp_t nx = 0.0;
-
-			for (int i = NC; i < NC+NP; i++)
-				nx += h(initGridN[i]);
-
-			if (nx < 0.01) { // pure gamma
-				initGridN[0] += matCr;
-				initGridN[1] += matNb;
-			}
-
-			update_compositions(initGridN);
-		}
-
-		ghostswap(initGrid);
-
-		#ifdef MPI_VERSION
-		MPI::COMM_WORLD.Barrier();
-		double mydt(dt);
-		MPI::COMM_WORLD.Allreduce(&mydt, &dt, 1, MPI_DOUBLE, MPI_MIN);
-		#endif
-
-		vector<double> summary = summarize_fields(initGrid);
-		double energy = summarize_energy(initGrid);
-
-		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-			        "ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "free_energy", "ifce_vel");
-			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
-			        dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
-
-			printf("%9s %9s %9s %9s %9s %9s\n",
-			       "x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", "p_l");
-			printf("%9g %9g %9g %9g %9g %9g\n",
-			       summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
-		}
-
-		output(initGrid,filename);
-
-
-
-	} else if (dim==2) {
+	if (dim==2) {
 		/* =============================================== *
 		 * Two-phase Particle Growth test configuration    *
 		 *            Small-Precipitate Region             *
@@ -239,14 +121,12 @@ void generate(int dim, const char* filename)
 
 		const int Nx = 320; // product divisible by 12 and 64
 		const int Ny = 192;
-		double dV = 1.0;
 		double Ntot = 1.0;
-		// GRID2D initGrid(NC+NP+NC*(NP+1), -Nx/2, Nx/2, -Ny/2, Ny/2);
-		// GRID2D initGrid(NC+NP+NC*(NP+1), -5*Nx/2, 5*Nx/2, -4*Ny/2, 4*Ny/2);
-		GRID2D initGrid(NC+NP+NC*(NP+1), -10*Nx/2, 10*Nx/2, -9*Ny/2, 9*Ny/2);
+		// GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
+		// GRID2D initGrid(2*NC+NP, -5*Nx/2, 5*Nx/2, -4*Ny/2, 4*Ny/2);
+		GRID2D initGrid(2*NC+NP, -10*Nx/2, 10*Nx/2, -9*Ny/2, 9*Ny/2);
 		for (int d = 0; d < dim; d++) {
-			dx(initGrid,d)=meshres;
-			dV *= meshres;
+			dx(initGrid,d) = meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
 			if (x0(initGrid, d) == g0(initGrid, d))
 				b0(initGrid, d) = Neumann;
@@ -378,12 +258,8 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 	const T flav = h(GRIDN[3]);
 	const T fgam = 1. - fdel - flav;
 
-	GRIDN[1*NC+NP  ] = fict_gam_Cr(xcr, xnb, fdel, fgam, flav);
-	GRIDN[1*NC+NP+1] = fict_gam_Nb(xcr, xnb, fdel, fgam, flav);
-	GRIDN[2*NC+NP  ] = fict_del_Cr(xcr, xnb, fdel, fgam, flav);
-	GRIDN[2*NC+NP+1] = fict_del_Nb(xcr, xnb, fdel, fgam, flav);
-	GRIDN[3*NC+NP  ] = fict_lav_Cr(xcr, xnb, fdel, fgam, flav);
-	GRIDN[3*NC+NP+1] = fict_lav_Nb(xcr, xnb, fdel, fgam, flav);
+	GRIDN[NC+NP  ] = fict_gam_Cr(xcr, xnb, fdel, fgam, flav);
+	GRIDN[NC+NP+1] = fict_gam_Nb(xcr, xnb, fdel, fgam, flav);
 }
 
 template<typename T>
@@ -579,18 +455,26 @@ Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double N
 template <typename T>
 T gibbs(const MMSP::vector<T>& v)
 {
-	const T h_del = h(v[NC  ]);
-	const T h_lav = h(v[NC+1]);
-	const T h_gam = 1.0 - h_del - h_lav;
+	const T xCr = v[0];
+	const T xNb = v[1];
+	const T f_del = h(v[NC  ]);
+	const T f_lav = h(v[NC+1]);
+	const T f_gam = 1.0 - f_del - f_lav;
+	const T gam_Cr = v[NC+NP];
+	const T gam_Nb = v[NC+NP];
+	const T del_Cr = fict_del_Cr(xCr, xNb, f_del, f_gam, f_lav);
+	const T del_Nb = fict_del_Nb(xCr, xNb, f_del, f_gam, f_lav);
+	const T lav_Cr = fict_lav_Cr(xCr, xNb, f_del, f_gam, f_lav);
+	const T lav_Nb = fict_lav_Nb(xCr, xNb, f_del, f_gam, f_lav);
 
 	MMSP::vector<T> vsq(NP);
 
 	for (int i = 0; i < NP; i++)
 		vsq[i] = v[NC+i]*v[NC+i];
 
-	T g  = h_gam * g_gam(v[  NC+NP], v[  NC+NP+1]);
-	g += h_del * g_del(v[2*NC+NP], v[2*NC+NP+1]);
-	g += h_lav * g_lav(v[3*NC+NP], v[3*NC+NP+1]);
+	T g  = f_gam * g_gam(gam_Cr, gam_Nb);
+	  g += f_del * g_del(del_Cr, del_Nb);
+	  g += f_lav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
 		g += omega[i] * vsq[i] * pow(1.0 - v[NC+i], 2);
