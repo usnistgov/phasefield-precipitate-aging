@@ -2,7 +2,7 @@
 # CUDA implementation
 
 NVCXX = nvcc
-CXX = g++-4.9 -fPIC
+CXX = g++ -fPIC
 CXXFLAGS = -O3 -Wall -std=c++11 -funroll-loops -ffast-math -I. -I$(MMSP_PATH)/include
 NVCXXFLAGS = -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
 			 --compiler-options="$(CXXFLAGS)"
