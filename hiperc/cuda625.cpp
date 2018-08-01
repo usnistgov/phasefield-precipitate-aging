@@ -40,20 +40,6 @@
 #include "output.h"
 #include "parabola625.h"
 
-/* Define equilibrium phase compositions at global scope. Gamma is nominally
-   30% Cr, 2% Nb, as defined in the first elements of the two following arrays.
-   The generate() function will adjust the initial gamma composition depending
-   on the type, amount, and composition of the secondary phases to maintain the
-   system's nominal composition. Parabolic free energy requires a system
-   composition inside the three-phase coexistence region.
-                          nominal   delta        laves         enriched       */
-const fp_t xCr[NP+2] = {0.250,   xe_del_Cr(), xe_lav_Cr(),  0.005};
-const fp_t xNb[NP+2] = {0.150,   xe_del_Nb(), xe_lav_Nb(),  0.050};
-
-/* Define st.dev. of Gaussians for alloying element segregation
-                         Cr      Nb                                           */
-const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
-
 // Kinetic and model parameters
 const double meshres = 5e-9; // grid spacing (m)
 const fp_t alpha = 1.07e11;  // three-phase coexistence coefficient (J/m^3)
