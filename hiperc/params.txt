@@ -1,3 +1,3 @@
-bx 32    # convolution block size along x-axis
-by 32    # convolution block size along y-axis
+bx 25    # convolution block size along x-axis (maximum: 25)
+by 25    # convolution block size along y-axis (maximum: 25)
 sc 3 53  # mask size and code (3 53 for Laplacian, 5 135 for biharmonic)
