@@ -185,7 +185,7 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		/* fictitious compositions */
 		const fp_t f_del_new = d_h(phi_del_new);
 		const fp_t f_lav_new = d_h(phi_lav_new);
-		const fp_t f_gam_new = 1. - f_del - f_lav;
+		const fp_t f_gam_new = 1. - f_del_new - f_lav_new;
 		d_gam_Cr_new[idx] = d_fict_gam_Cr(conc_Cr_new, conc_Nb_new,
 		                                  f_del_new, f_gam_new, f_lav_new);
 		d_gam_Nb_new[idx] = d_fict_gam_Nb(conc_Cr_new, conc_Nb_new,
