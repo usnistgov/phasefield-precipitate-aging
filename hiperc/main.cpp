@@ -307,7 +307,7 @@ int main(int argc, char* argv[])
 
 					device_laplacian(&dev, nx, ny, nm, bx, by);
 
-					device_fict_boundaries(&dev, nx, ny, nm, bx, by);
+					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_evolution(&dev, nx, ny, nm, bx, by,
 									 D_Cr[0], D_Cr[1],

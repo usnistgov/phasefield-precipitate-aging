@@ -50,9 +50,9 @@ void device_boundaries(struct CudaData* dev,
 /**
    \brief Apply boundary conditions on device
 */
-void device_fict_boundaries(struct CudaData* dev,
-                            const int nx, const int ny, const int nm,
-                            const int bx, const int by);
+void device_laplacian_boundaries(struct CudaData* dev,
+                                 const int nx, const int ny, const int nm,
+                                 const int bx, const int by);
 
 /**
    \brief Compute Laplacian on device

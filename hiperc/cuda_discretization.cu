@@ -215,7 +215,7 @@ void device_boundaries(struct CudaData* dev,
 	);
 }
 
-void device_fict_boundaries(struct CudaData* dev,
+void device_laplacian_boundaries(struct CudaData* dev,
                             const int nx, const int ny, const int nm,
                             const int bx, const int by)
 {
@@ -225,8 +225,13 @@ void device_fict_boundaries(struct CudaData* dev,
 	               ceil(float(ny) / (tile_size.y - nm + 1)),
 	               1);
 
-	fict_boundary_kernel<<<num_tiles,tile_size>>> (
-	    dev->gam_Cr_new, dev->gam_Nb_new, nx, ny, nm);
+	boundary_kernel<<<num_tiles,tile_size>>> (
+	    dev->conc_Cr_new, dev->conc_Nb_new,
+	    dev->phi_del_new,
+	    dev->phi_lav_new,
+	    dev->gam_Cr_new, dev->gam_Nb_new,
+	    nx, ny, nm
+	);
 }
 
 void device_laplacian(struct CudaData* dev,
