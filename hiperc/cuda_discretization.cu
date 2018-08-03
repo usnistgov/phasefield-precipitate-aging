@@ -167,8 +167,8 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 
 		/* Cahn-Hilliard equations of motion for composition */
 		const fp_t lap_mu_Cr = D_CrCr * lap_Cr
-		                     + D_CrNb * lap_Nb;
-		const fp_t lap_mu_Nb = D_NbCr * lap_Cr
+		                     + D_NbCr * lap_Nb;
+		const fp_t lap_mu_Nb = D_CrNb * lap_Cr
 		                     + D_NbNb * lap_Nb;
 
 		const fp_t conc_Cr_new = xCr + dt * lap_mu_Cr;

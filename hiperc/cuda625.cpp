@@ -89,7 +89,7 @@ void generate(int dim, const char* filename)
 
 	const double dtTransformLimited = (meshres*meshres) / (std::pow(2.0, dim) * Lmob[0]*kappa[0]);
 	const double dtDiffusionLimited = (meshres*meshres) / (std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1]));
-	double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+	const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 
 	// Initialize pseudo-random number generator
 	std::random_device rd; // PRNG seed generator
