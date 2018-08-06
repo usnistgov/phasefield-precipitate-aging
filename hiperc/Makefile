@@ -13,6 +13,10 @@ OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o d_parabol
 cuda625: cuda625.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
+profile: CXXFLAGS += -DDEBUG -O0 -g
+profile: NVCXXFLAGS += -DDEBUG -O0 -g
+profile: cuda625
+
 # CUDA objects
 boundaries.o: cuda_boundaries.cu
 	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
@@ -41,4 +45,4 @@ parabola625.o: parabola625.cpp
 
 .PHONY: clean
 clean:
-	rm -f cuda625 *.o
+	rm -f cuda625 *.o profile
