@@ -13,7 +13,7 @@ cuda625: cuda625.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
 profile: CXXFLAGS += -O0 -g
-profile: NVCXXFLAGS += -O0 -g -arch=sm_50 -lineinfo
+profile: NVCXXFLAGS += -O0 -g -lineinfo -arch=$(CUDARCH)
 profile: cuda625
 
 # CUDA objects

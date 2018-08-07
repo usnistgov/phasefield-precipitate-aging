@@ -252,16 +252,16 @@ fict_del_Nb, det_del_Nb = fraction(fictitious[0][delNb])
 fict_lav_Cr, det_lav_Cr = fraction(fictitious[0][lavCr])
 fict_lav_Nb, det_lav_Nb = fraction(fictitious[0][lavNb])
 
-inv_fict_det = 1.0 / (gcd * factor(expand(det_gam_Cr)))
+inv_fict_det = 1.0 / (factor(expand(gcd * det_gam_Cr)))
 
-fict_gam_Cr = gcd * factor(expand(fict_gam_Cr)) * INV_DET
-fict_gam_Nb = gcd * factor(expand(fict_gam_Nb)) * INV_DET
+fict_gam_Cr = factor(expand(gcd * fict_gam_Cr)) * INV_DET
+fict_gam_Nb = factor(expand(gcd * fict_gam_Nb)) * INV_DET
 
-fict_del_Cr = gcd * factor(expand(fict_del_Cr)) * INV_DET
-fict_del_Nb = gcd * factor(expand(fict_del_Nb)) * INV_DET
+fict_del_Cr = factor(expand(gcd * fict_del_Cr)) * INV_DET
+fict_del_Nb = factor(expand(gcd * fict_del_Nb)) * INV_DET
 
-fict_lav_Cr = gcd * factor(expand(fict_lav_Cr)) * INV_DET
-fict_lav_Nb = gcd * factor(expand(fict_lav_Nb)) * INV_DET
+fict_lav_Cr = factor(expand(gcd * fict_lav_Cr)) * INV_DET
+fict_lav_Nb = factor(expand(gcd * fict_lav_Nb)) * INV_DET
 
 # ============ COMPOSITION SHIFTS ============
 P_del, P_lav = symbols('P_del, P_lav')
