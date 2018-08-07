@@ -11,7 +11,7 @@
 __device__ double d_h(double x) {
 
    double h_result;
-   h_result = pow(x, 3)*(6.0*pow(x, 2) - 15.0*x + 10.0);
+   h_result = x*x*x*(6.0*x*x - 15.0*x + 10.0);
    return h_result;
 
 }
@@ -19,7 +19,7 @@ __device__ double d_h(double x) {
 __device__ double d_hprime(double x) {
 
    double hprime_result;
-   hprime_result = 30.0*pow(x, 2)*pow(-x + 1.0, 2);
+   hprime_result = 30.0*x*x*(1.-x)*(1.-x);
    return hprime_result;
 
 }
@@ -219,7 +219,7 @@ __device__ double d_s_laves() {
 __device__ double d_g_gam(double XCR, double XNB) {
 
    double g_gam_result;
-   g_gam_result = 2474387391.41825*pow(XCR - 0.49, 2) + (15148919424.3273*XCR - 7422970517.92036)*(XNB - 0.025) + 37770442067.0002*pow(XNB - 0.025, 2);
+   g_gam_result = 2474387391.41825*(XCR - 0.49)*(XCR - 0.49) + (15148919424.3273*XCR - 7422970517.92036)*(XNB - 0.025) + 37770442067.0002*(XNB - 0.025)*(XNB - 0.025);
    return g_gam_result;
 
 }
@@ -227,7 +227,7 @@ __device__ double d_g_gam(double XCR, double XNB) {
 __device__ double d_g_del(double XCR, double XNB) {
 
    double g_del_result;
-   g_del_result = 32328981887.7551*pow(XCR - 0.015, 2) + (16970167763.7333*XCR - 254552516.456)*(XNB - 0.245) + 101815797663.265*pow(XNB - 0.245, 2);
+   g_del_result = 32328981887.7551*(XCR - 0.015)*(XCR - 0.015) + (16970167763.7333*XCR - 254552516.456)*(XNB - 0.245) + 101815797663.265*(XNB - 0.245)*(XNB - 0.245);
    return g_del_result;
 
 }
@@ -235,7 +235,7 @@ __device__ double d_g_del(double XCR, double XNB) {
 __device__ double d_g_lav(double XCR, double XNB) {
 
    double g_lav_result;
-   g_lav_result = (-3224431198.33484*XCR + 967329359.500452)*(XNB - 0.328) + 10490734425.5087*pow(XCR - 0.3, 2) + 152553892719.717*pow(XNB - 0.328, 2);
+   g_lav_result = (-3224431198.33484*XCR + 967329359.500452)*(XNB - 0.328) + 10490734425.5087*(XCR - 0.3)*(XCR - 0.3) + 152553892719.717*(XNB - 0.328)*(XNB - 0.328);
    return g_lav_result;
 
 }

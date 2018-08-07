@@ -3,9 +3,8 @@
 
 NVCXX = nvcc
 CXX = g++ -fPIC
-CXXFLAGS = -O3 -Wall -std=c++11 -funroll-loops -ffast-math -I. -I$(MMSP_PATH)/include
-NVCXXFLAGS = -std=c++11  -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
-			 --compiler-options="$(CXXFLAGS)"
+CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -I. -I$(MMSP_PATH)/include
+NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets --compiler-options="$(CXXFLAGS)"
 LINKS = -lcuda -lm -lpng -lz
 OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o d_parabola625.o parabola625.o
 
@@ -13,8 +12,8 @@ OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o d_parabol
 cuda625: cuda625.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
-profile: CXXFLAGS += -DDEBUG -O0 -g
-profile: NVCXXFLAGS += -DDEBUG -O0 -g
+profile: CXXFLAGS += -O0 -g
+profile: NVCXXFLAGS += -O0 -g -arch=sm_50 -lineinfo
 profile: cuda625
 
 # CUDA objects

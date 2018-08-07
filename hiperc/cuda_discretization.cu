@@ -129,7 +129,7 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		const fp_t& lap_lav = d_phi_lav_new[idx];
 
 		/* compute fictitious compositions */
-        fp_t inv_fict_det = d_inv_fict_det(f_del, f_gam, f_lav);
+		fp_t inv_fict_det = d_inv_fict_det(f_del, f_gam, f_lav);
 		const fp_t& gam_Cr = d_gam_Cr_old[idx];
 		const fp_t& gam_Nb = d_gam_Nb_old[idx];
 		const fp_t del_Cr = d_fict_del_Cr(inv_fict_det, xCr, xNb, f_del, f_gam, f_lav);
