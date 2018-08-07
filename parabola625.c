@@ -83,7 +83,7 @@ double Vm() {
 double xr_gam_Cr(double P_del, double P_lav) {
 
    double xr_gam_Cr_result;
-   xr_gam_Cr_result = -1.35745662070135e-9*P_del + 6.39244600941618e-10*P_lav + 0.49;
+   xr_gam_Cr_result = -1.35745662070142e-9*P_del + 6.39244600941687e-10*P_lav + 0.49;
    return xr_gam_Cr_result;
 
 }
@@ -91,7 +91,7 @@ double xr_gam_Cr(double P_del, double P_lav) {
 double xr_gam_Nb(double P_del, double P_lav) {
 
    double xr_gam_Nb_result;
-   xr_gam_Nb_result = 2.4759487616754e-10*P_del - 6.6622230055919e-11*P_lav + 0.025;
+   xr_gam_Nb_result = 2.47594876167551e-10*P_del - 6.66222300559304e-11*P_lav + 0.025;
    return xr_gam_Nb_result;
 
 }
@@ -99,7 +99,7 @@ double xr_gam_Nb(double P_del, double P_lav) {
 double xr_del_Cr(double P_del, double P_lav) {
 
    double xr_del_Cr_result;
-   xr_del_Cr_result = -4.44614260967858e-11*P_del + 2.79333077660391e-11*P_lav + 0.015;
+   xr_del_Cr_result = -4.44614260967884e-11*P_del + 2.79333077660415e-11*P_lav + 0.015;
    return xr_del_Cr_result;
 
 }
@@ -107,7 +107,7 @@ double xr_del_Cr(double P_del, double P_lav) {
 double xr_del_Nb(double P_del, double P_lav) {
 
    double xr_del_Nb_result;
-   xr_del_Nb_result = -5.4311181652798e-12*P_del + 2.05131716667744e-11*P_lav + 0.245;
+   xr_del_Nb_result = -5.4311181652809e-12*P_del + 2.05131716667751e-11*P_lav + 0.245;
    return xr_del_Nb_result;
 
 }
@@ -115,7 +115,7 @@ double xr_del_Nb(double P_del, double P_lav) {
 double xr_lav_Cr(double P_del, double P_lav) {
 
    double xr_lav_Cr_result;
-   xr_lav_Cr_result = -1.42576885211279e-10*P_del + 1.05186220574496e-10*P_lav + 0.3;
+   xr_lav_Cr_result = -1.42576885211288e-10*P_del + 1.05186220574504e-10*P_lav + 0.3;
    return xr_lav_Cr_result;
 
 }
@@ -123,55 +123,63 @@ double xr_lav_Cr(double P_del, double P_lav) {
 double xr_lav_Nb(double P_del, double P_lav) {
 
    double xr_lav_Nb_result;
-   xr_lav_Nb_result = -7.60450759974872e-12*P_del + 1.63559527488487e-11*P_lav + 0.328;
+   xr_lav_Nb_result = -7.60450759974964e-12*P_del + 1.63559527488494e-11*P_lav + 0.328;
    return xr_lav_Nb_result;
 
 }
 
-double fict_gam_Cr(double XCR, double XNB, double f_del, double f_gam, double f_lav) {
+double inv_fict_det(double f_del, double f_gam, double f_lav) {
+
+   double inv_fict_det_result;
+   inv_fict_det_result = 1.0/(1.15317496889714*pow(f_del, 2) + 42.9640255033086*f_del*f_gam + 4.35012289609114*f_del*f_lav + 102.885881033764*pow(f_gam, 2) + 51.3939292669239*f_gam*f_lav + 2.32367001744861*pow(f_lav, 2));
+   return inv_fict_det_result;
+
+}
+
+double fict_gam_Cr(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_gam_Cr_result;
-   fict_gam_Cr_result = 2.0*(6.63064716953519e+16*XCR*f_del + 1.84542498679449e+17*XCR*f_gam + 4.71751675983815e+16*XCR*f_lav - 2.58342112375695e+16*XNB*f_del - 1.40492190798499e+17*XNB*f_lav + 6.34830369649626e+15*pow(f_del, 2) + 3.148387949909e+15*f_del*f_gam + 2.61179376478465e+16*f_del*f_lav - 2.97964404935837e+16*f_gam*f_lav + 3.3971148860798e+16*pow(f_lav, 2))/(4.13681232131424e+15*pow(f_del, 2) + 1.54125882775036e+17*f_del*f_gam + 1.56053005668268e+16*f_del*f_lav + 3.69084997358898e+17*pow(f_gam, 2) + 1.84366679442838e+17*f_gam*f_lav + 8.33575738124381e+15*pow(f_lav, 2));
+   fict_gam_Cr_result = INV_DET*(36.9670932572906*XCR*f_del + 102.885881033764*XCR*f_gam + 26.3010348077371*XCR*f_lav - 14.4030540553513*XNB*f_del - 78.3270137345168*XNB*f_lav + 3.53929757946133*pow(f_del, 2) + 1.75528493642612*f_del*f_gam + 14.5612368148933*f_del*f_lav - 16.6120706817648*f_gam*f_lav + 18.9395483711502*pow(f_lav, 2));
    return fict_gam_Cr_result;
 
 }
 
-double fict_gam_Nb(double XCR, double XNB, double f_del, double f_gam, double f_lav) {
+double fict_gam_Nb(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_gam_Nb_result;
-   fict_gam_Nb_result = -4.0*(6.41619573683364e+15*XCR*f_del + 4.81919068862358e+15*XCR*f_lav - 5.37823484608316e+15*XNB*f_del - 9.22712493397246e+16*XNB*f_gam - 2.25040860615188e+16*XNB*f_lav + 1.19556952422966e+15*pow(f_del, 2) + 1.86336892809922e+16*f_del*f_gam + 5.18288240466529e+15*f_del*f_lav + 2.73138767510243e+16*f_gam*f_lav + 5.88348453795833e+15*pow(f_lav, 2))/(4.13681232131424e+15*pow(f_del, 2) + 1.54125882775036e+17*f_del*f_gam + 1.56053005668268e+16*f_del*f_lav + 3.69084997358898e+17*pow(f_gam, 2) + 1.84366679442838e+17*f_gam*f_lav + 8.33575738124381e+15*pow(f_lav, 2));
+   fict_gam_Nb_result = INV_DET*(-7.15429731355127*XCR*f_del - 5.37357718050628*XCR*f_lav + 5.99693224601796*XNB*f_del + 102.885881033764*XNB*f_gam + 25.0928944591868*XNB*f_lav - 1.33310456634871*pow(f_del, 2) - 20.7772578381999*f_del*f_gam - 5.77910699501942*f_del*f_lav - 30.4559902904332*f_gam*f_lav - 6.56030447802516*pow(f_lav, 2));
    return fict_gam_Nb_result;
 
 }
 
-double fict_del_Cr(double XCR, double XNB, double f_del, double f_gam, double f_lav) {
+double fict_del_Cr(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_del_Cr_result;
-   fict_del_Cr_result = 0.015625*(2.64755988564111e+17*XCR*f_del + 1.37682812059729e+18*XCR*f_gam + 1.79254643659781e+17*XCR*f_lav + 3.3067790384089e+18*XNB*f_gam - 2.41686978345328e+17*XNB*f_lav - 8.12582873151521e+17*f_del*f_gam - 7.92121798537059e+15*f_del*f_lav - 4.02993657588352e+17*pow(f_gam, 2) - 1.40247254944684e+18*f_gam*f_lav + 3.34992628853275e+16*pow(f_lav, 2))/(4.13681232131424e+15*pow(f_del, 2) + 1.54125882775036e+17*f_del*f_gam + 1.56053005668268e+16*f_del*f_lav + 3.69084997358898e+17*pow(f_gam, 2) + 1.84366679442838e+17*f_gam*f_lav + 8.33575738124381e+15*pow(f_lav, 2));
+   fict_del_Cr_result = INV_DET*(1.15317496889714*XCR*f_del + 5.99693224601796*XCR*f_gam + 0.780764088654332*XCR*f_lav + 14.4030540553513*XNB*f_gam - 1.05269525818007*XNB*f_lav - 3.53929757946133*f_del*f_gam - 0.0345017703034707*f_del*f_lav - 1.75528493642612*pow(f_gam, 2) - 6.10862948694289*f_gam*f_lav + 0.145909868348492*pow(f_lav, 2));
    return fict_del_Cr_result;
 
 }
 
-double fict_del_Nb(double XCR, double XNB, double f_del, double f_gam, double f_lav) {
+double fict_del_Nb(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_del_Nb_result;
-   fict_del_Nb_result = 0.0625*(4.10636527157353e+17*XCR*f_gam - 5.84656109241752e+15*XCR*f_lav + 6.61889971410278e+16*XNB*f_del + 2.12180709425126e+18*XNB*f_gam + 2.04871148154284e+17*XNB*f_lav + 7.65164495506982e+16*f_del*f_gam - 1.06429457217093e+16*f_del*f_lav + 1.1925561139835e+18*pow(f_gam, 2) - 9.86832654142635e+16*f_gam*f_lav - 3.27675993324042e+16*pow(f_lav, 2))/(4.13681232131424e+15*pow(f_del, 2) + 1.54125882775036e+17*f_del*f_gam + 1.56053005668268e+16*f_del*f_lav + 3.69084997358898e+17*pow(f_gam, 2) + 1.84366679442838e+17*f_gam*f_lav + 8.33575738124381e+15*pow(f_lav, 2));
+   fict_del_Nb_result = INV_DET*(7.15429731355127*XCR*f_gam - 0.101861460320036*XCR*f_lav + 1.15317496889714*XNB*f_del + 36.9670932572906*XNB*f_gam + 3.56935880743681*XNB*f_lav + 1.33310456634871*f_del*f_gam - 0.185426266173148*f_del*f_lav + 20.7772578381999*pow(f_gam, 2) - 1.71930496668943*f_gam*f_lav - 0.57089209646835*pow(f_lav, 2));
    return fict_del_Nb_result;
 
 }
 
-double fict_lav_Cr(double XCR, double XNB, double f_del, double f_gam, double f_lav) {
+double fict_lav_Cr(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_lav_Cr_result;
-   fict_lav_Cr_result = 0.015625*(8.19484592617137e+17*XCR*f_del + 5.76104603174881e+18*XCR*f_gam + 5.33488472399604e+17*XCR*f_lav + 2.41686978345328e+17*XNB*f_del + 1.79830004222079e+19*XNB*f_gam + 7.92121798537059e+15*pow(f_del, 2) - 1.94062346947751e+18*f_del*f_gam - 3.34992628853275e+16*f_del*f_lav + 3.81394438317871e+18*pow(f_gam, 2) - 4.34830705418214e+18*f_gam*f_lav)/(4.13681232131424e+15*pow(f_del, 2) + 1.54125882775036e+17*f_del*f_gam + 1.56053005668268e+16*f_del*f_lav + 3.69084997358898e+17*pow(f_gam, 2) + 1.84366679442838e+17*f_gam*f_lav + 8.33575738124381e+15*pow(f_lav, 2));
+   fict_lav_Cr_result = INV_DET*(3.56935880743681*XCR*f_del + 25.0928944591868*XCR*f_gam + 2.32367001744861*XCR*f_lav + 1.05269525818007*XNB*f_del + 78.3270137345168*XNB*f_gam + 0.0345017703034707*pow(f_del, 2) - 8.45260732795046*f_del*f_gam - 0.145909868348492*f_del*f_lav + 16.6120706817648*pow(f_gam, 2) - 18.9395483711502*f_gam*f_lav);
    return fict_lav_Cr_result;
 
 }
 
-double fict_lav_Nb(double XCR, double XNB, double f_del, double f_gam, double f_lav) {
+double fict_lav_Nb(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_lav_Nb_result;
-   fict_lav_Nb_result = 0.0625*(5.84656109241752e+15*XCR*f_del + 3.08428204071909e+17*XCR*f_gam + 4.48136609149452e+16*XNB*f_del + 1.50960536314821e+18*XNB*f_gam + 1.33372118099901e+17*XNB*f_lav + 1.06429457217093e+16*pow(f_del, 2) + 4.30387739312842e+17*f_del*f_gam + 3.27675993324042e+16*f_del*f_lav + 1.74808811206556e+18*pow(f_gam, 2) + 3.76543010429333e+17*f_gam*f_lav)/(4.13681232131424e+15*pow(f_del, 2) + 1.54125882775036e+17*f_del*f_gam + 1.56053005668268e+16*f_del*f_lav + 3.69084997358898e+17*pow(f_gam, 2) + 1.84366679442838e+17*f_gam*f_lav + 8.33575738124381e+15*pow(f_lav, 2));
+   fict_lav_Nb_result = INV_DET*(0.101861460320036*XCR*f_del + 5.37357718050628*XCR*f_gam + 0.780764088654332*XNB*f_del + 26.3010348077371*XNB*f_gam + 2.32367001744861*XNB*f_lav + 0.185426266173148*pow(f_del, 2) + 7.49841196170884*f_del*f_gam + 0.57089209646835*f_del*f_lav + 30.4559902904332*pow(f_gam, 2) + 6.56030447802516*f_gam*f_lav);
    return fict_lav_Nb_result;
 
 }
@@ -227,7 +235,7 @@ double g_del(double XCR, double XNB) {
 double g_lav(double XCR, double XNB) {
 
    double g_lav_result;
-   g_lav_result = (-3224431198.33485*XCR + 967329359.500456)*(XNB - 0.328) + 10490734425.5087*pow(XCR - 0.3, 2) + 152553892719.717*pow(XNB - 0.328, 2);
+   g_lav_result = (-3224431198.33484*XCR + 967329359.500452)*(XNB - 0.328) + 10490734425.5087*pow(XCR - 0.3, 2) + 152553892719.717*pow(XNB - 0.328, 2);
    return g_lav_result;
 
 }
@@ -267,7 +275,7 @@ double dg_del_dxNb(double XCR, double XNB) {
 double dg_lav_dxCr(double XCR, double XNB) {
 
    double dg_lav_dxCr_result;
-   dg_lav_dxCr_result = 20981468851.0174*XCR - 3224431198.33485*XNB - 5236827222.25137;
+   dg_lav_dxCr_result = 20981468851.0174*XCR - 3224431198.33484*XNB - 5236827222.25138;
    return dg_lav_dxCr_result;
 
 }
@@ -275,7 +283,7 @@ double dg_lav_dxCr(double XCR, double XNB) {
 double dg_lav_dxNb(double XCR, double XNB) {
 
    double dg_lav_dxNb_result;
-   dg_lav_dxNb_result = -3224431198.33485*XCR + 305107785439.433*XNB - 99108024264.6336;
+   dg_lav_dxNb_result = -3224431198.33484*XCR + 305107785439.433*XNB - 99108024264.6336;
    return dg_lav_dxNb_result;
 
 }
@@ -355,7 +363,7 @@ double d2g_lav_dxCrCr() {
 double d2g_lav_dxCrNb() {
 
    double d2g_lav_dxCrNb_result;
-   d2g_lav_dxCrNb_result = -3224431198.33485;
+   d2g_lav_dxCrNb_result = -3224431198.33484;
    return d2g_lav_dxCrNb_result;
 
 }
@@ -363,7 +371,7 @@ double d2g_lav_dxCrNb() {
 double d2g_lav_dxNbCr() {
 
    double d2g_lav_dxNbCr_result;
-   d2g_lav_dxNbCr_result = -3224431198.33485;
+   d2g_lav_dxNbCr_result = -3224431198.33484;
    return d2g_lav_dxNbCr_result;
 
 }

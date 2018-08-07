@@ -45,4 +45,4 @@ parabola625.o: parabola625.cpp
 
 .PHONY: clean
 clean:
-	rm -f cuda625 *.o profile
+	rm -f cuda625 *.o

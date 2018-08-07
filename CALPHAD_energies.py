@@ -75,7 +75,7 @@ from sympy.utilities.lambdify import lambdify
 
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
-from sympy import diff, expand, factor, Matrix, symbols, simplify
+from sympy import diff, Eq, expand, factor, fraction, Matrix, powsimp, symbols
 from sympy.abc import x, y
 from sympy.core.numbers import pi
 from sympy.functions.elementary.complexes import Abs
@@ -220,6 +220,8 @@ gamCr, gamNb = symbols('gamCr, gamNb')
 delCr, delNb = symbols('delCr, delNb')
 lavCr, lavNb = symbols('lavCr, lavNb')
 f_gam, f_del, f_lav = symbols('f_gam, f_del, f_lav')
+INV_DET = symbols('INV_DET')
+gcd = 1.0e-60
 
 ficGdCr = p_dGgam_dxCr.subs({XCR: gamCr, XNB: gamNb})
 ficGdNb = p_dGgam_dxNb.subs({XCR: gamCr, XNB: gamNb})
@@ -237,11 +239,29 @@ ficEqns = (XCR - f_gam*gamCr - f_del*delCr - f_lav*lavCr,
            )
 
 ficVars = (gamCr, gamNb,
-                      delCr, delNb,
-                      lavCr, lavNb
-           )
+           delCr, delNb,
+           lavCr, lavNb
+)
 
 fictitious = solve(ficEqns, ficVars, dict=True)
+
+fict_gam_Cr, det_gam_Cr = fraction(fictitious[0][gamCr])
+fict_gam_Nb, det_gam_Nb = fraction(fictitious[0][gamNb])
+fict_del_Cr, det_del_Cr = fraction(fictitious[0][delCr])
+fict_del_Nb, det_del_Nb = fraction(fictitious[0][delNb])
+fict_lav_Cr, det_lav_Cr = fraction(fictitious[0][lavCr])
+fict_lav_Nb, det_lav_Nb = fraction(fictitious[0][lavNb])
+
+inv_fict_det = 1.0 / (gcd * factor(expand(det_gam_Cr)))
+
+fict_gam_Cr = gcd * factor(expand(fict_gam_Cr)) * INV_DET
+fict_gam_Nb = gcd * factor(expand(fict_gam_Nb)) * INV_DET
+
+fict_del_Cr = gcd * factor(expand(fict_del_Cr)) * INV_DET
+fict_del_Nb = gcd * factor(expand(fict_del_Nb)) * INV_DET
+
+fict_lav_Cr = gcd * factor(expand(fict_lav_Cr)) * INV_DET
+fict_lav_Nb = gcd * factor(expand(fict_lav_Nb)) * INV_DET
 
 # ============ COMPOSITION SHIFTS ============
 P_del, P_lav = symbols('P_del, P_lav')
@@ -313,12 +333,13 @@ codegen([# Interpolator
          ('xr_del_Cr', xe_del_Cr + dx_r_del_Cr),  ('xr_del_Nb', xe_del_Nb + dx_r_del_Nb),
          ('xr_lav_Cr', xe_lav_Cr + dx_r_lav_Cr),  ('xr_lav_Nb', xe_lav_Nb + dx_r_lav_Nb),
          # Fictitious compositions
-         ('fict_gam_Cr', factor(expand(fictitious[0][gamCr]))),
-         ('fict_gam_Nb', factor(expand(fictitious[0][gamNb]))),
-         ('fict_del_Cr', factor(expand(fictitious[0][delCr]))),
-         ('fict_del_Nb', factor(expand(fictitious[0][delNb]))),
-         ('fict_lav_Cr', factor(expand(fictitious[0][lavCr]))),
-         ('fict_lav_Nb', factor(expand(fictitious[0][lavNb]))),
+         ('inv_fict_det', inv_fict_det),
+         ('fict_gam_Cr', fict_gam_Cr),
+         ('fict_gam_Nb', fict_gam_Nb),
+         ('fict_del_Cr', fict_del_Cr),
+         ('fict_del_Nb', fict_del_Nb),
+         ('fict_lav_Cr', fict_lav_Cr),
+         ('fict_lav_Nb', fict_lav_Nb),
          # Precipitate Properties
          ('r_delta', r_delta),  ('r_laves', r_laves),
          ('s_delta', s_delta),  ('s_laves', s_laves),

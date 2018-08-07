@@ -244,8 +244,9 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 	const T flav = h(GRIDN[3]);
 	const T fgam = 1. - fdel - flav;
 
-	GRIDN[NC+NP  ] = fict_gam_Cr(xcr, xnb, fdel, fgam, flav);
-	GRIDN[NC+NP+1] = fict_gam_Nb(xcr, xnb, fdel, fgam, flav);
+	const T inv_det = inv_fict_det(fdel, fgam, flav);
+	GRIDN[NC+NP  ] = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[NC+NP+1] = fict_gam_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
 }
 
 template<typename T>
@@ -446,12 +447,13 @@ T gibbs(const MMSP::vector<T>& v)
 	const T f_del = h(v[NC  ]);
 	const T f_lav = h(v[NC+1]);
 	const T f_gam = 1.0 - f_del - f_lav;
+	const T inv_det = inv_fict_det(f_del, f_gam, f_lav);
 	const T gam_Cr = v[NC+NP];
 	const T gam_Nb = v[NC+NP];
-	const T del_Cr = fict_del_Cr(xCr, xNb, f_del, f_gam, f_lav);
-	const T del_Nb = fict_del_Nb(xCr, xNb, f_del, f_gam, f_lav);
-	const T lav_Cr = fict_lav_Cr(xCr, xNb, f_del, f_gam, f_lav);
-	const T lav_Nb = fict_lav_Nb(xCr, xNb, f_del, f_gam, f_lav);
+	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
+	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
+	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
+	const T lav_Nb = fict_lav_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 
 	MMSP::vector<T> vsq(NP);
 

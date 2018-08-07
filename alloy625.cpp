@@ -604,12 +604,14 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 	const T flav = h(GRIDN[3]);
 	const T fgam = 1. - fdel - flav;
 
-	GRIDN[1*NC+NP  ] = fict_gam_Cr(xcr, xnb, fdel, fgam, flav);
-	GRIDN[1*NC+NP+1] = fict_gam_Nb(xcr, xnb, fdel, fgam, flav);
-	GRIDN[2*NC+NP  ] = fict_del_Cr(xcr, xnb, fdel, fgam, flav);
-	GRIDN[2*NC+NP+1] = fict_del_Nb(xcr, xnb, fdel, fgam, flav);
-	GRIDN[3*NC+NP  ] = fict_lav_Cr(xcr, xnb, fdel, fgam, flav);
-	GRIDN[3*NC+NP+1] = fict_lav_Nb(xcr, xnb, fdel, fgam, flav);
+	const T inv_det = inv_fict_det(fdel, fgam, flav);
+
+	GRIDN[1*NC+NP  ] = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[1*NC+NP+1] = fict_gam_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[2*NC+NP  ] = fict_del_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[2*NC+NP+1] = fict_del_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[3*NC+NP  ] = fict_lav_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[3*NC+NP+1] = fict_lav_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
 }
 
 template<typename T>

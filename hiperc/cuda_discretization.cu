@@ -115,26 +115,27 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	if (x < nx && y < ny) {
 		const int idx = nx * y + x;
 
-		const fp_t xCr = d_conc_Cr_old[idx];
-		const fp_t xNb = d_conc_Nb_old[idx];
+		const fp_t& xCr = d_conc_Cr_old[idx];
+		const fp_t& xNb = d_conc_Nb_old[idx];
 		const fp_t phi_del = d_phi_del_old[idx];
 		const fp_t phi_lav = d_phi_lav_old[idx];
-		const fp_t f_del = d_h(phi_del);
-		const fp_t f_lav = d_h(phi_lav);
-		const fp_t f_gam = 1. - f_del - f_lav;
+		fp_t f_del = d_h(phi_del);
+		fp_t f_lav = d_h(phi_lav);
+		fp_t f_gam = 1. - f_del - f_lav;
 
-		const fp_t lap_Cr = d_gam_Cr_new[idx];
-		const fp_t lap_Nb = d_gam_Nb_new[idx];
-		const fp_t lap_del = d_phi_del_new[idx];
-		const fp_t lap_lav = d_phi_lav_new[idx];
+		const fp_t& lap_Cr = d_gam_Cr_new[idx];
+		const fp_t& lap_Nb = d_gam_Nb_new[idx];
+		const fp_t& lap_del = d_phi_del_new[idx];
+		const fp_t& lap_lav = d_phi_lav_new[idx];
 
 		/* compute fictitious compositions */
-		const fp_t gam_Cr = d_gam_Cr_old[idx];
-		const fp_t gam_Nb = d_gam_Nb_old[idx];
-		const fp_t del_Cr = d_fict_del_Cr(xCr, xNb, f_del, f_gam, f_lav);
-		const fp_t del_Nb = d_fict_del_Nb(xCr, xNb, f_del, f_gam, f_lav);
-		const fp_t lav_Cr = d_fict_lav_Cr(xCr, xNb, f_del, f_gam, f_lav);
-		const fp_t lav_Nb = d_fict_lav_Nb(xCr, xNb, f_del, f_gam, f_lav);
+        fp_t inv_fict_det = d_inv_fict_det(f_del, f_gam, f_lav);
+		const fp_t& gam_Cr = d_gam_Cr_old[idx];
+		const fp_t& gam_Nb = d_gam_Nb_old[idx];
+		const fp_t del_Cr = d_fict_del_Cr(inv_fict_det, xCr, xNb, f_del, f_gam, f_lav);
+		const fp_t del_Nb = d_fict_del_Nb(inv_fict_det, xCr, xNb, f_del, f_gam, f_lav);
+		const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, xCr, xNb, f_del, f_gam, f_lav);
+		const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, xCr, xNb, f_del, f_gam, f_lav);
 
 		/* pure phase energies */
 		const fp_t gam_nrg = d_g_gam(gam_Cr, gam_Nb);
@@ -146,8 +147,6 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		const fp_t dgGdxNb = d_dg_gam_dxNb(gam_Cr, gam_Nb);
 
 		/* pressure */
-        const fp_t sumPhiSq = phi_del * phi_del + phi_lav * phi_lav;
-
 		const fp_t P_del = gam_nrg - del_nrg
 		                 - dgGdxCr * (gam_Cr - del_Cr)
 		                 - dgGdxNb * (gam_Nb - del_Nb);
@@ -158,11 +157,11 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		/* variational derivatives */
 		const fp_t dFdPhi_del = -d_hprime(phi_del) * P_del
 		                      + 2. * omega * phi_del * (phi_del - 1.) * (2. * phi_del - 1.)
-		                      + 2. * alpha * phi_del * (sumPhiSq - phi_del * phi_del)
+		                      + 2. * alpha * phi_del * (phi_lav * phi_lav)
 		                      - kappa * lap_del;
 		const fp_t dFdPhi_lav = -d_hprime(phi_lav) * P_lav
 		                      + 2. * omega * phi_lav * (phi_lav - 1.) * (2. * phi_lav - 1.)
-		                      + 2. * alpha * phi_lav * (sumPhiSq - phi_lav * phi_lav)
+		                      + 2. * alpha * phi_lav * (phi_del * phi_del)
 		                      - kappa * lap_lav;
 
 		/* Cahn-Hilliard equations of motion for composition */
@@ -171,25 +170,26 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		const fp_t lap_mu_Nb = D_CrNb * lap_Cr
 		                     + D_NbNb * lap_Nb;
 
-		const fp_t conc_Cr_new = xCr + dt * lap_mu_Cr;
-		const fp_t conc_Nb_new = xNb + dt * lap_mu_Nb;
-		d_conc_Cr_new[idx] = conc_Cr_new;
-		d_conc_Nb_new[idx] = conc_Nb_new;
+		fp_t &conc_Cr_new = d_conc_Cr_new[idx];
+		fp_t &conc_Nb_new = d_conc_Nb_new[idx];
+		conc_Cr_new = xCr + dt * lap_mu_Cr;
+		conc_Nb_new = xNb + dt * lap_mu_Nb;
 
 		/* Allen-Cahn equations of motion for phase */
-		const fp_t phi_del_new = phi_del - dt * M_del * dFdPhi_del;
-		const fp_t phi_lav_new = phi_lav - dt * M_lav * dFdPhi_lav;
-		d_phi_del_new[idx] = phi_del_new;
-		d_phi_lav_new[idx] = phi_lav_new;
+		fp_t &phi_del_new = d_phi_del_new[idx];
+		fp_t &phi_lav_new = d_phi_lav_new[idx];
+		phi_del_new = phi_del - dt * M_del * dFdPhi_del;
+		phi_lav_new = phi_lav - dt * M_lav * dFdPhi_lav;
 
 		/* fictitious compositions */
-		const fp_t f_del_new = d_h(phi_del_new);
-		const fp_t f_lav_new = d_h(phi_lav_new);
-		const fp_t f_gam_new = 1. - f_del_new - f_lav_new;
-		d_gam_Cr_new[idx] = d_fict_gam_Cr(conc_Cr_new, conc_Nb_new,
-		                                  f_del_new, f_gam_new, f_lav_new);
-		d_gam_Nb_new[idx] = d_fict_gam_Nb(conc_Cr_new, conc_Nb_new,
-		                                  f_del_new, f_gam_new, f_lav_new);
+		f_del = d_h(phi_del_new);
+		f_lav = d_h(phi_lav_new);
+		f_gam = 1. - f_del - f_lav;
+        inv_fict_det = d_inv_fict_det(f_del, f_gam, f_lav);
+		d_gam_Cr_new[idx] = d_fict_gam_Cr(inv_fict_det, conc_Cr_new, conc_Nb_new,
+		                                  f_del, f_gam, f_lav);
+		d_gam_Nb_new[idx] = d_fict_gam_Nb(inv_fict_det, conc_Cr_new, conc_Nb_new,
+		                                  f_del, f_gam, f_lav);
 	}
 
 	/* wait for all threads to finish writing */
