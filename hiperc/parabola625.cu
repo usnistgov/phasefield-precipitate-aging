@@ -19,7 +19,7 @@ __device__ double d_h(double x) {
 __device__ double d_hprime(double x) {
 
    double hprime_result;
-   hprime_result = 30.0*x*x*(1.-x)*(1.-x);
+   hprime_result = 30.0*x*x*(-x + 1.0)*(-x + 1.0);
    return hprime_result;
 
 }
@@ -83,7 +83,7 @@ __device__ double d_Vm() {
 __device__ double d_xr_gam_Cr(double P_del, double P_lav) {
 
    double xr_gam_Cr_result;
-   xr_gam_Cr_result = -1.35745662070142e-9*P_del + 6.39244600941687e-10*P_lav + 0.49;
+   xr_gam_Cr_result = -1.35745662070135e-9*P_del + 6.39244600941618e-10*P_lav + 0.49;
    return xr_gam_Cr_result;
 
 }
@@ -91,7 +91,7 @@ __device__ double d_xr_gam_Cr(double P_del, double P_lav) {
 __device__ double d_xr_gam_Nb(double P_del, double P_lav) {
 
    double xr_gam_Nb_result;
-   xr_gam_Nb_result = 2.47594876167551e-10*P_del - 6.66222300559304e-11*P_lav + 0.025;
+   xr_gam_Nb_result = 2.4759487616754e-10*P_del - 6.6622230055919e-11*P_lav + 0.025;
    return xr_gam_Nb_result;
 
 }
@@ -99,7 +99,7 @@ __device__ double d_xr_gam_Nb(double P_del, double P_lav) {
 __device__ double d_xr_del_Cr(double P_del, double P_lav) {
 
    double xr_del_Cr_result;
-   xr_del_Cr_result = -4.44614260967884e-11*P_del + 2.79333077660415e-11*P_lav + 0.015;
+   xr_del_Cr_result = -4.44614260967858e-11*P_del + 2.79333077660391e-11*P_lav + 0.015;
    return xr_del_Cr_result;
 
 }
@@ -107,7 +107,7 @@ __device__ double d_xr_del_Cr(double P_del, double P_lav) {
 __device__ double d_xr_del_Nb(double P_del, double P_lav) {
 
    double xr_del_Nb_result;
-   xr_del_Nb_result = -5.4311181652809e-12*P_del + 2.05131716667751e-11*P_lav + 0.245;
+   xr_del_Nb_result = -5.4311181652798e-12*P_del + 2.05131716667744e-11*P_lav + 0.245;
    return xr_del_Nb_result;
 
 }
@@ -115,7 +115,7 @@ __device__ double d_xr_del_Nb(double P_del, double P_lav) {
 __device__ double d_xr_lav_Cr(double P_del, double P_lav) {
 
    double xr_lav_Cr_result;
-   xr_lav_Cr_result = -1.42576885211288e-10*P_del + 1.05186220574504e-10*P_lav + 0.3;
+   xr_lav_Cr_result = -1.42576885211279e-10*P_del + 1.05186220574496e-10*P_lav + 0.3;
    return xr_lav_Cr_result;
 
 }
@@ -123,7 +123,7 @@ __device__ double d_xr_lav_Cr(double P_del, double P_lav) {
 __device__ double d_xr_lav_Nb(double P_del, double P_lav) {
 
    double xr_lav_Nb_result;
-   xr_lav_Nb_result = -7.60450759974964e-12*P_del + 1.63559527488494e-11*P_lav + 0.328;
+   xr_lav_Nb_result = -7.60450759974872e-12*P_del + 1.63559527488487e-11*P_lav + 0.328;
    return xr_lav_Nb_result;
 
 }
@@ -131,7 +131,7 @@ __device__ double d_xr_lav_Nb(double P_del, double P_lav) {
 __device__ double d_inv_fict_det(double f_del, double f_gam, double f_lav) {
 
    double inv_fict_det_result;
-   inv_fict_det_result = 1.0/(1.15317496889714*f_del*f_del + 42.9640255033086*f_del*f_gam + 4.35012289609114*f_del*f_lav + 102.885881033764*f_gam*f_gam + 51.3939292669239*f_gam*f_lav + 2.32367001744861*f_lav*f_lav);
+   inv_fict_det_result = 1.0/(0.184507995023542*f_del*f_del + 6.87424408052938*f_del*f_gam + 0.696019663374582*f_del*f_lav + 16.4617409654023*f_gam*f_gam + 8.22302868270782*f_gam*f_lav + 0.371787202791778*f_lav*f_lav);
    return inv_fict_det_result;
 
 }
@@ -139,7 +139,7 @@ __device__ double d_inv_fict_det(double f_del, double f_gam, double f_lav) {
 __device__ double d_fict_gam_Cr(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_gam_Cr_result;
-   fict_gam_Cr_result = INV_DET*(36.9670932572906*XCR*f_del + 102.885881033764*XCR*f_gam + 26.3010348077371*XCR*f_lav - 14.4030540553513*XNB*f_del - 78.3270137345168*XNB*f_lav + 3.53929757946133*f_del*f_del + 1.75528493642612*f_del*f_gam + 14.5612368148933*f_del*f_lav - 16.6120706817648*f_gam*f_lav + 18.9395483711502*f_lav*f_lav);
+   fict_gam_Cr_result = 1.0*INV_DET*(5.9147349211665*XCR*f_del + 16.4617409654023*XCR*f_gam + 4.20816556923794*XCR*f_lav - 2.30448864885622*XNB*f_del - 12.5323221975227*XNB*f_lav + 0.566287612713812*f_del*f_del + 0.280845589828179*f_del*f_gam + 2.32979789038294*f_del*f_lav - 2.65793130908236*f_gam*f_lav + 3.03032773938404*f_lav*f_lav);
    return fict_gam_Cr_result;
 
 }
@@ -147,7 +147,7 @@ __device__ double d_fict_gam_Cr(double INV_DET, double XCR, double XNB, double f
 __device__ double d_fict_gam_Nb(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_gam_Nb_result;
-   fict_gam_Nb_result = INV_DET*(-7.15429731355127*XCR*f_del - 5.37357718050628*XCR*f_lav + 5.99693224601796*XNB*f_del + 102.885881033764*XNB*f_gam + 25.0928944591868*XNB*f_lav - 1.33310456634871*f_del*f_del - 20.7772578381999*f_del*f_gam - 5.77910699501942*f_del*f_lav - 30.4559902904332*f_gam*f_lav - 6.56030447802516*f_lav*f_lav);
+   fict_gam_Nb_result = -1.0*INV_DET*(1.1446875701682*XCR*f_del + 0.859772348881005*XCR*f_lav - 0.959509159362874*XNB*f_del - 16.4617409654023*XNB*f_gam - 4.01486311346988*XNB*f_lav + 0.213296730615793*f_del*f_del + 3.32436125411199*f_del*f_gam + 0.924657119203107*f_del*f_lav + 4.87295844646931*f_gam*f_lav + 1.04964871648403*f_lav*f_lav);
    return fict_gam_Nb_result;
 
 }
@@ -155,7 +155,7 @@ __device__ double d_fict_gam_Nb(double INV_DET, double XCR, double XNB, double f
 __device__ double d_fict_del_Cr(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_del_Cr_result;
-   fict_del_Cr_result = INV_DET*(1.15317496889714*XCR*f_del + 5.99693224601796*XCR*f_gam + 0.780764088654332*XCR*f_lav + 14.4030540553513*XNB*f_gam - 1.05269525818007*XNB*f_lav - 3.53929757946133*f_del*f_gam - 0.0345017703034707*f_del*f_lav - 1.75528493642612*f_gam*f_gam - 6.10862948694289*f_gam*f_lav + 0.145909868348492*f_lav*f_lav);
+   fict_del_Cr_result = 1.0*INV_DET*(0.184507995023542*XCR*f_del + 0.959509159362873*XCR*f_gam + 0.124922254184693*XCR*f_lav + 2.30448864885622*XNB*f_gam - 0.168431241308811*XNB*f_lav - 0.566287612713812*f_del*f_gam - 0.00552028324855524*f_del*f_lav - 0.280845589828179*f_gam*f_gam - 0.977380717910862*f_gam*f_lav + 0.0233455789357588*f_lav*f_lav);
    return fict_del_Cr_result;
 
 }
@@ -163,7 +163,7 @@ __device__ double d_fict_del_Cr(double INV_DET, double XCR, double XNB, double f
 __device__ double d_fict_del_Nb(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_del_Nb_result;
-   fict_del_Nb_result = INV_DET*(7.15429731355127*XCR*f_gam - 0.101861460320036*XCR*f_lav + 1.15317496889714*XNB*f_del + 36.9670932572906*XNB*f_gam + 3.56935880743681*XNB*f_lav + 1.33310456634871*f_del*f_gam - 0.185426266173148*f_del*f_lav + 20.7772578381999*f_gam*f_gam - 1.71930496668943*f_gam*f_lav - 0.57089209646835*f_lav*f_lav);
+   fict_del_Nb_result = 1.0*INV_DET*(1.1446875701682*XCR*f_gam - 0.0162978336512057*XCR*f_lav + 0.184507995023542*XNB*f_del + 5.9147349211665*XNB*f_gam + 0.571097409189889*XNB*f_lav + 0.213296730615793*f_del*f_gam - 0.0296682025877037*f_del*f_lav + 3.32436125411199*f_gam*f_gam - 0.275088794670308*f_gam*f_lav - 0.091342735434936*f_lav*f_lav);
    return fict_del_Nb_result;
 
 }
@@ -171,7 +171,7 @@ __device__ double d_fict_del_Nb(double INV_DET, double XCR, double XNB, double f
 __device__ double d_fict_lav_Cr(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_lav_Cr_result;
-   fict_lav_Cr_result = INV_DET*(3.56935880743681*XCR*f_del + 25.0928944591868*XCR*f_gam + 2.32367001744861*XCR*f_lav + 1.05269525818007*XNB*f_del + 78.3270137345168*XNB*f_gam + 0.0345017703034707*f_del*f_del - 8.45260732795046*f_del*f_gam - 0.145909868348492*f_del*f_lav + 16.6120706817648*f_gam*f_gam - 18.9395483711502*f_gam*f_lav);
+   fict_lav_Cr_result = 1.0*INV_DET*(0.571097409189889*XCR*f_del + 4.01486311346988*XCR*f_gam + 0.371787202791778*XCR*f_lav + 0.168431241308811*XNB*f_del + 12.5323221975227*XNB*f_gam + 0.00552028324855524*f_del*f_del - 1.35241717247208*f_del*f_gam - 0.0233455789357588*f_del*f_lav + 2.65793130908236*f_gam*f_gam - 3.03032773938404*f_gam*f_lav);
    return fict_lav_Cr_result;
 
 }
@@ -179,7 +179,7 @@ __device__ double d_fict_lav_Cr(double INV_DET, double XCR, double XNB, double f
 __device__ double d_fict_lav_Nb(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav) {
 
    double fict_lav_Nb_result;
-   fict_lav_Nb_result = INV_DET*(0.101861460320036*XCR*f_del + 5.37357718050628*XCR*f_gam + 0.780764088654332*XNB*f_del + 26.3010348077371*XNB*f_gam + 2.32367001744861*XNB*f_lav + 0.185426266173148*f_del*f_del + 7.49841196170884*f_del*f_gam + 0.57089209646835*f_del*f_lav + 30.4559902904332*f_gam*f_gam + 6.56030447802516*f_gam*f_lav);
+   fict_lav_Nb_result = 1.0*INV_DET*(0.0162978336512057*XCR*f_del + 0.859772348881005*XCR*f_gam + 0.124922254184693*XNB*f_del + 4.20816556923794*XNB*f_gam + 0.371787202791778*XNB*f_lav + 0.0296682025877037*f_del*f_del + 1.19974591387341*f_del*f_gam + 0.091342735434936*f_del*f_lav + 4.87295844646931*f_gam*f_gam + 1.04964871648403*f_gam*f_lav);
    return fict_lav_Nb_result;
 
 }
@@ -235,7 +235,7 @@ __device__ double d_g_del(double XCR, double XNB) {
 __device__ double d_g_lav(double XCR, double XNB) {
 
    double g_lav_result;
-   g_lav_result = (-3224431198.33484*XCR + 967329359.500452)*(XNB - 0.328) + 10490734425.5087*(XCR - 0.3)*(XCR - 0.3) + 152553892719.717*(XNB - 0.328)*(XNB - 0.328);
+   g_lav_result = (-3224431198.33485*XCR + 967329359.500456)*(XNB - 0.328) + 10490734425.5087*(XCR - 0.3)*(XCR - 0.3) + 152553892719.717*(XNB - 0.328)*(XNB - 0.328);
    return g_lav_result;
 
 }
@@ -275,7 +275,7 @@ __device__ double d_dg_del_dxNb(double XCR, double XNB) {
 __device__ double d_dg_lav_dxCr(double XCR, double XNB) {
 
    double dg_lav_dxCr_result;
-   dg_lav_dxCr_result = 20981468851.0174*XCR - 3224431198.33484*XNB - 5236827222.25138;
+   dg_lav_dxCr_result = 20981468851.0174*XCR - 3224431198.33485*XNB - 5236827222.25137;
    return dg_lav_dxCr_result;
 
 }
@@ -283,7 +283,7 @@ __device__ double d_dg_lav_dxCr(double XCR, double XNB) {
 __device__ double d_dg_lav_dxNb(double XCR, double XNB) {
 
    double dg_lav_dxNb_result;
-   dg_lav_dxNb_result = -3224431198.33484*XCR + 305107785439.433*XNB - 99108024264.6336;
+   dg_lav_dxNb_result = -3224431198.33485*XCR + 305107785439.433*XNB - 99108024264.6336;
    return dg_lav_dxNb_result;
 
 }
@@ -363,7 +363,7 @@ __device__ double d_d2g_lav_dxCrCr() {
 __device__ double d_d2g_lav_dxCrNb() {
 
    double d2g_lav_dxCrNb_result;
-   d2g_lav_dxCrNb_result = -3224431198.33484;
+   d2g_lav_dxCrNb_result = -3224431198.33485;
    return d2g_lav_dxCrNb_result;
 
 }
@@ -371,7 +371,7 @@ __device__ double d_d2g_lav_dxCrNb() {
 __device__ double d_d2g_lav_dxNbCr() {
 
    double d2g_lav_dxNbCr_result;
-   d2g_lav_dxNbCr_result = -3224431198.33484;
+   d2g_lav_dxNbCr_result = -3224431198.33485;
    return d2g_lav_dxNbCr_result;
 
 }
