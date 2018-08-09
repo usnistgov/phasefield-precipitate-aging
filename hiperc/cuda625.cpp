@@ -108,8 +108,6 @@ void generate(int dim, const char* filename)
 		const int Nx = 320; // product divisible by 12 and 64
 		const int Ny = 192;
 		double Ntot = 1.0;
-		// GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
-		// GRID2D initGrid(2*NC+NP, -5*Nx/2, 5*Nx/2, -4*Ny/2, 4*Ny/2);
 		GRID2D initGrid(2*NC+NP, -10*Nx/2, 10*Nx/2, -9*Ny/2, 9*Ny/2);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d) = meshres;
@@ -134,7 +132,7 @@ void generate(int dim, const char* filename)
 		// Set system composition
 		const double xo = 0.4125;
 		const double yo = 0.1000;
-		const double ro = 0.0025;
+		const double ro = 0.0250;
 		bool withinRange = false;
 		double xCr0;
 		double xNb0;
@@ -142,7 +140,8 @@ void generate(int dim, const char* filename)
 		while (!withinRange) {
 			xCr0 = xo + ro * (unidist(mtrand) - 1.);
 			xNb0 = yo + ro * (unidist(mtrand) - 1.);
-			withinRange = (std::pow(xCr0 - xo, 2.0) + std::pow(xNb0 - yo, 2.0)
+			withinRange = (  std::pow(xCr0 - xo, 2.0)
+						   + std::pow(xNb0 - yo, 2.0)
 			               < std::pow(ro, 2.0));
 		}
 
@@ -364,43 +363,19 @@ Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 }
 
 template<int dim, typename T>
-Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double Ntot,
-                          const int width, const int height,
-                          const double xCr0, const double xNb0,
-                          std::uniform_real_distribution<double>& unidist, std::mt19937& mtrand)
+Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID,
+						  const double Ntot,
+                          const int width,
+						  const int height,
+                          const double xCr0,
+						  const double xNb0,
+                          std::uniform_real_distribution<double>& unidist,
+						  std::mt19937& mtrand)
 {
 	#ifdef MPI_VERSION
 	MPI_Request* reqs = new MPI_Request[NP + 2];
 	MPI_Status* stat = new MPI_Status[NP + 2];
 	#endif
-
-	// Set constant precipitate radii and separation
-	int r = rPrecip[0];
-	int d = 8 + height / 2;
-
-	/*
-	// Set precipitate radii and separation with jitter
-	const int d = 8 + height / 2 - (unidist(mtrand) * height)/4;
-	const int r = std::floor((3. + 4.5 * unidist(mtrand)) * (5.0e-9 / meshres));
-
-	#ifdef MPI_VERSION
-	MPI::COMM_WORLD.Barrier();
-	MPI::COMM_WORLD.Bcast(&r,1, MPI_INT, 0);
-	MPI::COMM_WORLD.Bcast(&d,1, MPI_INT, 0);
-	#endif
-	*/
-
-	// curvature-dependent initial compositions
-	const fp_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
-	const fp_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
-	const fp_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav),
-	                         xr_del_Cr(P_del, P_lav),
-	                         xr_lav_Cr(P_del, P_lav)
-	                        };
-	const fp_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav),
-	                         xr_del_Nb(P_del, P_lav),
-	                         xr_lav_Nb(P_del, P_lav)
-	                        };
 
 	Composition comp;
 	MMSP::vector<int> tileOrigin(dim, 0);
@@ -410,6 +385,31 @@ Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID, const double N
 		for (tileOrigin[0] = MMSP::g0(GRID,0) - (n%2)*(3*width)/8 - MMSP::g0(GRID,0) % width; tileOrigin[0] < 1 + MMSP::g1(GRID,0); tileOrigin[0] += width) {
 			MMSP::vector<int> origin = tileOrigin;
 			for (int j = 0; j < NP; j++) {
+				/*
+				// Set constant precipitate radii and separation
+				int r = rPrecip[0];
+				int d = 8 + height / 2;
+				*/
+
+				// Set precipitate radii and separation with jitter
+				const int d = 8 + height / 2 - (unidist(mtrand) * height)/4;
+				const int r = std::floor((3. + 4.5 * unidist(mtrand)) * (5.0e-9 / meshres));
+
+				#ifdef MPI_VERSION
+				MPI::COMM_WORLD.Barrier();
+				MPI::COMM_WORLD.Bcast(&r,1, MPI_INT, 0);
+				MPI::COMM_WORLD.Bcast(&d,1, MPI_INT, 0);
+				#endif
+
+				// curvature-dependent initial compositions
+				const fp_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
+				const fp_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
+				const fp_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav),
+										 xr_del_Cr(P_del, P_lav),
+										 xr_lav_Cr(P_del, P_lav)};
+				const fp_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav),
+										 xr_del_Nb(P_del, P_lav),
+										 xr_lav_Nb(P_del, P_lav)};
 				origin[0] = tileOrigin[0] + ((j%2==0) ? -d/2 : d/2);
 				origin[1] = tileOrigin[1];
 				comp += embedParticle(GRID, origin, j+NC, r, xrCr[j+1], xrNb[j+1]);
