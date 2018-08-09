@@ -143,8 +143,8 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& kappa,       const fp_t& omega,
                              const fp_t& M_lav,       const fp_t& dt)
 {
-	const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_lav, 1.-f_del-f_lav, f_lav);
-	const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_lav, 1.-f_del-f_lav, f_lav);
+	const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, 1.-f_del-f_lav, f_lav);
+	const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, 1.-f_del-f_lav, f_lav);
 	const fp_t lav_nrg = d_g_lav(lav_Cr, lav_Nb);
 
     /* pressure */
