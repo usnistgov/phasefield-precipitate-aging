@@ -90,19 +90,15 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
 }
 
 __global__ void composition_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                 fp_t* d_phi_del_old,
-                                 fp_t* d_phi_lav_old,
-                                 fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                                 fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                                 fp_t* d_phi_del_new,
-                                 fp_t* d_phi_lav_new,
-                                 fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
-                                 const int nx, const int ny, const int nm,
-                                 const fp_t D_CrCr, const fp_t D_CrNb,
-                                 const fp_t D_NbCr, const fp_t D_NbNb,
-                                 const fp_t alpha, const fp_t kappa, const fp_t omega,
-                                 const fp_t M_del, const fp_t M_lav,
-                                 const fp_t dt)
+                                   fp_t* d_phi_del_old,
+                                   fp_t* d_phi_lav_old,
+                                   fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
+                                   fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+                                   fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
+                                   const int nx, const int ny, const int nm,
+                                   const fp_t D_CrCr, const fp_t D_CrNb,
+                                   const fp_t D_NbCr, const fp_t D_NbNb,
+                                   const fp_t dt)
 {
 	/* determine indices on which to operate */
 	const int thr_x = threadIdx.x;
@@ -122,11 +118,12 @@ __global__ void composition_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		/* effective chemical potential */
 		const fp_t dgGdxCr = d_dg_gam_dxCr(d_gam_Cr_old[idx], d_gam_Nb_old[idx]);
 		const fp_t dgGdxNb = d_dg_gam_dxNb(d_gam_Cr_old[idx], d_gam_Nb_old[idx]);
+
         /* Cahn-Hilliard equations of motion for composition */
-        const fp_t lap_mu_Cr = D_CrCr * d_conc_Cr_new[idx]
-                             + D_NbCr * d_conc_Nb_new[idx];
-        const fp_t lap_mu_Nb = D_CrNb * d_conc_Cr_new[idx]
-                             + D_NbNb * d_conc_Nb_new[idx];
+        const fp_t lap_mu_Cr = D_CrCr * d_gam_Cr_new[idx]
+                             + D_NbCr * d_gam_Nb_new[idx];
+        const fp_t lap_mu_Nb = D_CrNb * d_gam_Cr_new[idx]
+                             + D_NbNb * d_gam_Nb_new[idx];
 
         d_conc_Cr_new[idx] = d_conc_Cr_old[idx] + dt * lap_mu_Cr;
         d_conc_Nb_new[idx] = d_conc_Nb_old[idx] + dt * lap_mu_Nb;
@@ -138,13 +135,8 @@ __global__ void delta_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                              fp_t* d_phi_del_old,
                              fp_t* d_phi_lav_old,
                              fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                             fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                              fp_t* d_phi_del_new,
-                             fp_t* d_phi_lav_new,
-                             fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
                              const int nx, const int ny, const int nm,
-                             const fp_t D_CrCr, const fp_t D_CrNb,
-                             const fp_t D_NbCr, const fp_t D_NbNb,
                              const fp_t alpha, const fp_t kappa, const fp_t omega,
                              const fp_t M_del, const fp_t M_lav,
                              const fp_t dt)
@@ -190,13 +182,8 @@ __global__ void laves_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                              fp_t* d_phi_del_old,
                              fp_t* d_phi_lav_old,
                              fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                             fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                             fp_t* d_phi_del_new,
                              fp_t* d_phi_lav_new,
-                             fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
                              const int nx, const int ny, const int nm,
-                             const fp_t D_CrCr, const fp_t D_CrNb,
-                             const fp_t D_NbCr, const fp_t D_NbNb,
                              const fp_t alpha, const fp_t kappa, const fp_t omega,
                              const fp_t M_del, const fp_t M_lav,
                              const fp_t dt)
@@ -238,20 +225,11 @@ __global__ void laves_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	__syncthreads();
 }
 
-__global__ void fictitious_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                  fp_t* d_phi_del_old,
-                                  fp_t* d_phi_lav_old,
-                                  fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                                  fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+__global__ void fictitious_kernel(fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                   fp_t* d_phi_del_new,
                                   fp_t* d_phi_lav_new,
                                   fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
-                                  const int nx, const int ny, const int nm,
-                                  const fp_t D_CrCr, const fp_t D_CrNb,
-                                  const fp_t D_NbCr, const fp_t D_NbNb,
-                                  const fp_t alpha, const fp_t kappa, const fp_t omega,
-                                  const fp_t M_del, const fp_t M_lav,
-                                  const fp_t dt)
+                                  const int nx, const int ny, const int nm)
 {
 	/* determine indices on which to operate */
 	const int thr_x = threadIdx.x;
@@ -261,14 +239,14 @@ __global__ void fictitious_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	const int idx = nx * y + x;
 
 	if (x < nx && y < ny) {
-		const fp_t f_del = d_h(d_phi_del_old[idx]);
-		const fp_t f_lav = d_h(d_phi_lav_old[idx]);
+		const fp_t f_del = d_h(d_phi_del_new[idx]);
+		const fp_t f_lav = d_h(d_phi_lav_new[idx]);
 		const fp_t inv_fict_det = d_inv_fict_det(f_del, 1.-f_del-f_lav, f_lav);
 
         d_gam_Cr_new[idx] = d_fict_gam_Cr(inv_fict_det, d_conc_Cr_new[idx], d_conc_Nb_new[idx],
-                                   f_del, 1.-f_del-f_lav, f_lav);
+                                          f_del, 1.-f_del-f_lav, f_lav);
         d_gam_Nb_new[idx] = d_fict_gam_Nb(inv_fict_det, d_conc_Cr_new[idx], d_conc_Nb_new[idx],
-                                   f_del, 1.-f_del-f_lav, f_lav);
+                                          f_del, 1.-f_del-f_lav, f_lav);
     }
 	__syncthreads();
 }
@@ -352,44 +330,22 @@ void device_evolution(struct CudaData* dev,
 	dim3 num_tiles(ceil(float(nx) / (tile_size.x - nm + 1)),
 	               ceil(float(ny) / (tile_size.y - nm + 1)),
 	               1);
-    /*
-	evolution_kernel<<<num_tiles,tile_size>>> (
-	    dev->conc_Cr_old, dev->conc_Nb_old,
-	    dev->phi_del_old, dev->phi_lav_old,
-	    dev->gam_Cr_old, dev->gam_Nb_old,
-	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->gam_Cr_new, dev->gam_Nb_new,
-	    nx, ny, nm,
-	    D_CrCr, D_CrNb,
-	    D_NbCr, D_NbNb,
-	    alpha, kappa, omega,
-	    M_del, M_lav,
-	    dt);
-    */
 	composition_kernel<<<num_tiles,tile_size>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
-	    dev->gam_Cr_old, dev->gam_Nb_old,
+	    dev->gam_Cr_old,  dev->gam_Nb_old,
 	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->gam_Cr_new, dev->gam_Nb_new,
+	    dev->gam_Cr_new,  dev->gam_Nb_new,
 	    nx, ny, nm,
 	    D_CrCr, D_CrNb,
 	    D_NbCr, D_NbNb,
-	    alpha, kappa, omega,
-	    M_del, M_lav,
 	    dt);
 	delta_kernel<<<num_tiles,tile_size>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
 	    dev->gam_Cr_old, dev->gam_Nb_old,
-	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->gam_Cr_new, dev->gam_Nb_new,
+	    dev->phi_del_new,
 	    nx, ny, nm,
-	    D_CrCr, D_CrNb,
-	    D_NbCr, D_NbNb,
 	    alpha, kappa, omega,
 	    M_del, M_lav,
 	    dt);
@@ -397,28 +353,16 @@ void device_evolution(struct CudaData* dev,
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
 	    dev->gam_Cr_old, dev->gam_Nb_old,
-	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->gam_Cr_new, dev->gam_Nb_new,
+	    dev->phi_lav_new,
 	    nx, ny, nm,
-	    D_CrCr, D_CrNb,
-	    D_NbCr, D_NbNb,
 	    alpha, kappa, omega,
 	    M_del, M_lav,
 	    dt);
 	fictitious_kernel<<<num_tiles,tile_size>>> (
-	    dev->conc_Cr_old, dev->conc_Nb_old,
-	    dev->phi_del_old, dev->phi_lav_old,
-	    dev->gam_Cr_old, dev->gam_Nb_old,
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    dev->gam_Cr_new, dev->gam_Nb_new,
-	    nx, ny, nm,
-	    D_CrCr, D_CrNb,
-	    D_NbCr, D_NbNb,
-	    alpha, kappa, omega,
-	    M_del, M_lav,
-	    dt);
+	    nx, ny, nm);
 }
 
 void read_out_result(struct CudaData* dev, struct HostData* host, const int nx, const int ny)

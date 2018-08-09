@@ -57,73 +57,50 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
  \brief Device kernel to update field variables for composition
 */
 __global__ void composition_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                 fp_t* d_phi_del_old,
-                                 fp_t* d_phi_lav_old,
-                                 fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                                 fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                                 fp_t* d_phi_del_new,
-                                 fp_t* d_phi_lav_new,
-                                 fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
-                                 const int nx, const int ny, const int nm,
-                                 const fp_t D_CrCr, const fp_t D_CrNb,
-                                 const fp_t D_NbCr, const fp_t D_NbNb,
-                                 const fp_t alpha, const fp_t kappa, const fp_t omega,
-                                 const fp_t M_del, const fp_t M_lav,
-                                 const fp_t dt);
+                                   fp_t* d_phi_del_old,
+                                   fp_t* d_phi_lav_old,
+                                   fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
+                                   fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+                                   fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
+                                   const int nx, const int ny, const int nm,
+                                   const fp_t D_CrCr, const fp_t D_CrNb,
+                                   const fp_t D_NbCr, const fp_t D_NbNb,
+                                   const fp_t dt);
 
 /**
  \brief Device kernel to update field variables for delta phase
 */
 __global__ void delta_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                 fp_t* d_phi_del_old,
-                                 fp_t* d_phi_lav_old,
-                                 fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                                 fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                                 fp_t* d_phi_del_new,
-                                 fp_t* d_phi_lav_new,
-                                 fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
-                                 const int nx, const int ny, const int nm,
-                                 const fp_t D_CrCr, const fp_t D_CrNb,
-                                 const fp_t D_NbCr, const fp_t D_NbNb,
-                                 const fp_t alpha, const fp_t kappa, const fp_t omega,
-                                 const fp_t M_del, const fp_t M_lav,
-                                 const fp_t dt);
+                             fp_t* d_phi_del_old,
+                             fp_t* d_phi_lav_old,
+                             fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
+                             fp_t* d_phi_del_new,
+                             const int nx, const int ny, const int nm,
+                             const fp_t alpha, const fp_t kappa, const fp_t omega,
+                             const fp_t M_del, const fp_t M_lav,
+                             const fp_t dt);
 
 /**
  \brief Device kernel to update field variables for Laves phase
 */
 __global__ void laves_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                 fp_t* d_phi_del_old,
-                                 fp_t* d_phi_lav_old,
-                                 fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                                 fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                                 fp_t* d_phi_del_new,
-                                 fp_t* d_phi_lav_new,
-                                 fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
-                                 const int nx, const int ny, const int nm,
-                                 const fp_t D_CrCr, const fp_t D_CrNb,
-                                 const fp_t D_NbCr, const fp_t D_NbNb,
-                                 const fp_t alpha, const fp_t kappa, const fp_t omega,
-                                 const fp_t M_del, const fp_t M_lav,
-                                 const fp_t dt);
+                             fp_t* d_phi_del_old,
+                             fp_t* d_phi_lav_old,
+                             fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
+                             fp_t* d_phi_lav_new,
+                             const int nx, const int ny, const int nm,
+                             const fp_t alpha, const fp_t kappa, const fp_t omega,
+                             const fp_t M_del, const fp_t M_lav,
+                             const fp_t dt);
 
 /**
  \brief Device kernel to update field variables for fictitious composition
 */
-__global__ void fictitious_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                 fp_t* d_phi_del_old,
-                                 fp_t* d_phi_lav_old,
-                                 fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
-                                 fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                                 fp_t* d_phi_del_new,
-                                 fp_t* d_phi_lav_new,
-                                 fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
-                                 const int nx, const int ny, const int nm,
-                                 const fp_t D_CrCr, const fp_t D_CrNb,
-                                 const fp_t D_NbCr, const fp_t D_NbNb,
-                                 const fp_t alpha, const fp_t kappa, const fp_t omega,
-                                 const fp_t M_del, const fp_t M_lav,
-                                 const fp_t dt);
+__global__ void fictitious_kernel(fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+                                  fp_t* d_phi_del_new,
+                                  fp_t* d_phi_lav_new,
+                                  fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
+                                  const int nx, const int ny, const int nm);
 
 /** \cond SuppressGuard */
 #endif /* _CUDA_KERNELS_H_ */
