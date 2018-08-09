@@ -4,7 +4,7 @@
 NVCXX = nvcc
 CXX = g++ -fPIC
 CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -I. -I$(MMSP_PATH)/include
-NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets -maxrregcount=32 --compiler-options="$(CXXFLAGS)"
+NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets --compiler-options="$(CXXFLAGS)"
 LINKS = -lcuda -lm -lpng -lz
 OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o d_parabola625.o parabola625.o
 
