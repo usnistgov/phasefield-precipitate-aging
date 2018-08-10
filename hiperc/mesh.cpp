@@ -121,7 +121,7 @@ void free_arrays(struct HostData* host)
 	free(host->mask_lap);
 }
 
-void swap_pointers(fp_t*** conc_old, fp_t*** conc_new)
+void swap_pointers(fp_t** * conc_old, fp_t** * conc_new)
 {
 	fp_t** temp;
 

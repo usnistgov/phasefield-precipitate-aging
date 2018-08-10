@@ -67,12 +67,12 @@ __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc
  \brief Device kernel to update field variables for delta phase
 */
 __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
-	                         const fp_t& phi_del_old, const fp_t& phi_lav_old,
-	                               fp_t& phi_del_new, const fp_t& inv_fict_det,
-	                         const fp_t& f_del,       const fp_t& f_lav,
-	                         const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
-	                         const fp_t& gam_Cr,      const fp_t& gam_Nb,
-	                         const fp_t& gam_nrg,     const fp_t& alpha,
+                             const fp_t& phi_del_old, const fp_t& phi_lav_old,
+                                   fp_t& phi_del_new, const fp_t& inv_fict_det,
+                             const fp_t& f_del,       const fp_t& f_lav,
+                             const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
+                             const fp_t& gam_Cr,      const fp_t& gam_Nb,
+                             const fp_t& gam_nrg,     const fp_t& alpha,
                              const fp_t& kappa,       const fp_t& omega,
                              const fp_t& M_del,       const fp_t& dt);
 
@@ -80,12 +80,12 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
  \brief Device kernel to update field variables for Laves phase
 */
 __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
-	                         const fp_t& phi_del_old, const fp_t& phi_lav_old,
-	                               fp_t& phi_lav_new, const fp_t& inv_fict_det,
-	                         const fp_t& f_del,       const fp_t& f_lav,
-	                         const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
-	                         const fp_t& gam_Cr,      const fp_t& gam_Nb,
-	                         const fp_t& gam_nrg,     const fp_t& alpha,
+                             const fp_t& phi_del_old, const fp_t& phi_lav_old,
+                                   fp_t& phi_lav_new, const fp_t& inv_fict_det,
+                             const fp_t& f_del,       const fp_t& f_lav,
+                             const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
+                             const fp_t& gam_Cr,      const fp_t& gam_Nb,
+                             const fp_t& gam_nrg,     const fp_t& alpha,
                              const fp_t& kappa,       const fp_t& omega,
                              const fp_t& M_lav,       const fp_t& dt);
 
@@ -94,7 +94,7 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 */
 __device__ void fictitious_kernel(const fp_t& phi_del_new, const fp_t& phi_lav_new,
                                   const fp_t& conc_Cr_new, const fp_t& conc_Nb_new,
-                                        fp_t& gam_Cr_new,        fp_t& gam_Nb_new);
+                                  fp_t& gam_Cr_new,        fp_t& gam_Nb_new);
 
 /**
  \brief Monolithic kernel to update all field variables, minimizing syncthreads

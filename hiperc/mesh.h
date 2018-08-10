@@ -51,7 +51,7 @@ void free_arrays(struct HostData* host);
  an expensive operation, simply trade the top-most pointers. New becomes old,
  old becomes new, with no data lost and in almost no time.
 */
-void swap_pointers(fp_t*** conc_old, fp_t*** conc_new);
+void swap_pointers(fp_t** * conc_old, fp_t** * conc_new);
 
 /**
  \brief Swap pointers to data underlying 1D arrays

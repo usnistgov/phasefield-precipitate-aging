@@ -141,7 +141,7 @@ void generate(int dim, const char* filename)
 			xCr0 = xo + ro * (unidist(mtrand) - 1.);
 			xNb0 = yo + ro * (unidist(mtrand) - 1.);
 			withinRange = (  std::pow(xCr0 - xo, 2.0)
-						   + std::pow(xNb0 - yo, 2.0)
+			               + std::pow(xNb0 - yo, 2.0)
 			               < std::pow(ro, 2.0));
 		}
 
@@ -364,13 +364,13 @@ Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 
 template<int dim, typename T>
 Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID,
-						  const double Ntot,
+                          const double Ntot,
                           const int width,
-						  const int height,
+                          const int height,
                           const double xCr0,
-						  const double xNb0,
+                          const double xNb0,
                           std::uniform_real_distribution<double>& unidist,
-						  std::mt19937& mtrand)
+                          std::mt19937& mtrand)
 {
 	#ifdef MPI_VERSION
 	MPI_Request* reqs = new MPI_Request[NP + 2];
@@ -405,11 +405,13 @@ Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 				const fp_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
 				const fp_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
 				const fp_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav),
-										 xr_del_Cr(P_del, P_lav),
-										 xr_lav_Cr(P_del, P_lav)};
+				                         xr_del_Cr(P_del, P_lav),
+				                         xr_lav_Cr(P_del, P_lav)
+				                        };
 				const fp_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav),
-										 xr_del_Nb(P_del, P_lav),
-										 xr_lav_Nb(P_del, P_lav)};
+				                         xr_del_Nb(P_del, P_lav),
+				                         xr_lav_Nb(P_del, P_lav)
+				                        };
 				origin[0] = tileOrigin[0] + ((j%2==0) ? -d/2 : d/2);
 				origin[1] = tileOrigin[1];
 				comp += embedParticle(GRID, origin, j+NC, r, xrCr[j+1], xrNb[j+1]);
@@ -461,8 +463,8 @@ T gibbs(const MMSP::vector<T>& v)
 		vsq[i] = v[NC+i]*v[NC+i];
 
 	T g  = f_gam * g_gam(gam_Cr, gam_Nb);
-	  g += f_del * g_del(del_Cr, del_Nb);
-	  g += f_lav * g_lav(lav_Cr, lav_Nb);
+	g += f_del * g_del(del_Cr, del_Nb);
+	g += f_lav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
 		g += omega[i] * vsq[i] * pow(1.0 - v[NC+i], 2);
@@ -534,9 +536,9 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GR
 		{
 		#endif
 			summary += mySummary;
-			#ifdef _OPENMP
+		#ifdef _OPENMP
 		}
-			#endif
+		#endif
 	}
 
 	for (int i = 0; i < NC+NP+1; i++)

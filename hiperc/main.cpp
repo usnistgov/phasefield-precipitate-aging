@@ -310,11 +310,11 @@ int main(int argc, char* argv[])
 					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_evolution(&dev, nx, ny, nm, bx, by,
-									 D_Cr[0], D_Cr[1],
-									 D_Nb[0], D_Nb[1],
-									 alpha, kappa[0], omega[0],
-									 Lmob[0], Lmob[1],
-									 dt);
+					                 D_Cr[0], D_Cr[1],
+					                 D_Nb[0], D_Nb[1],
+					                 alpha, kappa[0], omega[0],
+					                 Lmob[0], Lmob[1],
+					                 dt);
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
