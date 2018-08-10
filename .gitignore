@@ -10,6 +10,7 @@
 *.gnumeric
 *.h
 *.log
+*.nvvp
 *.o
 *.old
 *.out
@@ -23,6 +24,7 @@
 
 # simulation executables
 alloy625
+cuda625
 debug
 ibtest
 iserial
