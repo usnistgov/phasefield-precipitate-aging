@@ -380,20 +380,27 @@ Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID,
 	Composition comp;
 	MMSP::vector<int> tileOrigin(dim, 0);
 	int n = 0;
+	const int offset = 8;
 
 	for (tileOrigin[1] = MMSP::g0(GRID,1) - MMSP::g0(GRID,1) % height; tileOrigin[1] < 1 + MMSP::g1(GRID,1); tileOrigin[1] += height) {
-		for (tileOrigin[0] = MMSP::g0(GRID,0) - (n%2)*(3*width)/8 - MMSP::g0(GRID,0) % width; tileOrigin[0] < 1 + MMSP::g1(GRID,0); tileOrigin[0] += width) {
+		for (tileOrigin[0] = MMSP::g0(GRID,0) - (n%2)*width/2 - MMSP::g0(GRID,0) % width; tileOrigin[0] < 1 + MMSP::g1(GRID,0); tileOrigin[0] += width) {
 			MMSP::vector<int> origin = tileOrigin;
+			// avoid an equilibrium composition gradient by ensuring particles are locally paired
+			if (origin[0] < MMSP::x0(GRID,0)+offset/2 || origin[0] > MMSP::x1(GRID,0)-offset/2 ||
+				origin[1] < MMSP::x0(GRID,1)+offset/2 || origin[1] > MMSP::x1(GRID,1)-offset/2) {
+				continue;
+			}
+
 			for (int j = 0; j < NP; j++) {
 				/*
 				// Set constant precipitate radii and separation
 				int r = rPrecip[0];
-				int d = 8 + height / 2;
+				int d = offset + height / 2;
 				*/
 
 				// Set precipitate radii and separation with jitter
-				const int d = 8 + height / 2 - (unidist(mtrand) * height)/4;
-				const int r = std::floor((3. + 4.5 * unidist(mtrand)) * (5.0e-9 / meshres));
+				const int d = offset + height * (1. - unidist(mtrand));
+				const int r = std::floor((2. + 6.5 * unidist(mtrand)) * (5.0e-9 / meshres));
 
 				#ifdef MPI_VERSION
 				MPI::COMM_WORLD.Barrier();
