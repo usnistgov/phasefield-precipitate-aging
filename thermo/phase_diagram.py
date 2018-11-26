@@ -15,10 +15,8 @@
 # versions bear some notice that they have been modified.                           #
 #####################################################################################
 
-# Usage: python thermo/phase_diagram.py
+# Usage: python phase_diagram.py
 
-import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from CALPHAD_energies import *
 
 from tqdm import tqdm

@@ -23,9 +23,6 @@ import numpy as np
 from os import path, stat
 from sys import argv
 import matplotlib.pylab as plt
-
-import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from constants import *
 
 # Plot ternary axes and labels

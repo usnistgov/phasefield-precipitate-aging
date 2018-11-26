@@ -93,7 +93,7 @@ interpolator = x**3 * (6.*x**2 - 15.*x + 10.)
 dinterpdx = 30. * x**2 * (1.0 - x)**2
 
 # Read CALPHAD database from disk, specify phases and elements of interest
-tdb = Database('thermo/Du_Cr-Nb-Ni_simple.tdb')
+tdb = Database('Du_Cr-Nb-Ni_simple.tdb')
 elements = ['CR', 'NB', 'NI']
 
 species = list(set([i for c in tdb.phases['FCC_A1'].constituents for i in c]))
