@@ -1,68 +1,49 @@
-# Makefile
-# GNU makefile for Ni-base superalloy decomposition
+# GNU Makefile for Ni-base superalloy evolution using solid-state
+# multi-phase-field methods in C++ with OpenMP and CUDA.
 # Questions/comments to trevor.keller@nist.gov (Trevor Keller)
-# Compiler optimizations after http://www.nersc.gov/users/computational-systems/retired-systems/hopper/performance-and-optimization/compiler-comparisons/
 
-# compilers: GCC, Intel, MPI
-gcompiler = g++
-icompiler = icc
-pcompiler = mpicxx
+NVCXX = nvcc
+CXX = g++ -fPIC
+CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -fopenmp -I. -I$(MMSP_PATH)/include
+NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets --compiler-options="$(CXXFLAGS)"
+LINKS = -lcuda -lm -lpng -lz
 
-# flags: common, debug, GNU, Intel, and MPI
-stdflags  = -Wall -pedantic -std=c++11 -I$(MMSP_PATH)/include -I..
-dbgflags  = $(stdflags) -O0 -pg
-gccflags = $(stdflags) -pedantic -O3 -funroll-loops -ffast-math
-iccflags = $(stdflags) -w3 -diag-disable:remark -O3 -funroll-loops -qopt-prefetch
-mpiflags = $(gccflags) -I$(MPI_PATH) -include mpi.h
+OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o d_parabola625.o parabola625.o
 
-deps = alloy625.h
+# Executable
+alloy625: src/alloy625.cpp $(OBJS)
+	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
+profile: CXXFLAGS += -O0 -g
+profile: NVCXXFLAGS += -O0 -g -lineinfo -arch=$(CUDARCH)
+profile: cuda625
 
-# === WORKSTATION EXECUTABLES ===
+# CUDA objects
+boundaries.o: src/cuda_boundaries.cu
+	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
-all: alloy625 analysis
-.PHONY: all alloy625.h
+data.o: src/cuda_data.cu
+	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
-# free energy landscape
-parabola625.c: CALPHAD_energies.py
-	python2 $<
+discretization.o: src/cuda_discretization.cu
+	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
-# default program (shared memory, OpenMP)
-alloy625: alloy625.cpp $(deps)
-	$(icompiler) $< -o $@ $(iccflags) -lz -qopenmp
+d_parabola625.o: src/parabola625.cu
+	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
-# profiling program (no parallelism or optimization)
-serial: alloy625.cpp $(deps)
-	$(gcompiler) $< -o $@ $(dbgflags) -lz
+# Common objects
+mesh.o: src/mesh.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+numerics.o: src/numerics.cpp
+	$(CXX) $(CXXFLAGS) -c $<
 
-# === CLUSTER EXECUTABLES ===
+output.o: src/output.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# shared thread memory (OpenMP) parallelism
-smp: alloy625.cpp $(deps)
-	$(gcompiler) $< -o $@ $(gccflags) -lz -fopenmp
-
-# distributed node memory (MPI), distributed thread memory (MPI) parallelism
-parallel: alloy625.cpp $(deps)
-	$(pcompiler) $< -o $@ $(mpiflags) -lz
-
-# distributed node memory (MPI), shared thread memory (OpenMP) parallelism
-smpi: alloy625.cpp $(deps)
-	$(pcompiler) $< -o $@ $(mpiflags) -lz -fopenmp
-
-# distributed node memory (MPI), shared thread memory (OpenMP) parallelism
-ismpi: alloy625.cpp $(deps)
-	$(pcompiler) $< -o $@ $(iccflags) -include mpi.h -L/usr/lib64 -lz -fopenmp
-
-
-# === ANALYSIS EXECUTABLES ===
-
-.PHONY: analysis
-analysis:
-	$(MAKE) -C analysis
-
-# === CLEANUP ===
+parabola625.o: src/parabola625.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 .PHONY: clean
 clean:
-	rm -f alloy625 ismpi parallel serial smp smpi *.o *.pyc
+	rm -f alloy625 *.o

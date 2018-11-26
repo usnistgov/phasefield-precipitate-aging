@@ -33,7 +33,7 @@
 #include "omp.h"
 #endif
 #include "MMSP.hpp"
-#include "cuda625.hpp"
+#include "alloy625.hpp"
 #include "cuda_data.h"
 #include "mesh.h"
 #include "numerics.h"
