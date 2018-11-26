@@ -20,9 +20,6 @@
 from tqdm import tqdm
 from pycalphad import equilibrium
 from pycalphad import variables as v
-
-import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from constants import *
 
 Titles = (r'$\gamma$', r'$\delta$', r'Laves')
