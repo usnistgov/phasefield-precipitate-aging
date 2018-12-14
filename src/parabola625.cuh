@@ -1,5 +1,5 @@
 /******************************************************************************
- *                      Code generated with sympy 1.1.1                       *
+ *                       Code generated with sympy 1.3                        *
  *                                                                            *
  *              See http://www.sympy.org/ for more information.               *
  *                                                                            *
@@ -7,8 +7,8 @@
  ******************************************************************************/
 
 
-#ifndef PRECIPITATEAGING__PARABOLA625__H
-#define PRECIPITATEAGING__PARABOLA625__H
+#ifndef PRECIPITATEAGING__.._SRC_PARABOLA625__H
+#define PRECIPITATEAGING__.._SRC_PARABOLA625__H
 
 __device__ double d_h(double x);
 __device__ double d_hprime(double x);

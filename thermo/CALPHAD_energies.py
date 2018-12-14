@@ -75,7 +75,7 @@ from sympy.utilities.lambdify import lambdify
 
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
-from sympy import diff, Eq, expand, factor, fraction, Matrix, powsimp, symbols
+from sympy import diff, Eq, expand, factor, fraction, Matrix, symbols
 from sympy.abc import x, y
 from sympy.core.numbers import pi
 from sympy.functions.elementary.complexes import Abs
