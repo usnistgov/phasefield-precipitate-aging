@@ -8,7 +8,8 @@ CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -fopenmp -I. -I$(MMSP_PAT
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets --compiler-options="$(CXXFLAGS)"
 LINKS = -lcuda -lm -lpng -lz
 
-OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o d_parabola625.o parabola625.o
+OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o \
+       nucleation.o d_parabola625.o parabola625.o
 
 # Executable
 alloy625: alloy625.cpp $(OBJS)
@@ -44,6 +45,9 @@ output.o: output.cpp
 parabola625.o: parabola625.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+nucleation.o: nucleation.c
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 .PHONY: clean
 clean:
-	rm -f alloy625 *.o
+	rm -f alloy625 $(OBJS)

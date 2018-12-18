@@ -3,12 +3,10 @@
 *.a
 *.aux
 *.bak
-*.c
 *.csv
 *.dat
 *.directory
 *.gnumeric
-*.h
 *.log
 *.nvvp
 *.o
@@ -21,6 +19,8 @@
 *.sh
 *.txt
 *.vti
+src/parabola625.c
+thermo/*.?
 
 # simulation executables
 alloy625

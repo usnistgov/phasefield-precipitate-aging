@@ -1,8 +1,11 @@
 #!/bin/bash
 # Prepend CUDA directives on SymPy functions
 
-cp ../src/parabola625.h parabola625.h
-cp ../src/parabola625.c parabola625.cpp
+cp ../thermo/parabola625.h parabola625.h
+cp ../thermo/parabola625.c parabola625.cpp
+
+cp ../thermo/nucleation.h nucleation.h
+cp ../thermo/nucleation.c nucleation.c
 
 sed "s/^double /__device__ double d_/g" parabola625.h   > parabola625.cuh
 sed "s/^double /__device__ double d_/g" parabola625.cpp > parabola625.cu

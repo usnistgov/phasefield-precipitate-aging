@@ -70,4 +70,4 @@ codegen([
     ('k1', k1), ('k2', k2),
     # Bell curves
     ('bell_curve', bell_f), ('bell_integral', bell_F), ('bell_average', bell_a)
-        ], language='C', prefix='../src/nucleation', project='PrecipitateAging', to_files=True)
+        ], language='C', prefix='nucleation', project='PrecipitateAging', to_files=True)
