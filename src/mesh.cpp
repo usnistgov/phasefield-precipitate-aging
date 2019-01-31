@@ -42,10 +42,8 @@ void make_arrays(struct HostData* host,
 	host->phi_lav_old = (fp_t**)calloc(nx, sizeof(fp_t*));
 	host->phi_lav_new = (fp_t**)calloc(nx, sizeof(fp_t*));
 
-	host->gam_Cr_old  = (fp_t**)calloc(nx, sizeof(fp_t*));
-	host->gam_Cr_new  = (fp_t**)calloc(nx, sizeof(fp_t*));
-	host->gam_Nb_old  = (fp_t**)calloc(nx, sizeof(fp_t*));
-	host->gam_Nb_new  = (fp_t**)calloc(nx, sizeof(fp_t*));
+	host->gam_Cr  = (fp_t**)calloc(nx, sizeof(fp_t*));
+	host->gam_Nb  = (fp_t**)calloc(nx, sizeof(fp_t*));
 
 	host->mask_lap    = (fp_t**)calloc(nm, sizeof(fp_t*));
 
@@ -60,10 +58,8 @@ void make_arrays(struct HostData* host,
 	(host->phi_lav_old)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 	(host->phi_lav_new)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 
-	(host->gam_Cr_old)[0]  = (fp_t*)calloc(nx * ny, sizeof(fp_t));
-	(host->gam_Cr_new)[0]  = (fp_t*)calloc(nx * ny, sizeof(fp_t));
-	(host->gam_Nb_old)[0]  = (fp_t*)calloc(nx * ny, sizeof(fp_t));
-	(host->gam_Nb_new)[0]  = (fp_t*)calloc(nx * ny, sizeof(fp_t));
+	(host->gam_Cr)[0]  = (fp_t*)calloc(nx * ny, sizeof(fp_t));
+	(host->gam_Nb)[0]  = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 
 	(host->mask_lap)[0]    = (fp_t*)calloc(nm * nm, sizeof(fp_t));
 
@@ -79,10 +75,8 @@ void make_arrays(struct HostData* host,
 		(host->phi_lav_old)[i] = &(host->phi_lav_old[0])[nx * i];
 		(host->phi_lav_new)[i] = &(host->phi_lav_new[0])[nx * i];
 
-		(host->gam_Cr_old)[i] = &(host->gam_Cr_old[0])[nx * i];
-		(host->gam_Cr_new)[i] = &(host->gam_Cr_new[0])[nx * i];
-		(host->gam_Nb_old)[i] = &(host->gam_Nb_old[0])[nx * i];
-		(host->gam_Nb_new)[i] = &(host->gam_Nb_new[0])[nx * i];
+		(host->gam_Cr)[i] = &(host->gam_Cr[0])[nx * i];
+		(host->gam_Nb)[i] = &(host->gam_Nb[0])[nx * i];
 	}
 
 	for (i = 1; i < nm; i++) {
@@ -100,10 +94,8 @@ void free_arrays(struct HostData* host)
 	free((host->phi_del_new)[0]);
 	free((host->phi_lav_old)[0]);
 	free((host->phi_lav_new)[0]);
-	free((host->gam_Cr_old )[0]);
-	free((host->gam_Cr_new )[0]);
-	free((host->gam_Nb_old )[0]);
-	free((host->gam_Nb_new )[0]);
+	free((host->gam_Cr     )[0]);
+	free((host->gam_Nb     )[0]);
 	free((host->mask_lap   )[0]);
 
 	free(host->conc_Cr_old);
@@ -114,10 +106,8 @@ void free_arrays(struct HostData* host)
 	free(host->phi_del_new);
 	free(host->phi_lav_old);
 	free(host->phi_lav_new);
-	free(host->gam_Cr_old);
-	free(host->gam_Cr_new);
-	free(host->gam_Nb_old);
-	free(host->gam_Nb_new);
+	free(host->gam_Cr);
+	free(host->gam_Nb);
 	free(host->mask_lap);
 }
 

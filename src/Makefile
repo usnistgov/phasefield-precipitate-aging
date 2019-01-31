@@ -17,7 +17,7 @@ alloy625: alloy625.cpp $(OBJS)
 
 profile: CXXFLAGS += -O0 -g
 profile: NVCXXFLAGS += -O0 -g -lineinfo -arch=$(CUDARCH)
-profile: cuda625
+profile: alloy625
 
 # CUDA objects
 boundaries.o: cuda_boundaries.cu
