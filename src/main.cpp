@@ -287,8 +287,8 @@ int main(int argc, char* argv[])
 				host.conc_Nb_old[j][i] = gridN[1];
 				host.phi_del_old[j][i] = gridN[2];
 				host.phi_lav_old[j][i] = gridN[3];
-				host.gam_Cr_old[j][i]  = gridN[4];
-				host.gam_Nb_old[j][i]  = gridN[5];
+				host.gam_Cr[j][i]      = gridN[4];
+				host.gam_Nb[j][i]      = gridN[5];
 			}
 
 			// initialize GPU
@@ -310,18 +310,21 @@ int main(int argc, char* argv[])
 					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_evolution(&dev, nx, ny, nm, bx, by,
-					                 D_Cr[0], D_Cr[1],
-					                 D_Nb[0], D_Nb[1],
+					                 D_Cr[0], D_Cr[1], D_Nb[0], D_Nb[1],
 					                 alpha, kappa[0], omega[0],
-					                 Lmob[0], Lmob[1],
-					                 dt);
+					                 Lmob[0], Lmob[1], dt);
+
+					device_nucleation(&dev, nx, ny, nm, bx, by,
+									  D_Cr[0], D_Nb[1],
+									  sigma, aFccNi,
+									  MMSP::dx(grid), MMSP::dy(grid), dt);
+
+					device_fictitious(&dev, nx, ny, nm, bx, by);
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
-					swap_pointers_1D(&(dev.gam_Cr_old),  &(dev.gam_Cr_new));
-					swap_pointers_1D(&(dev.gam_Nb_old),  &(dev.gam_Nb_new));
 
 					// === Finish Architecture-Specific Kernel ===
 				}
@@ -353,8 +356,8 @@ int main(int argc, char* argv[])
 					gridN[1] = host.conc_Nb_new[j][i];
 					gridN[2] = host.phi_del_new[j][i];
 					gridN[3] = host.phi_lav_new[j][i];
-					gridN[4] = host.gam_Cr_new[j][i];
-					gridN[5] = host.gam_Nb_new[j][i];
+					gridN[4] = host.gam_Cr[j][i];
+					gridN[5] = host.gam_Nb[j][i];
 				}
 				MMSP::output(grid, filename);
 				print_progress(increment, increment);

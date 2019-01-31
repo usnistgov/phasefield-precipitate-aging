@@ -24,6 +24,14 @@ __device__ double d_hprime(double x) {
 
 }
 
+__device__ double d_kT() {
+
+   double kT_result;
+   kT_result = 1.5782883556379999e-20;
+   return kT_result;
+
+}
+
 __device__ double d_xe_gam_Cr() {
 
    double xe_gam_Cr_result;

@@ -12,6 +12,7 @@
 
 double h(double x);
 double hprime(double x);
+double kT();
 double xe_gam_Cr();
 double xe_gam_Nb();
 double xe_del_Cr();

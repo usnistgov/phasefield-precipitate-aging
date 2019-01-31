@@ -23,7 +23,6 @@
 */
 
 #include "cuda_data.h"
-
 #include "cuda_kernels.cuh"
 
 void init_cuda(struct HostData* host,
@@ -40,10 +39,8 @@ void init_cuda(struct HostData* host,
 	cudaMalloc((void**) &(dev->phi_lav_old), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->phi_lav_new), nx * ny * sizeof(fp_t));
 
-	cudaMalloc((void**) &(dev->gam_Cr_old), nx * ny * sizeof(fp_t));
-	cudaMalloc((void**) &(dev->gam_Cr_new), nx * ny * sizeof(fp_t));
-	cudaMalloc((void**) &(dev->gam_Nb_old), nx * ny * sizeof(fp_t));
-	cudaMalloc((void**) &(dev->gam_Nb_new), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->gam_Cr), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->gam_Cr), nx * ny * sizeof(fp_t));
 
 	/* transfer mask and boundary conditions to protected memory on GPU */
 	cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t));
@@ -59,9 +56,9 @@ void init_cuda(struct HostData* host,
 	cudaMemcpy(dev->phi_lav_old, host->phi_lav_old[0], nx * ny * sizeof(fp_t),
 	           cudaMemcpyHostToDevice);
 
-	cudaMemcpy(dev->gam_Cr_old, host->gam_Cr_old[0], nx * ny * sizeof(fp_t),
+	cudaMemcpy(dev->gam_Cr, host->gam_Cr[0], nx * ny * sizeof(fp_t),
 	           cudaMemcpyHostToDevice);
-	cudaMemcpy(dev->gam_Nb_old, host->gam_Nb_old[0], nx * ny * sizeof(fp_t),
+	cudaMemcpy(dev->gam_Nb, host->gam_Nb[0], nx * ny * sizeof(fp_t),
 	           cudaMemcpyHostToDevice);
 }
 
@@ -78,8 +75,6 @@ void free_cuda(struct CudaData* dev)
 	cudaFree(dev->phi_lav_old);
 	cudaFree(dev->phi_lav_new);
 
-	cudaFree(dev->gam_Cr_old);
-	cudaFree(dev->gam_Cr_new);
-	cudaFree(dev->gam_Nb_old);
-	cudaFree(dev->gam_Nb_new);
+	cudaFree(dev->gam_Cr);
+	cudaFree(dev->gam_Nb);
 }

@@ -50,6 +50,7 @@ const fp_t LinStab = 1.0 / 19.42501; // threshold of linear (von Neumann) stabil
 //                     Cr        Nb
 const fp_t D_Cr[NC] = {2.16e-15, 0.56e-15}; // first column of diffusivity matrix
 const fp_t D_Nb[NC] = {2.97e-15, 4.29e-15}; // second column of diffusivity matrix
+const fp_t aFccNi = 0.352e-9;               // lattice spacing of FCC nickel (m)
 
 // Define st.dev. of bell curves for alloying element segregation
 //                       Cr      Nb

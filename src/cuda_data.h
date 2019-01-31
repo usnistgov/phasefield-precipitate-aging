@@ -41,6 +41,11 @@ void init_cuda(struct HostData* host,
 void free_cuda(struct CudaData* dev);
 
 /**
+   \brief Compute number of tiles along an axis
+*/
+int nTiles(int domain_size, int tile_loc, int mask_size);
+
+/**
  \brief Apply boundary conditions on device
 */
 void device_boundaries(struct CudaData* dev,
@@ -72,6 +77,23 @@ void device_evolution(struct CudaData* dev,
                       const fp_t alpha, const fp_t kappa, const fp_t omega,
                       const fp_t M_del, const fp_t M_lav,
                       const fp_t dt);
+
+/**
+ \brief Stochastically seed nuclei on device
+*/
+void device_nucleation(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by,
+                       const fp_t D_CrCr, const fp_t D_NbNb,
+                       const fp_t* sigma, const fp_t unit_a,
+                       const fp_t dx, const fp_t dy, const fp_t dt);
+
+/**
+ \brief Update fictitious compositions on device
+*/
+void device_fictitious(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by);
 
 /**
   \brief Read data from device

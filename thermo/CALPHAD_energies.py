@@ -323,6 +323,8 @@ dx_r_lav_Nb = xr[5]
 codegen([# Interpolator
          ('h', interpolator),
          ('hprime', dinterpdx),
+         # temperature
+         ('kT', 1.38064852e-23 * temp),
          # Equilibrium Compositions
          ('xe_gam_Cr', xe_gam_Cr),  ('xe_gam_Nb', xe_gam_Nb),
          ('xe_del_Cr', xe_del_Cr),  ('xe_del_Nb', xe_del_Nb),

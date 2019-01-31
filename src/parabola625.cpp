@@ -24,6 +24,14 @@ double hprime(double x) {
 
 }
 
+double kT() {
+
+   double kT_result;
+   kT_result = 1.5782883556379999e-20;
+   return kT_result;
+
+}
+
 double xe_gam_Cr() {
 
    double xe_gam_Cr_result;
