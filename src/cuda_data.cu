@@ -41,6 +41,8 @@ void init_cuda(struct HostData* host,
 
 	cudaMalloc((void**) &(dev->gam_Cr), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->gam_Nb), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->gam_Cr_lap), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->gam_Nb_lap), nx * ny * sizeof(fp_t));
 
 	/* transfer mask and boundary conditions to protected memory on GPU */
 	cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t));
@@ -77,4 +79,6 @@ void free_cuda(struct CudaData* dev)
 
 	cudaFree(dev->gam_Cr);
 	cudaFree(dev->gam_Nb);
+	cudaFree(dev->gam_Cr_lap);
+	cudaFree(dev->gam_Nb_lap);
 }

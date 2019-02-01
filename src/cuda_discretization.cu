@@ -99,16 +99,16 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
 
 __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                                          fp_t& conc_Cr_new,       fp_t& conc_Nb_new,
-                                   const fp_t& gam_Cr,      const fp_t& gam_Nb,
+                                   const fp_t& gam_Cr_lap,  const fp_t& gam_Nb_lap,
                                    const fp_t& D_CrCr,      const fp_t& D_CrNb,
                                    const fp_t& D_NbCr,      const fp_t& D_NbNb,
                                    const fp_t& dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
-	const fp_t lap_mu_Cr = D_CrCr * gam_Cr
-	                       + D_NbCr * gam_Nb;
-	const fp_t lap_mu_Nb = D_CrNb * gam_Cr
-	                       + D_NbNb * gam_Nb;
+	const fp_t lap_mu_Cr = D_CrCr * gam_Cr_lap
+	                     + D_NbCr * gam_Nb_lap;
+	const fp_t lap_mu_Nb = D_CrNb * gam_Cr_lap
+	                     + D_NbNb * gam_Nb_lap;
 
 	conc_Cr_new = conc_Cr_old + dt * lap_mu_Cr;
 	conc_Nb_new = conc_Nb_old + dt * lap_mu_Nb;
@@ -410,9 +410,9 @@ void device_laplacian(struct CudaData* dev,
 	    dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
 
 	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
-	    dev->gam_Cr, dev->gam_Cr, nx, ny, nm);
+	    dev->gam_Cr, dev->gam_Cr_lap, nx, ny, nm);
 	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
-	    dev->gam_Nb, dev->gam_Nb, nx, ny, nm);
+	    dev->gam_Nb, dev->gam_Nb_lap, nx, ny, nm);
 }
 
 void device_evolution(struct CudaData* dev,

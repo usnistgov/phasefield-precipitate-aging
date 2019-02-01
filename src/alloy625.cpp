@@ -100,7 +100,7 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		const int Nx = 4000;
-		const int Ny = 2400;
+		const int Ny = 2500;
 		double Ntot = 1.0;
 		GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
 		for (int d = 0; d < dim; d++) {
