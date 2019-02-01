@@ -28,9 +28,8 @@
 #include "cuda_kernels.cuh"
 
 __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
-                                fp_t* d_phi_del,
-                                fp_t* d_phi_lav,
-                                fp_t* d_gam_Cr, fp_t* d_gam_Nb,
+                                fp_t* d_phi_del, fp_t* d_phi_lav,
+                                fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
                                 const int nx,
                                 const int ny,
                                 const int nm)
@@ -56,8 +55,8 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			d_conc_Nb[row * nx + ilo-1] = d_conc_Nb[row * nx + ilo];
 			d_phi_del[row * nx + ilo-1] = d_phi_del[row * nx + ilo];
 			d_phi_lav[row * nx + ilo-1] = d_phi_lav[row * nx + ilo];
-			d_gam_Cr[row * nx + ilo-1]  = d_gam_Cr[row * nx + ilo];
-			d_gam_Nb[row * nx + ilo-1]  = d_gam_Nb[row * nx + ilo];
+			d_gam_Cr[ row * nx + ilo-1] = d_gam_Cr[ row * nx + ilo];
+			d_gam_Nb[ row * nx + ilo-1] = d_gam_Nb[ row * nx + ilo];
 		}
 		if (ihi+1 == col && row < ny) {
 			/* right condition */
@@ -65,8 +64,8 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			d_conc_Nb[row * nx + ihi+1] = d_conc_Nb[row * nx + ihi];
 			d_phi_del[row * nx + ihi+1] = d_phi_del[row * nx + ihi];
 			d_phi_lav[row * nx + ihi+1] = d_phi_lav[row * nx + ihi];
-			d_gam_Cr[row * nx + ihi+1]  = d_gam_Cr[row * nx + ihi];
-			d_gam_Nb[row * nx + ihi+1]  = d_gam_Nb[row * nx + ihi];
+			d_gam_Cr[ row * nx + ihi+1] = d_gam_Cr[ row * nx + ihi];
+			d_gam_Nb[ row * nx + ihi+1] = d_gam_Nb[ row * nx + ihi];
 		}
 		if (jlo-1 == row && col < nx) {
 			/* bottom condition */
@@ -74,15 +73,15 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			d_conc_Nb[(jlo-1) * nx + col] = d_conc_Nb[jlo * nx + col];
 			d_phi_del[(jlo-1) * nx + col] = d_phi_del[jlo * nx + col];
 			d_phi_lav[(jlo-1) * nx + col] = d_phi_lav[jlo * nx + col];
-			d_gam_Cr[(jlo-1) * nx + col]  = d_gam_Cr[jlo * nx + col];
-			d_gam_Nb[(jlo-1) * nx + col]  = d_gam_Nb[jlo * nx + col];
+			d_gam_Cr[ (jlo-1) * nx + col] = d_gam_Cr[ jlo * nx + col];
+			d_gam_Nb[ (jlo-1) * nx + col] = d_gam_Nb[ jlo * nx + col];
 		}
 		if (jhi+1 == row && col < nx) {
 			/* top condition */
 			d_conc_Cr[(jhi+1) * nx + col] = d_conc_Cr[jhi * nx + col];
 			d_conc_Nb[(jhi+1) * nx + col] = d_conc_Nb[jhi * nx + col];
-			d_gam_Cr[(jhi+1) * nx + col] = d_gam_Cr[jhi * nx + col];
-			d_gam_Nb[(jhi+1) * nx + col] = d_gam_Nb[jhi * nx + col];
+			d_gam_Cr[ (jhi+1) * nx + col] = d_gam_Cr[ jhi * nx + col];
+			d_gam_Nb[ (jhi+1) * nx + col] = d_gam_Nb[ jhi * nx + col];
 			d_phi_del[(jhi+1) * nx + col] = d_phi_del[jhi * nx + col];
 			d_phi_lav[(jhi+1) * nx + col] = d_phi_lav[jhi * nx + col];
 		}

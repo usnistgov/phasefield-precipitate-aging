@@ -38,9 +38,9 @@
 
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
-int nTiles(int domain_size, int tile_loc, int mask_size)
+float nTiles(int domain_size, int tile_loc, int mask_size)
 {
-	return ceil(float(domain_size) / (tile_loc - mask_size + 1));
+  return ceil(float(domain_size) / float(tile_loc - mask_size + 1));
 }
 
 __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
@@ -359,14 +359,13 @@ void device_boundaries(struct CudaData* dev,
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
-	               nTiles(nx, tile_size.y, nm),
+	               nTiles(ny, tile_size.y, nm),
 	               1);
 
 	boundary_kernel<<<num_tiles,tile_size>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
-	    dev->phi_del_old,
-	    dev->phi_lav_old,
-	    dev->gam_Cr, dev->gam_Nb,
+	    dev->phi_del_old, dev->phi_lav_old,
+	    dev->gam_Cr,      dev->gam_Nb,
 	    nx, ny, nm
 	);
 }
@@ -378,13 +377,12 @@ void device_laplacian_boundaries(struct CudaData* dev,
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
-	               nTiles(nx, tile_size.y, nm),
+	               nTiles(ny, tile_size.y, nm),
 	               1);
 
 	boundary_kernel<<<num_tiles,tile_size>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    dev->phi_del_new,
-	    dev->phi_lav_new,
+	    dev->phi_del_new, dev->phi_lav_new,
 	    dev->gam_Cr, dev->gam_Nb,
 	    nx, ny, nm
 	);
@@ -397,7 +395,7 @@ void device_laplacian(struct CudaData* dev,
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
-	               nTiles(nx, tile_size.y, nm),
+	               nTiles(ny, tile_size.y, nm),
 	               1);
 	size_t buf_size = (tile_size.x + nm) * (tile_size.y + nm) * sizeof(fp_t);
 
@@ -429,7 +427,7 @@ void device_evolution(struct CudaData* dev,
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
-	               nTiles(nx, tile_size.y, nm),
+	               nTiles(ny, tile_size.y, nm),
 	               1);
 	evolution_kernel<<<num_tiles,tile_size>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
@@ -455,7 +453,7 @@ void device_nucleation(struct CudaData* dev,
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
-	               nTiles(nx, tile_size.y, nm),
+	               nTiles(ny, tile_size.y, nm),
 	               1);
 	nucleation_kernel<<<num_tiles,tile_size>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
@@ -473,7 +471,7 @@ void device_fictitious(struct CudaData* dev,
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
-	               nTiles(nx, tile_size.y, nm),
+	               nTiles(ny, tile_size.y, nm),
 	               1);
 
 	fictitious_kernel<<<num_tiles,tile_size>>>(dev->conc_Cr_new, dev->conc_Nb_new,

@@ -43,7 +43,7 @@ void free_cuda(struct CudaData* dev);
 /**
    \brief Compute number of tiles along an axis
 */
-int nTiles(int domain_size, int tile_loc, int mask_size);
+float nTiles(int domain_size, int tile_loc, int mask_size);
 
 /**
  \brief Apply boundary conditions on device

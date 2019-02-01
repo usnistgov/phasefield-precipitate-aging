@@ -40,7 +40,7 @@ void init_cuda(struct HostData* host,
 	cudaMalloc((void**) &(dev->phi_lav_new), nx * ny * sizeof(fp_t));
 
 	cudaMalloc((void**) &(dev->gam_Cr), nx * ny * sizeof(fp_t));
-	cudaMalloc((void**) &(dev->gam_Cr), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->gam_Nb), nx * ny * sizeof(fp_t));
 
 	/* transfer mask and boundary conditions to protected memory on GPU */
 	cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t));
