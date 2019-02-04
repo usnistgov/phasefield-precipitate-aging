@@ -163,6 +163,27 @@ void generate(int dim, const char* filename)
 			}
 		}
 
+		// Embed two particles as a sanity check
+		const int r = 32;
+		x[0] = g0(initGrid, 0) / 2;
+		x[1] = 0;
+		for (int i = -r; i < r; i++) {
+			for (int j = -r; j < r; j++) {
+				vector<int> y(x);
+				y[0] += i;
+				y[1] += j;
+				if ((y[0]-x[0])*(y[0]-x[0]) + (y[1]-x[1])*(y[1]-x[1]) <= r*r) {
+					initGrid(y)[2] = 1.;
+					initGrid(y)[0] = xe_del_Cr();
+					initGrid(y)[1] = xe_del_Nb();
+					y[0] *= -1;
+					initGrid(y)[3] = 1.;
+					initGrid(y)[0] = xe_lav_Cr();
+					initGrid(y)[1] = xe_lav_Nb();
+				}
+			}
+		}
+
 		ghostswap(initGrid);
 
 		vector<double> summary = summarize_fields(initGrid);

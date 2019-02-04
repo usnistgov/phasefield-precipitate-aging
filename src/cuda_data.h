@@ -85,7 +85,8 @@ void device_nucleation(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by,
                        const fp_t D_CrCr, const fp_t D_NbNb,
-                       const fp_t* sigma, const fp_t unit_a,
+                       const fp_t sigma_del, const fp_t sigma_lav,
+                       const fp_t unit_a,
                        const fp_t dx, const fp_t dy, const fp_t dt);
 
 /**

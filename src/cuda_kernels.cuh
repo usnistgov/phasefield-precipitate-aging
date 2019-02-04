@@ -121,7 +121,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   const int nx, const int ny, const int nm,
                                   const int bx, const int by,
                                   const fp_t D_CrCr, const fp_t D_NbNb,
-                                  const fp_t* sigma, const fp_t unit_a,
+                                  const fp_t sigma_del, const fp_t sigma_lav,
+                                  const fp_t unit_a,
                                   const fp_t dx, const fp_t dy, const fp_t dt);
 /**
  \brief Device kernel to update fictitious compositions in matrix phase

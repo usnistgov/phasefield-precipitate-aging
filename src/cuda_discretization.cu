@@ -280,7 +280,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   fp_t* d_phi_del, fp_t* d_phi_lav,
                                   const int nx, const int ny, const int nm,
                                   const fp_t D_CrCr, const fp_t D_NbNb,
-                                  const fp_t* sigma, const fp_t unit_a,
+                                  const fp_t sigma_del, const fp_t sigma_lav,
+                                  const fp_t unit_a,
                                   const fp_t dx, const fp_t dy, const fp_t dt)
 {
 	/* determine indices on which to operate */
@@ -294,6 +295,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	curand_init((unsigned long long)clock(), x, 0, &state);
 
 	for (int k = 0; k < 2; k++) {
+      const fp_t sigma = (k == 0) ? sigma_del : sigma_lav;
 		if (x < nx && y < ny) {
 			const fp_t phi_gam = 1.0 - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
 			if (phi_gam < 1.0e-10) {
@@ -304,18 +306,18 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 				fp_t par_xCr = 0., par_xNb = 0.;
 				nucleation_driving_force(d_conc_Cr[idx], d_conc_Nb[idx], k,
 				                         &par_xCr, &par_xNb, &dG_chem);
-				const fp_t denom = unit_a * dG_chem - 2. * sigma[k];
+				const fp_t denom = unit_a * dG_chem - 2. * sigma;
 				const fp_t Vatom = unit_a*unit_a*unit_a / 4.;
-				const fp_t Rstar = (sigma[k] * unit_a) / denom;
-				/* const fp_t dGstar = (M_PI * sigma[k]*sigma[k] * unit_a*unit_a) / denom; */
+				const fp_t Rstar = (sigma * unit_a) / denom;
+				/* const fp_t dGstar = (M_PI * sigma*sigma * unit_a*unit_a) / denom; */
 				const fp_t Zeldov = Vatom * sqrt(6. * denom*denom*denom / d_kT())
-                                  / (M_PI*M_PI * unit_a*unit_a * sigma[k]);
+                                  / (M_PI*M_PI * unit_a*unit_a * sigma);
 				const fp_t N_gam = (nx*dx * ny*dy * unit_a * M_PI) / (3. * sqrt(2.) * Vatom);
-				const fp_t BstarCr = (2. * M_PI * sigma[k] * D_CrCr * xCr
-				                      * (unit_a * dG_chem - sigma[k]))
+				const fp_t BstarCr = (2. * M_PI * sigma * D_CrCr * xCr
+				                      * (unit_a * dG_chem - sigma))
 				                     / (unit_a*unit_a * denom*denom);
-				const fp_t BstarNb = (2. * M_PI * sigma[k] * D_NbNb * xNb
-				                      * (unit_a * dG_chem - sigma[k]))
+				const fp_t BstarNb = (2. * M_PI * sigma * D_NbNb * xNb
+				                      * (unit_a * dG_chem - sigma))
 				                     / (unit_a*unit_a * denom*denom);
 				const fp_t k1Cr = BstarCr * Zeldov * N_gam;
 				const fp_t k1Nb = BstarNb * Zeldov * N_gam;
@@ -447,7 +449,8 @@ void device_nucleation(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by,
                        const fp_t D_CrCr, const fp_t D_NbNb,
-                       const fp_t* sigma, const fp_t unit_a,
+                       const fp_t sigma_del, const fp_t sigma_lav,
+                       const fp_t unit_a,
                        const fp_t dx, const fp_t dy, const fp_t dt)
 {
 	/* divide matrices into blocks of bx * by threads */
@@ -460,7 +463,8 @@ void device_nucleation(struct CudaData* dev,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    nx, ny, nm,
 	    D_CrCr, D_NbNb,
-	    sigma, unit_a,
+	    sigma_del, sigma_lav,
+        unit_a,
 	    dx, dy, dt);
 }
 
