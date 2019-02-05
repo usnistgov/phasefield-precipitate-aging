@@ -8,8 +8,7 @@ CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -fopenmp -I. -I$(MMSP_PAT
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets --compiler-options="$(CXXFLAGS)"
 LINKS = -lcuda -lcurand -lm -lpng -lz
 
-OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o \
-       nucleation.o d_parabola625.o parabola625.o
+OBJS = data.o discretization.o mesh.o numerics.o output.o nucleation.o d_parabola625.o parabola625.o
 
 # Executable
 alloy625: alloy625.cpp $(OBJS)
@@ -21,9 +20,6 @@ profile: NVCXXFLAGS += $(CXXOPT) -lineinfo -arch=$(CUDARCH)
 profile: alloy625
 
 # CUDA objects
-boundaries.o: cuda_boundaries.cu
-	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
-
 data.o: cuda_data.cu
 	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
