@@ -42,10 +42,10 @@ void make_arrays(struct HostData* host,
 	host->phi_lav_old = (fp_t**)calloc(nx, sizeof(fp_t*));
 	host->phi_lav_new = (fp_t**)calloc(nx, sizeof(fp_t*));
 
-	host->gam_Cr  = (fp_t**)calloc(nx, sizeof(fp_t*));
-	host->gam_Nb  = (fp_t**)calloc(nx, sizeof(fp_t*));
+	host->gam_Cr = (fp_t**)calloc(nx, sizeof(fp_t*));
+	host->gam_Nb = (fp_t**)calloc(nx, sizeof(fp_t*));
 
-	host->mask_lap    = (fp_t**)calloc(nm, sizeof(fp_t*));
+	host->mask_lap = (fp_t**)calloc(nm, sizeof(fp_t*));
 
 	/* allocate 1D data */
 	(host->conc_Cr_old)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
@@ -58,10 +58,10 @@ void make_arrays(struct HostData* host,
 	(host->phi_lav_old)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 	(host->phi_lav_new)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 
-	(host->gam_Cr)[0]  = (fp_t*)calloc(nx * ny, sizeof(fp_t));
-	(host->gam_Nb)[0]  = (fp_t*)calloc(nx * ny, sizeof(fp_t));
+	(host->gam_Cr)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
+	(host->gam_Nb)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 
-	(host->mask_lap)[0]    = (fp_t*)calloc(nm * nm, sizeof(fp_t));
+	(host->mask_lap)[0] = (fp_t*)calloc(nm * nm, sizeof(fp_t));
 
 	/* map 2D pointers onto 1D data */
 	for (i = 1; i < ny; i++) {
@@ -94,9 +94,9 @@ void free_arrays(struct HostData* host)
 	free((host->phi_del_new)[0]);
 	free((host->phi_lav_old)[0]);
 	free((host->phi_lav_new)[0]);
-	free((host->gam_Cr     )[0]);
-	free((host->gam_Nb     )[0]);
-	free((host->mask_lap   )[0]);
+	free((host->gam_Cr)[0]);
+	free((host->gam_Nb)[0]);
+	free((host->mask_lap)[0]);
 
 	free(host->conc_Cr_old);
 	free(host->conc_Cr_new);
@@ -113,19 +113,15 @@ void free_arrays(struct HostData* host)
 
 void swap_pointers(fp_t** * conc_old, fp_t** * conc_new)
 {
-	fp_t** temp;
-
-	temp = *conc_old;
-	*conc_old = *conc_new;
-	*conc_new = temp;
+	fp_t** temp = *conc_old;
+	*conc_old   = *conc_new;
+	*conc_new   = temp;
 }
 
 
 void swap_pointers_1D(fp_t** conc_old, fp_t** conc_new)
 {
-	fp_t* temp;
-
-	temp = *conc_old;
-	*conc_old = *conc_new;
-	*conc_new = temp;
+	fp_t* temp = *conc_old;
+	*conc_old  = *conc_new;
+	*conc_new  = temp;
 }

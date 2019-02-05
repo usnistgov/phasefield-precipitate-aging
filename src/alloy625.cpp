@@ -174,12 +174,16 @@ void generate(int dim, const char* filename)
 				y[1] += j;
 				if ((y[0]-x[0])*(y[0]-x[0]) + (y[1]-x[1])*(y[1]-x[1]) <= r*r) {
 					initGrid(y)[2] = 1.;
+					/*
 					initGrid(y)[0] = xe_del_Cr();
 					initGrid(y)[1] = xe_del_Nb();
+					*/
 					y[0] *= -1;
 					initGrid(y)[3] = 1.;
+					/*
 					initGrid(y)[0] = xe_lav_Cr();
 					initGrid(y)[1] = xe_lav_Nb();
+					*/
 				}
 			}
 		}

@@ -15,7 +15,7 @@ OBJS = boundaries.o data.o discretization.o mesh.o numerics.o output.o \
 alloy625: alloy625.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
-profile: CXXOPT = -O0 -g
+profile: CXXOPT = -O2 -g
 profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo -arch=$(CUDARCH)
 profile: alloy625

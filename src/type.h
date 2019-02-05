@@ -76,8 +76,8 @@ struct CudaData {
 	fp_t* gam_Cr;
 	fp_t* gam_Nb;
 
-	fp_t* gam_Cr_lap;
-	fp_t* gam_Nb_lap;
+	fp_t* lap_gam_Cr;
+	fp_t* lap_gam_Nb;
 };
 
 /** \cond SuppressGuard */
