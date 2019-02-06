@@ -317,7 +317,7 @@ int main(int argc, char* argv[])
 					device_nucleation(&dev, nx, ny, nm, bx, by,
 									  D_Cr[0], D_Nb[1],
 									  sigma[0], sigma[1],
-									  aFccNi,
+									  aFccNi, ifce_width / meshres,
 									  MMSP::dx(grid), MMSP::dy(grid), dt);
 
 					device_fictitious(&dev, nx, ny, nm, bx, by);

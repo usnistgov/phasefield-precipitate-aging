@@ -164,27 +164,20 @@ void generate(int dim, const char* filename)
 		}
 
 		// Embed two particles as a sanity check
-		const int r = 32;
+		const int rad = 64;
+		const fp_t w = ifce_width / meshres;
 		x[0] = g0(initGrid, 0) / 2;
 		x[1] = 0;
-		for (int i = -r; i < r; i++) {
-			for (int j = -r; j < r; j++) {
+		for (int i = -2*rad; i < 2*rad; i++) {
+			for (int j = -2*rad; j < 2*rad; j++) {
 				vector<int> y(x);
 				y[0] += i;
 				y[1] += j;
-				if ((y[0]-x[0])*(y[0]-x[0]) + (y[1]-x[1])*(y[1]-x[1]) <= r*r) {
-					initGrid(y)[2] = 1.;
-					/*
-					initGrid(y)[0] = xe_del_Cr();
-					initGrid(y)[1] = xe_del_Nb();
-					*/
-					y[0] *= -1;
-					initGrid(y)[3] = 1.;
-					/*
-					initGrid(y)[0] = xe_lav_Cr();
-					initGrid(y)[1] = xe_lav_Nb();
-					*/
-				}
+				const fp_t r = sqrt(i*i + j*j);
+				const fp_t f = interface_profile(w, r - rad - w);
+				initGrid(y)[2] = f;
+				y[0] *= -1;
+				initGrid(y)[3] = f;
 			}
 		}
 

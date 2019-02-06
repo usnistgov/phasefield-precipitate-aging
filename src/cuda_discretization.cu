@@ -192,7 +192,6 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
 		}
 	}
 
-	/* wait for all threads to finish writing */
 	__syncthreads();
 }
 
@@ -318,6 +317,8 @@ __global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		d_gam_Nb[idx] = d_fict_gam_Nb(inv_fict_det, d_conc_Cr[idx], d_conc_Nb[idx],
 		                              f_del, f_gam, f_lav);
 	}
+
+	__syncthreads();
 }
 
 void device_fictitious(struct CudaData* dev,
@@ -340,9 +341,9 @@ void device_fictitious(struct CudaData* dev,
 __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                  fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
                                  fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
-                                 fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
                                  fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                  fp_t* d_phi_del_new, fp_t* d_phi_lav_new,
+                                 fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
                                  const int nx, const int ny, const int nm,
                                  const fp_t D_CrCr, const fp_t D_CrNb,
                                  const fp_t D_NbCr, const fp_t D_NbNb,
@@ -387,7 +388,6 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		             M_lav, dt);
 	}
 
-	/* wait for all threads to finish writing */
 	__syncthreads();
 }
 
@@ -409,9 +409,9 @@ void device_evolution(struct CudaData* dev,
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
 	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
-	    dev->gam_Cr,      dev->gam_Nb,
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
+	    dev->gam_Cr,      dev->gam_Nb,
 	    nx, ny, nm,
 	    D_CrCr, D_CrNb,
 	    D_NbCr, D_NbNb,
@@ -455,7 +455,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   const int nx, const int ny, const int nm,
                                   const fp_t D_CrCr, const fp_t D_NbNb,
                                   const fp_t sigma_del, const fp_t sigma_lav,
-                                  const fp_t unit_a,
+                                  const fp_t unit_a, const fp_t ifce_width,
                                   const fp_t dx, const fp_t dy, const fp_t dt)
 {
 	/* determine indices on which to operate */
@@ -507,22 +507,21 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 				if (rand < P_nuc) {
 					// Embed a particle of type k!
 					const int rad = ceil(Rstar / dx);
-					for (int j = y - rad; j < y + rad; j++) {
-						for (int i = x - rad; i < x + rad; i++) {
-							if ((i-x)*(i-x) + (j-y)*(j-y) <= rad*rad) {
-								const int idn = nx * j + i;
-								if (k == 0) {
-									d_phi_del[idn] = 1.;
-								} else {
-									d_phi_lav[idn] = 1.;
-								}
+					for (int j = y - 2*rad; j < y + 2*rad; j++) {
+						for (int i = x - 2*rad; i < x + 2*rad; i++) {
+							const int r = sqrt(float((i-x)*(i-x) + (j-y)*(j-y)));
+							const int idn = nx * j + i;
+							if (k == 0) {
+                              d_phi_del[idn] = d_interface_profile(ifce_width, r);
+							} else {
+                              d_phi_lav[idn] = d_interface_profile(ifce_width, r);
 							}
 						}
 					}
 				}
 			}
 		}
-		/* wait for all threads to finish writing */
+
 		__syncthreads();
 	}
 }
@@ -532,7 +531,7 @@ void device_nucleation(struct CudaData* dev,
                        const int bx, const int by,
                        const fp_t D_CrCr, const fp_t D_NbNb,
                        const fp_t sigma_del, const fp_t sigma_lav,
-                       const fp_t unit_a,
+                       const fp_t unit_a, const fp_t ifce_width,
                        const fp_t dx, const fp_t dy, const fp_t dt)
 {
 	/* divide matrices into blocks of bx * by threads */
@@ -546,7 +545,7 @@ void device_nucleation(struct CudaData* dev,
 	    nx, ny, nm,
 	    D_CrCr, D_NbNb,
 	    sigma_del, sigma_lav,
-        unit_a,
+        unit_a, ifce_width,
 	    dx, dy, dt);
 }
 

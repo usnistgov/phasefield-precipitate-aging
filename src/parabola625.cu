@@ -24,6 +24,14 @@ __device__ double d_hprime(double x) {
 
 }
 
+__device__ double d_interface_profile(double L, double r) {
+
+   double interface_profile_result;
+   interface_profile_result = -0.5*tanh(r/L) + 0.5;
+   return interface_profile_result;
+
+}
+
 __device__ double d_kT() {
 
    double kT_result;
@@ -35,7 +43,7 @@ __device__ double d_kT() {
 __device__ double d_xe_gam_Cr() {
 
    double xe_gam_Cr_result;
-   xe_gam_Cr_result = 0.48999999999999999;
+   xe_gam_Cr_result = 0.490;
    return xe_gam_Cr_result;
 
 }
@@ -43,7 +51,7 @@ __device__ double d_xe_gam_Cr() {
 __device__ double d_xe_gam_Nb() {
 
    double xe_gam_Nb_result;
-   xe_gam_Nb_result = 0.025000000000000001;
+   xe_gam_Nb_result = 0.025;
    return xe_gam_Nb_result;
 
 }
@@ -51,7 +59,7 @@ __device__ double d_xe_gam_Nb() {
 __device__ double d_xe_del_Cr() {
 
    double xe_del_Cr_result;
-   xe_del_Cr_result = 0.014999999999999999;
+   xe_del_Cr_result = 0.015;
    return xe_del_Cr_result;
 
 }
@@ -67,7 +75,7 @@ __device__ double d_xe_del_Nb() {
 __device__ double d_xe_lav_Cr() {
 
    double xe_lav_Cr_result;
-   xe_lav_Cr_result = 0.29999999999999999;
+   xe_lav_Cr_result = 0.300;
    return xe_lav_Cr_result;
 
 }
@@ -75,7 +83,7 @@ __device__ double d_xe_lav_Cr() {
 __device__ double d_xe_lav_Nb() {
 
    double xe_lav_Nb_result;
-   xe_lav_Nb_result = 0.32800000000000001;
+   xe_lav_Nb_result = 0.328;
    return xe_lav_Nb_result;
 
 }
@@ -83,7 +91,7 @@ __device__ double d_xe_lav_Nb() {
 __device__ double d_Vm() {
 
    double Vm_result;
-   Vm_result = 1.0000000000000001e-5;
+   Vm_result = 1.0e-5;
    return Vm_result;
 
 }
@@ -91,7 +99,7 @@ __device__ double d_Vm() {
 __device__ double d_xr_gam_Cr(double P_del, double P_lav) {
 
    double xr_gam_Cr_result;
-   xr_gam_Cr_result = -1.3574566207013822e-9*P_del + 6.3924460094164553e-10*P_lav + 0.48999999999999999;
+   xr_gam_Cr_result = -1.3574566207013822e-9*P_del + 6.3924460094164553e-10*P_lav + 0.490;
    return xr_gam_Cr_result;
 
 }
@@ -99,7 +107,7 @@ __device__ double d_xr_gam_Cr(double P_del, double P_lav) {
 __device__ double d_xr_gam_Nb(double P_del, double P_lav) {
 
    double xr_gam_Nb_result;
-   xr_gam_Nb_result = 2.4759487616754483e-10*P_del - 6.6622230055923671e-11*P_lav + 0.025000000000000001;
+   xr_gam_Nb_result = 2.4759487616754483e-10*P_del - 6.6622230055923671e-11*P_lav + 0.025;
    return xr_gam_Nb_result;
 
 }
@@ -107,7 +115,7 @@ __device__ double d_xr_gam_Nb(double P_del, double P_lav) {
 __device__ double d_xr_del_Cr(double P_del, double P_lav) {
 
    double xr_del_Cr_result;
-   xr_del_Cr_result = -4.4461426096786933e-11*P_del + 2.793330776604002e-11*P_lav + 0.014999999999999999;
+   xr_del_Cr_result = -4.4461426096786933e-11*P_del + 2.793330776604002e-11*P_lav + 0.015;
    return xr_del_Cr_result;
 
 }
@@ -123,7 +131,7 @@ __device__ double d_xr_del_Nb(double P_del, double P_lav) {
 __device__ double d_xr_lav_Cr(double P_del, double P_lav) {
 
    double xr_lav_Cr_result;
-   xr_lav_Cr_result = -1.4257688521128304e-10*P_del + 1.0518622057449897e-10*P_lav + 0.29999999999999999;
+   xr_lav_Cr_result = -1.4257688521128304e-10*P_del + 1.0518622057449897e-10*P_lav + 0.300;
    return xr_lav_Cr_result;
 
 }
@@ -131,7 +139,7 @@ __device__ double d_xr_lav_Cr(double P_del, double P_lav) {
 __device__ double d_xr_lav_Nb(double P_del, double P_lav) {
 
    double xr_lav_Nb_result;
-   xr_lav_Nb_result = -7.6045075997491245e-12*P_del + 1.6355952748848998e-11*P_lav + 0.32800000000000001;
+   xr_lav_Nb_result = -7.6045075997491245e-12*P_del + 1.6355952748848998e-11*P_lav + 0.328;
    return xr_lav_Nb_result;
 
 }
@@ -195,7 +203,7 @@ __device__ double d_fict_lav_Nb(double INV_DET, double XCR, double XNB, double f
 __device__ double d_r_delta() {
 
    double r_delta_result;
-   r_delta_result = 7.4999999999999993e-9;
+   r_delta_result = 7.5e-9;
    return r_delta_result;
 
 }
@@ -203,7 +211,7 @@ __device__ double d_r_delta() {
 __device__ double d_r_laves() {
 
    double r_laves_result;
-   r_laves_result = 7.4999999999999993e-9;
+   r_laves_result = 7.5e-9;
    return r_laves_result;
 
 }
@@ -211,7 +219,7 @@ __device__ double d_r_laves() {
 __device__ double d_s_delta() {
 
    double s_delta_result;
-   s_delta_result = 1.01;
+   s_delta_result = 1.010;
    return s_delta_result;
 
 }
@@ -219,7 +227,7 @@ __device__ double d_s_delta() {
 __device__ double d_s_laves() {
 
    double s_laves_result;
-   s_laves_result = 1.0109999999999999;
+   s_laves_result = 1.011;
    return s_laves_result;
 
 }
@@ -227,7 +235,7 @@ __device__ double d_s_laves() {
 __device__ double d_g_gam(double XCR, double XNB) {
 
    double g_gam_result;
-   g_gam_result = 2474387391.4182534*pow(XCR - 0.48999999999999999, 2) + (15148919424.327274*XCR - 7422970517.9203644)*(XNB - 0.025000000000000001) + 37770442067.000183*pow(XNB - 0.025000000000000001, 2);
+   g_gam_result = 2474387391.4182534*pow(XCR - 0.490, 2) + (15148919424.327274*XCR - 7422970517.9203644)*(XNB - 0.025) + 37770442067.000183*pow(XNB - 0.025, 2);
    return g_gam_result;
 
 }
@@ -235,7 +243,7 @@ __device__ double d_g_gam(double XCR, double XNB) {
 __device__ double d_g_del(double XCR, double XNB) {
 
    double g_del_result;
-   g_del_result = 32328981887.7551*pow(XCR - 0.014999999999999999, 2) + (16970167763.733316*XCR - 254552516.45599973)*(XNB - 0.245) + 101815797663.26523*(XNB - 0.245)*(XNB - 0.245);
+   g_del_result = 32328981887.7551*pow(XCR - 0.015, 2) + (16970167763.733316*XCR - 254552516.45599973)*(XNB - 0.245) + 101815797663.26523*(XNB - 0.245)*(XNB - 0.245);
    return g_del_result;
 
 }
@@ -243,7 +251,7 @@ __device__ double d_g_del(double XCR, double XNB) {
 __device__ double d_g_lav(double XCR, double XNB) {
 
    double g_lav_result;
-   g_lav_result = (-3224431198.3348541*XCR + 967329359.50045621)*(XNB - 0.32800000000000001) + 10490734425.508677*pow(XCR - 0.29999999999999999, 2) + 152553892719.7164*pow(XNB - 0.32800000000000001, 2);
+   g_lav_result = (-3224431198.3348541*XCR + 967329359.50045621)*(XNB - 0.328) + 10490734425.508677*pow(XCR - 0.300, 2) + 152553892719.7164*pow(XNB - 0.328, 2);
    return g_lav_result;
 
 }
