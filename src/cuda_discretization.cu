@@ -472,7 +472,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
       const fp_t sigma = (k == 0) ? sigma_del : sigma_lav;
 		if (x < nx && y < ny) {
 			const fp_t phi_gam = 1.0 - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
-			if (phi_gam < 1.0e-10) {
+			if (phi_gam > 1.0e-9) {
 				const fp_t dV = dx * dy;
 				const fp_t xCr = d_conc_Cr[idx];
 				const fp_t xNb = d_conc_Nb[idx];
