@@ -154,9 +154,9 @@ void generate(int dim, const char* filename)
 			for (x[0]=x0(initGrid); x[0]<x1(initGrid); x[0]++) {
 				const double pos = dx(initGrid,0)*x[0];
 				const double matrixCr = xCr0 + (xCrE - xCr0) * (1. - avgCr)
-					                         * (bell_curve(bell[0], pos) - avgCr);
+				                             * (bell_curve(bell[0], pos) - avgCr);
 				const double matrixNb = xNb0 + (xNbE - xNb0) * (1. - avgNb)
-					                         * (bell_curve(bell[1], pos) - avgNb);
+				                             * (bell_curve(bell[1], pos) - avgNb);
 				initGrid(x)[0] = matrixCr;
 				initGrid(x)[1] = matrixNb;
 				update_compositions(initGrid(x));

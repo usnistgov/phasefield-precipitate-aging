@@ -297,9 +297,11 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+			const int nuc_interval = 5.0e-6 / dt;
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
+				int nuc_counter = 0;
 				for (int j = 0; j < increment; j++) {
 					print_progress(j, increment);
 					// === Start Architecture-Specific Kernel ===
@@ -310,15 +312,18 @@ int main(int argc, char* argv[])
 					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_evolution(&dev, nx, ny, nm, bx, by,
-					                 D_Cr[0], D_Cr[1], D_Nb[0], D_Nb[1],
+					                 D_Cr, D_Nb,
 					                 alpha, kappa[0], omega[0],
 					                 Lmob[0], Lmob[1], dt);
 
-					device_nucleation(&dev, nx, ny, nm, bx, by,
-									  D_Cr[0], D_Nb[1],
-									  sigma[0], sigma[1],
-									  aFccNi, ifce_width / meshres,
-									  MMSP::dx(grid), MMSP::dy(grid), dt);
+					if (nuc_counter % nuc_interval == 0) {
+						device_nucleation(&dev, nx, ny, nm, bx, by,
+						                  D_Cr, D_Nb,
+						                  sigma[0], sigma[1],
+						                  aFccNi, ifce_width / meshres,
+						                  MMSP::dx(grid), MMSP::dy(grid), nuc_interval * dt);
+					}
+					nuc_counter++;
 
 					device_fictitious(&dev, nx, ny, nm, bx, by);
 

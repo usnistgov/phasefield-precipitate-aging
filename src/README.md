@@ -38,11 +38,14 @@ compressed MMSP checkpoint, with no work assigned to the GPU.
 2. Laplacian values gets computed and recorded in each of the "new" arrays.
 3. Boundary conditions get applied on each of the "new" device arrays.
 4. Updated field values get computed from the "old" and "new" device arrays.
-5. Fictitious matrix phase compositions get computed and written into the "new" device  array.
+5. Secondary phases are stochastically inserted into the "new" device arrays.
+6. Fictitious matrix phase compositions get computed and written into the "new" device  array.
+7. Pointers to "old" and "new" arrays are swapped in the device.
 
 #### After timestepping:
 
-1. Data gets copied from the 6 "new" device arrays into the corresponding host arrays.
+1. Data gets copied from the 6 "old" device arrays, holding the updated values,
+   into the "new" host arrays.
 2. Data gets read from the host arrays into the MMSP::grid object.
 3. The MMSP::grid object gets written to a compressed MMSP checkpoint.
 

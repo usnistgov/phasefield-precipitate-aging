@@ -309,7 +309,7 @@ __global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	if (x < nx && y < ny) {
 		const fp_t f_del = d_h(d_phi_del[idx]);
 		const fp_t f_lav = d_h(d_phi_lav[idx]);
-        const fp_t f_gam = 1. - f_del - f_lav;
+		const fp_t f_gam = 1. - f_del - f_lav;
 		const fp_t inv_fict_det = d_inv_fict_det(f_del, f_gam, f_lav);
 
 		d_gam_Cr[idx] = d_fict_gam_Cr(inv_fict_det, d_conc_Cr[idx], d_conc_Nb[idx],
@@ -332,10 +332,10 @@ void device_fictitious(struct CudaData* dev,
 	               1);
 
 	fictitious_kernel<<<num_tiles,tile_size>>>(
-	        dev->conc_Cr_new, dev->conc_Nb_new,
-	        dev->phi_del_new, dev->phi_lav_new,
-	        dev->gam_Cr,      dev->gam_Nb,
-	        nx, ny);
+	    dev->conc_Cr_new, dev->conc_Nb_new,
+	    dev->phi_del_new, dev->phi_lav_new,
+	    dev->gam_Cr,      dev->gam_Nb,
+	    nx, ny);
 }
 
 __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
@@ -343,7 +343,7 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                  fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
                                  fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                  fp_t* d_phi_del_new, fp_t* d_phi_lav_new,
-                                 fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
+                                 fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
                                  const int nx, const int ny, const int nm,
                                  const fp_t D_CrCr, const fp_t D_CrNb,
                                  const fp_t D_NbCr, const fp_t D_NbNb,
@@ -394,8 +394,7 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 void device_evolution(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by,
-                      const fp_t D_CrCr, const fp_t D_CrNb,
-                      const fp_t D_NbCr, const fp_t D_NbNb,
+                      const fp_t* D_Cr, const fp_t* D_Nb,
                       const fp_t alpha, const fp_t kappa, const fp_t omega,
                       const fp_t M_del, const fp_t M_lav,
                       const fp_t dt)
@@ -413,8 +412,8 @@ void device_evolution(struct CudaData* dev,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    dev->gam_Cr,      dev->gam_Nb,
 	    nx, ny, nm,
-	    D_CrCr, D_CrNb,
-	    D_NbCr, D_NbNb,
+	    D_Cr[0], D_Cr[1],
+	    D_Nb[0], D_Nb[1],
 	    alpha, kappa, omega,
 	    M_del, M_lav,
 	    dt);
@@ -426,12 +425,17 @@ __device__ void nucleation_driving_force(const fp_t xCr, const fp_t xNb, const i
 	/* compute thermodynamic driving force for nucleation */
 	const fp_t a11 = d_dg_gam_dxCr(xCr, xNb);
 	const fp_t a12 = d_dg_gam_dxNb(xCr, xNb);
-	const fp_t a21 = (index == 0) ? d_dg_del_dxCr(xCr, xNb) : d_dg_lav_dxCr(xCr, xNb);
-	const fp_t a22 = (index == 0) ? d_dg_del_dxNb(xCr, xNb) : d_dg_lav_dxNb(xCr, xNb);
+	const fp_t a21 = (index == 0) ? d_dg_del_dxCr(xCr, xNb)
+	                              : d_dg_lav_dxCr(xCr, xNb);
+	const fp_t a22 = (index == 0) ? d_dg_del_dxNb(xCr, xNb)
+	                              : d_dg_lav_dxNb(xCr, xNb);
 
-	const fp_t b11 = (index == 0) ? d_d2g_del_dxCrCr() : d_d2g_lav_dxCrCr();
-	const fp_t b12 = (index == 0) ? d_d2g_del_dxCrNb() : d_d2g_lav_dxCrNb();
-	const fp_t b22 = (index == 0) ? d_d2g_del_dxNbNb() : d_d2g_lav_dxNbNb();
+	const fp_t b11 = (index == 0) ? d_d2g_del_dxCrCr()
+	                              : d_d2g_lav_dxCrCr();
+	const fp_t b12 = (index == 0) ? d_d2g_del_dxCrNb()
+	                              : d_d2g_lav_dxCrNb();
+	const fp_t b22 = (index == 0) ? d_d2g_del_dxNbNb()
+	                              : d_d2g_lav_dxNbNb();
 
 	const fp_t b1 = d_dg_gam_dxCr(xCr, xNb) + b11 + b12;
 	const fp_t b2 = d_dg_gam_dxCr(xCr, xNb) + b12 + b22;
@@ -445,7 +449,8 @@ __device__ void nucleation_driving_force(const fp_t xCr, const fp_t xNb, const i
 
 	const fp_t G_matrix = d_g_gam(xCr, xNb) + d_dg_gam_dxCr(xCr, xNb) * (*par_xCr - xCr)
 	                    + d_dg_gam_dxNb(xCr, xNb) * (*par_xNb - xNb);
-	const fp_t G_precip = (index == 0) ? d_g_del(*par_xCr, *par_xNb) : d_g_lav(*par_xCr, *par_xNb);
+	const fp_t G_precip = (index == 0) ? d_g_del(*par_xCr, *par_xNb)
+	                                   : d_g_lav(*par_xCr, *par_xNb);
 
 	*dG = G_matrix - G_precip;
 }
@@ -469,7 +474,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	curand_init((unsigned long long)clock(), x, 0, &state);
 
 	for (int k = 0; k < 2; k++) {
-      const fp_t sigma = (k == 0) ? sigma_del : sigma_lav;
+		const fp_t sigma = (k == 0) ? sigma_del
+		                            : sigma_lav;
 		if (x < nx && y < ny) {
 			const fp_t phi_gam = 1.0 - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
 			if (phi_gam > 1.0e-9) {
@@ -484,14 +490,14 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 				const fp_t Vatom = unit_a*unit_a*unit_a / 4.;
 				const fp_t Rstar = (sigma * unit_a) / denom;
 				const fp_t Zeldov = Vatom * sqrt(6. * denom*denom*denom / d_kT())
-                                  / (M_PI*M_PI * unit_a*unit_a * sigma);
+				                  / (M_PI*M_PI * unit_a*unit_a * sigma);
 				const fp_t N_gam = (nx*dx * ny*dy * unit_a * M_PI) / (3. * sqrt(2.) * Vatom);
 				const fp_t BstarCr = (2. * M_PI * sigma * D_CrCr * xCr
-				                      * (unit_a * dG_chem - sigma))
-				                     / (unit_a*unit_a * denom*denom);
+				                     * (unit_a * dG_chem - sigma))
+				                   / (unit_a*unit_a * denom*denom);
 				const fp_t BstarNb = (2. * M_PI * sigma * D_NbNb * xNb
 				                      * (unit_a * dG_chem - sigma))
-				                     / (unit_a*unit_a * denom*denom);
+				                   / (unit_a*unit_a * denom*denom);
 				const fp_t k1Cr = BstarCr * Zeldov * N_gam;
 				const fp_t k1Nb = BstarNb * Zeldov * N_gam;
 				const fp_t k2 = dG_chem / d_kT();
@@ -512,9 +518,9 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 							const int r = sqrt(float((i-x)*(i-x) + (j-y)*(j-y)));
 							const int idn = nx * j + i;
 							if (k == 0) {
-                              d_phi_del[idn] = d_interface_profile(ifce_width, r);
+								d_phi_del[idn] = d_interface_profile(ifce_width, r);
 							} else {
-                              d_phi_lav[idn] = d_interface_profile(ifce_width, r);
+								d_phi_lav[idn] = d_interface_profile(ifce_width, r);
 							}
 						}
 					}
@@ -529,7 +535,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 void device_nucleation(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by,
-                       const fp_t D_CrCr, const fp_t D_NbNb,
+                       const fp_t* D_Cr, const fp_t* D_Nb,
                        const fp_t sigma_del, const fp_t sigma_lav,
                        const fp_t unit_a, const fp_t ifce_width,
                        const fp_t dx, const fp_t dy, const fp_t dt)
@@ -543,9 +549,9 @@ void device_nucleation(struct CudaData* dev,
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    nx, ny, nm,
-	    D_CrCr, D_NbNb,
+	    D_Cr[0], D_Nb[1],
 	    sigma_del, sigma_lav,
-        unit_a, ifce_width,
+	    unit_a, ifce_width,
 	    dx, dy, dt);
 }
 
