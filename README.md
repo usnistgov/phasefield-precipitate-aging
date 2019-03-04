@@ -1,6 +1,9 @@
 # Phase field precipitate aging model
 
-> Phase field model for precipitate aging in ternary analogues to Ni-based superalloys
+Phase field model for precipitate aging in ternary analogues to Ni-based superalloys.
+Please cite using the following DOI:
+
+[![DOI](https://zenodo.org/badge/80764108.svg)](https://zenodo.org/badge/latestdoi/80764108)
 
 ## Table of Contents
 
