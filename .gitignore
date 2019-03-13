@@ -8,6 +8,8 @@
 *.directory
 *.gnumeric
 *.log
+*.mw
+*.nb
 *.nvvp
 *.o
 *.old
@@ -24,17 +26,7 @@ thermo/*.?
 
 # simulation executables
 alloy625
-cuda625
-debug
-ibtest
-iserial
-omp
-ompi
-parallel
-pgparallel
-serial
-smp
-smpi
+check-nucleation
 
 # folders
 bin

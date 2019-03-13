@@ -419,23 +419,18 @@ void device_evolution(struct CudaData* dev,
 	    dt);
 }
 
-__device__ void nucleation_driving_force(const fp_t xCr, const fp_t xNb, const int index,
+__device__ void nucleation_driving_force_del(const fp_t& xCr, const fp_t& xNb,
                                          fp_t* par_xCr, fp_t* par_xNb, fp_t* dG)
 {
 	/* compute thermodynamic driving force for nucleation */
 	const fp_t a11 = d_dg_gam_dxCr(xCr, xNb);
 	const fp_t a12 = d_dg_gam_dxNb(xCr, xNb);
-	const fp_t a21 = (index == 0) ? d_dg_del_dxCr(xCr, xNb)
-	                              : d_dg_lav_dxCr(xCr, xNb);
-	const fp_t a22 = (index == 0) ? d_dg_del_dxNb(xCr, xNb)
-	                              : d_dg_lav_dxNb(xCr, xNb);
+	const fp_t a21 = d_dg_del_dxCr(xCr, xNb);
+	const fp_t a22 = d_dg_del_dxNb(xCr, xNb);
 
-	const fp_t b11 = (index == 0) ? d_d2g_del_dxCrCr()
-	                              : d_d2g_lav_dxCrCr();
-	const fp_t b12 = (index == 0) ? d_d2g_del_dxCrNb()
-	                              : d_d2g_lav_dxCrNb();
-	const fp_t b22 = (index == 0) ? d_d2g_del_dxNbNb()
-	                              : d_d2g_lav_dxNbNb();
+	const fp_t b11 = d_d2g_del_dxCrCr();
+	const fp_t b12 = d_d2g_del_dxCrNb();
+	const fp_t b22 = d_d2g_del_dxNbNb();
 
 	const fp_t b1 = d_dg_gam_dxCr(xCr, xNb) + b11 + b12;
 	const fp_t b2 = d_dg_gam_dxCr(xCr, xNb) + b12 + b22;
@@ -449,10 +444,69 @@ __device__ void nucleation_driving_force(const fp_t xCr, const fp_t xNb, const i
 
 	const fp_t G_matrix = d_g_gam(xCr, xNb) + d_dg_gam_dxCr(xCr, xNb) * (*par_xCr - xCr)
 	                    + d_dg_gam_dxNb(xCr, xNb) * (*par_xNb - xNb);
-	const fp_t G_precip = (index == 0) ? d_g_del(*par_xCr, *par_xNb)
-	                                   : d_g_lav(*par_xCr, *par_xNb);
+	const fp_t G_precip = d_g_del(*par_xCr, *par_xNb);
 
-	*dG = G_matrix - G_precip;
+	*dG = G_precip - G_matrix;
+}
+
+__device__ void nucleation_driving_force_lav(const fp_t& xCr, const fp_t& xNb,
+                                         fp_t* par_xCr, fp_t* par_xNb, fp_t* dG)
+{
+	/* compute thermodynamic driving force for nucleation */
+	const fp_t a11 = d_dg_gam_dxCr(xCr, xNb);
+	const fp_t a12 = d_dg_gam_dxNb(xCr, xNb);
+	const fp_t a21 = d_dg_lav_dxCr(xCr, xNb);
+	const fp_t a22 = d_dg_lav_dxNb(xCr, xNb);
+
+	const fp_t b11 = d_d2g_lav_dxCrCr();
+	const fp_t b12 = d_d2g_lav_dxCrNb();
+	const fp_t b22 = d_d2g_lav_dxNbNb();
+
+	const fp_t b1 = d_dg_gam_dxCr(xCr, xNb) + b11 + b12;
+	const fp_t b2 = d_dg_gam_dxCr(xCr, xNb) + b12 + b22;
+
+	const fp_t detA = a11 * a22 - a12 * a21;
+	const fp_t detB = b1  * a22 - a12 * b2;
+	const fp_t detC = a11 * b2  - b1  * a21;
+
+	*par_xCr = detB / detA;
+	*par_xNb = detC / detA;
+
+	const fp_t G_matrix = d_g_gam(xCr, xNb) + d_dg_gam_dxCr(xCr, xNb) * (*par_xCr - xCr)
+	                    + d_dg_gam_dxNb(xCr, xNb) * (*par_xNb - xNb);
+	const fp_t G_precip = d_g_lav(*par_xCr, *par_xNb);
+
+	*dG = G_precip - G_matrix;
+}
+
+__device__ void nucleation_probability(const fp_t& xCr, const fp_t& xNb,
+                                       const fp_t& par_xCr, const fp_t& par_xNb,
+                                       const fp_t& dG_chem, const fp_t& D_CrCr, const fp_t& D_NbNb,
+                                       const fp_t& sigma, const fp_t& unit_a, const fp_t& Vatom,
+                                       const fp_t& N_gam, const fp_t& dV, const fp_t& dt,
+                                       fp_t* Rstar, fp_t* P_nuc)
+{
+	const fp_t denom = unit_a * dG_chem - 2. * sigma;
+	const fp_t Zeldov = Vatom * sqrt(6. * denom*denom*denom / d_kT())
+	                  / (M_PI*M_PI * unit_a*unit_a * sigma);
+
+	const fp_t numer = 2. * M_PI * sigma *  (unit_a * dG_chem - sigma);
+	const fp_t denom2 = unit_a*unit_a * denom*denom;
+	const fp_t BstarCr = (D_CrCr * xCr * numer) / denom2;
+	const fp_t BstarNb = (D_NbNb * xNb * numer) / denom2;
+
+	const fp_t k1Cr = BstarCr * Zeldov * N_gam;
+	const fp_t k1Nb = BstarNb * Zeldov * N_gam;
+
+	const fp_t k2 = dG_chem / d_kT();
+	const fp_t dc_Cr = par_xCr - xCr;
+	const fp_t dc_Nb = par_xNb - xNb;
+
+	const fp_t JCr = k1Cr * exp(k2 / dc_Cr);
+	const fp_t JNb = k1Nb * exp(k2 / dc_Nb);
+
+	*Rstar = (sigma * unit_a) / denom;
+	*P_nuc = 1. - exp(-JCr * dt * dV) - exp(-JNb * dt * dV);
 }
 
 __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
@@ -473,59 +527,58 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	curandState state;
 	curand_init((unsigned long long)clock(), x, 0, &state);
 
-	for (int k = 0; k < 2; k++) {
-		const fp_t sigma = (k == 0) ? sigma_del
-		                            : sigma_lav;
-		if (x < nx && y < ny) {
-			const fp_t phi_gam = 1.0 - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
-			if (phi_gam > 1.0e-9) {
-				const fp_t dV = dx * dy;
-				const fp_t xCr = d_conc_Cr[idx];
-				const fp_t xNb = d_conc_Nb[idx];
-				fp_t dG_chem = 0.;
-				fp_t par_xCr = 0., par_xNb = 0.;
-				nucleation_driving_force(d_conc_Cr[idx], d_conc_Nb[idx], k,
-				                         &par_xCr, &par_xNb, &dG_chem);
-				const fp_t denom = unit_a * dG_chem - 2. * sigma;
-				const fp_t Vatom = unit_a*unit_a*unit_a / 4.;
-				const fp_t Rstar = (sigma * unit_a) / denom;
-				const fp_t Zeldov = Vatom * sqrt(6. * denom*denom*denom / d_kT())
-				                  / (M_PI*M_PI * unit_a*unit_a * sigma);
-				const fp_t N_gam = (nx*dx * ny*dy * unit_a * M_PI) / (3. * sqrt(2.) * Vatom);
-				const fp_t BstarCr = (2. * M_PI * sigma * D_CrCr * xCr
-				                     * (unit_a * dG_chem - sigma))
-				                   / (unit_a*unit_a * denom*denom);
-				const fp_t BstarNb = (2. * M_PI * sigma * D_NbNb * xNb
-				                      * (unit_a * dG_chem - sigma))
-				                   / (unit_a*unit_a * denom*denom);
-				const fp_t k1Cr = BstarCr * Zeldov * N_gam;
-				const fp_t k1Nb = BstarNb * Zeldov * N_gam;
-				const fp_t k2 = dG_chem / d_kT();
-				const fp_t dc_Cr = par_xCr - xCr;
-				const fp_t dc_Nb = par_xNb - xNb;
+	if (x < nx && y < ny) {
+		const fp_t phi_gam = 1.0 - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
+		if (phi_gam > 1.0e-9) {
+			const fp_t dV = dx * dy;
+			const fp_t xCr = d_conc_Cr[idx];
+			const fp_t xNb = d_conc_Nb[idx];
+			const fp_t Vatom = unit_a*unit_a*unit_a / 4.;
+			const fp_t N_gam = (nx*dx * ny*dy * unit_a * M_PI) / (3. * sqrt(2.) * Vatom);
+			fp_t dG_chem = 0., par_xCr = 0., par_xNb = 0.;
 
-				const fp_t JCr = k1Cr * exp(k2 / dc_Cr);
-				const fp_t JNb = k1Nb * exp(k2 / dc_Nb);
+            // Test a delta particle
+            fp_t Rstar_del, P_nuc_del;
+			nucleation_driving_force_del(xCr, xNb, &par_xCr, &par_xNb, &dG_chem);
+			nucleation_probability(xCr, xNb, par_xCr, par_xNb,
+			                       dG_chem, D_CrCr, D_NbNb,
+			                       sigma_del, unit_a,
+			                       Vatom, N_gam, dV, dt,
+			                       &Rstar_del, &P_nuc_del);
+			const fp_t rand_del = (fp_t)curand_uniform_double(&state);
 
-				const fp_t P_nuc = 1. - exp(-JCr * dt * dV) - exp(-JNb * dt * dV);
-				const fp_t rand = (fp_t)curand_uniform_double(&state);
-
-				if (rand < P_nuc) {
-					// Embed a particle of type k!
-					const int rad = ceil(Rstar / dx);
-					for (int j = y - 2*rad; j < y + 2*rad; j++) {
-						for (int i = x - 2*rad; i < x + 2*rad; i++) {
-							const int r = sqrt(float((i-x)*(i-x) + (j-y)*(j-y)));
-							const int idn = nx * j + i;
-							if (k == 0) {
-								d_phi_del[idn] = d_interface_profile(ifce_width, r);
-							} else {
-								d_phi_lav[idn] = d_interface_profile(ifce_width, r);
-							}
-						}
+			if (rand_del < P_nuc_del) {
+				const int rad = ceil(Rstar_del / dx);
+				for (int j = y - 2*rad; j < y + 2*rad; j++) {
+					for (int i = x - 2*rad; i < x + 2*rad; i++) {
+						const int r = sqrt(float((i-x)*(i-x) + (j-y)*(j-y)));
+						const int idn = nx * j + i;
+						d_phi_del[idn] = d_interface_profile(ifce_width, r);
 					}
 				}
 			}
+
+			// Test a Laves particle
+			fp_t Rstar_lav, P_nuc_lav;
+			nucleation_driving_force_lav(xCr, xNb,
+			                             &par_xCr, &par_xNb, &dG_chem);
+			nucleation_probability(xCr, xNb, par_xCr, par_xNb,
+			                       dG_chem, D_CrCr, D_NbNb,
+			                       sigma_lav, unit_a,
+			                       Vatom, N_gam, dV, dt,
+			                       &Rstar_lav, &P_nuc_lav);
+			const fp_t rand_lav = (fp_t)curand_uniform_double(&state);
+
+            if (rand_lav < P_nuc_lav) {
+				const int rad = ceil(Rstar_lav / dx);
+				for (int j = y - 2*rad; j < y + 2*rad; j++) {
+					for (int i = x - 2*rad; i < x + 2*rad; i++) {
+						const int r = sqrt(float((i-x)*(i-x) + (j-y)*(j-y)));
+						const int idn = nx * j + i;
+						d_phi_lav[idn] = d_interface_profile(ifce_width, r);
+					}
+				}
+            }
 		}
 
 		__syncthreads();

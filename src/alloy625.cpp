@@ -100,7 +100,7 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		const int Nx = 4000;
-		const int Ny = 2500;
+		const int Ny = 625;
 		double Ntot = 1.0;
 		GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
 		for (int d = 0; d < dim; d++) {
@@ -159,17 +159,16 @@ void generate(int dim, const char* filename)
 				                             * (bell_curve(bell[1], pos) - avgNb);
 				initGrid(x)[0] = matrixCr;
 				initGrid(x)[1] = matrixNb;
-				update_compositions(initGrid(x));
 			}
 		}
 
 		// Embed two particles as a sanity check
-		const int rad = 64;
+		const int rad = 2.1e-9 / meshres;
 		const fp_t w = ifce_width / meshres;
 		x[0] = g0(initGrid, 0) / 2;
 		x[1] = 0;
-		for (int i = -2*rad; i < 2*rad; i++) {
-			for (int j = -2*rad; j < 2*rad; j++) {
+		for (int i = -4*(rad + w); i < 4*(rad + w); i++) {
+			for (int j = -4*(rad + w); j < 4*(rad + w); j++) {
 				vector<int> y(x);
 				y[0] += i;
 				y[1] += j;
@@ -179,6 +178,12 @@ void generate(int dim, const char* filename)
 				y[0] *= -1;
 				initGrid(y)[3] = f;
 			}
+		}
+
+		// Update fictitious compositions
+		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
+			x = MMSP::position(initGrid, n);
+			update_compositions(initGrid(x));
 		}
 
 		ghostswap(initGrid);
