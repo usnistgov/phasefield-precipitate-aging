@@ -18,15 +18,22 @@
 # Generate ternary phase diagram
 # Usage: python phase_diagram.py
 
-from CALPHAD_energies import *
 from math import ceil, sqrt
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.optimize import fsolve
 from tqdm import tqdm
 
-spill = 0.001
-density = 150
-deltamu = 1.e-12
+from constants import *
+from parabola625 import g_gam, g_del, g_lav
+from parabola625 import dg_gam_dxCr, dg_gam_dxNb, dg_del_dxCr, dg_del_dxNb, dg_lav_dxCr, dg_lav_dxNb
+from parabola625 import d2g_gam_dxCrCr, d2g_gam_dxCrNb, d2g_gam_dxNbCr, d2g_gam_dxNbNb, \
+                        d2g_del_dxCrCr, d2g_del_dxCrNb, d2g_del_dxNbCr, d2g_del_dxNbNb, \
+                        d2g_lav_dxCrCr, d2g_lav_dxCrNb, d2g_lav_dxNbCr, d2g_lav_dxNbNb
+
+spill = 1e-6
+density = 128
+deltamu = 1.e-16
 
 phases = ["gamma", "delta", "laves"]
 labels = [r"$\gamma$", r"$\delta$", "Laves"]
@@ -43,12 +50,12 @@ plt.plot(XS, YS, '-k')
 def GammaDeltaSolver(xCr, xNb):
   def system(X):
     xCr1, xNb1, xCr2, xNb2 = X
-    fA = PG(xCr1, xNb1)
-    fB = PD(xCr2, xNb2)
-    dfAdxCr = PGdxCr(xCr1, xNb1)
-    dfAdxNb = PGdxNb(xCr1, xNb1)
-    dfBdxCr = PDdxCr(xCr2, xNb2)
-    dfBdxNb = PDdxNb(xCr2, xNb2)
+    fA = g_gam(xCr1, xNb1)
+    fB = g_del(xCr2, xNb2)
+    dfAdxCr = dg_gam_dxCr(xCr1, xNb1)
+    dfAdxNb = dg_gam_dxNb(xCr1, xNb1)
+    dfBdxCr = dg_del_dxCr(xCr2, xNb2)
+    dfBdxNb = dg_del_dxNb(xCr2, xNb2)
     return [dfAdxCr - dfBdxCr,
             dfAdxNb - dfBdxNb,
             fA  + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
@@ -57,16 +64,22 @@ def GammaDeltaSolver(xCr, xNb):
 
   def jacobian(X):
     xCr1, xNb1, xCr2, xNb2 = X
-    dfAdxCr = PGdxCr(xCr1, xNb1)
-    dfAdxNb = PGdxNb(xCr1, xNb1)
-    dfBdxCr = PDdxCr(xCr2, xNb2)
-    dfBdxNb = PDdxNb(xCr2, xNb2)
+    dfAdxCr = dg_gam_dxCr(xCr1, xNb1)
+    dfAdxNb = dg_gam_dxNb(xCr1, xNb1)
+    dfBdxCr = dg_del_dxCr(xCr2, xNb2)
+    dfBdxNb = dg_del_dxNb(xCr2, xNb2)
+    d2fAdxCrCr = d2g_gam_dxCrCr()
+    d2fAdxCrNb = d2g_gam_dxCrNb()
+    d2fAdxNbNb = d2g_gam_dxNbNb()
+    d2fBdxCrCr = d2g_del_dxCrCr()
+    d2fBdxCrNb = d2g_del_dxCrNb()
+    d2fBdxNbNb = d2g_del_dxNbNb()
     dxCr = xCr1 - xCr2
     dxNb = xNb1 - xNb2
-    return [[ p_d2Ggam_dxCrCr, p_d2Ggam_dxCrNb,-p_d2Gdel_dxCrCr,-p_d2Gdel_dxCrNb],
-            [ p_d2Ggam_dxNbCr, p_d2Ggam_dxNbNb,-p_d2Gdel_dxNbCr,-p_d2Gdel_dxNbNb],
-            [ p_d2Ggam_dxCrCr * dxCr + 2*dfAdxCr + p_d2Ggam_dxNbCr * dxNb,
-              p_d2Ggam_dxCrNb * dxCr + 2*dfAdxNb + p_d2Ggam_dxNbNb * dxNb,
+    return [[ d2fAdxCrCr, d2fAdxCrNb,-d2fBdxCrCr,-d2fBdxCrNb],
+            [ d2fAdxCrNb, d2fAdxNbNb,-d2fBdxCrNb,-d2fBdxNbNb],
+            [ d2fAdxCrCr * dxCr + 2*dfAdxCr + d2fAdxCrNb * dxNb,
+              d2fAdxCrNb * dxCr + 2*dfAdxNb + d2fAdxNbNb * dxNb,
               -dfBdxCr - dfAdxCr,
               -dfBdxNb - dfAdxNb],
             [-xNb + xNb2, xCr - xCr2, -xNb1 + xNb, -xCr + xCr1]
@@ -77,12 +90,12 @@ def GammaDeltaSolver(xCr, xNb):
 def GammaLavesSolver(xCr, xNb):
   def system(X):
     xCr1, xNb1, xCr2, xNb2 = X
-    fA = PG(xCr1, xNb1)
-    fB = PL(xCr2, xNb2)
-    dfAdxCr = PGdxCr(xCr1, xNb1)
-    dfAdxNb = PGdxNb(xCr1, xNb1)
-    dfBdxCr = PLdxCr(xCr2, xNb2)
-    dfBdxNb = PLdxNb(xCr2, xNb2)
+    fA = g_gam(xCr1, xNb1)
+    fB = g_lav(xCr2, xNb2)
+    dfAdxCr = dg_gam_dxCr(xCr1, xNb1)
+    dfAdxNb = dg_gam_dxNb(xCr1, xNb1)
+    dfBdxCr = dg_lav_dxCr(xCr2, xNb2)
+    dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
     return [dfAdxCr - dfBdxCr,
             dfAdxNb - dfBdxNb,
             fA  + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
@@ -91,16 +104,22 @@ def GammaLavesSolver(xCr, xNb):
 
   def jacobian(X):
     xCr1, xNb1, xCr2, xNb2 = X
-    dfAdxCr = PGdxCr(xCr1, xNb1)
-    dfAdxNb = PGdxNb(xCr1, xNb1)
-    dfBdxCr = PLdxCr(xCr2, xNb2)
-    dfBdxNb = PLdxNb(xCr2, xNb2)
+    dfAdxCr = dg_gam_dxCr(xCr1, xNb1)
+    dfAdxNb = dg_gam_dxNb(xCr1, xNb1)
+    dfBdxCr = dg_lav_dxCr(xCr2, xNb2)
+    dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
+    d2fAdxCrCr = d2g_gam_dxCrCr()
+    d2fAdxCrNb = d2g_gam_dxCrNb()
+    d2fAdxNbNb = d2g_gam_dxNbNb()
+    d2fBdxCrCr = d2g_lav_dxCrCr()
+    d2fBdxCrNb = d2g_lav_dxCrNb()
+    d2fBdxNbNb = d2g_lav_dxNbNb()
     dxCr = xCr1 - xCr2
     dxNb = xNb1 - xNb2
-    return [[ p_d2Ggam_dxCrCr, p_d2Ggam_dxCrNb,-p_d2Glav_dxCrCr,-p_d2Glav_dxCrNb],
-            [ p_d2Ggam_dxNbCr, p_d2Ggam_dxNbNb,-p_d2Glav_dxNbCr,-p_d2Glav_dxNbNb],
-            [ p_d2Ggam_dxCrCr * dxCr + 2*dfAdxCr + p_d2Ggam_dxNbCr * dxNb,
-              p_d2Ggam_dxCrNb * dxCr + 2*dfAdxNb + p_d2Ggam_dxNbNb * dxNb,
+    return [[ d2fAdxCrCr, d2fAdxCrNb,-d2fBdxCrCr,-d2fBdxCrNb],
+            [ d2fAdxCrNb, d2fAdxNbNb,-d2fBdxCrNb,-d2fBdxNbNb],
+            [ d2fAdxCrCr * dxCr + 2*dfAdxCr + d2fAdxCrNb * dxNb,
+              d2fAdxCrNb * dxCr + 2*dfAdxNb + d2fAdxNbNb * dxNb,
               -dfBdxCr - dfAdxCr,
               -dfBdxNb - dfAdxNb],
             [-xNb + xNb2, xCr - xCr2, -xNb1 + xNb, -xCr + xCr1]
@@ -111,12 +130,12 @@ def GammaLavesSolver(xCr, xNb):
 def DeltaLavesSolver(xCr, xNb):
   def system(X):
     xCr1, xNb1, xCr2, xNb2 = X
-    fA = PD(xCr1, xNb1)
-    fB = PL(xCr2, xNb2)
-    dfAdxCr = PDdxCr(xCr1, xNb1)
-    dfAdxNb = PDdxNb(xCr1, xNb1)
-    dfBdxCr = PLdxCr(xCr2, xNb2)
-    dfBdxNb = PLdxNb(xCr2, xNb2)
+    fA = g_del(xCr1, xNb1)
+    fB = g_lav(xCr2, xNb2)
+    dfAdxCr = dg_del_dxCr(xCr1, xNb1)
+    dfAdxNb = dg_del_dxNb(xCr1, xNb1)
+    dfBdxCr = dg_lav_dxCr(xCr2, xNb2)
+    dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
     return [dfAdxCr - dfBdxCr,
             dfAdxNb - dfBdxNb,
             fA  + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
@@ -125,16 +144,22 @@ def DeltaLavesSolver(xCr, xNb):
 
   def jacobian(X):
     xCr1, xNb1, xCr2, xNb2 = X
-    dfAdxCr = PDdxCr(xCr1, xNb1)
-    dfAdxNb = PDdxNb(xCr1, xNb1)
-    dfBdxCr = PLdxCr(xCr2, xNb2)
-    dfBdxNb = PLdxNb(xCr2, xNb2)
+    dfAdxCr = dg_del_dxCr(xCr1, xNb1)
+    dfAdxNb = dg_del_dxNb(xCr1, xNb1)
+    dfBdxCr = dg_lav_dxCr(xCr2, xNb2)
+    dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
+    d2fAdxCrCr = d2g_del_dxCrCr()
+    d2fAdxCrNb = d2g_del_dxCrNb()
+    d2fAdxNbNb = d2g_del_dxNbNb()
+    d2fBdxCrCr = d2g_lav_dxCrCr()
+    d2fBdxCrNb = d2g_lav_dxCrNb()
+    d2fBdxNbNb = d2g_lav_dxNbNb()
     dxCr = xCr1 - xCr2
     dxNb = xNb1 - xNb2
-    return [[ p_d2Gdel_dxCrCr, p_d2Gdel_dxCrNb,-p_d2Glav_dxCrCr,-p_d2Glav_dxCrNb],
-            [ p_d2Gdel_dxNbCr, p_d2Gdel_dxNbNb,-p_d2Glav_dxNbCr,-p_d2Glav_dxNbNb],
-            [ p_d2Gdel_dxCrCr * dxCr + 2*dfAdxCr + p_d2Gdel_dxNbCr * dxNb,
-              p_d2Gdel_dxCrNb * dxCr + 2*dfAdxNb + p_d2Gdel_dxNbNb * dxNb,
+    return [[ d2fAdxCrCr, d2fAdxCrNb,-d2fBdxCrCr,-d2fBdxCrNb],
+            [ d2fAdxCrNb, d2fAdxNbNb,-d2fBdxCrNb,-d2fBdxNbNb],
+            [ d2fAdxCrCr * dxCr + 2*dfAdxCr + d2fBdxCrNb * dxNb,
+              d2fAdxCrNb * dxCr + 2*dfAdxNb + d2fBdxNbNb * dxNb,
               -dfBdxCr - dfAdxCr,
               -dfBdxNb - dfAdxNb],
             [-xNb + xNb2, xCr - xCr2, -xNb1 + xNb, -xCr + xCr1]
@@ -157,9 +182,9 @@ for xNbTest in tqdm(np.linspace(spill, 1 - spill, density)):
       xCrGamLav, xNbGamLav, xCrLavGam, xNbLavGam = GammaLavesSolver(xCrTest, xNbTest)
       xCrDelLav, xNbDelLav, xCrLavDel, xNbLavDel = DeltaLavesSolver(xCrTest, xNbTest)
 
-      fGam = PG(xCrTest, xNbTest)
-      fDel = PD(xCrTest, xNbTest)
-      fLav = PL(xCrTest, xNbTest)
+      fGam = g_gam(xCrTest, xNbTest)
+      fDel = g_del(xCrTest, xNbTest)
+      fLav = g_lav(xCrTest, xNbTest)
       fGamDel = 1.0e12
       fGamLav = 1.0e12
       fDelLav = 1.0e12
@@ -185,24 +210,24 @@ for xNbTest in tqdm(np.linspace(spill, 1 - spill, density)):
                           xCrLavDel + xNbLavDel       < 1)
 
       # Filter mismatched slopes
-      GamDelCrSlopeSimilar = (PGdxCr(xCrGamDel, xNbGamDel) - PDdxCr(xCrDelGam, xNbDelGam) < deltamu)
-      GamDelNbSlopeSimilar = (PGdxNb(xNbGamDel, xNbGamDel) - PDdxNb(xNbDelGam, xNbDelGam) < deltamu)
-      GamLavCrSlopeSimilar = (PGdxCr(xCrGamLav, xNbGamLav) - PLdxCr(xCrLavGam, xNbLavGam) < deltamu)
-      GamLavNbSlopeSimilar = (PGdxNb(xNbGamLav, xNbGamLav) - PLdxNb(xNbLavGam, xNbLavGam) < deltamu)
-      DelLavCrSlopeSimilar = (PDdxCr(xCrDelLav, xNbDelLav) - PLdxCr(xCrLavDel, xNbLavDel) < 8*deltamu)
-      DelLavNbSlopeSimilar = (PDdxNb(xNbDelLav, xNbDelLav) - PLdxNb(xNbLavDel, xNbLavDel) < 8*deltamu)
+      GamDelCrSlopeSimilar = (dg_gam_dxCr(xCrGamDel, xNbGamDel) - dg_del_dxCr(xCrDelGam, xNbDelGam) < deltamu)
+      GamDelNbSlopeSimilar = (dg_gam_dxNb(xNbGamDel, xNbGamDel) - dg_del_dxNb(xNbDelGam, xNbDelGam) < deltamu)
+      GamLavCrSlopeSimilar = (dg_gam_dxCr(xCrGamLav, xNbGamLav) - dg_lav_dxCr(xCrLavGam, xNbLavGam) < deltamu)
+      GamLavNbSlopeSimilar = (dg_gam_dxNb(xNbGamLav, xNbGamLav) - dg_lav_dxNb(xNbLavGam, xNbLavGam) < deltamu)
+      DelLavCrSlopeSimilar = (dg_del_dxCr(xCrDelLav, xNbDelLav) - dg_lav_dxCr(xCrLavDel, xNbLavDel) < deltamu)
+      DelLavNbSlopeSimilar = (dg_del_dxNb(xNbDelLav, xNbDelLav) - dg_lav_dxNb(xNbLavDel, xNbLavDel) < deltamu)
 
       if (GamDelIsPhysical and GamDelCrSlopeSimilar and GamDelNbSlopeSimilar):
-        fGamDel = PG(xCrGamDel, xNbGamDel) + PGdxCr(xCrGamDel, xNbGamDel) * (xCrGamDel - xCrTest) \
-                                           + PGdxNb(xCrGamDel, xNbGamDel) * (xNbGamDel - xNbTest)
+        fGamDel = g_gam(xCrGamDel, xNbGamDel) + dg_gam_dxCr(xCrGamDel, xNbGamDel) * (xCrGamDel - xCrTest) \
+                                              + dg_gam_dxNb(xCrGamDel, xNbGamDel) * (xNbGamDel - xNbTest)
       if (GamLavIsPhysical and GamLavCrSlopeSimilar and GamLavNbSlopeSimilar):
-        fGamLav = PG(xCrGamLav, xNbGamLav) + PGdxCr(xCrGamLav, xNbGamLav) * (xCrGamLav - xCrTest) \
-                                           + PGdxNb(xCrGamLav, xNbGamLav) * (xNbGamLav - xNbTest)
+        fGamLav = g_gam(xCrGamLav, xNbGamLav) + dg_gam_dxCr(xCrGamLav, xNbGamLav) * (xCrGamLav - xCrTest) \
+                                              + dg_gam_dxNb(xCrGamLav, xNbGamLav) * (xNbGamLav - xNbTest)
       if (DelLavIsPhysical and DelLavCrSlopeSimilar and DelLavNbSlopeSimilar):
-        fDelLav = PD(xCrLavDel, xNbLavDel) + PDdxCr(xCrDelLav, xNbDelLav) * (xCrDelLav - xCrTest) \
-                                           + PDdxNb(xCrDelLav, xNbDelLav) * (xNbDelLav - xNbTest)
+        fDelLav = g_del(xCrLavDel, xNbLavDel) + dg_del_dxCr(xCrDelLav, xNbDelLav) * (xCrDelLav - xCrTest) \
+                                              + dg_del_dxNb(xCrDelLav, xNbDelLav) * (xNbDelLav - xNbTest)
 
-      minima = np.asarray([fGam, fDel, fLav, fGamDel, fGamLav, fDelLav])
+      minima = np.asarray([fGam, fDel, fLav])
       minidx = np.argmin(minima)
 
       if (minidx == 0):
@@ -211,15 +236,19 @@ for xNbTest in tqdm(np.linspace(spill, 1 - spill, density)):
         pureDelta.append([simX(xNbTest, xCrTest), simY(xCrTest)])
       elif (minidx == 2):
         pureLaves.append([simX(xNbTest, xCrTest), simY(xCrTest)])
-      elif (minidx == 3):
+
+      minima = np.asarray([ fGamDel, fGamLav, fDelLav])
+      minidx = np.argmin(minima)
+      if (minidx == 0 and GamDelIsPhysical and GamDelCrSlopeSimilar and GamDelNbSlopeSimilar):
         tieGamDel.append([simX(xNbGamDel, xCrGamDel), simY(xCrGamDel),
                           simX(xNbDelGam, xCrDelGam), simY(xCrDelGam)])
-      elif (minidx == 4):
+      elif (minidx == 1 and GamLavIsPhysical and GamLavCrSlopeSimilar and GamLavNbSlopeSimilar):
         tieGamLav.append([simX(xNbGamLav, xCrGamLav), simY(xCrGamLav),
                           simX(xNbLavGam, xCrLavGam), simY(xCrLavGam)])
-      elif (minidx == 5):
+      elif (minidx == 2 and DelLavIsPhysical and DelLavCrSlopeSimilar and DelLavNbSlopeSimilar):
         tieDelLav.append([simX(xNbDelLav, xCrDelLav), simY(xCrDelLav),
                           simX(xNbLavDel, xCrLavDel), simY(xCrLavDel)])
+
 """
 for x, y in pureGamma:
   plt.scatter(x, y, c=colors[0], edgecolor=colors[0], s=1)
