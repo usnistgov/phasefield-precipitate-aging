@@ -19,6 +19,7 @@
 *.pvd
 *.pyc
 *.sh
+*.so
 *.txt
 *.vti
 src/parabola625.c

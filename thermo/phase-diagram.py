@@ -27,9 +27,9 @@ from tqdm import tqdm
 from constants import *
 from pyCinterface import *
 
-spill = 1e-6
-density = 128
-deltamu = 1.e-16
+spill = 0
+density = 512
+deltamu = 1e-12
 
 phases = ["gamma", "delta", "laves"]
 labels = [r"$\gamma$", r"$\delta$", "Laves"]
@@ -54,7 +54,7 @@ def GammaDeltaSolver(xCr, xNb):
     dfBdxNb = dg_del_dxNb(xCr2, xNb2)
     return [dfAdxCr - dfBdxCr,
             dfAdxNb - dfBdxNb,
-            fA  + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
+            fA + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
             (xCr - xCr2) * (xNb1 - xNb2) - (xCr1 - xCr2) * (xNb - xNb2)
            ]
 
@@ -94,7 +94,7 @@ def GammaLavesSolver(xCr, xNb):
     dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
     return [dfAdxCr - dfBdxCr,
             dfAdxNb - dfBdxNb,
-            fA  + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
+            fA + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
             (xCr - xCr2) * (xNb1 - xNb2) - (xCr1 - xCr2) * (xNb - xNb2)
            ]
 
@@ -134,7 +134,7 @@ def DeltaLavesSolver(xCr, xNb):
     dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
     return [dfAdxCr - dfBdxCr,
             dfAdxNb - dfBdxNb,
-            fA  + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
+            fA + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
             (xCr - xCr2) * (xNb1 - xNb2) - (xCr1 - xCr2) * (xNb - xNb2)
            ]
 
@@ -174,76 +174,77 @@ tieDelLav = []
 for xNbTest in tqdm(np.linspace(spill, 1 - spill, density)):
   for xCrTest in np.linspace(spill, 1 - spill - xNbTest, max(1, ceil((1 - spill - xNbTest) * density))):
 
-      xCrGamDel, xNbGamDel, xCrDelGam, xNbDelGam = GammaDeltaSolver(xCrTest, xNbTest)
-      xCrGamLav, xNbGamLav, xCrLavGam, xNbLavGam = GammaLavesSolver(xCrTest, xNbTest)
-      xCrDelLav, xNbDelLav, xCrLavDel, xNbLavDel = DeltaLavesSolver(xCrTest, xNbTest)
+    xCrGamDel, xNbGamDel, xCrDelGam, xNbDelGam = GammaDeltaSolver(xCrTest, xNbTest)
+    xCrGamLav, xNbGamLav, xCrLavGam, xNbLavGam = GammaLavesSolver(xCrTest, xNbTest)
+    xCrDelLav, xNbDelLav, xCrLavDel, xNbLavDel = DeltaLavesSolver(xCrTest, xNbTest)
 
-      fGam = g_gam(xCrTest, xNbTest)
-      fDel = g_del(xCrTest, xNbTest)
-      fLav = g_lav(xCrTest, xNbTest)
-      fGamDel = 1.0e12
-      fGamLav = 1.0e12
-      fDelLav = 1.0e12
+    fGam = g_gam(xCrTest, xNbTest)
+    fDel = g_del(xCrTest, xNbTest)
+    fLav = g_lav(xCrTest, xNbTest)
+    fGamDel = 1.0e12
+    fGamLav = 1.0e12
+    fDelLav = 1.0e12
 
-      # Filter unphysical results
-      GamDelIsPhysical = (xCrGamDel > 0 and xCrGamDel < 0.25 and
-                          xNbGamDel > 0 and xNbGamDel < 0.20 and
-                          xCrGamDel + xNbGamDel       < 1 and
-                          xCrDelGam > 0 and xCrDelGam < 1 and
-                          xNbDelGam > 0 and xNbDelGam < 1 and
-                          xCrDelGam + xNbDelGam       < 1)
-      GamLavIsPhysical = (xCrGamLav > 0 and xCrGamLav < 1 and
-                          xNbGamLav > 0 and xNbGamLav < 0.25 and
-                          xCrGamLav + xNbGamLav       < 1 and
-                          xCrLavGam > 0 and xCrLavGam < 1 and
-                          xNbLavGam > 0 and xNbLavGam < 1 and
-                          xCrLavGam + xNbLavGam       < 1)
-      DelLavIsPhysical = (xCrDelLav > 0 and xCrDelLav < 1 and
-                          xNbDelLav > 0 and xNbDelLav < 1 and
-                          xCrDelLav + xNbDelLav       < 1 and
-                          xCrLavDel > 0 and xCrLavDel < 1 and
-                          xNbLavDel > 0 and xNbLavDel < 1 and
-                          xCrLavDel + xNbLavDel       < 1)
+    # Filter unphysical results
+    GamDelIsPhysical = (xCrGamDel > 0 and xCrGamDel < 0.25 and
+                        xNbGamDel > 0 and xNbGamDel < 0.20 and
+                        xCrGamDel + xNbGamDel       < 1 and
+                        xCrDelGam > 0 and xCrDelGam < 1 and
+                        xNbDelGam > 0 and xNbDelGam < 1 and
+                        xCrDelGam + xNbDelGam       < 1)
+    GamLavIsPhysical = (xCrGamLav > 0 and xCrGamLav < 1 and
+                        xNbGamLav > 0 and xNbGamLav < 0.25 and
+                        xCrGamLav + xNbGamLav       < 1 and
+                        xCrLavGam > 0 and xCrLavGam < 1 and
+                        xNbLavGam > 0 and xNbLavGam < 1 and
+                        xCrLavGam + xNbLavGam       < 1)
+    DelLavIsPhysical = (xCrDelLav > 0 and xCrDelLav < 1 and
+                        xNbDelLav > 0 and xNbDelLav < 1 and
+                        xCrDelLav + xNbDelLav       < 1 and
+                        xCrLavDel > 0 and xCrLavDel < 1 and
+                        xNbLavDel > 0 and xNbLavDel < 1 and
+                        xCrLavDel + xNbLavDel       < 1)
 
-      # Filter mismatched slopes
-      GamDelCrSlopeSimilar = (dg_gam_dxCr(xCrGamDel, xNbGamDel) - dg_del_dxCr(xCrDelGam, xNbDelGam) < deltamu)
-      GamDelNbSlopeSimilar = (dg_gam_dxNb(xNbGamDel, xNbGamDel) - dg_del_dxNb(xNbDelGam, xNbDelGam) < deltamu)
-      GamLavCrSlopeSimilar = (dg_gam_dxCr(xCrGamLav, xNbGamLav) - dg_lav_dxCr(xCrLavGam, xNbLavGam) < deltamu)
-      GamLavNbSlopeSimilar = (dg_gam_dxNb(xNbGamLav, xNbGamLav) - dg_lav_dxNb(xNbLavGam, xNbLavGam) < deltamu)
-      DelLavCrSlopeSimilar = (dg_del_dxCr(xCrDelLav, xNbDelLav) - dg_lav_dxCr(xCrLavDel, xNbLavDel) < deltamu)
-      DelLavNbSlopeSimilar = (dg_del_dxNb(xNbDelLav, xNbDelLav) - dg_lav_dxNb(xNbLavDel, xNbLavDel) < deltamu)
+    # Filter mismatched slopes
+    GamDelCrSlopeSimilar = (dg_gam_dxCr(xCrGamDel, xNbGamDel) - dg_del_dxCr(xCrDelGam, xNbDelGam) < deltamu)
+    GamDelNbSlopeSimilar = (dg_gam_dxNb(xNbGamDel, xNbGamDel) - dg_del_dxNb(xNbDelGam, xNbDelGam) < deltamu)
+    GamLavCrSlopeSimilar = (dg_gam_dxCr(xCrGamLav, xNbGamLav) - dg_lav_dxCr(xCrLavGam, xNbLavGam) < deltamu)
+    GamLavNbSlopeSimilar = (dg_gam_dxNb(xNbGamLav, xNbGamLav) - dg_lav_dxNb(xNbLavGam, xNbLavGam) < deltamu)
+    DelLavCrSlopeSimilar = (dg_lav_dxCr(xCrLavDel, xNbLavDel) - dg_del_dxCr(xCrDelLav, xNbDelLav) < deltamu)
+    DelLavNbSlopeSimilar = (dg_lav_dxNb(xNbLavDel, xNbLavDel) - dg_del_dxNb(xNbDelLav, xNbDelLav) < deltamu)
 
-      if (GamDelIsPhysical and GamDelCrSlopeSimilar and GamDelNbSlopeSimilar):
-        fGamDel = g_gam(xCrGamDel, xNbGamDel) + dg_gam_dxCr(xCrGamDel, xNbGamDel) * (xCrGamDel - xCrTest) \
-                                                   + dg_gam_dxNb(xCrGamDel, xNbGamDel) * (xNbGamDel - xNbTest)
-      if (GamLavIsPhysical and GamLavCrSlopeSimilar and GamLavNbSlopeSimilar):
-        fGamLav = g_gam(xCrGamLav, xNbGamLav) + dg_gam_dxCr(xCrGamLav, xNbGamLav) * (xCrGamLav - xCrTest) \
-                                                   + dg_gam_dxNb(xCrGamLav, xNbGamLav) * (xNbGamLav - xNbTest)
-      if (DelLavIsPhysical and DelLavCrSlopeSimilar and DelLavNbSlopeSimilar):
-        fDelLav = g_del(xCrLavDel, xNbLavDel) + dg_del_dxCr(xCrDelLav, xNbDelLav) * (xCrDelLav - xCrTest) \
-                                                   + dg_del_dxNb(xCrDelLav, xNbDelLav) * (xNbDelLav - xNbTest)
+    if (GamDelIsPhysical and GamDelCrSlopeSimilar and GamDelNbSlopeSimilar):
+      fGamDel = g_gam(xCrGamDel, xNbGamDel) + dg_gam_dxCr(xCrGamDel, xNbGamDel) * (xCrGamDel - xCrTest) \
+                                            + dg_gam_dxNb(xCrGamDel, xNbGamDel) * (xNbGamDel - xNbTest)
+    if (GamLavIsPhysical and GamLavCrSlopeSimilar and GamLavNbSlopeSimilar):
+      fGamLav = g_gam(xCrGamLav, xNbGamLav) + dg_gam_dxCr(xCrGamLav, xNbGamLav) * (xCrGamLav - xCrTest) \
+                                            + dg_gam_dxNb(xCrGamLav, xNbGamLav) * (xNbGamLav - xNbTest)
+    if (DelLavIsPhysical and DelLavCrSlopeSimilar and DelLavNbSlopeSimilar):
+      fDelLav = g_del(xCrLavDel, xNbLavDel) + dg_del_dxCr(xCrDelLav, xNbDelLav) * (xCrDelLav - xCrTest) \
+                                            + dg_del_dxNb(xCrDelLav, xNbDelLav) * (xNbDelLav - xNbTest)
 
-      minima = np.asarray([fGam, fDel, fLav])
-      minidx = np.argmin(minima)
+    minima = np.asarray([fGam, fDel, fLav])
+    minidx = np.argmin(minima)
 
-      if (minidx == 0):
-        pureGamma.append([simX(xNbTest, xCrTest), simY(xCrTest)])
-      elif (minidx == 1):
-        pureDelta.append([simX(xNbTest, xCrTest), simY(xCrTest)])
-      elif (minidx == 2):
-        pureLaves.append([simX(xNbTest, xCrTest), simY(xCrTest)])
+    if (minidx == 0):
+      pureGamma.append([simX(xNbTest, xCrTest), simY(xCrTest)])
+    elif (minidx == 1):
+      pureDelta.append([simX(xNbTest, xCrTest), simY(xCrTest)])
+    elif (minidx == 2):
+      pureLaves.append([simX(xNbTest, xCrTest), simY(xCrTest)])
 
-      minima = np.asarray([ fGamDel, fGamLav, fDelLav])
-      minidx = np.argmin(minima)
-      if (minidx == 0 and GamDelIsPhysical and GamDelCrSlopeSimilar and GamDelNbSlopeSimilar):
-        tieGamDel.append([simX(xNbGamDel, xCrGamDel), simY(xCrGamDel),
-                          simX(xNbDelGam, xCrDelGam), simY(xCrDelGam)])
-      elif (minidx == 1 and GamLavIsPhysical and GamLavCrSlopeSimilar and GamLavNbSlopeSimilar):
-        tieGamLav.append([simX(xNbGamLav, xCrGamLav), simY(xCrGamLav),
-                          simX(xNbLavGam, xCrLavGam), simY(xCrLavGam)])
-      elif (minidx == 2 and DelLavIsPhysical and DelLavCrSlopeSimilar and DelLavNbSlopeSimilar):
-        tieDelLav.append([simX(xNbDelLav, xCrDelLav), simY(xCrDelLav),
-                          simX(xNbLavDel, xCrLavDel), simY(xCrLavDel)])
+    minima = np.asarray([ fGamDel, fGamLav, fDelLav])
+    minidx = np.argmin(minima)
+
+    if (minidx == 0 and GamDelIsPhysical and GamDelCrSlopeSimilar and GamDelNbSlopeSimilar):
+      tieGamDel.append([simX(xNbGamDel, xCrGamDel), simY(xCrGamDel),
+                        simX(xNbDelGam, xCrDelGam), simY(xCrDelGam)])
+    elif (minidx == 1 and GamLavIsPhysical and GamLavCrSlopeSimilar and GamLavNbSlopeSimilar):
+      tieGamLav.append([simX(xNbGamLav, xCrGamLav), simY(xCrGamLav),
+                        simX(xNbLavGam, xCrLavGam), simY(xCrLavGam)])
+    elif (minidx == 2 and DelLavIsPhysical and DelLavCrSlopeSimilar and DelLavNbSlopeSimilar):
+      tieDelLav.append([simX(xNbDelLav, xCrDelLav), simY(xCrDelLav),
+                        simX(xNbLavDel, xCrLavDel), simY(xCrLavDel)])
 
 """
 for x, y in pureGamma:
@@ -257,14 +258,14 @@ for x, y in pureLaves:
 for xa, ya, xb, yb in tieGamDel:
   plt.scatter(xa, ya, c=colors[0], edgecolor=colors[0], s=2)
   plt.scatter(xb, yb, c=colors[1], edgecolor=colors[1], s=2)
-  plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.5)
+  # plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.5)
 for xa, ya, xb, yb in tieGamLav:
   plt.scatter(xa, ya, c=colors[0], edgecolor=colors[0], s=2)
   plt.scatter(xb, yb, c=colors[2], edgecolor=colors[2], s=2)
-  plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.5)
+  # plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.5)
 for xa, ya, xb, yb in tieDelLav:
   plt.scatter(xa, ya, c=colors[1], edgecolor=colors[1], s=2)
   plt.scatter(xb, yb, c=colors[2], edgecolor=colors[2], s=2)
-  plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.5)
+  # plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.5)
 
 plt.savefig("ternary-diagram.png", dpi=400, bbox_inches="tight")
