@@ -125,8 +125,8 @@ void nucleation_probability(const double& xCr, const double& xNb,
     const double PCr = exp(-JCr * dt * dV);
     const double PNb = exp(-JNb * dt * dV);
 
-    // const double algebraic_mean = 0.5 * (PCr + PNb);
-    // const double geometric_mean = sqrt(PCr * PNb);
+    const double algebraic_mean = 0.5 * (PCr + PNb);
+    const double geometric_mean = sqrt(PCr * PNb);
     const double harmonic_mean  = 2. / (1. / PCr + 1. / PNb);
 
 	*P_nuc = 1. - harmonic_mean;
