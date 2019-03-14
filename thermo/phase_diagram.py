@@ -25,11 +25,7 @@ from scipy.optimize import fsolve
 from tqdm import tqdm
 
 from constants import *
-from parabola625 import g_gam, g_del, g_lav
-from parabola625 import dg_gam_dxCr, dg_gam_dxNb, dg_del_dxCr, dg_del_dxNb, dg_lav_dxCr, dg_lav_dxNb
-from parabola625 import d2g_gam_dxCrCr, d2g_gam_dxCrNb, d2g_gam_dxNbCr, d2g_gam_dxNbNb, \
-                        d2g_del_dxCrCr, d2g_del_dxCrNb, d2g_del_dxNbCr, d2g_del_dxNbNb, \
-                        d2g_lav_dxCrCr, d2g_lav_dxCrNb, d2g_lav_dxNbCr, d2g_lav_dxNbNb
+from pyCinterface import *
 
 spill = 1e-6
 density = 128
@@ -219,13 +215,13 @@ for xNbTest in tqdm(np.linspace(spill, 1 - spill, density)):
 
       if (GamDelIsPhysical and GamDelCrSlopeSimilar and GamDelNbSlopeSimilar):
         fGamDel = g_gam(xCrGamDel, xNbGamDel) + dg_gam_dxCr(xCrGamDel, xNbGamDel) * (xCrGamDel - xCrTest) \
-                                              + dg_gam_dxNb(xCrGamDel, xNbGamDel) * (xNbGamDel - xNbTest)
+                                                   + dg_gam_dxNb(xCrGamDel, xNbGamDel) * (xNbGamDel - xNbTest)
       if (GamLavIsPhysical and GamLavCrSlopeSimilar and GamLavNbSlopeSimilar):
         fGamLav = g_gam(xCrGamLav, xNbGamLav) + dg_gam_dxCr(xCrGamLav, xNbGamLav) * (xCrGamLav - xCrTest) \
-                                              + dg_gam_dxNb(xCrGamLav, xNbGamLav) * (xNbGamLav - xNbTest)
+                                                   + dg_gam_dxNb(xCrGamLav, xNbGamLav) * (xNbGamLav - xNbTest)
       if (DelLavIsPhysical and DelLavCrSlopeSimilar and DelLavNbSlopeSimilar):
         fDelLav = g_del(xCrLavDel, xNbLavDel) + dg_del_dxCr(xCrDelLav, xNbDelLav) * (xCrDelLav - xCrTest) \
-                                              + dg_del_dxNb(xCrDelLav, xNbDelLav) * (xNbDelLav - xNbTest)
+                                                   + dg_del_dxNb(xCrDelLav, xNbDelLav) * (xNbDelLav - xNbTest)
 
       minima = np.asarray([fGam, fDel, fLav])
       minidx = np.argmin(minima)

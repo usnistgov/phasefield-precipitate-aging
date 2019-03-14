@@ -11,8 +11,7 @@ from scipy.optimize import fsolve
 from tqdm import tqdm
 
 from constants import *
-from parabola625 import g_gam, g_del, g_lav
-
+from pyCinterface import *
 
 pltsize = 20
 density = 2000
