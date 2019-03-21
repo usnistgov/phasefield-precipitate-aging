@@ -1,271 +1,423 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-#####################################################################################
-# This software was developed at the National Institute of Standards and Technology #
-# by employees of the Federal Government in the course of their official duties.    #
-# Pursuant to title 17 section 105 of the United States Code this software is not   #
-# subject to copyright protection and is in the public domain. NIST assumes no      #
-# responsibility whatsoever for the use of this code by other parties, and makes no #
-# guarantees, expressed or implied, about its quality, reliability, or any other    #
-# characteristic. We would appreciate acknowledgement if the software is used.      #
-#                                                                                   #
-# This software can be redistributed and/or modified freely provided that any       #
-# derivative works bear some notice that they are derived from it, and any modified #
-# versions bear some notice that they have been modified.                           #
-#####################################################################################
+# Generate phase diagrams
+# Usage: python phasediagram.py
 
-# Generate ternary phase diagram
-# Usage: python phase_diagram.py
-
-from math import ceil, sqrt
+from math import ceil, fabs, sqrt
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 import numpy as np
 from scipy.optimize import fsolve
 from tqdm import tqdm
 
-from constants import *
 from pyCinterface import *
 
-spill = 0
-density = 512
-deltamu = 1e-12
+density = 200
+colors = ['red', 'green', 'blue', 'gray']
+font = FontProperties()
+font.set_size(16)
+alignment = {'horizontalalignment': 'center', 'verticalalignment': 'center'}
 
-phases = ["gamma", "delta", "laves"]
-labels = [r"$\gamma$", r"$\delta$", "Laves"]
-colors = ['red', 'green', 'blue']
+# Helper functions to convert compositions into (x,y) coordinates
+def simX(x1, x2):
+  return x1 + 0.5 * x2
+
+def simY(x2):
+  return 0.5 * sqrt(3.) * x2
+
+def euclideanNorm(dxNb, dxCr):
+  return sqrt(dxNb**2 + dxCr**2)
+
+def boundBy(x, a, b):
+  return (a <= x) and (x <= b)
+
+def labelAxes(n):
+  def plot_ticks(start, stop, tick, angle, n):
+    plt.text(0.5, -0.075, r'$x_{\mathrm{Nb}}$', fontsize=18)
+    plt.text(simX(-0.11, 0.55), simY(0.55), r'$x_{\mathrm{Cr}}$', rotation=60, fontsize=18)
+
+    # from https://stackoverflow.com/a/30975434/5377275
+    dx = 3 * tick[0]
+    dy = 3 * tick[1]
+    r = np.linspace(0, 1, n+1)
+    x = start[0] * (1 - r) + stop[0] * r
+    y = start[1] * (1 - r) + stop[1] * r
+    if angle >= 0:
+      for i in range(len(x)):
+        plt.text(x[i] + dx , y[i] + dy, "{0:.1f}".format(r[i]), rotation=angle, **alignment)
+    else:
+      midx = 0.5 * (start[0] + stop[0])
+      midy = 0.5 * (start[1] + stop[1])
+      plt.text(midx + dx, midy + dy, "0.5", rotation=angle, **alignment)
+    x = np.vstack((x, x + tick[0]))
+    y = np.vstack((y, y + tick[1]))
+    plt.plot(x, y, 'k', lw=1)
+
+  # Spatial considerations
+  tick_size = 0.075
+  left = np.r_[0, 0]
+  right = np.r_[1, 0]
+  top = np.r_[simX(0, 1), simY(1)]
+
+  # define vectors for ticks
+  bottom_tick = tick_size * np.r_[0, -1] / n
+  right_tick = sqrt(3) * tick_size * np.r_[1,0.5] * (top - left) / n
+  left_tick = sqrt(3) * tick_size * np.r_[1,0.5] * (top - right) / n
+
+  plot_ticks(left, right, bottom_tick, 0, n)
+  plot_ticks(right, top, right_tick, -60, n)
+  plot_ticks(left, top, left_tick, 60, n)
 
 # Plot phase diagram
-pltsize = 20
-plt.figure(figsize=(pltsize, rt3by2*pltsize))
-plt.title("Cr-Nb-Ni (Parabolic approx) at %.0f K"%temp, fontsize=18)
-plt.xlabel(r'$x_\mathrm{Nb}$', fontsize=24)
-plt.ylabel(r'$x_\mathrm{Cr}$', fontsize=24)
-plt.plot(XS, YS, '-k')
+pltsize = 10
+plt.figure(figsize=(pltsize, 0.5 * sqrt(3.) * pltsize))
+plt.gca().set_aspect('equal', adjustable='box')
+plt.title("Cr-Nb-Ni at 1143 K", fontsize=18)
+plt.axis('off')
+labelAxes(10)
+plt.xlim([-0.05, 1.05])
+plt.ylim([-0.05, simY(1.05)])
+# triangle bounding the Gibbs simplex
+XS = [0, simX(1,0), simX(0,1), 0]
+YS = [0, simY(0),   simY(1),   0]
+plt.plot(XS, YS, '-k', zorder=2)
 
-def GammaDeltaSolver(xCr, xNb):
+plt.text(simX(0.05, 0.10), simY(0.10), '$\gamma$', color=colors[0], fontproperties=font, zorder=2, **alignment)
+plt.text(0.25, -0.025, '$\delta$', color=colors[1], fontproperties=font, zorder=2, **alignment)
+plt.text(simX(0.4, 0.3), simY(0.3), '$L$', color=colors[2], fontproperties=font, zorder=2, **alignment)
+
+def ABSolver(x1, x2):
   def system(X):
-    xCr1, xNb1, xCr2, xNb2 = X
-    fA = g_gam(xCr1, xNb1)
-    fB = g_del(xCr2, xNb2)
-    dfAdxCr = dg_gam_dxCr(xCr1, xNb1)
-    dfAdxNb = dg_gam_dxNb(xCr1, xNb1)
-    dfBdxCr = dg_del_dxCr(xCr2, xNb2)
-    dfBdxNb = dg_del_dxNb(xCr2, xNb2)
-    return [dfAdxCr - dfBdxCr,
-            dfAdxNb - dfBdxNb,
-            fA + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
-            (xCr - xCr2) * (xNb1 - xNb2) - (xCr1 - xCr2) * (xNb - xNb2)
+    x1A, x2A, x1B, x2B = X
+    fA = g_gam(x2A, x1A)
+    fB = g_del(x2B, x1B)
+    dfAdx1 = dg_gam_dxNb(x2A, x1A)
+    dfAdx2 = dg_gam_dxCr(x2A, x1A)
+    dfBdx1 = dg_del_dxNb(x2B, x1B)
+    dfBdx2 = dg_del_dxCr(x2B, x1B)
+    dx1 = x1A - x1B
+    dx2 = x2A - x2B
+    return [dfAdx1 - dfBdx1,
+            dfAdx2 - dfBdx2,
+            fA + dfAdx1 * dx1 + dfAdx2 * dx2 - fB,
+            (x1 - x1B) * dx2 - dx1 * (x2 - x2B)
            ]
 
   def jacobian(X):
-    xCr1, xNb1, xCr2, xNb2 = X
-    dfAdxCr = dg_gam_dxCr(xCr1, xNb1)
-    dfAdxNb = dg_gam_dxNb(xCr1, xNb1)
-    dfBdxCr = dg_del_dxCr(xCr2, xNb2)
-    dfBdxNb = dg_del_dxNb(xCr2, xNb2)
-    d2fAdxCrCr = d2g_gam_dxCrCr()
-    d2fAdxCrNb = d2g_gam_dxCrNb()
-    d2fAdxNbNb = d2g_gam_dxNbNb()
-    d2fBdxCrCr = d2g_del_dxCrCr()
-    d2fBdxCrNb = d2g_del_dxCrNb()
-    d2fBdxNbNb = d2g_del_dxNbNb()
-    dxCr = xCr1 - xCr2
-    dxNb = xNb1 - xNb2
-    return [[ d2fAdxCrCr, d2fAdxCrNb,-d2fBdxCrCr,-d2fBdxCrNb],
-            [ d2fAdxCrNb, d2fAdxNbNb,-d2fBdxCrNb,-d2fBdxNbNb],
-            [ d2fAdxCrCr * dxCr + 2*dfAdxCr + d2fAdxCrNb * dxNb,
-              d2fAdxCrNb * dxCr + 2*dfAdxNb + d2fAdxNbNb * dxNb,
-              -dfBdxCr - dfAdxCr,
-              -dfBdxNb - dfAdxNb],
-            [-xNb + xNb2, xCr - xCr2, -xNb1 + xNb, -xCr + xCr1]
+    x1A, x2A, x1B, x2B = X
+    dfAdx1 = dg_gam_dxNb(x2A, x1A)
+    dfAdx2 = dg_gam_dxCr(x2A, x1A)
+    dfBdx1 = dg_del_dxNb(x2B, x1B)
+    dfBdx2 = dg_del_dxCr(x2B, x1B)
+    d2fAdx11 = d2g_gam_dxNbNb()
+    d2fAdx12 = d2g_gam_dxNbCr()
+    d2fAdx22 = d2g_gam_dxCrCr()
+    d2fBdx11 = d2g_del_dxNbNb()
+    d2fBdx12 = d2g_del_dxNbCr()
+    d2fBdx22 = d2g_del_dxCrCr()
+    dx1 = x1A - x1B
+    dx2 = x2A - x2B
+    return [[ d2fAdx11, d2fAdx12,-d2fBdx11,-d2fBdx12],
+            [ d2fAdx12, d2fAdx22,-d2fBdx12,-d2fBdx22],
+            [ d2fAdx11 * dx1 + 2*dfAdx1 + d2fAdx12 * dx2,
+              d2fAdx12 * dx1 + 2*dfAdx2 + d2fAdx22 * dx2,
+              -dfBdx1 - dfAdx1,
+              -dfBdx2 - dfAdx2],
+            [-x2 + x2B, x1 - x1B, -x2A + x2, -x1 + x1A]
            ]
-  # returns the tuple [xCrGamDel, xNbGamDel, xCrDelGam, xNbDelGam]
-  return fsolve(func=system, x0=[xCr, xNb, xCr, xNb], fprime=jacobian)
+  # returns the tuple [x1A, x2A, x1B, x2B]
+  return fsolve(func=system, x0=[x1, x2, x1, x2], fprime=jacobian)
 
-def GammaLavesSolver(xCr, xNb):
+def ACSolver(x1, x2):
   def system(X):
-    xCr1, xNb1, xCr2, xNb2 = X
-    fA = g_gam(xCr1, xNb1)
-    fB = g_lav(xCr2, xNb2)
-    dfAdxCr = dg_gam_dxCr(xCr1, xNb1)
-    dfAdxNb = dg_gam_dxNb(xCr1, xNb1)
-    dfBdxCr = dg_lav_dxCr(xCr2, xNb2)
-    dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
-    return [dfAdxCr - dfBdxCr,
-            dfAdxNb - dfBdxNb,
-            fA + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
-            (xCr - xCr2) * (xNb1 - xNb2) - (xCr1 - xCr2) * (xNb - xNb2)
+    x1A, x2A, x1C, x2C = X
+    fA = g_gam(x2A, x1A)
+    fC = g_lav(x2C, x1C)
+    dfAdx1 = dg_gam_dxNb(x2A, x1A)
+    dfAdx2 = dg_gam_dxCr(x2A, x1A)
+    dfCdx1 = dg_lav_dxNb(x2C, x1C)
+    dfCdx2 = dg_lav_dxCr(x2C, x1C)
+    dx1 = x1A - x1C
+    dx2 = x2A - x2C
+    return [dfAdx1 - dfCdx1,
+            dfAdx2 - dfCdx2,
+            fA + dfAdx1 * dx1 + dfAdx2 * dx2 - fC,
+            (x1 - x1C) * dx2 - dx1 * (x2 - x2C)
            ]
 
   def jacobian(X):
-    xCr1, xNb1, xCr2, xNb2 = X
-    dfAdxCr = dg_gam_dxCr(xCr1, xNb1)
-    dfAdxNb = dg_gam_dxNb(xCr1, xNb1)
-    dfBdxCr = dg_lav_dxCr(xCr2, xNb2)
-    dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
-    d2fAdxCrCr = d2g_gam_dxCrCr()
-    d2fAdxCrNb = d2g_gam_dxCrNb()
-    d2fAdxNbNb = d2g_gam_dxNbNb()
-    d2fBdxCrCr = d2g_lav_dxCrCr()
-    d2fBdxCrNb = d2g_lav_dxCrNb()
-    d2fBdxNbNb = d2g_lav_dxNbNb()
-    dxCr = xCr1 - xCr2
-    dxNb = xNb1 - xNb2
-    return [[ d2fAdxCrCr, d2fAdxCrNb,-d2fBdxCrCr,-d2fBdxCrNb],
-            [ d2fAdxCrNb, d2fAdxNbNb,-d2fBdxCrNb,-d2fBdxNbNb],
-            [ d2fAdxCrCr * dxCr + 2*dfAdxCr + d2fAdxCrNb * dxNb,
-              d2fAdxCrNb * dxCr + 2*dfAdxNb + d2fAdxNbNb * dxNb,
-              -dfBdxCr - dfAdxCr,
-              -dfBdxNb - dfAdxNb],
-            [-xNb + xNb2, xCr - xCr2, -xNb1 + xNb, -xCr + xCr1]
+    x1A, x2A, x1C, x2C = X
+    dfAdx1 = dg_gam_dxNb(x2A, x1A)
+    dfAdx2 = dg_gam_dxCr(x2A, x1A)
+    dfCdx1 = dg_lav_dxNb(x2C, x1C)
+    dfCdx2 = dg_lav_dxCr(x2C, x1C)
+    d2fAdx11 = d2g_gam_dxNbNb()
+    d2fAdx12 = d2g_gam_dxNbCr()
+    d2fAdx22 = d2g_gam_dxCrCr()
+    d2fCdx11 = d2g_lav_dxNbNb()
+    d2fCdx12 = d2g_lav_dxNbCr()
+    d2fCdx22 = d2g_lav_dxCrCr()
+    dx1 = x1A - x1C
+    dx2 = x2A - x2C
+    return [[ d2fAdx11, d2fAdx12,-d2fCdx11,-d2fCdx12],
+            [ d2fAdx12, d2fAdx22,-d2fCdx12,-d2fCdx22],
+            [ d2fAdx11 * dx1 + 2*dfAdx1 + d2fAdx12 * dx2,
+              d2fAdx12 * dx1 + 2*dfAdx2 + d2fAdx22 * dx2,
+              -dfCdx1 - dfAdx1,
+              -dfCdx2 - dfAdx2],
+            [-x2 + x2C, x1 - x1C, -x2A + x2, -x1 + x1A]
            ]
-  # returns the tuple [xCrGamLav, xNbGamLav, xCrLavGam, xNbLavGam]
-  return fsolve(func=system, x0=[xCr, xNb, xCr, xNb], fprime=jacobian)
+  # returns the tuple [x1A, x2A, x1C, x2C]
+  return fsolve(func=system, x0=[x1, x2, x1, x2], fprime=jacobian)
 
-def DeltaLavesSolver(xCr, xNb):
+def BCSolver(x1, x2):
   def system(X):
-    xCr1, xNb1, xCr2, xNb2 = X
-    fA = g_del(xCr1, xNb1)
-    fB = g_lav(xCr2, xNb2)
-    dfAdxCr = dg_del_dxCr(xCr1, xNb1)
-    dfAdxNb = dg_del_dxNb(xCr1, xNb1)
-    dfBdxCr = dg_lav_dxCr(xCr2, xNb2)
-    dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
-    return [dfAdxCr - dfBdxCr,
-            dfAdxNb - dfBdxNb,
-            fA + dfAdxCr * (xCr1 - xCr2) + dfAdxNb * (xNb1 - xNb2) - fB,
-            (xCr - xCr2) * (xNb1 - xNb2) - (xCr1 - xCr2) * (xNb - xNb2)
+    x1B, x2B, x1C, x2C = X
+    fB = g_del(x2B, x1B)
+    fC = g_lav(x2C, x1C)
+    dfBdx1 = dg_del_dxNb(x2B, x1B)
+    dfBdx2 = dg_del_dxCr(x2B, x1B)
+    dfCdx1 = dg_lav_dxNb(x2C, x1C)
+    dfCdx2 = dg_lav_dxCr(x2C, x1C)
+    dx1 = x1B - x1C
+    dx2 = x2B - x2C
+    return [dfBdx1 - dfCdx1,
+            dfBdx2 - dfCdx2,
+            fB + dfBdx1 * dx1 + dfBdx2 * dx2 - fC,
+            (x1 - x1C) * dx2 - dx1 * (x2 - x2C)
            ]
 
   def jacobian(X):
-    xCr1, xNb1, xCr2, xNb2 = X
-    dfAdxCr = dg_del_dxCr(xCr1, xNb1)
-    dfAdxNb = dg_del_dxNb(xCr1, xNb1)
-    dfBdxCr = dg_lav_dxCr(xCr2, xNb2)
-    dfBdxNb = dg_lav_dxNb(xCr2, xNb2)
-    d2fAdxCrCr = d2g_del_dxCrCr()
-    d2fAdxCrNb = d2g_del_dxCrNb()
-    d2fAdxNbNb = d2g_del_dxNbNb()
-    d2fBdxCrCr = d2g_lav_dxCrCr()
-    d2fBdxCrNb = d2g_lav_dxCrNb()
-    d2fBdxNbNb = d2g_lav_dxNbNb()
-    dxCr = xCr1 - xCr2
-    dxNb = xNb1 - xNb2
-    return [[ d2fAdxCrCr, d2fAdxCrNb,-d2fBdxCrCr,-d2fBdxCrNb],
-            [ d2fAdxCrNb, d2fAdxNbNb,-d2fBdxCrNb,-d2fBdxNbNb],
-            [ d2fAdxCrCr * dxCr + 2*dfAdxCr + d2fBdxCrNb * dxNb,
-              d2fAdxCrNb * dxCr + 2*dfAdxNb + d2fBdxNbNb * dxNb,
-              -dfBdxCr - dfAdxCr,
-              -dfBdxNb - dfAdxNb],
-            [-xNb + xNb2, xCr - xCr2, -xNb1 + xNb, -xCr + xCr1]
+    x1B, x2B, x1C, x2C = X
+    dfBdx1 = dg_del_dxNb(x2B, x1B)
+    dfBdx2 = dg_del_dxCr(x2B, x1B)
+    dfCdx1 = dg_lav_dxNb(x2C, x1C)
+    dfCdx2 = dg_lav_dxCr(x2C, x1C)
+    d2fBdx11 = d2g_del_dxNbNb()
+    d2fBdx12 = d2g_del_dxNbCr()
+    d2fBdx22 = d2g_del_dxCrCr()
+    d2fCdx11 = d2g_lav_dxNbNb()
+    d2fCdx12 = d2g_lav_dxNbCr()
+    d2fCdx22 = d2g_lav_dxCrCr()
+    dx1 = x1B - x1C
+    dx2 = x2B - x2C
+    return [[ d2fBdx11, d2fBdx12,-d2fCdx11,-d2fCdx12],
+            [ d2fBdx12, d2fBdx22,-d2fCdx12,-d2fCdx22],
+            [ d2fBdx11 * dx1 + 2*dfBdx1 + d2fBdx12 * dx2,
+              d2fBdx12 * dx1 + 2*dfBdx2 + d2fBdx22 * dx2,
+              -dfCdx1 - dfBdx1,
+              -dfCdx2 - dfBdx2],
+            [-x2 + x2C, x1 - x1C, -x2B + x2, -x1 + x1B]
            ]
-  # returns the tuple [xCrDelLav, xNbDelLav, xCrLavDel, xNbLavDel]
-  return fsolve(func=system, x0=[xCr, xNb, xCr, xNb], fprime=jacobian)
+  # returns the tuple [x1B, x2B, x1C, x2C]
+  return fsolve(func=system, x0=[x1, x2, x1, x2], fprime=jacobian)
 
+def ABCSolver(x1, x2):
+  def system(X):
+    x1A, x2A, x1B, x2B, x1C, x2C = X
+    fA = g_gam(x2A, x1A)
+    fB = g_del(x2B, x1B)
+    fC = g_lav(x2C, x1C)
+    dfAdx1 = dg_gam_dxNb(x2A, x1A)
+    dfAdx2 = dg_gam_dxCr(x2A, x1A)
+    dfBdx1 = dg_del_dxNb(x2B, x1B)
+    dfBdx2 = dg_del_dxCr(x2B, x1B)
+    dfCdx1 = dg_lav_dxNb(x2C, x1C)
+    dfCdx2 = dg_lav_dxCr(x2C, x1C)
+    dx1B = x1A - x1B
+    dx1C = x1A - x1C
+    dx2B = x2A - x2B
+    dx2C = x2A - x2C
+    return [dfAdx1 - dfBdx1,
+            dfAdx1 - dfCdx1,
+            dfAdx2 - dfBdx2,
+            dfAdx2 - dfCdx2,
+            fA + dfAdx1 * dx1B + dfAdx2 * dx2B - fB,
+            fA + dfAdx1 * dx1C + dfAdx2 * dx2C - fC
+           ]
 
-pureGamma = []
-pureDelta = []
-pureLaves = []
-tieGamDel = []
-tieGamLav = []
-tieDelLav = []
+  def jacobian(X):
+    x1A, x2A, x1B, x2B, x1C, x2C = X
+    dfAdx1 = dg_gam_dxNb(x2A, x1A)
+    dfAdx2 = dg_gam_dxCr(x2A, x1A)
+    dfBdx1 = dg_del_dxNb(x2B, x1B)
+    dfBdx2 = dg_del_dxCr(x2B, x1B)
+    dfCdx1 = dg_lav_dxNb(x2C, x1C)
+    dfCdx2 = dg_lav_dxCr(x2C, x1C)
+    d2fAdx11 = d2g_gam_dxNbNb()
+    d2fAdx12 = d2g_gam_dxNbCr()
+    d2fAdx22 = d2g_gam_dxCrCr()
+    d2fBdx11 = d2g_del_dxNbNb()
+    d2fBdx12 = d2g_del_dxNbCr()
+    d2fBdx22 = d2g_del_dxCrCr()
+    d2fCdx11 = d2g_lav_dxNbNb()
+    d2fCdx12 = d2g_lav_dxNbCr()
+    d2fCdx22 = d2g_lav_dxCrCr()
+    dx1B = x1A - x1B
+    dx1C = x1A - x1C
+    dx2B = x2A - x2B
+    dx2C = x2A - x2C
+    return [[ d2fAdx11, d2fAdx12,-d2fBdx11,-d2fBdx12, 0, 0],
+            [ d2fAdx11, d2fAdx12,-d2fCdx11,-d2fCdx12, 0, 0],
+            [ d2fAdx12, d2fAdx22, 0, 0,-d2fBdx12,-d2fBdx22],
+            [ d2fAdx12, d2fAdx22, 0, 0,-d2fCdx12,-d2fCdx22],
+            [ d2fAdx11 * dx1B + 2*dfAdx1 + d2fAdx12 * dx2B,
+              d2fAdx12 * dx1B + 2*dfAdx2 + d2fAdx22 * dx2B,
+              -dfBdx1 - dfAdx1,
+              -dfBdx2 - dfAdx2,
+              0, 0],
+            [ d2fAdx11 * dx1C + 2*dfAdx1 + d2fAdx12 * dx2C,
+              d2fAdx12 * dx1C + 2*dfAdx2 + d2fAdx22 * dx2C,
+              0, 0,
+              -dfCdx1 - dfAdx1,
+              -dfCdx2 - dfAdx2]
+           ]
 
-for xNbTest in tqdm(np.linspace(spill, 1 - spill, density)):
-  for xCrTest in np.linspace(spill, 1 - spill - xNbTest, max(1, ceil((1 - spill - xNbTest) * density))):
+  # returns the tuple [x1A, x2A, x1B, x2B]
+  return fsolve(func=system, x0=[x1, x2, x1, x2, x1, x2], fprime=jacobian)
 
-    xCrGamDel, xNbGamDel, xCrDelGam, xNbDelGam = GammaDeltaSolver(xCrTest, xNbTest)
-    xCrGamLav, xNbGamLav, xCrLavGam, xNbLavGam = GammaLavesSolver(xCrTest, xNbTest)
-    xCrDelLav, xNbDelLav, xCrLavDel, xNbLavDel = DeltaLavesSolver(xCrTest, xNbTest)
+pureA = []
+pureB = []
+pureC = []
 
-    fGam = g_gam(xCrTest, xNbTest)
-    fDel = g_del(xCrTest, xNbTest)
-    fLav = g_lav(xCrTest, xNbTest)
-    fGamDel = 1.0e12
-    fGamLav = 1.0e12
-    fDelLav = 1.0e12
+tieAB = []
+tieAC = []
+tieBC = []
 
-    # Filter unphysical results
-    GamDelIsPhysical = (xCrGamDel > 0 and xCrGamDel < 0.25 and
-                        xNbGamDel > 0 and xNbGamDel < 0.20 and
-                        xCrGamDel + xNbGamDel       < 1 and
-                        xCrDelGam > 0 and xCrDelGam < 1 and
-                        xNbDelGam > 0 and xNbDelGam < 1 and
-                        xCrDelGam + xNbDelGam       < 1)
-    GamLavIsPhysical = (xCrGamLav > 0 and xCrGamLav < 1 and
-                        xNbGamLav > 0 and xNbGamLav < 0.25 and
-                        xCrGamLav + xNbGamLav       < 1 and
-                        xCrLavGam > 0 and xCrLavGam < 1 and
-                        xNbLavGam > 0 and xNbLavGam < 1 and
-                        xCrLavGam + xNbLavGam       < 1)
-    DelLavIsPhysical = (xCrDelLav > 0 and xCrDelLav < 1 and
-                        xNbDelLav > 0 and xNbDelLav < 1 and
-                        xCrDelLav + xNbDelLav       < 1 and
-                        xCrLavDel > 0 and xCrLavDel < 1 and
-                        xNbLavDel > 0 and xNbLavDel < 1 and
-                        xCrLavDel + xNbLavDel       < 1)
+triangle = []
 
-    # Filter mismatched slopes
-    GamDelCrSlopeSimilar = (dg_gam_dxCr(xCrGamDel, xNbGamDel) - dg_del_dxCr(xCrDelGam, xNbDelGam) < deltamu)
-    GamDelNbSlopeSimilar = (dg_gam_dxNb(xNbGamDel, xNbGamDel) - dg_del_dxNb(xNbDelGam, xNbDelGam) < deltamu)
-    GamLavCrSlopeSimilar = (dg_gam_dxCr(xCrGamLav, xNbGamLav) - dg_lav_dxCr(xCrLavGam, xNbLavGam) < deltamu)
-    GamLavNbSlopeSimilar = (dg_gam_dxNb(xNbGamLav, xNbGamLav) - dg_lav_dxNb(xNbLavGam, xNbLavGam) < deltamu)
-    DelLavCrSlopeSimilar = (dg_lav_dxCr(xCrLavDel, xNbLavDel) - dg_del_dxCr(xCrDelLav, xNbDelLav) < deltamu)
-    DelLavNbSlopeSimilar = (dg_lav_dxNb(xNbLavDel, xNbLavDel) - dg_del_dxNb(xNbDelLav, xNbDelLav) < deltamu)
+for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
+  for x2test in np.linspace(0.5/density, 1 - x1test - 0.5/density, max(1, ceil((1 - x1test) * density))):
+    x1AB, x2AB, x1BA, x2BA = ABSolver(x1test, x2test)
+    x1AC, x2AC, x1CA, x2CA = ACSolver(x1test, x2test)
+    x1BC, x2BC, x1CB, x2CB = BCSolver(x1test, x2test)
 
-    if (GamDelIsPhysical and GamDelCrSlopeSimilar and GamDelNbSlopeSimilar):
-      fGamDel = g_gam(xCrGamDel, xNbGamDel) + dg_gam_dxCr(xCrGamDel, xNbGamDel) * (xCrGamDel - xCrTest) \
-                                            + dg_gam_dxNb(xCrGamDel, xNbGamDel) * (xNbGamDel - xNbTest)
-    if (GamLavIsPhysical and GamLavCrSlopeSimilar and GamLavNbSlopeSimilar):
-      fGamLav = g_gam(xCrGamLav, xNbGamLav) + dg_gam_dxCr(xCrGamLav, xNbGamLav) * (xCrGamLav - xCrTest) \
-                                            + dg_gam_dxNb(xCrGamLav, xNbGamLav) * (xNbGamLav - xNbTest)
-    if (DelLavIsPhysical and DelLavCrSlopeSimilar and DelLavNbSlopeSimilar):
-      fDelLav = g_del(xCrLavDel, xNbLavDel) + dg_del_dxCr(xCrDelLav, xNbDelLav) * (xCrDelLav - xCrTest) \
-                                            + dg_del_dxNb(xCrDelLav, xNbDelLav) * (xNbDelLav - xNbTest)
+    a = -0.01
+    b =  1.01
 
-    minima = np.asarray([fGam, fDel, fLav])
-    minidx = np.argmin(minima)
+    ABisPhysical = (boundBy(x1AB, a, b) and boundBy(x2AB, a, b) and
+                    boundBy(x1BA, a, b) and boundBy(x2BA, a, b) and
+                    boundBy(x1test, min(x1AB, x1BA), max(x1AB, x1BA)) and
+                    boundBy(x2test, min(x2AB, x2BA), max(x2AB, x2BA)))
+    ACisPhysical = (boundBy(x1AC, a, b) and boundBy(x2AC, a, b) and
+                    boundBy(x1CA, a, b) and boundBy(x2CA, a, b) and
+                    boundBy(x1test, min(x1AC, x1CA), max(x1AC, x1CA)) and
+                    boundBy(x2test, min(x2AC, x2CA), max(x2AC, x2CA)))
+    BCisPhysical = (boundBy(x1BC, a, b) and boundBy(x2BC, a, b) and
+                    boundBy(x1CB, a, b) and boundBy(x2CB, a, b) and
+                    boundBy(x1test, min(x1BC, x1CB), max(x1BC, x1CB)) and
+                    boundBy(x2test, min(x2BC, x2CB), max(x2BC, x2CB)))
 
-    if (minidx == 0):
-      pureGamma.append([simX(xNbTest, xCrTest), simY(xCrTest)])
-    elif (minidx == 1):
-      pureDelta.append([simX(xNbTest, xCrTest), simY(xCrTest)])
-    elif (minidx == 2):
-      pureLaves.append([simX(xNbTest, xCrTest), simY(xCrTest)])
+    # There can be only one three-phase coexistence region.
 
-    minima = np.asarray([ fGamDel, fGamLav, fDelLav])
-    minidx = np.argmin(minima)
+    if len(triangle) < 1:
+      x1ABC, x2ABC, x1BAC, x2BAC, x1CAB, x2CAB = ABCSolver(x1test, x2test)
 
-    if (minidx == 0 and GamDelIsPhysical and GamDelCrSlopeSimilar and GamDelNbSlopeSimilar):
-      tieGamDel.append([simX(xNbGamDel, xCrGamDel), simY(xCrGamDel),
-                        simX(xNbDelGam, xCrDelGam), simY(xCrDelGam)])
-    elif (minidx == 1 and GamLavIsPhysical and GamLavCrSlopeSimilar and GamLavNbSlopeSimilar):
-      tieGamLav.append([simX(xNbGamLav, xCrGamLav), simY(xCrGamLav),
-                        simX(xNbLavGam, xCrLavGam), simY(xCrLavGam)])
-    elif (minidx == 2 and DelLavIsPhysical and DelLavCrSlopeSimilar and DelLavNbSlopeSimilar):
-      tieDelLav.append([simX(xNbDelLav, xCrDelLav), simY(xCrDelLav),
-                        simX(xNbLavDel, xCrLavDel), simY(xCrLavDel)])
+      ABCisPhysical = (boundBy(x1ABC, a, b) and boundBy(x2ABC, a, b) and
+                       boundBy(x1BAC, a, b) and boundBy(x2BAC, a, b) and
+                       boundBy(x1CAB, a, b) and boundBy(x2CAB, a, b) and
+                       boundBy(x1test, min((x1ABC, x1BAC, x1CAB)), max((x1ABC, x1BAC, x1CAB))) and
+                       boundBy(x2test, min((x2ABC, x2BAC, x2CAB)), max((x2ABC, x2BAC, x2CAB))) and
+                       boundBy(x1test, min((xe1A(), xe1B(), xe1C())), max((xe1A(), xe1B(), xe1C()))) and
+                       boundBy(x2test, min((xe2A(), xe2B(), xe2C())), max((xe2A(), xe2B(), xe2C()))))
+
+      if ABCisPhysical:
+        triX = (simX(x1ABC, x2ABC), simX(x1BAC, x2BAC), simX(x1CAB, x2CAB), simX(x1ABC, x2ABC))
+        triY = (simY(x2ABC),        simY(x2BAC),        simY(x2CAB),        simY(x2ABC))
+        triangle.append((triX, triY))
+
+    # Compute system energies
+
+    fA = g_gam(x2test, x1test)
+    fB = g_del(x2test, x1test)
+    fC = g_lav(x2test, x1test)
+
+    fAB = 1e6 * d2g_gam_dxNbNb()
+    fAC = 1e6 * d2g_gam_dxNbNb()
+    fBC = 1e6 * d2g_del_dxNbNb()
+
+    if ABisPhysical:
+      lAB = euclideanNorm(x1BA - x1AB, x2BA - x2AB)
+      wA = euclideanNorm(x1BA - x1test, x2BA - x2test) / lAB
+      wB = euclideanNorm(x1test - x1AB, x2test - x2AB) / lAB
+      fAB = wA * g_gam(x2AB, x1AB) + wB * g_del(x2BA, x1BA)
+
+    if ACisPhysical:
+      lAC = euclideanNorm(x1CA - x1AC, x2CA - x2AC)
+      wA = euclideanNorm(x1CA - x1test, x2CA - x2test) / lAC
+      wC = euclideanNorm(x1test - x1AC, x2test - x2AC) / lAC
+      fAC = wA * g_gam(x2AC, x1AC) + wC * g_lav(x2CA, x1CA)
+
+    if BCisPhysical:
+      lBC = euclideanNorm(x1CB - x1BC, x2CB - x2BC)
+      wB = euclideanNorm(x1CB - x1test, x2CB - x2test) / lBC
+      wC = euclideanNorm(x1test - x1BC, x2test - x2BC) / lBC
+      fBC = wB * g_del(x2BC, x1BC) + wC * g_lav(x2CB, x1CB)
+
+    energies = np.asarray((fAB, fAC, fBC, fA, fB, fC))
+    minIdx = np.argmin(energies)
+
+    if minIdx == 0:
+      points = (simX(x1AB, x2AB), simY(x2AB),
+                simX(x1BA, x2BA), simY(x2BA))
+      tieAB.append(points)
+    elif minIdx == 1:
+      points = (simX(x1AC, x2AC), simY(x2AC),
+                simX(x1CA, x2CA), simY(x2CA))
+      tieAC.append(points)
+    elif minIdx == 2:
+      points = (simX(x1BC, x2BC), simY(x2BC),
+                simX(x1CB, x2CB), simY(x2CB))
+      tieBC.append(points)
+    elif minIdx == 3:
+      pureA.append((simX(x1test, x2test), simY(x2test)))
+    elif minIdx == 4:
+      pureB.append((simX(x1test, x2test), simY(x2test)))
+    elif minIdx == 5:
+      pureC.append((simX(x1test, x2test), simY(x2test)))
+
+for x, y in triangle:
+  plt.plot(x, y, color='black', zorder=2)
 
 """
-for x, y in pureGamma:
-  plt.scatter(x, y, c=colors[0], edgecolor=colors[0], s=1)
-for x, y in pureDelta:
-  plt.scatter(x, y, c=colors[1], edgecolor=colors[1], s=1)
-for x, y in pureLaves:
-  plt.scatter(x, y, c=colors[2], edgecolor=colors[2], s=1)
+for x, y in pureA:
+  plt.scatter(x, y, c=colors[0], marker='h',edgecolor=colors[0], s=1.5)
+
+for x, y in pureB:
+  plt.scatter(x, y, c=colors[1], marker='h', edgecolor=colors[1], s=1.5)
+
+for x, y in pureC:
+  plt.scatter(x, y, c=colors[2], marker='h', edgecolor=colors[2], s=1.5)
 """
 
-for xa, ya, xb, yb in tieGamDel:
-  plt.scatter(xa, ya, c=colors[0], edgecolor=colors[0], s=2)
-  plt.scatter(xb, yb, c=colors[1], edgecolor=colors[1], s=2)
-  # plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.5)
-for xa, ya, xb, yb in tieGamLav:
-  plt.scatter(xa, ya, c=colors[0], edgecolor=colors[0], s=2)
-  plt.scatter(xb, yb, c=colors[2], edgecolor=colors[2], s=2)
-  # plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.5)
-for xa, ya, xb, yb in tieDelLav:
-  plt.scatter(xa, ya, c=colors[1], edgecolor=colors[1], s=2)
-  plt.scatter(xb, yb, c=colors[2], edgecolor=colors[2], s=2)
-  # plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.5)
+for xa, ya, xb, yb in tieAB:
+  if (boundBy(ya, 0, triangle[0][1][0]) and
+      boundBy(yb, 0, triangle[0][1][1])):
+    plt.scatter(xa, ya, c=colors[0], marker='h', edgecolor=colors[0], s=1.5, zorder=1)
+    plt.scatter(xb, yb, c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
+    plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.1, zorder=0)
+  else:
+    plt.scatter(xa, ya, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+    plt.scatter(xb, yb, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+
+for xa, ya, xc, yc in tieAC:
+  if (boundBy(ya, triangle[0][1][0], 1) and
+      boundBy(yc, triangle[0][1][2], 1)):
+    plt.scatter(xa, ya, marker='h', c=colors[0], edgecolor=colors[0], s=1.5, zorder=1)
+    plt.scatter(xc, yc, marker='h', c=colors[2], edgecolor=colors[2], s=1.5, zorder=1)
+    plt.plot([xa, xc], [ya, yc], color="gray", linewidth=0.1, zorder=0)
+  else:
+    plt.scatter(xa, ya, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+    plt.scatter(xc, yc, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+
+for xb, yb, xc, yc in tieBC:
+  if (boundBy(xb, triangle[0][0][1], 1) and
+      boundBy(xc, 0, triangle[0][0][2])):
+    plt.scatter(xb, yb, c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
+    plt.scatter(xc, yc, c=colors[2], marker='h', edgecolor=colors[2], s=1.5, zorder=1)
+    plt.plot([xb, xc], [yb, yc], color="gray", linewidth=0.1, zorder=0)
+  else:
+    plt.scatter(xb, yb, c=colors[3], marker='h', edgecolor=colors[3], s=1.5, zorder=0)
+    plt.scatter(xc, yc, c=colors[3], marker='h', edgecolor=colors[3], s=1.5, zorder=0)
 
 plt.savefig("ternary-diagram.png", dpi=400, bbox_inches="tight")

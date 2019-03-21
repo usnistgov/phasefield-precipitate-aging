@@ -3,6 +3,22 @@
 from ctypes import CDLL, c_double
 p625 = CDLL("./parabola625.so")
 
+# Control points
+
+xe1A = p625.xe_gam_Nb
+xe2A = p625.xe_gam_Cr
+xe1B = p625.xe_del_Nb
+xe2B = p625.xe_del_Cr
+xe1C = p625.xe_lav_Nb
+xe2C = p625.xe_lav_Cr
+
+xe1A.restype = c_double
+xe2A.restype = c_double
+xe1B.restype = c_double
+xe2B.restype = c_double
+xe1C.restype = c_double
+xe2C.restype = c_double
+
 # Define free energy functions
 
 g_gam = p625.g_gam
