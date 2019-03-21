@@ -284,16 +284,16 @@ tieAB = []
 tieAC = []
 tieBC = []
 
-triangle = []
+coexist = []
 
-for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
-  for x2test in np.linspace(0.5/density, 1 - x1test - 0.5/density, max(1, ceil((1 - x1test) * density))):
+for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density + 1)):
+  for x2test in np.linspace(0.5/density, 1 - x1test - 0.5/density, max(1, ceil((1 - x1test) * (1 + density)))):
     x1AB, x2AB, x1BA, x2BA = ABSolver(x1test, x2test)
     x1AC, x2AC, x1CA, x2CA = ACSolver(x1test, x2test)
     x1BC, x2BC, x1CB, x2CB = BCSolver(x1test, x2test)
 
-    a = -0.01
-    b =  1.01
+    a = 0
+    b = 1
 
     ABisPhysical = (boundBy(x1AB, a, b) and boundBy(x2AB, a, b) and
                     boundBy(x1BA, a, b) and boundBy(x2BA, a, b) and
@@ -310,7 +310,7 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
 
     # There can be only one three-phase coexistence region.
 
-    if len(triangle) < 1:
+    if len(coexist) < 1:
       x1ABC, x2ABC, x1BAC, x2BAC, x1CAB, x2CAB = ABCSolver(x1test, x2test)
 
       ABCisPhysical = (boundBy(x1ABC, a, b) and boundBy(x2ABC, a, b) and
@@ -324,7 +324,7 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
       if ABCisPhysical:
         triX = (simX(x1ABC, x2ABC), simX(x1BAC, x2BAC), simX(x1CAB, x2CAB), simX(x1ABC, x2ABC))
         triY = (simY(x2ABC),        simY(x2BAC),        simY(x2CAB),        simY(x2ABC))
-        triangle.append((triX, triY))
+        coexist.append((triX, triY))
 
     # Compute system energies
 
@@ -376,7 +376,7 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
     elif minIdx == 5:
       pureC.append((simX(x1test, x2test), simY(x2test)))
 
-for x, y in triangle:
+for x, y in coexist:
   plt.plot(x, y, color='black', zorder=2)
 
 """
@@ -391,8 +391,8 @@ for x, y in pureC:
 """
 
 for xa, ya, xb, yb in tieAB:
-  if (boundBy(ya, 0, triangle[0][1][0]) and
-      boundBy(yb, 0, triangle[0][1][1])):
+  if (boundBy(ya, 0, coexist[0][1][0]) and
+      boundBy(yb, 0, coexist[0][1][1])):
     plt.scatter(xa, ya, c=colors[0], marker='h', edgecolor=colors[0], s=1.5, zorder=1)
     plt.scatter(xb, yb, c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
     plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.1, zorder=0)
@@ -401,8 +401,8 @@ for xa, ya, xb, yb in tieAB:
     plt.scatter(xb, yb, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
 
 for xa, ya, xc, yc in tieAC:
-  if (boundBy(ya, triangle[0][1][0], 1) and
-      boundBy(yc, triangle[0][1][2], 1)):
+  if (boundBy(ya, coexist[0][1][0], 1) and
+      boundBy(yc, coexist[0][1][2], 1)):
     plt.scatter(xa, ya, marker='h', c=colors[0], edgecolor=colors[0], s=1.5, zorder=1)
     plt.scatter(xc, yc, marker='h', c=colors[2], edgecolor=colors[2], s=1.5, zorder=1)
     plt.plot([xa, xc], [ya, yc], color="gray", linewidth=0.1, zorder=0)
@@ -411,8 +411,8 @@ for xa, ya, xc, yc in tieAC:
     plt.scatter(xc, yc, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
 
 for xb, yb, xc, yc in tieBC:
-  if (boundBy(xb, triangle[0][0][1], 1) and
-      boundBy(xc, 0, triangle[0][0][2])):
+  if (boundBy(xb, coexist[0][0][1], 1) and
+      boundBy(xc, 0, coexist[0][0][2])):
     plt.scatter(xb, yb, c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
     plt.scatter(xc, yc, c=colors[2], marker='h', edgecolor=colors[2], s=1.5, zorder=1)
     plt.plot([xb, xc], [yb, yc], color="gray", linewidth=0.1, zorder=0)

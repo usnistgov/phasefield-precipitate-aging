@@ -114,6 +114,7 @@ g_laves = parse_expr(str(model.ast))
 XCR, XNB = symbols('XCR XNB')
 
 # Specify gamma-delta-Laves corners (from phase diagram)
+
 xe_gam_Cr = 0.490
 xe_gam_Nb = 0.025
 
