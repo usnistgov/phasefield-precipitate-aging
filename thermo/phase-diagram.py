@@ -29,10 +29,15 @@ def euclideanNorm(dxNb, dxCr):
 def boundBy(x, a, b):
   return (a <= x) and (x <= b)
 
-def labelAxes(n):
+def labelAxes(xlabel, ylabel, n):
+  plt.axis('off')
+  plt.gca().set_aspect('equal', adjustable='box')
+  plt.xlim([-0.05, 1.05])
+  plt.ylim([-0.05, simY(1.05)])
+
   def plot_ticks(start, stop, tick, angle, n):
-    plt.text(0.5, -0.075, r'$x_{\mathrm{Nb}}$', fontsize=18)
-    plt.text(simX(-0.11, 0.55), simY(0.55), r'$x_{\mathrm{Cr}}$', rotation=60, fontsize=18)
+    plt.text(0.5, -0.075, xlabel, fontsize=18)
+    plt.text(simX(-0.11, 0.55), simY(0.55), ylabel, rotation=60, fontsize=18)
 
     # from https://stackoverflow.com/a/30975434/5377275
     dx = 3 * tick[0]
@@ -62,6 +67,9 @@ def labelAxes(n):
   right_tick = sqrt(3) * tick_size * np.r_[1,0.5] * (top - left) / n
   left_tick = sqrt(3) * tick_size * np.r_[1,0.5] * (top - right) / n
 
+  XS = [0, simX(1,0), simX(0,1), 0]
+  YS = [0, simY(0),   simY(1),   0]
+  plt.plot(XS, YS, '-k', zorder=2)
   plot_ticks(left, right, bottom_tick, 0, n)
   plot_ticks(right, top, right_tick, -60, n)
   plot_ticks(left, top, left_tick, 60, n)
@@ -69,16 +77,8 @@ def labelAxes(n):
 # Plot phase diagram
 pltsize = 10
 plt.figure(figsize=(pltsize, 0.5 * sqrt(3.) * pltsize))
-plt.gca().set_aspect('equal', adjustable='box')
 plt.title("Cr-Nb-Ni at {0} K".format(temp), fontsize=18)
-plt.axis('off')
-labelAxes(10)
-plt.xlim([-0.05, 1.05])
-plt.ylim([-0.05, simY(1.05)])
-# triangle bounding the Gibbs simplex
-XS = [0, simX(1,0), simX(0,1), 0]
-YS = [0, simY(0),   simY(1),   0]
-plt.plot(XS, YS, '-k', zorder=2)
+labelAxes(r'$x_{\mathrm{Nb}}$', r'$x_{\mathrm{Cr}}$', 10)
 
 plt.text(simX(0.05, 0.10), simY(0.10), '$\gamma$',  color=colors[0], fontsize=16, zorder=2, **alignment)
 plt.text(0.265,            -0.006,     '$\delta$',  color=colors[1], fontsize=16, zorder=2, **alignment)
