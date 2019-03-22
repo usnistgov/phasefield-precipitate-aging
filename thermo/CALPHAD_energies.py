@@ -114,15 +114,16 @@ g_laves = parse_expr(str(model.ast))
 XCR, XNB = symbols('XCR XNB')
 
 # Specify gamma-delta-Laves corners (from phase diagram)
+# with compositions as mass fractions
 
-xe_gam_Cr = 0.490
-xe_gam_Nb = 0.025
+xe_gam_Cr = 0.5250
+xe_gam_Nb = 0.0180
 
-xe_del_Cr = 0.015
-xe_del_Nb = 0.245
+xe_del_Cr = 0.0258
+xe_del_Nb = 0.2440
 
-xe_lav_Cr = 0.300
-xe_lav_Nb = 0.328
+xe_lav_Cr = 0.3750
+xe_lav_Nb = 0.2590
 
 # Define lever rule equations
 xo, yo = symbols('xo yo')
