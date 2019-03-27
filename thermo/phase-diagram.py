@@ -77,7 +77,7 @@ def labelAxes(xlabel, ylabel, n):
 # Plot phase diagram
 pltsize = 10
 plt.figure(figsize=(pltsize, 0.5 * sqrt(3.) * pltsize))
-plt.title("Cr-Nb-Ni at {0} K".format(temp), fontsize=18)
+plt.title("Cr-Nb-Ni at {0} K".format(int(temp)), fontsize=18)
 labelAxes(r'$x_{\mathrm{Nb}}$', r'$x_{\mathrm{Cr}}$', 10)
 
 plt.text(simX(0.05, 0.10), simY(0.10), '$\gamma$',  color=colors[0], fontsize=16, zorder=2, **alignment)
