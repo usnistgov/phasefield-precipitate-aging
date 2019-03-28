@@ -24,9 +24,10 @@
 #ifndef __CUDA625_CPP__
 #define __CUDA625_CPP__
 
-#include <set>
+#include <chrono>
 #include <cmath>
 #include <random>
+#include <set>
 #include <sstream>
 #include <vector>
 #ifdef _OPENMP
@@ -36,10 +37,10 @@
 #include "alloy625.hpp"
 #include "cuda_data.h"
 #include "mesh.h"
+#include "nucleation.h"
 #include "numerics.h"
 #include "output.h"
 #include "parabola625.h"
-#include "nucleation.h"
 
 // Kinetic and model parameters
 const double meshres = 0.25e-9;      // grid spacing (m)
@@ -79,6 +80,8 @@ namespace MMSP
 
 void generate(int dim, const char* filename)
 {
+	std::chrono::high_resolution_clock::time_point beginning = std::chrono::high_resolution_clock::now();
+
 	int rank = 0;
 	#ifdef MPI_VERSION
 	rank = MPI::COMM_WORLD.Get_rank();
@@ -94,9 +97,9 @@ void generate(int dim, const char* filename)
 	const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 
 	// Initialize pseudo-random number generator
-	std::random_device rd;     // seed generator
-	std::mt19937 mtrand(rd()); // Mersenne Twister PRNG
-	std::uniform_real_distribution<double> unidist(0, 1);
+	std::mt19937 mtrand; // Mersenne Twister PRNG
+	unsigned int seed = (std::chrono::high_resolution_clock::now() - beginning).count();
+	mtrand.seed(seed);
 
 	if (dim==2) {
 		const int Nx = 4000;
@@ -118,17 +121,19 @@ void generate(int dim, const char* filename)
 			          << ", dtDiffusionLimited=" << dtDiffusionLimited
 			          << '.' << std::endl;
 
-		/* Randomly choose enriched compositions in a circular region of the phase diagram near the
-		 * gamma corner of three-phase coexistence triangular phase field. Set system composition
-		 * to the nearest point on the triangular phase field to the IN625 composition.
+		/* Randomly choose enriched compositions in a rectangular region of the phase diagram
+		 * corresponding to enriched IN625 per DICTRA simulations, with compositions in
+		 * mole fraction (not weight fraction!)
 		 */
-		const double xCr0 = 0.3250;
-		const double xNb0 = 0.1025;
-		const double xe = 0.4800;
-		const double ye = 0.0430;
-		const double re = 0.0100;
-		double xCrE = xe + re * (unidist(mtrand) - 1.);
-		double xNbE = ye + re * (unidist(mtrand) - 1.);
+		std::uniform_real_distribution<double> matrixCrDist(0.2794, 0.3288);
+		std::uniform_real_distribution<double> matrixNbDist(0.0202, 0.0269);
+		std::uniform_real_distribution<double> enrichedCrDist(0.2720, 0.3214);
+		std::uniform_real_distribution<double> enrichedNbDist(0.1693, 0.1760);
+
+		double xCr0 = matrixCrDist(mtrand);
+		double xNb0 = matrixNbDist(mtrand);
+		double xCrE = enrichedCrDist(mtrand);
+		double xNbE = enrichedNbDist(mtrand);
 
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();

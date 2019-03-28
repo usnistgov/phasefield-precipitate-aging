@@ -14,6 +14,8 @@ from constants import temp
 
 density = 200
 colors = ['red', 'green', 'blue', 'gray']
+salmon = '#fa8072'
+rust = '#b7410e'
 alignment = {'horizontalalignment': 'center', 'verticalalignment': 'center'}
 
 # Helper functions to convert compositions into (x,y) coordinates
@@ -67,8 +69,8 @@ def labelAxes(xlabel, ylabel, n):
   right_tick = sqrt(3) * tick_size * np.r_[1,0.5] * (top - left) / n
   left_tick = sqrt(3) * tick_size * np.r_[1,0.5] * (top - right) / n
 
-  XS = [0, simX(1,0), simX(0,1), 0]
-  YS = [0, simY(0),   simY(1),   0]
+  XS = (0, simX(1,0), simX(0,1), 0)
+  YS = (0, simY(0),   simY(1),   0)
   plt.plot(XS, YS, '-k', zorder=2)
   plot_ticks(left, right, bottom_tick, 0, n)
   plot_ticks(right, top, right_tick, -60, n)
@@ -83,6 +85,35 @@ labelAxes(r'$x_{\mathrm{Nb}}$', r'$x_{\mathrm{Cr}}$', 10)
 plt.text(simX(0.05, 0.10), simY(0.10), '$\gamma$',  color=colors[0], fontsize=16, zorder=2, **alignment)
 plt.text(0.265,            -0.006,     '$\delta$',  color=colors[1], fontsize=16, zorder=2, **alignment)
 plt.text(simX(0.29, 0.35), simY(0.35), '$\lambda$', color=colors[2], fontsize=16, zorder=2, **alignment)
+
+# Draw composition bounding boxes
+xCrMat = (0.2794, 0.3288)
+xNbMat = (0.0202, 0.0269)
+xMatLbl = xNbMat[0] - 0.009
+yMatLbl = 0.5 * (xCrMat[0] + xCrMat[1]) + 0.005
+
+xCrEnr = (0.2720, 0.3214)
+xNbEnr = (0.1693, 0.1760)
+xEnrLbl = xNbEnr[0] - 0.009
+yEnrLbl = 0.5 * (xCrEnr[0] + xCrEnr[1]) + 0.0025
+
+XM = (simX(xNbMat[0], xCrMat[0]), simX(xNbMat[0], xCrMat[1]),
+      simX(xNbMat[1], xCrMat[1]), simX(xNbMat[1], xCrMat[0]),
+      simX(xNbMat[0], xCrMat[0]))
+YM = (simY(xCrMat[0]),            simY(xCrMat[1]),
+      simY(xCrMat[1]),            simY(xCrMat[0]),
+      simY(xCrMat[0]))
+XE = (simX(xNbEnr[0], xCrEnr[0]), simX(xNbEnr[0], xCrEnr[1]),
+      simX(xNbEnr[1], xCrEnr[1]), simX(xNbEnr[1], xCrEnr[0]),
+      simX(xNbEnr[0], xCrEnr[0]))
+YE = (simY(xCrEnr[0]),            simY(xCrEnr[1]),
+      simY(xCrEnr[1]),            simY(xCrEnr[0]),
+      simY(xCrEnr[0]))
+
+plt.fill(XM, YM, color=salmon, lw=1)
+plt.text(simX(xMatLbl, yMatLbl), simY(yMatLbl), "matrix", rotation=60, fontsize=8, **alignment)
+plt.fill(XE, YE, color=rust, lw=1)
+plt.text(simX(xEnrLbl, yEnrLbl), simY(yEnrLbl), "enrich", rotation=60, fontsize=8, **alignment)
 
 def ABSolver(x1, x2):
   def system(X):
@@ -274,15 +305,12 @@ def ABCSolver(x1, x2):
   # returns the tuple [x1A, x2A, x1B, x2B]
   return fsolve(func=system, x0=[x1, x2, x1, x2, x1, x2], fprime=jacobian)
 
-pureA = []
-pureB = []
-pureC = []
+
+coexist = []
 
 tieAB = []
 tieAC = []
 tieBC = []
-
-coexist = []
 
 for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density + 1)):
   for x2test in np.linspace(0.5/density, 1 - x1test - 0.5/density, max(1, ceil((1 - x1test) * (1 + density)))):
@@ -313,8 +341,7 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density + 1)):
                     boundBy(x1test, min(x1BC, x1CB), max(x1BC, x1CB)) and
                     boundBy(x2test, min(x2BC, x2CB), max(x2BC, x2CB)))
 
-    # There can be only one three-phase coexistence region.
-
+    # Find three-phase coexistence region. There can be only one!
     if len(coexist) < 1:
       x1ABC, x2ABC, x1BAC, x2BAC, x1CAB, x2CAB = ABCSolver(x1test, x2test)
       x3ABC = 1 - x1ABC - x2ABC
@@ -334,7 +361,6 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density + 1)):
         triX = (simX(x1ABC, x2ABC), simX(x1BAC, x2BAC), simX(x1CAB, x2CAB), simX(x1ABC, x2ABC))
         triY = (simY(x2ABC),        simY(x2BAC),        simY(x2CAB),        simY(x2ABC))
         coexist.append((triX, triY))
-
     # Compute system energies
 
     fA = g_gam(x2test, x1test)
@@ -378,26 +404,9 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density + 1)):
       points = (simX(x1BC, x2BC), simY(x2BC),
                 simX(x1CB, x2CB), simY(x2CB))
       tieBC.append(points)
-    elif minIdx == 3:
-      pureA.append((simX(x1test, x2test), simY(x2test)))
-    elif minIdx == 4:
-      pureB.append((simX(x1test, x2test), simY(x2test)))
-    elif minIdx == 5:
-      pureC.append((simX(x1test, x2test), simY(x2test)))
 
 for x, y in coexist:
   plt.plot(x, y, color='black', zorder=2)
-
-"""
-for x, y in pureA:
-  plt.scatter(x, y, c=colors[0], marker='h',edgecolor=colors[0], s=1.5)
-
-for x, y in pureB:
-  plt.scatter(x, y, c=colors[1], marker='h', edgecolor=colors[1], s=1.5)
-
-for x, y in pureC:
-  plt.scatter(x, y, c=colors[2], marker='h', edgecolor=colors[2], s=1.5)
-"""
 
 for xa, ya, xb, yb in tieAB:
   if (boundBy(ya, 0, coexist[0][1][0]) and
