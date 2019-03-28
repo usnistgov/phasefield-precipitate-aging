@@ -10,6 +10,7 @@
 *.log
 *.mw
 *.nb
+*.npz
 *.nvvp
 *.o
 *.old

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import fsolve
 from tqdm import tqdm
+import warnings
 
 from pyCinterface import *
 from constants import temp
@@ -17,6 +18,8 @@ colors = ['red', 'green', 'blue', 'gray']
 salmon = '#fa8072'
 rust = '#b7410e'
 alignment = {'horizontalalignment': 'center', 'verticalalignment': 'center'}
+warnings.filterwarnings('ignore', 'The iteration is not making good progress')
+warnings.filterwarnings('ignore', 'The number of calls to function has reached maxfev = 500.')
 
 # Helper functions to convert compositions into (x,y) coordinates
 def simX(x1, x2):
@@ -334,6 +337,19 @@ for x1test in np.linspace(0.5/density, 1 - 0.5/density, density):
 for x, y in coexist:
   plt.plot(x, y, color='black', zorder=2)
 
+sAB = []
+sAC = []
+sBC = []
+sBA = []
+sCA = []
+sCB = []
+mAB = []
+mAC = []
+mBC = []
+mBA = []
+mCA = []
+mCB = []
+
 for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
   for x2test in np.linspace(0.5/density, 1 - x1test - 0.5/density, max(1, ceil((1 - x1test) * density))):
     x1AB, x2AB, x1BA, x2BA = ABSolver(x1test, x2test)
@@ -399,9 +415,14 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
         plt.scatter(a[0], a[1], c=colors[0], marker='h', edgecolor=colors[0], s=1.5, zorder=1)
         plt.scatter(b[0], b[1], c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
         plt.plot([a[0], b[0]], [a[1], b[1]], color="gray", linewidth=0.1, zorder=0)
+        sAB.append(a)
+        sBA.append(b)
       else:
         plt.scatter(a[0], a[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
         plt.scatter(b[0], b[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+        mAB.append(a)
+        mBA.append(b)
+
     elif minIdx == 1:
       a = (simX(x1AC, x2AC), simY(x2AC))
       c = (simX(x1CA, x2CA), simY(x2CA))
@@ -410,9 +431,14 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
         plt.scatter(a[0], a[1], c=colors[0], marker='h', edgecolor=colors[0], s=1.5, zorder=1)
         plt.scatter(c[0], c[1], c=colors[2], marker='h', edgecolor=colors[2], s=1.5, zorder=1)
         plt.plot([a[0], c[0]], [a[1], c[1]], color="gray", linewidth=0.1, zorder=0)
+        sAC.append(a)
+        sCA.append(c)
       else:
         plt.scatter(a[0], a[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
-        plt.scatter(b[0], b[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+        plt.scatter(c[0], c[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+        mAC.append(a)
+        mCA.append(c)
+
     elif minIdx == 2:
       b = (simX(x1BC, x2BC), simY(x2BC))
       c = (simX(x1CB, x2CB), simY(x2CB))
@@ -421,8 +447,18 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
         plt.scatter(b[0], b[1], c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
         plt.scatter(c[0], c[1], c=colors[2], marker='h', edgecolor=colors[2], s=1.5, zorder=1)
         plt.plot([b[0], c[0]], [b[1], c[1]], color="gray", linewidth=0.1, zorder=0)
+        sBC.append(b)
+        sCB.append(c)
       else:
-        plt.scatter(a[0], a[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
         plt.scatter(b[0], b[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+        plt.scatter(c[0], c[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+        mBC.append(b)
+        mCB.append(c)
 
 plt.savefig("ternary-diagram.png", dpi=400, bbox_inches="tight")
+
+np.savez_compressed('tie-lines.npz', np.asarray(sAB), np.asarray(sAC), np.asarray(sBC),
+                                     np.asarray(sBA), np.asarray(sCA), np.asarray(sCB))
+
+np.savez_compressed('metastable-lines.npz', np.asarray(mAB), np.asarray(mAC), np.asarray(mBC),
+                                            np.asarray(mBA), np.asarray(mCA), np.asarray(mCB))
