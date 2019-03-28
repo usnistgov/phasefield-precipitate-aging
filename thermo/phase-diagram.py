@@ -12,7 +12,7 @@ from tqdm import tqdm
 from pyCinterface import *
 from constants import temp
 
-density = 200
+density = 256
 colors = ['red', 'green', 'blue', 'gray']
 salmon = '#fa8072'
 rust = '#b7410e'
@@ -305,15 +305,37 @@ def ABCSolver(x1, x2):
   # returns the tuple [x1A, x2A, x1B, x2B]
   return fsolve(func=system, x0=[x1, x2, x1, x2, x1, x2], fprime=jacobian)
 
+# Find three-phase coexistence region. There can be only one!
 
 coexist = []
 
-tieAB = []
-tieAC = []
-tieBC = []
+for x1test in np.linspace(0.5/density, 1 - 0.5/density, density):
+  for x2test in np.linspace(0.5/density, 1 - x1test - 0.5/density, max(1, ceil((1 - x1test) * density))):
+    if len(coexist) < 1:
+      x1ABC, x2ABC, x1BAC, x2BAC, x1CAB, x2CAB = ABCSolver(x1test, x2test)
+      x3ABC = 1 - x1ABC - x2ABC
+      x3BAC = 1 - x1BAC - x2BAC
+      x3CAB = 1 - x1CAB - x2CAB
 
-for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density + 1)):
-  for x2test in np.linspace(0.5/density, 1 - x1test - 0.5/density, max(1, ceil((1 - x1test) * (1 + density)))):
+      ABCisPhysical = (boundBy(x1ABC, 0, 1) and boundBy(x2ABC, 0, 1) and boundBy(x3ABC, 0, 1) and
+                       boundBy(x1BAC, 0, 1) and boundBy(x2BAC, 0, 1) and boundBy(x3BAC, 0, 1) and
+                       boundBy(x1CAB, 0, 1) and boundBy(x2CAB, 0, 1) and boundBy(x3CAB, 0, 1) and
+                       boundBy(x1test, min((x1ABC, x1BAC, x1CAB)), max((x1ABC, x1BAC, x1CAB))) and
+                       boundBy(x2test, min((x2ABC, x2BAC, x2CAB)), max((x2ABC, x2BAC, x2CAB))) and
+                       boundBy(x1test, min((xe1A(), xe1B(), xe1C())), max((xe1A(), xe1B(), xe1C()))) and
+                       boundBy(x2test, min((xe2A(), xe2B(), xe2C())), max((xe2A(), xe2B(), xe2C()))))
+
+      if ABCisPhysical:
+        #       gamma corner        delta corner        Laves corner        gamma corner
+        triX = (simX(x1ABC, x2ABC), simX(x1BAC, x2BAC), simX(x1CAB, x2CAB), simX(x1ABC, x2ABC))
+        triY = (simY(x2ABC),        simY(x2BAC),        simY(x2CAB),        simY(x2ABC))
+        coexist.append((triX, triY))
+
+for x, y in coexist:
+  plt.plot(x, y, color='black', zorder=2)
+
+for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
+  for x2test in np.linspace(0.5/density, 1 - x1test - 0.5/density, max(1, ceil((1 - x1test) * density))):
     x1AB, x2AB, x1BA, x2BA = ABSolver(x1test, x2test)
     x1AC, x2AC, x1CA, x2CA = ACSolver(x1test, x2test)
     x1BC, x2BC, x1CB, x2CB = BCSolver(x1test, x2test)
@@ -325,42 +347,19 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density + 1)):
     x3BC = 1 - x1BC - x2BC
     x3CB = 1 - x1CB - x2CB
 
-    a = 0
-    b = 1
-
-    ABisPhysical = (boundBy(x1AB, a, b) and boundBy(x2AB, a, b) and boundBy(x3AB, a, b) and
-                    boundBy(x1BA, a, b) and boundBy(x2BA, a, b) and boundBy(x3BA, a, b) and
+    ABisPhysical = (boundBy(x1AB, 0, 1) and boundBy(x2AB, 0, 1) and boundBy(x3AB, 0, 1) and
+                    boundBy(x1BA, 0, 1) and boundBy(x2BA, 0, 1) and boundBy(x3BA, 0, 1) and
                     boundBy(x1test, min(x1AB, x1BA), max(x1AB, x1BA)) and
                     boundBy(x2test, min(x2AB, x2BA), max(x2AB, x2BA)))
-    ACisPhysical = (boundBy(x1AC, a, b) and boundBy(x2AC, a, b) and boundBy(x3AC, a, b) and
-                    boundBy(x1CA, a, b) and boundBy(x2CA, a, b) and boundBy(x3CA, a, b) and
+    ACisPhysical = (boundBy(x1AC, 0, 1) and boundBy(x2AC, 0, 1) and boundBy(x3AC, 0, 1) and
+                    boundBy(x1CA, 0, 1) and boundBy(x2CA, 0, 1) and boundBy(x3CA, 0, 1) and
                     boundBy(x1test, min(x1AC, x1CA), max(x1AC, x1CA)) and
                     boundBy(x2test, min(x2AC, x2CA), max(x2AC, x2CA)))
-    BCisPhysical = (boundBy(x1BC, a, b) and boundBy(x2BC, a, b) and boundBy(x3BC, a, b) and
-                    boundBy(x1CB, a, b) and boundBy(x2CB, a, b) and boundBy(x3CB, a, b) and
+    BCisPhysical = (boundBy(x1BC, 0, 1) and boundBy(x2BC, 0, 1) and boundBy(x3BC, 0, 1) and
+                    boundBy(x1CB, 0, 1) and boundBy(x2CB, 0, 1) and boundBy(x3CB, 0, 1) and
                     boundBy(x1test, min(x1BC, x1CB), max(x1BC, x1CB)) and
                     boundBy(x2test, min(x2BC, x2CB), max(x2BC, x2CB)))
 
-    # Find three-phase coexistence region. There can be only one!
-    if len(coexist) < 1:
-      x1ABC, x2ABC, x1BAC, x2BAC, x1CAB, x2CAB = ABCSolver(x1test, x2test)
-      x3ABC = 1 - x1ABC - x2ABC
-      x3BAC = 1 - x1BAC - x2BAC
-      x3CAB = 1 - x1CAB - x2CAB
-
-      ABCisPhysical = (boundBy(x1ABC, a, b) and boundBy(x2ABC, a, b) and boundBy(x3ABC, a, b) and
-                       boundBy(x1BAC, a, b) and boundBy(x2BAC, a, b) and boundBy(x3BAC, a, b) and
-                       boundBy(x1CAB, a, b) and boundBy(x2CAB, a, b) and boundBy(x3CAB, a, b) and
-                       boundBy(x1test, min((x1ABC, x1BAC, x1CAB)), max((x1ABC, x1BAC, x1CAB))) and
-                       boundBy(x2test, min((x2ABC, x2BAC, x2CAB)), max((x2ABC, x2BAC, x2CAB))) and
-                       boundBy(x1test, min((xe1A(), xe1B(), xe1C())), max((xe1A(), xe1B(), xe1C()))) and
-                       boundBy(x2test, min((xe2A(), xe2B(), xe2C())), max((xe2A(), xe2B(), xe2C()))))
-
-      if ABCisPhysical:
-        #       gamma corner        delta corner        Laves corner        gamma corner
-        triX = (simX(x1ABC, x2ABC), simX(x1BAC, x2BAC), simX(x1CAB, x2CAB), simX(x1ABC, x2ABC))
-        triY = (simY(x2ABC),        simY(x2BAC),        simY(x2CAB),        simY(x2ABC))
-        coexist.append((triX, triY))
     # Compute system energies
 
     fA = g_gam(x2test, x1test)
@@ -393,49 +392,37 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density + 1)):
     minIdx = np.argmin(energies)
 
     if minIdx == 0:
-      points = (simX(x1AB, x2AB), simY(x2AB),
-                simX(x1BA, x2BA), simY(x2BA))
-      tieAB.append(points)
+      a = (simX(x1AB, x2AB), simY(x2AB))
+      b = (simX(x1BA, x2BA), simY(x2BA))
+      if (boundBy(a[1], 0, coexist[0][1][0]) and
+          boundBy(b[1], 0, coexist[0][1][1])):
+        plt.scatter(a[0], a[1], c=colors[0], marker='h', edgecolor=colors[0], s=1.5, zorder=1)
+        plt.scatter(b[0], b[1], c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
+        plt.plot([a[0], b[0]], [a[1], b[1]], color="gray", linewidth=0.1, zorder=0)
+      else:
+        plt.scatter(a[0], a[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+        plt.scatter(b[0], b[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
     elif minIdx == 1:
-      points = (simX(x1AC, x2AC), simY(x2AC),
-                simX(x1CA, x2CA), simY(x2CA))
-      tieAC.append(points)
+      a = (simX(x1AC, x2AC), simY(x2AC))
+      c = (simX(x1CA, x2CA), simY(x2CA))
+      if (boundBy(a[1], coexist[0][1][0], 1) and
+          boundBy(c[1], coexist[0][1][2], 1)):
+        plt.scatter(a[0], a[1], c=colors[0], marker='h', edgecolor=colors[0], s=1.5, zorder=1)
+        plt.scatter(c[0], c[1], c=colors[2], marker='h', edgecolor=colors[2], s=1.5, zorder=1)
+        plt.plot([a[0], c[0]], [a[1], c[1]], color="gray", linewidth=0.1, zorder=0)
+      else:
+        plt.scatter(a[0], a[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+        plt.scatter(b[0], b[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
     elif minIdx == 2:
-      points = (simX(x1BC, x2BC), simY(x2BC),
-                simX(x1CB, x2CB), simY(x2CB))
-      tieBC.append(points)
-
-for x, y in coexist:
-  plt.plot(x, y, color='black', zorder=2)
-
-for xa, ya, xb, yb in tieAB:
-  if (boundBy(ya, 0, coexist[0][1][0]) and
-      boundBy(yb, 0, coexist[0][1][1])):
-    plt.scatter(xa, ya, c=colors[0], marker='h', edgecolor=colors[0], s=1.5, zorder=1)
-    plt.scatter(xb, yb, c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
-    plt.plot([xa, xb], [ya, yb], color="gray", linewidth=0.1, zorder=0)
-  else:
-    plt.scatter(xa, ya, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
-    plt.scatter(xb, yb, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
-
-for xa, ya, xc, yc in tieAC:
-  if (boundBy(ya, coexist[0][1][0], 1) and
-      boundBy(yc, coexist[0][1][2], 1)):
-    plt.scatter(xa, ya, marker='h', c=colors[0], edgecolor=colors[0], s=1.5, zorder=1)
-    plt.scatter(xc, yc, marker='h', c=colors[2], edgecolor=colors[2], s=1.5, zorder=1)
-    plt.plot([xa, xc], [ya, yc], color="gray", linewidth=0.1, zorder=0)
-  else:
-    plt.scatter(xa, ya, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
-    plt.scatter(xc, yc, marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
-
-for xb, yb, xc, yc in tieBC:
-  if (boundBy(xb, coexist[0][0][1], 0.5) and
-      boundBy(xc, coexist[0][0][2], 0.5)):
-    plt.scatter(xb, yb, c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
-    plt.scatter(xc, yc, c=colors[2], marker='h', edgecolor=colors[2], s=1.5, zorder=1)
-    plt.plot([xb, xc], [yb, yc], color="gray", linewidth=0.1, zorder=0)
-  else:
-    plt.scatter(xb, yb, c=colors[3], marker='h', edgecolor=colors[3], s=1.5, zorder=0)
-    plt.scatter(xc, yc, c=colors[3], marker='h', edgecolor=colors[3], s=1.5, zorder=0)
+      b = (simX(x1BC, x2BC), simY(x2BC))
+      c = (simX(x1CB, x2CB), simY(x2CB))
+      if (boundBy(b[0], coexist[0][0][1], 0.5) and
+          boundBy(c[0], coexist[0][0][2], 0.5)):
+        plt.scatter(b[0], b[1], c=colors[1], marker='h', edgecolor=colors[1], s=1.5, zorder=1)
+        plt.scatter(c[0], c[1], c=colors[2], marker='h', edgecolor=colors[2], s=1.5, zorder=1)
+        plt.plot([b[0], c[0]], [b[1], c[1]], color="gray", linewidth=0.1, zorder=0)
+      else:
+        plt.scatter(a[0], a[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
+        plt.scatter(b[0], b[1], marker='h', c=colors[3], edgecolor=colors[3], s=1.5, zorder=0)
 
 plt.savefig("ternary-diagram.png", dpi=400, bbox_inches="tight")
