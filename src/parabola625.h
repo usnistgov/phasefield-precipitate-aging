@@ -14,6 +14,7 @@ double h(double x);
 double hprime(double x);
 double interface_profile(double L, double r);
 double kT();
+double RT();
 double xe_gam_Cr();
 double xe_gam_Nb();
 double xe_del_Cr();

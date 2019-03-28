@@ -29,6 +29,9 @@ discretization.o: cuda_discretization.cu
 d_parabola625.o: parabola625.cu
 	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
+parabola625.cu: energy_functions.sh ../thermo/parabola625.c
+	bash $<
+
 # Common objects
 mesh.o: mesh.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@

@@ -446,7 +446,7 @@ __device__ void nucleation_driving_force_del(const fp_t& xCr, const fp_t& xNb,
 	                    + d_dg_gam_dxNb(xCr, xNb) * (*par_xNb - xNb);
 	const fp_t G_precip = d_g_del(*par_xCr, *par_xNb);
 
-	*dG = G_precip - G_matrix;
+	*dG = d_Vm() * (G_precip - G_matrix);
 }
 
 __device__ void nucleation_driving_force_lav(const fp_t& xCr, const fp_t& xNb,
@@ -476,10 +476,10 @@ __device__ void nucleation_driving_force_lav(const fp_t& xCr, const fp_t& xNb,
 	                    + d_dg_gam_dxNb(xCr, xNb) * (*par_xNb - xNb);
 	const fp_t G_precip = d_g_lav(*par_xCr, *par_xNb);
 
-	*dG = G_precip - G_matrix;
+	*dG = d_Vm() * (G_precip - G_matrix);
 }
 
-__device__ void nucleation_probability(const fp_t& xCr, const fp_t& xNb,
+__device__ void nucleation_probability_cylinder(const fp_t& xCr, const fp_t& xNb,
                                        const fp_t& par_xCr, const fp_t& par_xNb,
                                        const fp_t& dG_chem, const fp_t& D_CrCr, const fp_t& D_NbNb,
                                        const fp_t& sigma, const fp_t& unit_a, const fp_t& Vatom,
@@ -487,7 +487,7 @@ __device__ void nucleation_probability(const fp_t& xCr, const fp_t& xNb,
                                        fp_t* Rstar, fp_t* P_nuc)
 {
 	const fp_t denom = unit_a * dG_chem - 2. * sigma;
-	const fp_t Zeldov = Vatom * sqrt(6. * denom*denom*denom / d_kT())
+	const fp_t Zeldov = Vatom * sqrt(6. * denom*denom*denom / d_RT())
 	                  / (M_PI*M_PI * unit_a*unit_a * sigma);
 
 	const fp_t numer = 2. * M_PI * sigma *  (unit_a * dG_chem - sigma);
@@ -498,15 +498,50 @@ __device__ void nucleation_probability(const fp_t& xCr, const fp_t& xNb,
 	const fp_t k1Cr = BstarCr * Zeldov * N_gam;
 	const fp_t k1Nb = BstarNb * Zeldov * N_gam;
 
-	const fp_t k2 = dG_chem / d_kT();
-	const fp_t dc_Cr = par_xCr - xCr;
-	const fp_t dc_Nb = par_xNb - xNb;
+	const fp_t k2 = dG_chem / d_RT();
+	const fp_t dc_Cr = fabs(par_xCr - xCr);
+    const fp_t dc_Nb = fabs(par_xNb - xNb);
 
 	const fp_t JCr = k1Cr * exp(k2 / dc_Cr);
 	const fp_t JNb = k1Nb * exp(k2 / dc_Nb);
 
 	*Rstar = (sigma * unit_a) / denom;
 	*P_nuc = 1. - exp(-JCr * dt * dV) - exp(-JNb * dt * dV);
+}
+
+__device__ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
+                                       const fp_t& par_xCr, const fp_t& par_xNb,
+                                       const fp_t& dG_chem, const fp_t& D_CrCr, const fp_t& D_NbNb,
+                                       const fp_t& sigma, const fp_t& unit_a, const fp_t& Vatom,
+                                       const fp_t& N_gam, const fp_t& dV, const fp_t& dt,
+                                       fp_t* Rstar, fp_t* P_nuc)
+{
+    const double Zeldov = (Vatom * dG_chem * dG_chem)
+                        / (8 * M_PI * sqrt(d_RT() * sigma*sigma*sigma));
+
+    const double BstarCr = (16 * M_PI * sigma * sigma * D_CrCr * xCr)
+                         / (dG_chem * dG_chem * pow(unit_a, 4));
+    const double BstarNb = (16 * M_PI * sigma * sigma * D_NbNb * xNb)
+                         / (dG_chem * dG_chem * pow(unit_a, 4));
+
+	const double k1Cr = BstarCr * Zeldov * N_gam / dV;
+	const double k1Nb = BstarNb * Zeldov * N_gam / dV;
+
+	const double k2 = dG_chem / d_RT();
+	const double dc_Cr = fabs(par_xCr - xCr);
+	const double dc_Nb = fabs(par_xNb - xNb);
+
+	const double JCr = k1Cr * exp(-k2 / dc_Cr);
+	const double JNb = k1Nb * exp(-k2 / dc_Nb);
+
+	*Rstar = (2 * sigma) / dG_chem;
+    const double PCr = exp(-JCr * dt * dV);
+    const double PNb = exp(-JNb * dt * dV);
+
+    const double harmonic_mean  = 2. / (1. / PCr + 1. / PNb);
+
+	*P_nuc = 1. - harmonic_mean;
+
 }
 
 __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
@@ -540,11 +575,11 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
             // Test a delta particle
             fp_t Rstar_del, P_nuc_del;
 			nucleation_driving_force_del(xCr, xNb, &par_xCr, &par_xNb, &dG_chem);
-			nucleation_probability(xCr, xNb, par_xCr, par_xNb,
-			                       dG_chem, D_CrCr, D_NbNb,
-			                       sigma_del, unit_a,
-			                       Vatom, N_gam, dV, dt,
-			                       &Rstar_del, &P_nuc_del);
+			nucleation_probability_sphere(xCr, xNb, par_xCr, par_xNb,
+                                          dG_chem, D_CrCr, D_NbNb,
+                                          sigma_del, unit_a,
+                                          Vatom, N_gam, dV, dt,
+                                          &Rstar_del, &P_nuc_del);
 			const fp_t rand_del = (fp_t)curand_uniform_double(&state);
 
 			if (rand_del < P_nuc_del) {
@@ -562,11 +597,11 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			fp_t Rstar_lav, P_nuc_lav;
 			nucleation_driving_force_lav(xCr, xNb,
 			                             &par_xCr, &par_xNb, &dG_chem);
-			nucleation_probability(xCr, xNb, par_xCr, par_xNb,
-			                       dG_chem, D_CrCr, D_NbNb,
-			                       sigma_lav, unit_a,
-			                       Vatom, N_gam, dV, dt,
-			                       &Rstar_lav, &P_nuc_lav);
+			nucleation_probability_sphere(xCr, xNb, par_xCr, par_xNb,
+                                          dG_chem, D_CrCr, D_NbNb,
+                                          sigma_lav, unit_a,
+                                          Vatom, N_gam, dV, dt,
+                                          &Rstar_lav, &P_nuc_lav);
 			const fp_t rand_lav = (fp_t)curand_uniform_double(&state);
 
             if (rand_lav < P_nuc_lav) {
