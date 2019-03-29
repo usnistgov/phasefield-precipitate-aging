@@ -297,7 +297,7 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int nuc_interval = 5.0e-6 / dt;
+			const int nuc_interval = 0.02e-3 / dt;
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {

@@ -14,10 +14,10 @@
 #define NC 2
 
 // Kinetic and model parameters
-const double meshres = 0.25e-9;       // grid spacing (m)
-const double LinStab = 1. / 19.42501; // threshold of linear (von Neumann) stability
-const double aFccNi  = 0.352e-9;      // lattice spacing of FCC nickel (m)
-const double hCyl    = aFccNi;        // height of the cylinder (m)
+const double meshres = 0.25e-9;         // grid spacing (m)
+const double LinStab = 1. / 7.28437875; // threshold of linear (von Neumann) stability
+const double aFccNi  = 0.352e-9;        // lattice spacing of FCC nickel (m)
+const double hCyl    = aFccNi;          // height of the cylinder (m)
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb
@@ -28,7 +28,7 @@ const double D_Nb[NC] = {2.97e-15, 4.29e-15}; // second column of diffusivity ma
 //                          delta      Laves
 const double kappa[NP]   = {1.24e-8, 1.24e-8};     // gradient energy coefficient (J/m)
 const double Lmob[NP]    = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
-const double sigma[NP]   = {1.010/6, 1.010/4};     // interfacial energy (J/m^2)
+const double sigma[NP]   = {1.010, 1.010};     // interfacial energy (J/m^2)
 const double rPrecip[NP] = {1e-9, 1e-9};           // precipitate radii (m)
 
 // Compute interfacial width (nm) and well height (J/m^3)
@@ -191,9 +191,8 @@ int main()
   double xCr = enrich_Cr_range(generator);
   double xNb = enrich_Nb_range(generator);
 
-  const double dtTransformLimited = (meshres*meshres) / (4. * Lmob[0]*kappa[0]);
   const double dtDiffusionLimited = (meshres*meshres) / (4. * std::max(D_Cr[0], D_Nb[1]));
-  const double dt = 100. * LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+  const double dt = 0.02e-3 / (LinStab * dtDiffusionLimited);
 
   const double dx = meshres;
   const double dy = meshres;

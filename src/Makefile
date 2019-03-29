@@ -14,7 +14,7 @@ OBJS = data.o discretization.o mesh.o numerics.o output.o nucleation.o d_parabol
 alloy625: alloy625.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
-profile: CXXOPT = -O2 -g
+profile: CXXOPT = -O0 -g
 profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo -arch=$(CUDARCH)
 profile: alloy625

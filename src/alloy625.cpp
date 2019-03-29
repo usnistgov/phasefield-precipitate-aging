@@ -43,9 +43,9 @@
 #include "parabola625.h"
 
 // Kinetic and model parameters
-const double meshres = 0.25e-9;      // grid spacing (m)
-const fp_t alpha = 1.07e11;          // three-phase coexistence coefficient (J/m^3)
-const fp_t LinStab = 1.0 / 19.42501; // threshold of linear (von Neumann) stability
+const double meshres = 0.25e-9;        // grid spacing (m)
+const fp_t alpha = 1.07e11;            // three-phase coexistence coefficient (J/m^3)
+const fp_t LinStab = 1.0 / 7.28437875; // threshold of linear (von Neumann) stability
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb
