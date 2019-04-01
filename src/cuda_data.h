@@ -78,6 +78,13 @@ void device_evolution(struct CudaData* dev,
                       const fp_t dt);
 
 /**
+   \brief Initialize PRNG on device
+*/
+void device_init_prng(struct CudaData* dev,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by);
+
+/**
  \brief Stochastically seed nuclei on device
 */
 void device_nucleation(struct CudaData* dev,

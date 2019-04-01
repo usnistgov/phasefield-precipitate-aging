@@ -22,6 +22,7 @@
  \brief Implementation of functions to create and destroy CudaData struct
 */
 
+#include <curand.h>
 #include "cuda_data.h"
 #include "cuda_kernels.cuh"
 
@@ -43,6 +44,8 @@ void init_cuda(struct HostData* host,
 	cudaMalloc((void**) &(dev->gam_Nb), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->lap_gam_Cr), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->lap_gam_Nb), nx * ny * sizeof(fp_t));
+
+    cudaMalloc((void**) &(dev->prng), nx * ny * sizeof(curandState));
 
 	/* transfer mask and boundary conditions to protected memory on GPU */
 	cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t));
@@ -81,4 +84,6 @@ void free_cuda(struct CudaData* dev)
 	cudaFree(dev->gam_Nb);
 	cudaFree(dev->lap_gam_Cr);
 	cudaFree(dev->lap_gam_Nb);
+
+    cudaFree(dev->prng);
 }

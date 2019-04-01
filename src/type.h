@@ -27,6 +27,8 @@
 #define _TYPE_H_
 /** \endcond */
 
+#include <curand_kernel.h>
+
 /**
  Specify the basic data type to achieve the desired accuracy in floating-point
  arithmetic: float for single-precision, double for double-precision. This
@@ -78,6 +80,8 @@ struct CudaData {
 
 	fp_t* lap_gam_Cr;
 	fp_t* lap_gam_Nb;
+
+	curandState* prng;
 };
 
 /** \cond SuppressGuard */

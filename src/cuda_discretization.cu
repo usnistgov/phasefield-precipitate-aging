@@ -26,7 +26,6 @@
 #include <math.h>
 #include <omp.h>
 #include <cuda.h>
-#include <curand.h>
 #include <curand_kernel.h>
 
 #include "cuda_data.h"
@@ -544,8 +543,35 @@ __device__ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
 
 }
 
+__global__ void init_prng_kernel(curandState* d_prng, const int nx, const int ny)
+{
+	/* determine indices on which to operate */
+	const int thr_x = threadIdx.x;
+	const int thr_y = threadIdx.y;
+	const int x = blockDim.x * blockIdx.x + thr_x;
+	const int y = blockDim.y * blockIdx.y + thr_y;
+	const int idx = nx * y + x;
+
+	if (x < nx && y < ny)
+        curand_init((unsigned long long)clock() + idx, x, 0, &(d_prng[idx]));
+}
+
+void device_init_prng(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by)
+{
+	/* divide matrices into blocks of bx * by threads */
+	dim3 tile_size(bx, by, 1);
+	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
+	               nTiles(ny, tile_size.y, nm),
+	               1);
+	init_prng_kernel<<<num_tiles,tile_size>>> (
+	    dev->prng, nx, ny);
+}
+
 __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   fp_t* d_phi_del, fp_t* d_phi_lav,
+                                  curandState* d_prng,
                                   const int nx, const int ny, const int nm,
                                   const fp_t D_CrCr, const fp_t D_NbNb,
                                   const fp_t sigma_del, const fp_t sigma_lav,
@@ -559,12 +585,9 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	const int y = blockDim.y * blockIdx.y + thr_y;
 	const int idx = nx * y + x;
 
-	curandState state;
-	curand_init((unsigned long long)clock(), x, 0, &state);
-
 	if (x < nx && y < ny) {
 		const fp_t phi_gam = 1.0 - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
-		if (phi_gam > 1.0e-9) {
+		if (phi_gam > 1.0e-16) {
 			const fp_t dV = dx * dy;
 			const fp_t xCr = d_conc_Cr[idx];
 			const fp_t xNb = d_conc_Nb[idx];
@@ -580,15 +603,20 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                           sigma_del, unit_a,
                                           Vatom, N_gam, dV, dt,
                                           &Rstar_del, &P_nuc_del);
-			const fp_t rand_del = (fp_t)curand_uniform_double(&state);
+			const fp_t rand_del = (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-			if (rand_del < P_nuc_del) {
-				const int rad = ceil(Rstar_del / dx);
-				for (int j = y - 2*rad; j < y + 2*rad; j++) {
-					for (int i = x - 2*rad; i < x + 2*rad; i++) {
-						const int r = sqrt(float((i-x)*(i-x) + (j-y)*(j-y)));
+            const fp_t P_fudge_factor = 5.83675e-7; // guards against P == 0.
+
+			if (rand_del < P_nuc_del + P_fudge_factor) {
+				const int rad = 2.1e-9 / dx; // ceil(Rstar_del / dx);
+                const fp_t w = ifce_width / dx;
+                const int R = rad + int(w);
+				for (int j = max(0, y - 4 * R); j < min(ny, y + 4 * R); j++) {
+					for (int i = max(0, x - 4 * R); i < min(nx, x + 4 * R); i++) {
 						const int idn = nx * j + i;
-						d_phi_del[idn] = d_interface_profile(ifce_width, r);
+						const fp_t r = sqrt(fp_t((i-x)*(i-x) + (j-y)*(j-y)));
+                        const fp_t z = 4. * (r - R) / w;
+                        d_phi_del[idn] = d_interface_profile(1, z);
 					}
 				}
 			}
@@ -602,18 +630,21 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                           sigma_lav, unit_a,
                                           Vatom, N_gam, dV, dt,
                                           &Rstar_lav, &P_nuc_lav);
-			const fp_t rand_lav = (fp_t)curand_uniform_double(&state);
+			const fp_t rand_lav = (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-            if (rand_lav < P_nuc_lav) {
-				const int rad = ceil(Rstar_lav / dx);
-				for (int j = y - 2*rad; j < y + 2*rad; j++) {
-					for (int i = x - 2*rad; i < x + 2*rad; i++) {
-						const int r = sqrt(float((i-x)*(i-x) + (j-y)*(j-y)));
+            if (rand_lav < P_nuc_lav + P_fudge_factor) {
+				const int rad = 2.1e-9 / dx; // ceil(Rstar_del / dx);
+                const fp_t w = ifce_width / dx;
+                const int R = rad + int(w);
+				for (int j = max(0, y - 4 * R); j < min(ny, y + 4 * R); j++) {
+					for (int i = max(0, x - 4 * R); i < min(nx, x + 4 * R); i++) {
 						const int idn = nx * j + i;
-						d_phi_lav[idn] = d_interface_profile(ifce_width, r);
+						const fp_t r = sqrt(fp_t((i-x)*(i-x) + (j-y)*(j-y)));
+                        const fp_t z = 4. * (r - R) / w;
+                        d_phi_lav[idn] = d_interface_profile(1, z);
 					}
 				}
-            }
+			}
 		}
 
 		__syncthreads();
@@ -636,6 +667,7 @@ void device_nucleation(struct CudaData* dev,
 	nucleation_kernel<<<num_tiles,tile_size>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
+        dev->prng,
 	    nx, ny, nm,
 	    D_Cr[0], D_Nb[1],
 	    sigma_del, sigma_lav,

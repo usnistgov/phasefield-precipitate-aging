@@ -106,6 +106,11 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                  const fp_t dt);
 
 /**
+ \brief Device kernel to initialize random number generators
+*/
+__global__ void init_prng_kernel(curandState* prng, const int nx, const int ny);
+
+/**
  \brief Device kernel to compute driving force for nucleation and stochastically seed nuclei
 */
 __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
