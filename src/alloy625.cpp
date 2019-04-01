@@ -103,7 +103,7 @@ void generate(int dim, const char* filename)
 
 	if (dim==2) {
 		const int Nx = 4000;
-		const int Ny = 625;
+		const int Ny = 2 * 625;
 		double Ntot = 1.0;
 		GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
 		for (int d = 0; d < dim; d++) {
@@ -170,15 +170,17 @@ void generate(int dim, const char* filename)
 		// Embed two particles as a sanity check
 		const int rad = 2.1e-9 / meshres;
 		const fp_t w = ifce_width / meshres;
-		x[0] = g0(initGrid, 0) / 2;
-		x[1] = 0;
-		for (int i = -4*(rad + w); i < 4*(rad + w); i++) {
-			for (int j = -4*(rad + w); j < 4*(rad + w); j++) {
+		const int R = rad + w;
+		x[0] = (g1(initGrid, 0) - g0(initGrid, 0)) / 4;
+		x[1] = (g1(initGrid, 1) + g0(initGrid, 1)) / 2;
+		for (int i = -4 * R; i < 4 * R; i++) {
+			for (int j = -4 * R; j < 4 * R; j++) {
 				vector<int> y(x);
 				y[0] += i;
 				y[1] += j;
 				const fp_t r = sqrt(i*i + j*j);
-				const fp_t f = interface_profile(w, r - rad - w);
+				const fp_t z = 4 * (r - R) / w;
+				const fp_t f = interface_profile(1., z);
 				initGrid(y)[2] = f;
 				y[0] *= -1;
 				initGrid(y)[3] = f;
