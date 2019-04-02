@@ -300,7 +300,6 @@ int main(int argc, char* argv[])
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 			const int nuc_interval = 10e-6 / dt;
 
-
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
 				int nuc_counter = 0;

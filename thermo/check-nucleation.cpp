@@ -28,7 +28,7 @@ const double D_Nb[NC] = {2.97e-15, 4.29e-15}; // second column of diffusivity ma
 //                          delta      Laves
 const double kappa[NP]   = {1.24e-8, 1.24e-8};     // gradient energy coefficient (J/m)
 const double Lmob[NP]    = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
-const double sigma[NP]   = {1.010, 1.010};     // interfacial energy (J/m^2)
+const double sigma[NP]   = {1.010, 1.010};      // interfacial energy (J/m^2)
 const double rPrecip[NP] = {1e-9, 1e-9};           // precipitate radii (m)
 
 // Compute interfacial width (nm) and well height (J/m^3)
@@ -56,10 +56,10 @@ void nucleation_driving_force_delta(const double& xCr, const double& xNb,
 	*par_xCr = detB / detA;
 	*par_xNb = detC / detA;
 
-	const double G_matrix = Vm() * g_gam(xCr, xNb)
-                          - Vm() * dg_gam_dxCr(xCr, xNb) * (xCr - *par_xCr)
-                          - Vm() * dg_gam_dxNb(xCr, xNb) * (xNb - *par_xNb);
-	const double G_precip = Vm() * g_del(*par_xCr, *par_xNb);
+	const double G_matrix = g_gam(xCr, xNb)
+                          - dg_gam_dxCr(xCr, xNb) * (xCr - *par_xCr)
+                          - dg_gam_dxNb(xCr, xNb) * (xNb - *par_xNb);
+	const double G_precip = g_del(*par_xCr, *par_xNb);
 
 	*dG = (G_matrix - G_precip);
 }
@@ -83,10 +83,10 @@ void nucleation_driving_force_laves(const double& xCr, const double& xNb,
 	*par_xCr = detB / detA;
 	*par_xNb = detC / detA;
 
-	const double G_matrix = Vm() * g_gam(xCr, xNb)
-                          - Vm() * dg_gam_dxCr(xCr, xNb) * (xCr - *par_xCr)
-                          - Vm() * dg_gam_dxNb(xCr, xNb) * (xNb - *par_xNb);
-	const double G_precip = Vm() * g_lav(*par_xCr, *par_xNb);
+	const double G_matrix = g_gam(xCr, xNb)
+                          - dg_gam_dxCr(xCr, xNb) * (xCr - *par_xCr)
+                          - dg_gam_dxNb(xCr, xNb) * (xNb - *par_xNb);
+	const double G_precip = g_lav(*par_xCr, *par_xNb);
 
 	*dG = (G_matrix - G_precip);
 }
@@ -146,16 +146,14 @@ void nucleation_probability_sphere(const double& xCr, const double& xNb,
 {
     const double Zeldov = (Vatom * dG_chem * dG_chem)
                         / (8 * M_PI * sqrt(RT() * sigma*sigma*sigma));
-
-    const double BstarCr = (16 * M_PI * sigma * sigma * D_CrCr * xCr)
-                         / (dG_chem * dG_chem * pow(aFccNi, 4));
-    const double BstarNb = (16 * M_PI * sigma * sigma * D_NbNb * xNb)
-                         / (dG_chem * dG_chem * pow(aFccNi, 4));
+    const double Gstar = (16 * M_PI * sigma * sigma * sigma) / (3 * dG_chem * dG_chem);
+    const double BstarCr = (3 * Gstar * D_CrCr * xCr) / (sigma * pow(aFccNi, 4));
+    const double BstarNb = (3 * Gstar * D_NbNb * xNb) / (sigma * pow(aFccNi, 4));
 
 	const double k1Cr = BstarCr * Zeldov * N_gam / dV;
 	const double k1Nb = BstarNb * Zeldov * N_gam / dV;
 
-	const double k2 = dG_chem / RT();
+	const double k2 = Gstar / RT();
 	const double dc_Cr = fabs(par_xCr - xCr);
 	const double dc_Nb = fabs(par_xNb - xNb);
 
