@@ -299,10 +299,10 @@ int main(int argc, char* argv[])
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 			const int nuc_interval = 10e-6 / dt;
+			int nuc_counter = 1;
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
-				int nuc_counter = 0;
 				for (int j = 0; j < increment; j++) {
 					print_progress(j, increment);
 					// === Start Architecture-Specific Kernel ===
