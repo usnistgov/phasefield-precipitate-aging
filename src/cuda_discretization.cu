@@ -591,8 +591,6 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     const fp_t w = ifce_width / dx;
     const int R = 5 * ceil(rad + w) / 4;
 
-    const fp_t P_fudge_factor = 5.83675e-7; // guards against P == 0.
-
     if (x < nx && y < ny) {
 		const fp_t phi_gam = 1.0 - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
 		if (phi_gam > 1.0e-16) {
@@ -612,7 +610,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                               &Rstar_del, &P_nuc_del);
                 const fp_t rand_del = (fp_t)curand_uniform_double(&(d_prng[idx]));
                
-                if (rand_del < P_nuc_del + P_fudge_factor) {
+                if (rand_del < P_nuc_del) {
                     for (int i = -R; i < R; i++) {
                         for (int j = -R; j < R; j++) {
                             const int idn = nx * (y + j) + (x + i);
@@ -639,7 +637,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                               &Rstar_lav, &P_nuc_lav);
                 const fp_t rand_lav = (fp_t)curand_uniform_double(&(d_prng[idx]));
                
-                if (rand_lav < P_nuc_lav + P_fudge_factor) {
+                if (rand_lav < P_nuc_lav) {
                     for (int i = -R; i < R; i++) {
                         for (int j = -R; j < R; j++) {
                             const int idn = nx * (y + j) + (x + i);
