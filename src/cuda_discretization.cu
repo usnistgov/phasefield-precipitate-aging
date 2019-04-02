@@ -585,70 +585,80 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	const int y = blockDim.y * blockIdx.y + thr_y;
 	const int idx = nx * y + x;
 
-	if (x < nx && y < ny) {
+    const fp_t dV = dx * dy;
+    const fp_t Vatom = unit_a*unit_a*unit_a / 4.;
+
+    const fp_t rad = 8.4; // 2.1e-9 / dx; // ceil(Rstar_del / dx);
+    const fp_t w = 10.; // ifce_width / dx;
+    const fp_t invW = 4. / w;
+    const int R = (int)rad + (int)w;
+    const fp_t P_fudge_factor = 5.83675e-7; // guards against P == 0.
+
+    if (x < nx && y < ny) {
 		const fp_t phi_gam = 1.0 - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
 		if (phi_gam > 1.0e-16) {
-			const fp_t dV = dx * dy;
 			const fp_t xCr = d_conc_Cr[idx];
 			const fp_t xNb = d_conc_Nb[idx];
-			const fp_t Vatom = unit_a*unit_a*unit_a / 4.;
 			const fp_t N_gam = (nx*dx * ny*dy * unit_a * M_PI) / (3. * sqrt(2.) * Vatom);
 			fp_t dG_chem = 0., par_xCr = 0., par_xNb = 0.;
 
             // Test a delta particle
-            fp_t Rstar_del, P_nuc_del;
-			nucleation_driving_force_del(xCr, xNb, &par_xCr, &par_xNb, &dG_chem);
-			nucleation_probability_sphere(xCr, xNb, par_xCr, par_xNb,
-                                          dG_chem, D_CrCr, D_NbNb,
-                                          sigma_del, unit_a,
-                                          Vatom, N_gam, dV, dt,
-                                          &Rstar_del, &P_nuc_del);
-			const fp_t rand_del = (fp_t)curand_uniform_double(&(d_prng[idx]));
+            {
+                fp_t Rstar_del, P_nuc_del;
+                nucleation_driving_force_del(xCr, xNb, &par_xCr, &par_xNb, &dG_chem);
+                nucleation_probability_sphere(xCr, xNb, par_xCr, par_xNb,
+                                              dG_chem, D_CrCr, D_NbNb,
+                                              sigma_del, unit_a,
+                                              Vatom, N_gam, dV, dt,
+                                              &Rstar_del, &P_nuc_del);
+                const fp_t rand_del = (fp_t)curand_uniform_double(&(d_prng[idx]));
+               
+                if (rand_del < P_nuc_del + P_fudge_factor) {
+                    // Note: This loop writes into array locations belonging
+                    // to other threads. This is not the best approach.
+                    for (int i = -4 * R; i < 4 * R; i++) {
+                        for (int j = -4 * R; j < 4 * R; j++) {
+                            const int idn = nx * (y + j) + (x + i);
+                            if (idn < 0 || idn >= (nx * ny)) 
+                                continue;
+                            const fp_t r = sqrt(fp_t(i*i) + fp_t(j*j));
+                            const fp_t z = r - (rad + w);
+                            d_phi_del[idn] = d_interface_profile(invW * z);
+                        }
+                    }
+                }
+            }
 
-            const fp_t P_fudge_factor = 5.83675e-7; // guards against P == 0.
-
-			if (rand_del < P_nuc_del + P_fudge_factor) {
-				const int rad = 2.1e-9 / dx; // ceil(Rstar_del / dx);
-                const fp_t w = ifce_width / dx;
-                const int R = rad + int(w);
-				for (int j = max(0, y - 4 * R); j < min(ny, y + 4 * R); j++) {
-					for (int i = max(0, x - 4 * R); i < min(nx, x + 4 * R); i++) {
-						const int idn = nx * j + i;
-						const fp_t r = sqrt(fp_t((i-x)*(i-x) + (j-y)*(j-y)));
-                        const fp_t z = 4. * (r - R) / w;
-                        d_phi_del[idn] = d_interface_profile(1, z);
-					}
-				}
-			}
-
-			// Test a Laves particle
-			fp_t Rstar_lav, P_nuc_lav;
-			nucleation_driving_force_lav(xCr, xNb,
-			                             &par_xCr, &par_xNb, &dG_chem);
-			nucleation_probability_sphere(xCr, xNb, par_xCr, par_xNb,
-                                          dG_chem, D_CrCr, D_NbNb,
-                                          sigma_lav, unit_a,
-                                          Vatom, N_gam, dV, dt,
-                                          &Rstar_lav, &P_nuc_lav);
-			const fp_t rand_lav = (fp_t)curand_uniform_double(&(d_prng[idx]));
-
-            if (rand_lav < P_nuc_lav + P_fudge_factor) {
-				const int rad = 2.1e-9 / dx; // ceil(Rstar_del / dx);
-                const fp_t w = ifce_width / dx;
-                const int R = rad + int(w);
-				for (int j = max(0, y - 4 * R); j < min(ny, y + 4 * R); j++) {
-					for (int i = max(0, x - 4 * R); i < min(nx, x + 4 * R); i++) {
-						const int idn = nx * j + i;
-						const fp_t r = sqrt(fp_t((i-x)*(i-x) + (j-y)*(j-y)));
-                        const fp_t z = 4. * (r - R) / w;
-                        d_phi_lav[idn] = d_interface_profile(1, z);
-					}
-				}
-			}
-		}
-
-		__syncthreads();
+            // Test a Laves particle
+            {
+                fp_t Rstar_lav, P_nuc_lav;
+                nucleation_driving_force_lav(xCr, xNb, &par_xCr, &par_xNb, &dG_chem);
+                nucleation_probability_sphere(xCr, xNb, par_xCr, par_xNb,
+                                              dG_chem, D_CrCr, D_NbNb,
+                                              sigma_lav, unit_a,
+                                              Vatom, N_gam, dV, dt,
+                                              &Rstar_lav, &P_nuc_lav);
+                const fp_t rand_lav = (fp_t)curand_uniform_double(&(d_prng[idx]));
+               
+                if (rand_lav < P_nuc_lav + P_fudge_factor) {
+                    // Note: This loop writes into array locations belonging
+                    // to other threads. This is not the best approach.
+                    for (int i = -4 * R; i < 4 * R; i++) {
+                        for (int j = -4 * R; j < 4 * R; j++) {
+                            const int idn = nx * (y + j) + (x + i);
+                            if (idn < 0 || idn >= (nx * ny)) 
+                                continue;
+                            const fp_t r = sqrt(fp_t(i*i) + fp_t(j*j));
+                            const fp_t z = r - (rad + w);
+                            d_phi_lav[idn] = d_interface_profile(invW * z);
+                        }
+                    }
+                }
+            }
+        }
 	}
+
+    __syncthreads();
 }
 
 void device_nucleation(struct CudaData* dev,

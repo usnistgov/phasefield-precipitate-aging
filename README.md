@@ -123,6 +123,8 @@ compressed MMSP checkpoint, with no work assigned to the GPU.
    arrays.
 5. Fictitious matrix phase compositions get computed and written into the
    "new" device array.
+6. At a fixed interval, stochastic nucleation occurs based on the local
+   composition and using an order-parameter-only model.
 
 ##### After timestepping:
 
@@ -133,7 +135,7 @@ compressed MMSP checkpoint, with no work assigned to the GPU.
 
 ### Cleanup
 
-Arrays gets freed from the host and device once the last checkpoint is
+Arrays get freed from the host and device once the last checkpoint is
 written.
 
 ## Contribute
@@ -151,11 +153,18 @@ and [e-mail](mailto:trevor.keller@nist.gov).
   *Calphad* **29** (2005) 140–148.
   DOI: [10.1016/j.calphad.2005.06.001](http://dx.doi.org/10.1016/j.calphad.2005.06.001)
 
+### Jokisaari 2016
+
+  Jokisaari, A.M.; Permann, C.; Thornton, K.
+  "A nucleation algorithm for the coupled conserved-nonconserved phase field model."
+  *Computational Materials Science* **112** (2016) 128–138.
+  DOI: [10.1016/j.commatsci.2015.10.009](http://dx.doi.org/10.1016/j.commatsci.2015.10.009)
+
 ### Kim 1999
 
   Kim, S. G.; Kim, W. T. and Suzuki, T.
   "Phase-field model for binary alloys."
-  *Phys. Rev. E* **60** (1999) 7186–7197.
+  *Physical Review E* **60** (1999) 7186–7197.
   DOI: [10.1103/PhysRevE.60.7186](http://dx.doi.org/10.1103/PhysRevE.60.7186)
 
 ### Karunaratne 2005
@@ -175,7 +184,7 @@ and [e-mail](mailto:trevor.keller@nist.gov).
 
   Xu, G.; Liu, Y. and Kang, Z.
   "Atomic Mobilities and Interdiffusivities for fcc Ni-Cr-Nb Alloys."
-  *Met. Trans. B* **47B** (2016) 3126–3131.
+  *Metallurgical Transactions B* **47B** (2016) 3126–3131.
   DOI: [10.1007/s11663-016-0726-6](http://dx.doi.org/10.1007/s11663-016-0726-6)
 
 ### Zhou 2014
@@ -183,7 +192,7 @@ and [e-mail](mailto:trevor.keller@nist.gov).
   Zhou, N.; Lv, D.; Zhang, H.; McAllister, D.; Zhang, F.; Mills, M. and
   Wang, Y. "Computer simulation of phase transformation and plastic
   deformation in IN718 superalloy: Microstructural evolution during
-  precipitation." *Acta Mater.* **65** (2014) 270–286. DOI:
+  precipitation." *Acta Materialia* **65** (2014) 270–286. DOI:
   [10.1016/j.actamat.2013.10.069](http://dx.doi.org/10.1016/j.actamat.2013.10.069)
 
 ## License

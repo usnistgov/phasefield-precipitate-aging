@@ -323,7 +323,7 @@ int main(int argc, char* argv[])
 						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
 						                  aFccNi, ifce_width / meshres,
-						                  MMSP::dx(grid), MMSP::dy(grid), nuc_interval * dt);
+						                  meshres, meshres, nuc_interval * dt);
 					}
 					nuc_counter++;
 

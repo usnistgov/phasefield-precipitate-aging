@@ -21,7 +21,7 @@ alloy625: alloy625.cpp $(OBJS)
 
 profile: CXXOPT = -O0 -g
 profile: CXXFLAGS += $(CXXOPT)
-profile: NVCXXFLAGS += $(CXXOPT) -lineinfo -arch=$(CUDARCH)
+profile: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
 profile: alloy625
 
 # CUDA objects
