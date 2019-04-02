@@ -588,10 +588,10 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     const fp_t dV = dx * dy;
     const fp_t Vatom = unit_a*unit_a*unit_a / 4.;
 
-    const fp_t rad = 8.4; // 2.1e-9 / dx; // ceil(Rstar_del / dx);
-    const fp_t w = 10.; // ifce_width / dx;
+    const fp_t rad = 2.1e-9 / dx; // ceil(Rstar_del / dx);
+    const fp_t w = ifce_width / dx;
     const fp_t invW = 4. / w;
-    const int R = (int)rad + (int)w;
+    const int R = rad + w;
     const fp_t P_fudge_factor = 5.83675e-7; // guards against P == 0.
 
     if (x < nx && y < ny) {

@@ -322,7 +322,7 @@ int main(int argc, char* argv[])
 						device_nucleation(&dev, nx, ny, nm, bx, by,
 						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
-						                  aFccNi, ifce_width / meshres,
+						                  aFccNi, ifce_width,
 						                  meshres, meshres, nuc_interval * dt);
 					}
 					nuc_counter++;
