@@ -48,6 +48,14 @@ double RT() {
 
 }
 
+double Vm() {
+
+   double Vm_result;
+   Vm_result = 1.0000000000000001e-5;
+   return Vm_result;
+
+}
+
 double xe_gam_Cr() {
 
    double xe_gam_Cr_result;
@@ -96,11 +104,67 @@ double xe_lav_Nb() {
 
 }
 
-double Vm() {
+double matrix_min_Cr() {
 
-   double Vm_result;
-   Vm_result = 1.0000000000000001e-5;
-   return Vm_result;
+   double matrix_min_Cr_result;
+   matrix_min_Cr_result = 0.27939999999999998;
+   return matrix_min_Cr_result;
+
+}
+
+double matrix_max_Cr() {
+
+   double matrix_max_Cr_result;
+   matrix_max_Cr_result = 0.32879999999999998;
+   return matrix_max_Cr_result;
+
+}
+
+double matrix_min_Nb() {
+
+   double matrix_min_Nb_result;
+   matrix_min_Nb_result = 0.020199999999999999;
+   return matrix_min_Nb_result;
+
+}
+
+double matrix_max_Nb() {
+
+   double matrix_max_Nb_result;
+   matrix_max_Nb_result = 0.0269;
+   return matrix_max_Nb_result;
+
+}
+
+double enrich_min_Cr() {
+
+   double enrich_min_Cr_result;
+   enrich_min_Cr_result = 0.24729999999999999;
+   return enrich_min_Cr_result;
+
+}
+
+double enrich_max_Cr() {
+
+   double enrich_max_Cr_result;
+   enrich_max_Cr_result = 0.29670000000000002;
+   return enrich_max_Cr_result;
+
+}
+
+double enrich_min_Nb() {
+
+   double enrich_min_Nb_result;
+   enrich_min_Nb_result = 0.16589999999999999;
+   return enrich_min_Nb_result;
+
+}
+
+double enrich_max_Nb() {
+
+   double enrich_max_Nb_result;
+   enrich_max_Nb_result = 0.1726;
+   return enrich_max_Nb_result;
 
 }
 
@@ -205,22 +269,6 @@ double fict_lav_Nb(double INV_DET, double XCR, double XNB, double f_del, double 
    double fict_lav_Nb_result;
    fict_lav_Nb_result = -0.38674059641464115*INV_DET*(0.01401212615850367*XCR*f_del - 0.12799677738478332*XCR*f_gam - 0.060421534040585929*XNB*f_del - 1.0*XNB*f_gam - 0.14318824560930238*XNB*f_lav - 0.0027593655114734393*pow(f_del, 2) - 0.11564489921674229*f_del*f_gam - 0.01203607258738176*f_del*f_lav - 0.52265226768031503*pow(f_gam, 2) - 0.056986564033684621*f_gam*f_lav);
    return fict_lav_Nb_result;
-
-}
-
-double r_delta() {
-
-   double r_delta_result;
-   r_delta_result = 7.4999999999999993e-9;
-   return r_delta_result;
-
-}
-
-double r_laves() {
-
-   double r_laves_result;
-   r_laves_result = 7.4999999999999993e-9;
-   return r_laves_result;
 
 }
 

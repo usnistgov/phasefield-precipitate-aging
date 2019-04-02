@@ -19,7 +19,7 @@ OBJS = data.o discretization.o d_parabola625.o \
 alloy625: alloy625.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
-profile: CXXOPT = -O0 -g
+profile: CXXOPT = -O1 -g
 profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
 profile: alloy625

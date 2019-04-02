@@ -43,9 +43,9 @@
 #include "parabola625.h"
 
 // Kinetic and model parameters
-const double meshres = 0.25e-9;        // grid spacing (m)
-const fp_t alpha = 1.07e11;            // three-phase coexistence coefficient (J/m^3)
-const fp_t LinStab = 1.0 / 7.28437875; // threshold of linear (von Neumann) stability
+const double meshres = 0.25e-9;      // grid spacing (m)
+const fp_t alpha = 1.07e11;          // three-phase coexistence coefficient (J/m^3)
+const fp_t LinStab = 1.0 / 14.56876; // threshold of linear (von Neumann) stability
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb
@@ -57,20 +57,15 @@ const fp_t aFccNi = 0.352e-9;               // lattice spacing of FCC nickel (m)
 //                       Cr      Nb
 const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
-// Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
-// minimum for numerical stability is 14*dx (due to interface width).
-const fp_t rPrecip[NP] = {7.5 * 5e-9 / meshres,  // delta
-                          7.5 * 5e-9 / meshres}; // Laves
-
 // Choose numerical diffusivity to lock chemical and transformational timescales
 //                      delta      Laves
 const fp_t kappa[NP] = {1.24e-8, 1.24e-8};     // gradient energy coefficient (J/m)
 const fp_t Lmob[NP]  = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
-const fp_t sigma[NP] = {1.010, 1.010};         // interfacial energy (J/m^2)
+const fp_t sigma[NP] = {s_delta(), s_laves()};         // interfacial energy (J/m^2)
 
 // Compute interfacial width (nm) and well height (J/m^3)
 const fp_t ifce_width = 10. * meshres;
-const fp_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
+const fp_t width_factor = 2.2; // since interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const fp_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,  // delta
                         3.0 * width_factor* sigma[1] / ifce_width}; // Laves
 
@@ -125,15 +120,15 @@ void generate(int dim, const char* filename)
 		 * corresponding to enriched IN625 per DICTRA simulations, with compositions in
 		 * mole fraction (not weight fraction!)
 		 */
-		std::uniform_real_distribution<double> matrixCrDist(0.2794, 0.3288);
-		std::uniform_real_distribution<double> matrixNbDist(0.0202, 0.0269);
-		std::uniform_real_distribution<double> enrichedCrDist(0.2473, 0.2967);
-		std::uniform_real_distribution<double> enrichedNbDist(0.1659, 0.1726);
+		std::uniform_real_distribution<double> matrixCrDist(matrix_min_Cr(), matrix_max_Cr());
+		std::uniform_real_distribution<double> matrixNbDist(matrix_min_Nb(), matrix_max_Nb());
+		std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
+		std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
 		double xCr0 = matrixCrDist(mtrand);
 		double xNb0 = matrixNbDist(mtrand);
-		double xCrE = enrichedCrDist(mtrand);
-		double xNbE = enrichedNbDist(mtrand);
+		double xCrE = enrichCrDist(mtrand);
+		double xNbE = enrichNbDist(mtrand);
 
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();

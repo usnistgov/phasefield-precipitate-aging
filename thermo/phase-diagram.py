@@ -11,7 +11,7 @@ from tqdm import tqdm
 import warnings
 
 from pyCinterface import *
-from constants import temp
+from constants import *
 
 density = 256
 colors = ['red', 'green', 'blue', 'gray']
@@ -90,13 +90,13 @@ plt.text(0.265,            -0.006,     '$\delta$',  color=colors[1], fontsize=16
 plt.text(simX(0.29, 0.35), simY(0.35), '$\lambda$', color=colors[2], fontsize=16, zorder=2, **alignment)
 
 # Draw composition bounding boxes
-xCrMat = (0.2794, 0.3288)
-xNbMat = (0.0202, 0.0269)
+xCrMat = (matrixMinCr, matrixMaxCr)
+xNbMat = (matrixMinNb, matrixMaxNb)
 xMatLbl = xNbMat[0] - 0.009
 yMatLbl = 0.5 * (xCrMat[0] + xCrMat[1]) + 0.005
 
-xCrEnr = (0.2473, 0.2967)
-xNbEnr = (0.1659, 0.1726)
+xCrEnr = (enrichMinCr, enrichMaxCr)
+xNbEnr = (enrichMinNb, enrichMaxNb)
 xEnrLbl = xNbEnr[0] - 0.009
 yEnrLbl = 0.5 * (xCrEnr[0] + xCrEnr[1]) + 0.0025
 

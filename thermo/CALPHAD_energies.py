@@ -113,18 +113,6 @@ g_laves = parse_expr(str(model.ast))
 # Declare sublattice variables used in Pycalphad expressions
 XCR, XNB = symbols('XCR XNB')
 
-# Specify gamma-delta-Laves corners (from phase diagram)
-# with compositions as mass fractions
-
-xe_gam_Cr = 0.5250
-xe_gam_Nb = 0.0180
-
-xe_del_Cr = 0.0258
-xe_del_Nb = 0.2440
-
-xe_lav_Cr = 0.3750
-xe_lav_Nb = 0.2590
-
 # Define lever rule equations
 xo, yo = symbols('xo yo')
 xb, yb = symbols('xb yb')
@@ -330,11 +318,17 @@ codegen([# Interpolator
          # temperature
          ('kT', 1.38064852e-23 * temp),
          ('RT', 8.314472 * temp),
+         ('Vm', Vm),
          # Equilibrium Compositions
          ('xe_gam_Cr', xe_gam_Cr),  ('xe_gam_Nb', xe_gam_Nb),
          ('xe_del_Cr', xe_del_Cr),  ('xe_del_Nb', xe_del_Nb),
          ('xe_lav_Cr', xe_lav_Cr),  ('xe_lav_Nb', xe_lav_Nb),
-         ('Vm', Vm),
+         # Matrix composition range
+         ('matrix_min_Cr', matrixMinCr), ('matrix_max_Cr', matrixMaxCr),
+         ('matrix_min_Nb', matrixMinNb), ('matrix_max_Nb', matrixMaxNb),
+         # Enriched composition range
+         ('enrich_min_Cr', enrichMinCr), ('enrich_max_Cr', enrichMaxCr),
+         ('enrich_min_Nb', enrichMinNb), ('enrich_max_Nb', enrichMaxNb),
          # Curvature-Corrected Compositions
          ('xr_gam_Cr', xe_gam_Cr + dx_r_gam_Cr),  ('xr_gam_Nb', xe_gam_Nb + dx_r_gam_Nb),
          ('xr_del_Cr', xe_del_Cr + dx_r_del_Cr),  ('xr_del_Nb', xe_del_Nb + dx_r_del_Nb),
@@ -347,8 +341,7 @@ codegen([# Interpolator
          ('fict_del_Nb', fict_del_Nb),
          ('fict_lav_Cr', fict_lav_Cr),
          ('fict_lav_Nb', fict_lav_Nb),
-         # Precipitate Properties
-         ('r_delta', r_delta),  ('r_laves', r_laves),
+         # Interfacial energies
          ('s_delta', s_delta),  ('s_laves', s_laves),
          # Gibbs energies
          ('g_gam', p_gamma),  ('g_del', p_delta),  ('g_lav', p_laves),

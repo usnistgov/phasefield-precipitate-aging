@@ -582,18 +582,29 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	const int thr_y = threadIdx.y;
 	const int x = blockDim.x * blockIdx.x + thr_x;
 	const int y = blockDim.y * blockIdx.y + thr_y;
-	const int idx = nx * y + x;
-
-    const fp_t dV = dx * dy;
-    const fp_t Vatom = lattice_const*lattice_const*lattice_const / 4.;
-
-    const fp_t rad = 2.1e-9 / dx; // ceil(Rstar_del / dx);
-    const fp_t w = ifce_width / dx;
-    const int R = 5 * ceil(rad + w) / 4;
 
     if (x < nx && y < ny) {
-		const fp_t phi_gam = 1.0 - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
-		if (phi_gam > 1.0e-16) {
+        const int idx = nx * y + x;
+
+        const fp_t dV = dx * dy;
+        const fp_t Vatom = lattice_const*lattice_const*lattice_const / 4.;
+        const fp_t w = ifce_width / dx;
+        int R = 5 * ceil(2e-9/dx + w) / 4; // inflated to create an exclusion region
+
+        // Check whether a precipitate phase is already here
+		fp_t phi_gam = 1. - d_h(d_phi_del[idx]) - d_h(d_phi_lav[idx]);
+        for (int i = -R; i < R; i++) {
+            for (int j = -R; j < R; j++) {
+                const int idn = nx * (y + j) + (x + i);
+                if ((idn >= 0) &&
+                    (idn < (nx * ny)) &&
+                    (i*i + j*j < R*R)) {
+                    phi_gam = min(phi_gam, 1. - d_h(d_phi_del[idn]) - d_h(d_phi_lav[idn]));
+                }
+            }
+        }
+
+		if (phi_gam > 1. - 1e-16) {
 			const fp_t xCr = d_conc_Cr[idx];
 			const fp_t xNb = d_conc_Nb[idx];
 			const fp_t N_gam = (nx*dx * ny*dy * lattice_const * M_PI) / (3. * sqrt(2.) * Vatom);
@@ -608,15 +619,17 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                               sigma_del, lattice_const,
                                               Vatom, N_gam, dV, dt,
                                               &Rstar_del, &P_nuc_del);
+                const fp_t rad = Rstar_del / dx;
+                R = 5 * ceil(rad + w) / 4;
                 const fp_t rand_del = (fp_t)curand_uniform_double(&(d_prng[idx]));
                
                 if (rand_del < P_nuc_del) {
                     for (int i = -R; i < R; i++) {
                         for (int j = -R; j < R; j++) {
                             const int idn = nx * (y + j) + (x + i);
-                            if (idn < 0 || idn >= (nx * ny)) 
-                                continue;
-                            if (d_phi_del[idn] > 1e-16 || d_phi_lav[idn] > 1e-16)
+                            if ((idn < 0) ||
+                                (idn >= (nx * ny)) ||
+                                (d_h(d_phi_del[idn]) + d_h(d_phi_lav[idn]) > 1e-16))
                                 continue;
                             const fp_t r = sqrt(fp_t(i*i + j*j));
                             const fp_t z = r - (rad + w);
@@ -635,15 +648,17 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                               sigma_lav, lattice_const,
                                               Vatom, N_gam, dV, dt,
                                               &Rstar_lav, &P_nuc_lav);
+                const fp_t rad = Rstar_lav / dx;
+                R = 5 * ceil(rad + w) / 4;
                 const fp_t rand_lav = (fp_t)curand_uniform_double(&(d_prng[idx]));
                
                 if (rand_lav < P_nuc_lav) {
                     for (int i = -R; i < R; i++) {
                         for (int j = -R; j < R; j++) {
                             const int idn = nx * (y + j) + (x + i);
-                            if (idn < 0 || idn >= (nx * ny)) 
-                                continue;
-                            if (d_phi_del[idn] > 1e-16 || d_phi_lav[idn] > 1e-16)
+                            if ((idn < 0) ||
+                                (idn >= (nx * ny)) ||
+                                (d_h(d_phi_del[idn]) + d_h(d_phi_lav[idn]) > 1e-16))
                                 continue;
                             const fp_t r = sqrt(fp_t(i*i + j*j));
                             const fp_t z = r - (rad + w);

@@ -26,8 +26,31 @@ inVm = 1.0 / Vm     # mol/m³
 # Secondary-Phase Properties
 s_delta = 1.010 # J/m²
 s_laves = 1.010 # J/m²
-r_delta = 7.5e-9 # radius, meters
-r_laves = 7.5e-9 # radius, meters
+
+# Specify gamma-delta-Laves corners (from phase diagram)
+# with compositions as mass fractions
+
+xe_gam_Cr = 0.5250
+xe_gam_Nb = 0.0180
+
+xe_del_Cr = 0.0258
+xe_del_Nb = 0.2440
+
+xe_lav_Cr = 0.3750
+xe_lav_Nb = 0.2590
+
+# allowable matrix compositions from ASTM F3056
+matrixMinNb = 0.0202
+matrixMaxNb = 0.0269
+matrixMinCr = 0.2794
+matrixMaxCr = 0.3288
+
+# allowable enriched compositions centered on DICTRA
+# (with same span as matrix)
+enrichMinNb = 0.1659
+enrichMaxNb = 0.1726
+enrichMinCr = 0.2473
+enrichMaxCr = 0.2967
 
 # Let's avoid integer arithmetic in fractions.
 fr3by4 = 0.75
