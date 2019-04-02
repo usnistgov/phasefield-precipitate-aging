@@ -168,9 +168,10 @@ void generate(int dim, const char* filename)
 		}
 
 		// Embed two particles as a sanity check
-		const int rad = 2.1e-9 / meshres;
+		const fp_t rad = 2.1e-9 / meshres;
 		const fp_t w = ifce_width / meshres;
-		const int R = rad + w;
+		const fp_t invW = 4. / w;
+		const int R = (int)rad + (int)w;
 		x[0] = (g1(initGrid, 0) - g0(initGrid, 0)) / 4;
 		x[1] = (g1(initGrid, 1) + g0(initGrid, 1)) / 2;
 		for (int i = -4 * R; i < 4 * R; i++) {
@@ -178,9 +179,9 @@ void generate(int dim, const char* filename)
 				vector<int> y(x);
 				y[0] += i;
 				y[1] += j;
-				const fp_t r = sqrt(i*i + j*j);
-				const fp_t z = 4 * (r - R) / w;
-				const fp_t f = interface_profile(1., z);
+				const fp_t r = sqrt(fp_t(i*i + j*j));
+				const fp_t z = invW * (r - rad - w);
+				const fp_t f = interface_profile(z);
 				initGrid(y)[2] = f;
 				y[0] *= -1;
 				initGrid(y)[3] = f;

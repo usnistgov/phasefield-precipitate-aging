@@ -76,7 +76,7 @@ from sympy.utilities.lambdify import lambdify
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
 from sympy import diff, Eq, expand, factor, fraction, Matrix, symbols
-from sympy.abc import x, r, y, L
+from sympy.abc import x, r, y, z, L
 from sympy.core.numbers import pi
 from sympy.functions.elementary.complexes import Abs
 from sympy.functions.elementary.exponential import exp, log
@@ -91,7 +91,7 @@ from constants import *
 
 interpolator = x**3 * (6.*x**2 - 15.*x + 10.)
 dinterpdx = 30. * x**2 * (1.0 - x)**2
-interfaceProfile = 0.5 * (1.0 - tanh(r / L))
+interfaceProfile = (1 - tanh(z)) / 2
 
 # Read CALPHAD database from disk, specify phases and elements of interest
 tdb = Database('Du_Cr-Nb-Ni_simple.tdb')
