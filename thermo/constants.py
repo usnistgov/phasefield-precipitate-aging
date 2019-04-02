@@ -25,7 +25,7 @@ inVm = 1.0 / Vm     # mol/m³
 
 # Secondary-Phase Properties
 s_delta = 1.010 # J/m²
-s_laves = 1.011 # J/m²
+s_laves = 1.010 # J/m²
 r_delta = 7.5e-9 # radius, meters
 r_laves = 7.5e-9 # radius, meters
 

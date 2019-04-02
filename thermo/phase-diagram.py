@@ -95,8 +95,8 @@ xNbMat = (0.0202, 0.0269)
 xMatLbl = xNbMat[0] - 0.009
 yMatLbl = 0.5 * (xCrMat[0] + xCrMat[1]) + 0.005
 
-xCrEnr = (0.2720, 0.3214)
-xNbEnr = (0.1693, 0.1760)
+xCrEnr = (0.2473, 0.2967)
+xNbEnr = (0.1659, 0.1726)
 xEnrLbl = xNbEnr[0] - 0.009
 yEnrLbl = 0.5 * (xCrEnr[0] + xCrEnr[1]) + 0.0025
 

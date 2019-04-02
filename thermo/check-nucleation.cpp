@@ -181,8 +181,8 @@ int main()
 {
   std::chrono::high_resolution_clock::time_point beginning = std::chrono::high_resolution_clock::now();
   std::default_random_engine generator;
-  std::uniform_real_distribution<double> enrich_Nb_range(0.1693, 0.1760);
-  std::uniform_real_distribution<double> enrich_Cr_range(0.2720, 0.3214);
+  std::uniform_real_distribution<double> enrich_Nb_range(0.1659, 0.1726);
+  std::uniform_real_distribution<double> enrich_Cr_range(0.2473, 0.2967);
   unsigned int seed = (std::chrono::high_resolution_clock::now() - beginning).count();
   generator.seed(seed);
 

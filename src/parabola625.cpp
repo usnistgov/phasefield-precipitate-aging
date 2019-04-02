@@ -235,7 +235,7 @@ double s_delta() {
 double s_laves() {
 
    double s_laves_result;
-   s_laves_result = 1.0109999999999999;
+   s_laves_result = 1.01;
    return s_laves_result;
 
 }

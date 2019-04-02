@@ -127,8 +127,8 @@ void generate(int dim, const char* filename)
 		 */
 		std::uniform_real_distribution<double> matrixCrDist(0.2794, 0.3288);
 		std::uniform_real_distribution<double> matrixNbDist(0.0202, 0.0269);
-		std::uniform_real_distribution<double> enrichedCrDist(0.2720, 0.3214);
-		std::uniform_real_distribution<double> enrichedNbDist(0.1693, 0.1760);
+		std::uniform_real_distribution<double> enrichedCrDist(0.2473, 0.2967);
+		std::uniform_real_distribution<double> enrichedNbDist(0.1659, 0.1726);
 
 		double xCr0 = matrixCrDist(mtrand);
 		double xNb0 = matrixNbDist(mtrand);
