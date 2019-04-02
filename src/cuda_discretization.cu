@@ -589,8 +589,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 
     const fp_t rad = 2.1e-9 / dx; // ceil(Rstar_del / dx);
     const fp_t w = ifce_width / dx;
-    const fp_t invW = 4. / w;
-    const int R = rad + w;
+    const int R = 5 * ceil(rad + w) / 4;
+
     const fp_t P_fudge_factor = 5.83675e-7; // guards against P == 0.
 
     if (x < nx && y < ny) {
@@ -613,14 +613,16 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                 const fp_t rand_del = (fp_t)curand_uniform_double(&(d_prng[idx]));
                
                 if (rand_del < P_nuc_del + P_fudge_factor) {
-                    for (int i = -4 * R; i < 4 * R; i++) {
-                        for (int j = -4 * R; j < 4 * R; j++) {
+                    for (int i = -R; i < R; i++) {
+                        for (int j = -R; j < R; j++) {
                             const int idn = nx * (y + j) + (x + i);
                             if (idn < 0 || idn >= (nx * ny)) 
                                 continue;
-                            const fp_t r = sqrt(fp_t(i*i) + fp_t(j*j));
+                            if (d_phi_del[idn] > 1e-16 || d_phi_lav[idn] > 1e-16)
+                                continue;
+                            const fp_t r = sqrt(fp_t(i*i + j*j));
                             const fp_t z = r - (rad + w);
-                            d_phi_del[idn] = d_interface_profile(invW * z);
+                            d_phi_del[idn] = d_interface_profile(4 * z / w);
                         }
                     }
                 }
@@ -638,14 +640,16 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                 const fp_t rand_lav = (fp_t)curand_uniform_double(&(d_prng[idx]));
                
                 if (rand_lav < P_nuc_lav + P_fudge_factor) {
-                    for (int i = -4 * R; i < 4 * R; i++) {
-                        for (int j = -4 * R; j < 4 * R; j++) {
+                    for (int i = -R; i < R; i++) {
+                        for (int j = -R; j < R; j++) {
                             const int idn = nx * (y + j) + (x + i);
                             if (idn < 0 || idn >= (nx * ny)) 
                                 continue;
-                            const fp_t r = sqrt(fp_t(i*i) + fp_t(j*j));
+                            if (d_phi_del[idn] > 1e-16 || d_phi_lav[idn] > 1e-16)
+                                continue;
+                            const fp_t r = sqrt(fp_t(i*i + j*j));
                             const fp_t z = r - (rad + w);
-                            d_phi_lav[idn] = d_interface_profile(invW * z);
+                            d_phi_lav[idn] = d_interface_profile(4 * z / w);
                         }
                     }
                 }
