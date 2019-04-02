@@ -75,8 +75,8 @@ from sympy.utilities.lambdify import lambdify
 
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
-from sympy import diff, Eq, expand, factor, fraction, Matrix, powsimp, symbols
-from sympy.abc import x, y
+from sympy import diff, Eq, expand, factor, fraction, Matrix, symbols
+from sympy.abc import x, r, y, z, L
 from sympy.core.numbers import pi
 from sympy.functions.elementary.complexes import Abs
 from sympy.functions.elementary.exponential import exp, log
@@ -91,6 +91,7 @@ from constants import *
 
 interpolator = x**3 * (6.*x**2 - 15.*x + 10.)
 dinterpdx = 30. * x**2 * (1.0 - x)**2
+interfaceProfile = (1 - tanh(z)) / 2
 
 # Read CALPHAD database from disk, specify phases and elements of interest
 tdb = Database('Du_Cr-Nb-Ni_simple.tdb')
@@ -113,14 +114,16 @@ g_laves = parse_expr(str(model.ast))
 XCR, XNB = symbols('XCR XNB')
 
 # Specify gamma-delta-Laves corners (from phase diagram)
-xe_gam_Cr = 0.490
-xe_gam_Nb = 0.025
+# with compositions as mass fractions
 
-xe_del_Cr = 0.015
-xe_del_Nb = 0.245
+xe_gam_Cr = 0.5250
+xe_gam_Nb = 0.0180
 
-xe_lav_Cr = 0.300
-xe_lav_Nb = 0.328
+xe_del_Cr = 0.0258
+xe_del_Nb = 0.2440
+
+xe_lav_Cr = 0.3750
+xe_lav_Nb = 0.2590
 
 # Define lever rule equations
 xo, yo = symbols('xo yo')
@@ -323,6 +326,10 @@ dx_r_lav_Nb = xr[5]
 codegen([# Interpolator
          ('h', interpolator),
          ('hprime', dinterpdx),
+         ('interface_profile', interfaceProfile),
+         # temperature
+         ('kT', 1.38064852e-23 * temp),
+         ('RT', 8.314472 * temp),
          # Equilibrium Compositions
          ('xe_gam_Cr', xe_gam_Cr),  ('xe_gam_Nb', xe_gam_Nb),
          ('xe_del_Cr', xe_del_Cr),  ('xe_del_Nb', xe_del_Nb),

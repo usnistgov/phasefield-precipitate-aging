@@ -3,13 +3,14 @@
 *.a
 *.aux
 *.bak
-*.c
 *.csv
 *.dat
 *.directory
 *.gnumeric
-*.h
 *.log
+*.mw
+*.nb
+*.npz
 *.nvvp
 *.o
 *.old
@@ -19,22 +20,15 @@
 *.pvd
 *.pyc
 *.sh
+*.so
 *.txt
 *.vti
+src/parabola625.c
+thermo/*.?
 
 # simulation executables
 alloy625
-cuda625
-debug
-ibtest
-iserial
-omp
-ompi
-parallel
-pgparallel
-serial
-smp
-smpi
+check-nucleation
 
 # folders
 bin

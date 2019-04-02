@@ -24,9 +24,10 @@
 #ifndef __CUDA625_CPP__
 #define __CUDA625_CPP__
 
-#include <set>
+#include <chrono>
 #include <cmath>
 #include <random>
+#include <set>
 #include <sstream>
 #include <vector>
 #ifdef _OPENMP
@@ -36,21 +37,33 @@
 #include "alloy625.hpp"
 #include "cuda_data.h"
 #include "mesh.h"
+#include "nucleation.h"
 #include "numerics.h"
 #include "output.h"
 #include "parabola625.h"
 
 // Kinetic and model parameters
-const double meshres = 5e-9; // grid spacing (m)
-const fp_t alpha = 1.07e11;  // three-phase coexistence coefficient (J/m^3)
+const double meshres = 0.25e-9;        // grid spacing (m)
+const fp_t alpha = 1.07e11;            // three-phase coexistence coefficient (J/m^3)
+const fp_t LinStab = 1.0 / 7.28437875; // threshold of linear (von Neumann) stability
 
-/* Diffusion constants in FCC Ni from Xu (m^2/s)
-                          Cr        Nb                                        */
+// Diffusion constants in FCC Ni from Xu (m^2/s)
+//                     Cr        Nb
 const fp_t D_Cr[NC] = {2.16e-15, 0.56e-15}; // first column of diffusivity matrix
 const fp_t D_Nb[NC] = {2.97e-15, 4.29e-15}; // second column of diffusivity matrix
+const fp_t aFccNi = 0.352e-9;               // lattice spacing of FCC nickel (m)
 
-/* Choose numerical diffusivity to lock chemical and transformational timescales
-                           delta      Laves                                   */
+// Define st.dev. of bell curves for alloying element segregation
+//                       Cr      Nb
+const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
+
+// Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
+// minimum for numerical stability is 14*dx (due to interface width).
+const fp_t rPrecip[NP] = {7.5 * 5e-9 / meshres,  // delta
+                          7.5 * 5e-9 / meshres}; // Laves
+
+// Choose numerical diffusivity to lock chemical and transformational timescales
+//                      delta      Laves
 const fp_t kappa[NP] = {1.24e-8, 1.24e-8};     // gradient energy coefficient (J/m)
 const fp_t Lmob[NP]  = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
 const fp_t sigma[NP] = {1.010, 1.010};         // interfacial energy (J/m^2)
@@ -59,17 +72,7 @@ const fp_t sigma[NP] = {1.010, 1.010};         // interfacial energy (J/m^2)
 const fp_t ifce_width = 10. * meshres;
 const fp_t width_factor = 2.2; // 2.2 if interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const fp_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,  // delta
-                        3.0 * width_factor* sigma[1] / ifce_width
-                       }; // Laves
-
-// Numerical considerations
-const fp_t LinStab = 1.0 / 19.42501; // threshold of linear (von Neumann) stability
-
-/* Precipitate radii: minimum for thermodynamic stability is 7.5 nm,
-   minimum for numerical stability is 14*dx (due to interface width).         */
-const fp_t rPrecip[NP] = {7.5 * 5e-9 / meshres,  // delta
-                          7.5 * 5e-9 / meshres
-                         }; // Laves
+                        3.0 * width_factor* sigma[1] / ifce_width}; // Laves
 
 namespace MMSP
 {
@@ -77,6 +80,8 @@ namespace MMSP
 
 void generate(int dim, const char* filename)
 {
+	std::chrono::high_resolution_clock::time_point beginning = std::chrono::high_resolution_clock::now();
+
 	int rank = 0;
 	#ifdef MPI_VERSION
 	rank = MPI::COMM_WORLD.Get_rank();
@@ -92,23 +97,15 @@ void generate(int dim, const char* filename)
 	const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 
 	// Initialize pseudo-random number generator
-	std::random_device rd; // PRNG seed generator
-	std::mt19937 mtrand(rd()); // Mersenne Twister
-	std::uniform_real_distribution<double> unidist(0, 1);
+	std::mt19937 mtrand; // Mersenne Twister PRNG
+	unsigned int seed = (std::chrono::high_resolution_clock::now() - beginning).count();
+	mtrand.seed(seed);
 
 	if (dim==2) {
-		/* =============================================== *
-		 * Two-phase Particle Growth test configuration    *
-		 *            Small-Precipitate Region             *
-		 * Seed a 1.6 um x 0.96 um domain with 2 particles *
-		 * (one of each secondary phase) in a single row   *
-		 * to test competitive growth with Gibbs-Thomson   *
-		 * =============================================== */
-
-		const int Nx = 320; // product divisible by 12 and 64
-		const int Ny = 192;
+		const int Nx = 4000;
+		const int Ny = 2500;
 		double Ntot = 1.0;
-		GRID2D initGrid(2*NC+NP, -10*Nx/2, 10*Nx/2, -9*Ny/2, 9*Ny/2);
+		GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid,d) = meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
@@ -118,41 +115,34 @@ void generate(int dim, const char* filename)
 				b1(initGrid, d) = Neumann;
 		}
 
-		// Sanity check on system size and  particle spacing
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
 			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
 			          << ", dtDiffusionLimited=" << dtDiffusionLimited
 			          << '.' << std::endl;
 
-		/* Randomly choose system composition in a circular
-		 * region of the phase diagram near the gamma corner
-		 * of three-phase coexistence triangular phase field
+		/* Randomly choose enriched compositions in a rectangular region of the phase diagram
+		 * corresponding to enriched IN625 per DICTRA simulations, with compositions in
+		 * mole fraction (not weight fraction!)
 		 */
-		// Set system composition
-		const double xo = 0.4125;
-		const double yo = 0.1000;
-		const double ro = 0.0250;
-		bool withinRange = false;
-		double xCr0;
-		double xNb0;
+		std::uniform_real_distribution<double> matrixCrDist(0.2794, 0.3288);
+		std::uniform_real_distribution<double> matrixNbDist(0.0202, 0.0269);
+		std::uniform_real_distribution<double> enrichedCrDist(0.2473, 0.2967);
+		std::uniform_real_distribution<double> enrichedNbDist(0.1659, 0.1726);
 
-		while (!withinRange) {
-			xCr0 = xo + ro * (unidist(mtrand) - 1.);
-			xNb0 = yo + ro * (unidist(mtrand) - 1.);
-			withinRange = (  std::pow(xCr0 - xo, 2.0)
-			               + std::pow(xNb0 - yo, 2.0)
-			               < std::pow(ro, 2.0));
-		}
+		double xCr0 = matrixCrDist(mtrand);
+		double xNb0 = matrixNbDist(mtrand);
+		double xCrE = enrichedCrDist(mtrand);
+		double xNbE = enrichedNbDist(mtrand);
 
 		#ifdef MPI_VERSION
 		MPI::COMM_WORLD.Barrier();
-		MPI::COMM_WORLD.Bcast(&xCr0, 1, MPI_DOUBLE, 0);
-		MPI::COMM_WORLD.Bcast(&xNb0, 1, MPI_DOUBLE, 0);
+		MPI::COMM_WORLD.Bcast(&xCrE, 1, MPI_DOUBLE, 0);
+		MPI::COMM_WORLD.Bcast(&xNbE, 1, MPI_DOUBLE, 0);
 		#endif
 
 		// Zero initial condition
-		const MMSP::vector<fp_t> blank(MMSP::fields(initGrid), 0);
+		const MMSP::vector<fp_t> blank(MMSP::fields(initGrid), 0.);
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
@@ -160,36 +150,47 @@ void generate(int dim, const char* filename)
 			initGrid(n) = blank;
 		}
 
-		Composition comp = init_2D_tiles(initGrid, Ntot, Nx, Ny, xCr0, xNb0, unidist, mtrand);
+		vector<int> x(2, 0);
 
-		// Initialize matrix to achieve specified system composition
-		fp_t matCr = Ntot * xCr0;
-		fp_t matNb = Ntot * xNb0;
-		double Nmat  = Ntot;
-		for (int i = 0; i < NP+1; i++) {
-			Nmat  -= comp.N[i];
-			matCr -= comp.x[i][0];
-			matNb -= comp.x[i][1];
-		}
-		matCr /= Nmat;
-		matNb /= Nmat;
-
-		#ifdef _OPENMP
-		#pragma omp parallel for
-		#endif
-		for (int n = 0; n < nodes(initGrid); n++) {
-			MMSP::vector<fp_t>& initGridN = initGrid(n);
-			fp_t nx = 0.0;
-
-			for (int i = NC; i < NC+NP; i++)
-				nx += h(initGridN[i]);
-
-			if (nx < 0.01) { // pure gamma
-				initGridN[0] += matCr;
-				initGridN[1] += matNb;
+		// Initialize matrix (gamma phase): bell curve along x-axis for Cr and Nb composition
+		const double avgCr = bell_average(-Nx*meshres/2, Nx*meshres/2, bell[0]);
+		const double avgNb = bell_average(-Nx*meshres/2, Nx*meshres/2, bell[1]);
+		for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
+			for (x[0]=x0(initGrid); x[0]<x1(initGrid); x[0]++) {
+				const double pos = dx(initGrid,0)*x[0];
+				const double matrixCr = xCr0 + (xCrE - xCr0) * (1. - avgCr)
+				                             * (bell_curve(bell[0], pos) - avgCr);
+				const double matrixNb = xNb0 + (xNbE - xNb0) * (1. - avgNb)
+				                             * (bell_curve(bell[1], pos) - avgNb);
+				initGrid(x)[0] = matrixCr;
+				initGrid(x)[1] = matrixNb;
 			}
+		}
 
-			update_compositions(initGridN);
+		// Embed two particles as a sanity check
+		const fp_t rad = 1.51e-9 / meshres;
+		const fp_t w = ifce_width / meshres;
+		const int R = 5 * (rad + w) / 4;
+		x[0] = (g1(initGrid, 0) - g0(initGrid, 0)) / 4;
+		x[1] = (g1(initGrid, 1) + g0(initGrid, 1)) / 2;
+		for (int i = -R; i < R; i++) {
+			for (int j = -R; j < R; j++) {
+				vector<int> y(x);
+				y[0] += i;
+				y[1] += j;
+				const fp_t r = sqrt(fp_t(i*i + j*j));
+				const fp_t z = 4 * (r - rad - w) / w;
+				const fp_t f = interface_profile(z);
+				initGrid(y)[2] = f;
+				y[0] *= -1;
+				initGrid(y)[3] = f;
+			}
+		}
+
+		// Update fictitious compositions
+		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
+			x = MMSP::position(initGrid, n);
+			update_compositions(initGrid(x));
 		}
 
 		ghostswap(initGrid);
@@ -210,7 +211,6 @@ void generate(int dim, const char* filename)
 		}
 
 		output(initGrid,filename);
-
 
 
 	} else {
@@ -247,206 +247,6 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 	GRIDN[NC+NP  ] = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
 	GRIDN[NC+NP+1] = fict_gam_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
 }
-
-template<typename T>
-void embedParticle(MMSP::vector<T>& v, const int& pid, const T& xCr, const T& xNb, Composition& comp)
-{
-	v[0] = xCr;
-	v[1] = xNb;
-	v[pid] = 1.0;
-	comp.x[pid-NC][0] += xCr;
-	comp.x[pid-NC][1] += xNb;
-	comp.N[pid-NC] += 1;
-}
-
-template<int dim, typename T>
-Composition embedParticle(MMSP::grid<dim,MMSP::vector<T> >& GRID,
-                          const MMSP::vector<int>& origin,
-                          const int pid,
-                          const double rprcp,
-                          const T& xCr, const T& xNb)
-{
-	MMSP::vector<int> x(origin);
-	const int R = rprcp;
-	Composition comp;
-
-	if (dim==1) {
-		for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
-			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-				continue;
-			const double r = radius(origin, x, 1);
-			if (r < rprcp) // point falls within particle
-				embedParticle(GRID(x), pid, xCr, xNb, comp);
-		}
-	} else if (dim==2) {
-		for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
-			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-				continue;
-			for (x[1] = origin[1] - R; x[1] <= origin[1] + R; x[1]++) {
-				if (x[1] < x0(GRID, 1) || x[1] >= x1(GRID, 1))
-					continue;
-				const double r = radius(origin, x, 1);
-				if (r < rprcp) // point falls within particle
-					embedParticle(GRID(x), pid, xCr, xNb, comp);
-			}
-		}
-	} else if (dim==3) {
-		for (x[0] = origin[0] - R; x[0] <= origin[0] + R; x[0]++) {
-			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-				continue;
-			for (x[1] = origin[1] - R; x[1] <= origin[1] + R; x[1]++) {
-				if (x[1] < x0(GRID, 1) || x[1] >= x1(GRID, 1))
-					continue;
-				for (x[2] = origin[2] - R; x[2] <= origin[2] + R; x[2]++) {
-					if (x[2] < x0(GRID, 2) || x[2] >= x1(GRID, 2))
-						continue;
-					const double r = radius(origin, x, 1);
-					if (r < rprcp) // point falls within particle
-						embedParticle(GRID(x), pid, xCr, xNb, comp);
-				}
-			}
-		}
-	}
-
-	return comp;
-}
-
-template<typename T>
-void embedStripe(MMSP::vector<T>& v, const int& pid, const T& xCr, const T& xNb, Composition& comp)
-{
-	v[0] = xCr;
-	v[1] = xNb;
-	v[pid] = 1.0;
-	comp.x[pid-NC][0] += xCr;
-	comp.x[pid-NC][1] += xNb;
-	comp.N[pid-NC] += 1;
-}
-
-template<int dim, typename T>
-Composition embedStripe(MMSP::grid<dim,MMSP::vector<T> >& GRID,
-                        const MMSP::vector<int>& origin,
-                        const int pid,
-                        const double rprcp,
-                        const T& xCr, const T& xNb)
-{
-	MMSP::vector<int> x(origin);
-	const int R(rprcp);
-	Composition comp;
-
-	if (dim==1) {
-		for (x[0] = origin[0] - R; x[0] < origin[0] + R; x[0]++) {
-			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-				continue;
-			embedStripe(GRID(x), pid, xCr, xNb, comp);
-		}
-	} else if (dim==2) {
-		for (x[0] = origin[0] - R; x[0] < origin[0] + R; x[0]++) {
-			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-				continue;
-			for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
-				embedStripe(GRID(x), pid, xCr, xNb, comp);
-			}
-		}
-	} else if (dim==3) {
-		for (x[0] = origin[0] - R; x[0] < origin[0] + R; x[0]++) {
-			if (x[0] < x0(GRID) || x[0] >= x1(GRID))
-				continue;
-			for (x[1] = x0(GRID, 1); x[1] < x1(GRID, 1); x[1]++) {
-				for (x[2] = x0(GRID, 2); x[2] < x1(GRID, 2); x[2]++) {
-					embedStripe(GRID(x), pid, xCr, xNb, comp);
-				}
-			}
-		}
-	}
-
-	return comp;
-}
-
-template<int dim, typename T>
-Composition init_2D_tiles(MMSP::grid<dim,MMSP::vector<T> >& GRID,
-                          const double Ntot,
-                          const int width,
-                          const int height,
-                          const double xCr0,
-                          const double xNb0,
-                          std::uniform_real_distribution<double>& unidist,
-                          std::mt19937& mtrand)
-{
-	#ifdef MPI_VERSION
-	MPI_Request* reqs = new MPI_Request[NP + 2];
-	MPI_Status* stat = new MPI_Status[NP + 2];
-	#endif
-
-	Composition comp;
-	MMSP::vector<int> tileOrigin(dim, 0);
-	int n = 0;
-	const int offset = 8;
-
-	for (tileOrigin[1] = MMSP::g0(GRID,1) - MMSP::g0(GRID,1) % height; tileOrigin[1] < 1 + MMSP::g1(GRID,1); tileOrigin[1] += height) {
-		for (tileOrigin[0] = MMSP::g0(GRID,0) - (n%2)*width/2 - MMSP::g0(GRID,0) % width; tileOrigin[0] < 1 + MMSP::g1(GRID,0); tileOrigin[0] += width) {
-			MMSP::vector<int> origin = tileOrigin;
-			// avoid an equilibrium composition gradient by ensuring particles are locally paired
-			if (origin[0] < MMSP::x0(GRID,0)+offset/2 || origin[0] > MMSP::x1(GRID,0)-offset/2 ||
-				origin[1] < MMSP::x0(GRID,1)+offset/2 || origin[1] > MMSP::x1(GRID,1)-offset/2) {
-				continue;
-			}
-
-			for (int j = 0; j < NP; j++) {
-				/*
-				// Set constant precipitate radii and separation
-				int r = rPrecip[0];
-				int d = offset + height / 2;
-				*/
-
-				// Set precipitate radii and separation with jitter
-				const int d = offset + height * (1. - unidist(mtrand));
-				const int r = std::floor((2. + 6.5 * unidist(mtrand)) * (5.0e-9 / meshres));
-
-				#ifdef MPI_VERSION
-				MPI::COMM_WORLD.Barrier();
-				MPI::COMM_WORLD.Bcast(&r,1, MPI_INT, 0);
-				MPI::COMM_WORLD.Bcast(&d,1, MPI_INT, 0);
-				#endif
-
-				// curvature-dependent initial compositions
-				const fp_t P_del = 2.0 * sigma[0] / (rPrecip[0] * meshres);
-				const fp_t P_lav = 2.0 * sigma[1] / (rPrecip[1] * meshres);
-				const fp_t xrCr[NP+1] = {xr_gam_Cr(P_del, P_lav),
-				                         xr_del_Cr(P_del, P_lav),
-				                         xr_lav_Cr(P_del, P_lav)
-				                        };
-				const fp_t xrNb[NP+1] = {xr_gam_Nb(P_del, P_lav),
-				                         xr_del_Nb(P_del, P_lav),
-				                         xr_lav_Nb(P_del, P_lav)
-				                        };
-				origin[0] = tileOrigin[0] + ((j%2==0) ? -d/2 : d/2);
-				origin[1] = tileOrigin[1];
-				comp += embedParticle(GRID, origin, j+NC, r, xrCr[j+1], xrNb[j+1]);
-			}
-		}
-		n++;
-	}
-
-	// Synchronize global initial condition parameters
-	#ifdef MPI_VERSION
-	Composition myComp;
-	myComp += comp;
-	MPI::COMM_WORLD.Barrier();
-	MPI_Iallreduce(&(myComp.N[0]), &(comp.N[0]), NP+1, MPI_INT, MPI_SUM, MPI_COMM_WORLD, &(reqs[0]));
-	for (int j = 0; j < NP+1; j++) {
-		MPI_Iallreduce(&(myComp.x[j][0]), &(comp.x[j][0]), NC, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD, &(reqs[1+j]));
-	}
-	MPI_Waitall(NP+2, reqs, stat);
-	#endif
-
-	#ifdef MPI_VERSION
-	delete [] reqs;
-	delete [] stat;
-	#endif
-
-	return comp;
-}
-
 
 template <typename T>
 T gibbs(const MMSP::vector<T>& v)
@@ -588,7 +388,6 @@ double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
 			const T gradSq = (gradPhi * gradPhi); // vector inner product
 
 			myEnergy += dV * kappa[i] * gradSq; // gradient contributes to energy
-
 		}
 
 		#ifdef _OPENMP

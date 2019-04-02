@@ -1,5 +1,5 @@
 /******************************************************************************
- *                      Code generated with sympy 1.1.1                       *
+ *                       Code generated with sympy 1.3                        *
  *                                                                            *
  *              See http://www.sympy.org/ for more information.               *
  *                                                                            *
@@ -12,6 +12,9 @@
 
 __device__ double d_h(double x);
 __device__ double d_hprime(double x);
+__device__ double d_interface_profile(double z);
+__device__ double d_kT();
+__device__ double d_RT();
 __device__ double d_xe_gam_Cr();
 __device__ double d_xe_gam_Nb();
 __device__ double d_xe_del_Cr();

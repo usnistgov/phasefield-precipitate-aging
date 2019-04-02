@@ -31,11 +31,10 @@
 
 void param_parser(int* bx, int* by, int* code, int* nm)
 {
-	FILE* input;
-
-	input = fopen("params.txt", "r");
+	FILE* input = fopen("params.txt", "r");
 	if (input == NULL) {
 		printf("Warning: unable to open parameter file 'params.txt'. Marching with default values.\n");
+		fflush(stdout);
 	} else {
 		char buffer[256];
 		char* pch;
@@ -68,15 +67,15 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 		}
 
 		/* make sure we got everyone */
-		if (! ibx) {
+		if (! ibx)
 			printf("Warning: parameter %s undefined. Using default value, %i.\n", "bx", *bx);
-		} else if (! iby) {
+		else if (! iby)
 			printf("Warning: parameter %s undefined. Using default value, %i.\n", "by", *by);
-		} else if (! isc) {
+		else if (! isc)
 			printf("Warning: parameter %s undefined. Using default values, %i and %i.\n", "sc", *nm, *code);
-		}
+
+		fclose(input);
 	}
-	fclose(input);
 }
 
 void print_progress(const int step, const int steps)

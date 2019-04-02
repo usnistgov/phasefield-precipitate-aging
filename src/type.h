@@ -27,6 +27,8 @@
 #define _TYPE_H_
 /** \endcond */
 
+#include <curand_kernel.h>
+
 /**
  Specify the basic data type to achieve the desired accuracy in floating-point
  arithmetic: float for single-precision, double for double-precision. This
@@ -36,7 +38,7 @@
 typedef double fp_t;
 
 /**
-   \brief Container for pointers to arrays on the CPU
+ \brief Container for pointers to arrays on the CPU
 */
 struct HostData {
 	fp_t** mask_lap;
@@ -53,15 +55,12 @@ struct HostData {
 	fp_t** phi_lav_old;
 	fp_t** phi_lav_new;
 
-	fp_t** gam_Cr_old;
-	fp_t** gam_Cr_new;
-
-	fp_t** gam_Nb_old;
-	fp_t** gam_Nb_new;
+	fp_t** gam_Cr;
+	fp_t** gam_Nb;
 };
 
 /**
-   \brief Container for pointers to arrays on the GPU
+ \brief Container for pointers to arrays on the GPU
 */
 struct CudaData {
 	fp_t* conc_Cr_old;
@@ -76,11 +75,13 @@ struct CudaData {
 	fp_t* phi_lav_old;
 	fp_t* phi_lav_new;
 
-	fp_t* gam_Cr_old;
-	fp_t* gam_Cr_new;
+	fp_t* gam_Cr;
+	fp_t* gam_Nb;
 
-	fp_t* gam_Nb_old;
-	fp_t* gam_Nb_new;
+	fp_t* lap_gam_Cr;
+	fp_t* lap_gam_Nb;
+
+	curandState* prng;
 };
 
 /** \cond SuppressGuard */

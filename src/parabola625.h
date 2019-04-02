@@ -1,5 +1,5 @@
 /******************************************************************************
- *                      Code generated with sympy 1.1.1                       *
+ *                       Code generated with sympy 1.3                        *
  *                                                                            *
  *              See http://www.sympy.org/ for more information.               *
  *                                                                            *
@@ -12,6 +12,9 @@
 
 double h(double x);
 double hprime(double x);
+double interface_profile(double z);
+double kT();
+double RT();
 double xe_gam_Cr();
 double xe_gam_Nb();
 double xe_del_Cr();

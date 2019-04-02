@@ -57,8 +57,8 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
  \brief Device kernel to update field variables for composition
 */
 __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc_Nb_old,
+                                   const fp_t& d_lap_gam_Cr,  const fp_t& d_lap_gam_Nb,
                                          fp_t& d_conc_Cr_new,       fp_t& d_conc_Nb_new,
-                                   const fp_t& d_gam_Cr_new,  const fp_t& d_gam_Nb_new,
                                    const fp_t& D_CrCr,        const fp_t& D_CrNb,
                                    const fp_t& D_NbCr,        const fp_t& D_NbNb,
                                    const fp_t& dt);
@@ -90,29 +90,44 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& M_lav,       const fp_t& dt);
 
 /**
- \brief Device kernel to update field variables for fictitious composition
-*/
-__device__ void fictitious_kernel(const fp_t& phi_del_new, const fp_t& phi_lav_new,
-                                  const fp_t& conc_Cr_new, const fp_t& conc_Nb_new,
-                                  fp_t& gam_Cr_new,        fp_t& gam_Nb_new);
-
-/**
- \brief Monolithic kernel to update all field variables, minimizing syncthreads
+ \brief Device kernel to update all field variables
 */
 __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                 fp_t* d_phi_del_old,
-                                 fp_t* d_phi_lav_old,
-                                 fp_t* d_gam_Cr_old,  fp_t* d_gam_Nb_old,
+                                 fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
+                                 fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
                                  fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                                 fp_t* d_phi_del_new,
-                                 fp_t* d_phi_lav_new,
-                                 fp_t* d_gam_Cr_new,  fp_t* d_gam_Nb_new,
+                                 fp_t* d_phi_del_new, fp_t* d_phi_lav_new,
+                                 fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
                                  const int nx, const int ny, const int nm,
                                  const fp_t D_CrCr, const fp_t D_CrNb,
                                  const fp_t D_NbCr, const fp_t D_NbNb,
                                  const fp_t alpha, const fp_t kappa, const fp_t omega,
                                  const fp_t M_del, const fp_t M_lav,
                                  const fp_t dt);
+
+/**
+ \brief Device kernel to initialize random number generators
+*/
+__global__ void init_prng_kernel(curandState* prng, const int nx, const int ny);
+
+/**
+ \brief Device kernel to compute driving force for nucleation and stochastically seed nuclei
+*/
+__global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                                  fp_t* d_phi_del, fp_t* d_phi_lav,
+                                  const int nx, const int ny, const int nm,
+                                  const int bx, const int by,
+                                  const fp_t D_CrCr, const fp_t D_NbNb,
+                                  const fp_t sigma_del, const fp_t sigma_lav,
+                                  const fp_t unit_a, const fp_t ifce_width,
+                                  const fp_t dx, const fp_t dy, const fp_t dt);
+/**
+ \brief Device kernel to update fictitious compositions in matrix phase
+*/
+__global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                                  fp_t* d_phi_del, fp_t* d_phi_lav,
+                                  fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
+                                  const int nx,    const int ny);
 
 /** \cond SuppressGuard */
 #endif /* _CUDA_KERNELS_H_ */

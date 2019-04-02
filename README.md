@@ -38,12 +38,13 @@ approximations.
 ## Install
 
 This repository contains Python code to handle the CALPHAD database and C++
-code to perform the phase-field simulation. A Python 3 interpreter and C++11
-compiler are recommended. You will need to satisfy the following dependencies:
+code to perform the phase-field simulation. A Python 3 interpreter and
+C++11 compiler are recommended. You will need to satisfy the following
+dependencies:
 
 - Python
-  - [PyCALPHAD](http://pycalphad.readthedocs.io/en/latest/)
-  - [SymPy](http://www.sympy.org/en/index.html)
+  - [PyCALPHAD](http://pycalphad.readthedocs.io/)
+  - [SymPy](http://www.sympy.org/)
 
 - C++
   - [MMSP](https://github.com/mesoscale/mmsp)
@@ -57,30 +58,27 @@ you are using ```bash```, do something similar to
   . ~/.bashrc
 ```
 
-You will also want to build the MMSP utilities,
-as described in the MMSP documentation.
+You will also want to build the MMSP utilities, as described in the MMSP
+documentation.
 
 ## Usage
 
-1. ```python CALPHAD_energies.py```
-   This will use pycalphad to read the database and extract expressions,
-   which are then manipulated and written into C-code by SymPy.
-2. ```make``` (OpenMP, Intel compiler).
-   This will compile the source code into a binary, ```alloy625```.
-   - or ```make serial``` (serial, GNU compiler).
-     This will compile the source code into a binary, ```serial```.
-   - or ```make parallel``` (MPI, GNU compiler).
-     This will compile the source code into a binary, ```parallel```.
-3. Run the code. Since your executable is built against ```MMSP.main.hpp```,
-   the options of that program apply to your binary. For usage suggestions,
-   run ```./alloy625 --help``` or ```./serial --help``` or
-   ```mpirun -np 1 parallel --help```, depending on which executable you built.
-   A typical MMSP run comprises two steps: initialization and update loops.
-   So you would normally do:
+1. ```cd thermo; python CALPHAD_energies.py; python nucleation.py``` This
+   will use pycalphad to read the database and extract expressions, which
+   are then manipulated and written into C-code by SymPy.
+2. ```make``` (OpenMP, Nvidia CUDA compiler). This will compile the source
+   code into a binary, ```alloy625```.
+3. Run the code. Since your executable is built against
+   ```MMSP.main.hpp```, the options of that program apply to your binary.
+   For usage suggestions, run ```./alloy625 --help``` or ```./serial
+   --help``` or ```mpirun -np 1 parallel --help```, depending on which
+   executable you built. A typical MMSP run comprises two steps:
+   initialization and update loops. So you would normally do:
    - ```./alloy625 --example 2 data.dat```
    - ```./alloy625 data.dat 10000000 1000000```
-   - ```mmsp2pvd data.dat data.*.dat``` to generate VTK visualization files,
-     then use a VTK viewer such as ParaView or Mayavi to see the results.
+   - ```mmsp2pvd data.dat data.*.dat``` to generate VTK visualization
+     files, then use a VTK viewer such as ParaView or Mayavi to see the
+     results.
 4. Remix, run, and analyze your own variants.
 
 ## Details
@@ -99,9 +97,11 @@ compressed MMSP checkpoint, with no work assigned to the GPU.
 #### Initialization
 
 1. `main.cpp` was adapted from MMSP, rather than HiPerC.
-2. The initial condition checkpoint gets read back into an MMSP::grid object.
+2. The initial condition checkpoint gets read back into an MMSP::grid
+   object.
 3. The Laplacian kernel gets written into const cache on the GPU.
-4. 12 device arrays get allocated on the GPU: one old and one new for each field variable.
+4. 12 device arrays get allocated on the GPU: one old and one new for each
+   field variable.
     1. `x_Cr`
     2. `x_Nb`
     3. `phi_del`
@@ -122,22 +122,30 @@ compressed MMSP checkpoint, with no work assigned to the GPU.
 1. Boundary conditions get applied on each of the "old" device arrays.
 2. Laplacian values gets computed and recorded in each of the "new" arrays.
 3. Boundary conditions get applied on each of the "new" device arrays.
-4. Updated field values get computed from the "old" and "new" device arrays.
-5. Fictitious matrix phase compositions get computed and written into the "new" device  array.
+4. Updated field values get computed from the "old" and "new" device
+   arrays.
+5. Fictitious matrix phase compositions get computed and written into the
+   "new" device array.
+6. At a fixed interval, stochastic nucleation occurs based on the local
+   composition and using an order-parameter-only model.
 
 ##### After timestepping:
 
-1. Data gets copied from the 6 "new" device arrays into the corresponding host arrays.
+1. Data gets copied from the 6 "new" device arrays into the corresponding
+   host arrays.
 2. Data gets read from the host arrays into the MMSP::grid object.
 3. The MMSP::grid object gets written to a compressed MMSP checkpoint.
 
 ### Cleanup
 
-Arrays gets freed from the host and device once the last checkpoint is written.
+Arrays get freed from the host and device once the last checkpoint is
+written.
 
 ## Contribute
 
-Pull requests are welcome! Comments are also appreciated via [issues](https://github.com/usnistgov/phasefield-precipitate-aging/issues) and [e-mail](mailto:trevor.keller@nist.gov).
+Pull requests are welcome! Comments are also appreciated via
+[issues](https://github.com/usnistgov/phasefield-precipitate-aging/issues)
+and [e-mail](mailto:trevor.keller@nist.gov).
 
 ## References
 
@@ -148,11 +156,18 @@ Pull requests are welcome! Comments are also appreciated via [issues](https://gi
   *Calphad* **29** (2005) 140–148.
   DOI: [10.1016/j.calphad.2005.06.001](http://dx.doi.org/10.1016/j.calphad.2005.06.001)
 
+### Jokisaari 2016
+
+  Jokisaari, A.M.; Permann, C.; Thornton, K.
+  "A nucleation algorithm for the coupled conserved-nonconserved phase field model."
+  *Computational Materials Science* **112** (2016) 128–138.
+  DOI: [10.1016/j.commatsci.2015.10.009](http://dx.doi.org/10.1016/j.commatsci.2015.10.009)
+
 ### Kim 1999
 
   Kim, S. G.; Kim, W. T. and Suzuki, T.
   "Phase-field model for binary alloys."
-  *Phys. Rev. E* **60** (1999) 7186–7197.
+  *Physical Review E* **60** (1999) 7186–7197.
   DOI: [10.1103/PhysRevE.60.7186](http://dx.doi.org/10.1103/PhysRevE.60.7186)
 
 ### Karunaratne 2005
@@ -166,33 +181,35 @@ Pull requests are welcome! Comments are also appreciated via [issues](https://gi
 
   Provatas, N. and Elder, K.
   [*Phase-Field Methods in Materials Science and Engineering.*](http://www.wiley.com/WileyCDA/WileyTitle/productCd-3527407472.html)
-  Wiley-VCH: Weinheim, 2010.
-  ISBN: 978-3-527-40747-7.
+  Wiley-VCH: Weinheim, 2010. ISBN: 978-3-527-40747-7.
 
 ### Xu 2016
 
   Xu, G.; Liu, Y. and Kang, Z.
   "Atomic Mobilities and Interdiffusivities for fcc Ni-Cr-Nb Alloys."
-  *Met. Trans. B* **47B** (2016) 3126–3131.
+  *Metallurgical Transactions B* **47B** (2016) 3126–3131.
   DOI: [10.1007/s11663-016-0726-6](http://dx.doi.org/10.1007/s11663-016-0726-6)
 
 ### Zhou 2014
 
-  Zhou, N.; Lv, D.; Zhang, H.; McAllister, D.; Zhang, F.; Mills, M. and Wang, Y.
-  "Computer simulation of phase transformation and plastic deformation in IN718 superalloy: Microstructural evolution during precipitation."
-  *Acta Mater.* **65** (2014) 270–286.
-  DOI: [10.1016/j.actamat.2013.10.069](http://dx.doi.org/10.1016/j.actamat.2013.10.069)
+  Zhou, N.; Lv, D.; Zhang, H.; McAllister, D.; Zhang, F.; Mills, M. and
+  Wang, Y. "Computer simulation of phase transformation and plastic
+  deformation in IN718 superalloy: Microstructural evolution during
+  precipitation." *Acta Materialia* **65** (2014) 270–286. DOI:
+  [10.1016/j.actamat.2013.10.069](http://dx.doi.org/10.1016/j.actamat.2013.10.069)
 
 ## License
 
-As a work of the United States Government, this software is in the public domain within the United States.
+As a work of the United States Government, this software is in the public
+domain within the United States.
 
 ### Derivative Works
 
-The source files (```.py```, ```.hpp```, and ```.cpp```) in this repository were
-written by an employee of the United States federal government in the course of
-their employment, and are therefore not subject to copyright. They are public
-domain. However, the Mesoscale Microstructure Simulation Project (MMSP) is subject
-to the General Public License v3.0, and this software ```#include```s major
-aspects of that work. Therefore, if you are not an employee of the US government,
-your derivative works will likely be subject to the terms and conditions of the GPL.
+The source files (```.py```, ```.hpp```, and ```.cpp```) in this repository
+were written by an employee of the United States federal government in the
+course of their employment, and are therefore not subject to copyright.
+They are public domain. However, the Mesoscale Microstructure Simulation
+Project (MMSP) is subject to the General Public License v3.0, and this
+software ```#include```s major aspects of that work. Therefore, if you are
+not an employee of the US government, your derivative works will likely be
+subject to the terms and conditions of the GPL.

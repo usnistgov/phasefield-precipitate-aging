@@ -41,40 +41,69 @@ void init_cuda(struct HostData* host,
 void free_cuda(struct CudaData* dev);
 
 /**
- \brief Apply boundary conditions on device
+   \brief Compute number of tiles along an axis
+*/
+float nTiles(int domain_size, int tile_loc, int mask_size);
+
+/**
+ \brief Apply boundary conditions to fields on device
 */
 void device_boundaries(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by);
 
 /**
-   \brief Apply boundary conditions on device
+   \brief Apply boundary conditions to Laplacian fields on device
 */
 void device_laplacian_boundaries(struct CudaData* dev,
                                  const int nx, const int ny, const int nm,
                                  const int bx, const int by);
 
 /**
-   \brief Compute Laplacian on device
+   \brief Update Laplacian fields on device
 */
 void device_laplacian(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by);
 
 /**
- \brief Step diffusion equation on device
+ \brief Step equations of motion to update fields on device
 */
 void device_evolution(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by,
-                      const fp_t D_CrCr, const fp_t D_CrNb,
-                      const fp_t D_NbCr, const fp_t D_NbNb,
+                      const fp_t* D_Cr, const fp_t* D_Nb,
                       const fp_t alpha, const fp_t kappa, const fp_t omega,
                       const fp_t M_del, const fp_t M_lav,
                       const fp_t dt);
 
 /**
-  \brief Read data from device
+   \brief Initialize PRNG on device
+*/
+void device_init_prng(struct CudaData* dev,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by);
+
+/**
+ \brief Stochastically seed nuclei on device
+*/
+void device_nucleation(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by,
+                       const fp_t* D_Cr, const fp_t* D_Nb,
+                       const fp_t sigma_del, const fp_t sigma_lav,
+                       const fp_t unit_a, const fp_t ifce_width,
+                       const fp_t dx, const fp_t dy, const fp_t dt);
+
+/**
+ \brief Update fictitious composition fields on device
+*/
+void device_fictitious(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by);
+
+/**
+  \brief Copy fields from device to host
 */
 void read_out_result(struct CudaData* dev, struct HostData* host, const int nx, const int ny);
 
