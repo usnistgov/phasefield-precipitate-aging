@@ -17,7 +17,6 @@
 const double meshres = 0.25e-9;       // grid spacing (m)
 const double LinStab = 1. / 14.56876; // threshold of linear (von Neumann) stability
 const double aFccNi  = 0.352e-9;      // lattice spacing of FCC nickel (m)
-const double hCyl    = aFccNi;        // height of the cylinder (m)
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb
@@ -88,48 +87,6 @@ void nucleation_driving_force_laves(const double& xCr, const double& xNb,
 	const double G_precip = g_lav(*par_xCr, *par_xNb);
 
 	*dG = (G_matrix - G_precip);
-}
-
-void nucleation_probability_cylinder(const double& xCr, const double& xNb,
-                                     const double& par_xCr, const double& par_xNb,
-                                     const double& dG_chem, const double& D_CrCr, const double& D_NbNb,
-                                     const double& sigma, const double& hCyl, const double& Vatom,
-                                     const double& N_gam, const double& dV, const double& dt,
-                                     double* Rstar, double* P_nuc)
-{
-	const double denom = hCyl * dG_chem - 2. * sigma;
-	const double Zeldov = Vatom * sqrt(6. * denom*denom*denom / kT())
-	                    / (M_PI*M_PI * hCyl*hCyl * sigma);
-
-	const double numer = 2. * M_PI * sigma * (hCyl * dG_chem - sigma);
-    const double denomSq = hCyl*hCyl * denom*denom;
-    const double BstarCr = (D_CrCr * xCr * numer) / denomSq;
-	const double BstarNb = (D_NbNb * xNb * numer) / denomSq;
-
-	const double k1Cr = BstarCr * Zeldov * N_gam / dV;
-	const double k1Nb = BstarNb * Zeldov * N_gam / dV;
-
-	const double k2 = dG_chem / kT();
-	const double dc_Cr = fabs(par_xCr - xCr);
-	const double dc_Nb = fabs(par_xNb - xNb);
-
-	const double JCr = k1Cr * exp(-k2 / dc_Cr);
-	const double JNb = k1Nb * exp(-k2 / dc_Nb);
-
-	*Rstar = (sigma * hCyl) / denom;
-    const double PCr = exp(-JCr * dt * dV);
-    const double PNb = exp(-JNb * dt * dV);
-
-	*P_nuc = 1. - (PCr * PNb);
-
-    printf("         denom, Zeldov: %9.2e  %9.2e\n", denom, Zeldov);
-    printf("         Bstar(Cr,Nb):  %9.2e  %9.2e\n", BstarCr, BstarNb);
-    printf("         k1(Cr,Nb):     %9.2e  %9.2e\n", k1Cr, k1Nb);
-    printf("         k2, kT:        %9.2e  %9.2e\n", k2, kT());
-    printf("         dc_(Cr,Nb):    %9.2e  %9.2e\n", dc_Cr, dc_Nb);
-    printf("         J(Cr,Nb):      %9.2e  %9.2e\n", JCr, JNb);
-    printf("         P(Cr,Nb):      %9.2e  %9.2e\n", PCr, PNb);
-    printf("         P:             %9.2e\n", *P_nuc);
 }
 
 void nucleation_probability_sphere(const double& xCr, const double& xNb,

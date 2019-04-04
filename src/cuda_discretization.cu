@@ -480,40 +480,6 @@ __device__ void nucleation_driving_force_lav(const fp_t& xCr, const fp_t& xNb,
 	*dG = G_precip - G_matrix;
 }
 
-__device__ void nucleation_probability_cylinder(const fp_t& xCr, const fp_t& xNb,
-                                       const fp_t& par_xCr, const fp_t& par_xNb,
-                                       const fp_t& dG_chem, const fp_t& D_CrCr, const fp_t& D_NbNb,
-                                       const fp_t& sigma, const fp_t& lattice_const, const fp_t& Vatom,
-                                       const fp_t& n_gam, const fp_t& dV, const fp_t& dt,
-                                       fp_t* Rstar, fp_t* P_nuc)
-{
-	const fp_t denom = lattice_const * dG_chem - 2. * sigma;
-	const fp_t Zeldov = Vatom * sqrt(6. * denom * denom * denom / d_kT())
-	                  / (M_PI*M_PI * lattice_const * lattice_const * sigma);
-    const fp_t Gstar = (M_PI * sigma * sigma * lattice_const * lattice_const)
-                     / (lattice_const * dG_chem - 2 * sigma);
-	const fp_t numer = 2. * M_PI * sigma *  (lattice_const * dG_chem - sigma);
-	const fp_t denom2 = lattice_const * lattice_const * denom * denom;
-	const fp_t BstarCr = (D_CrCr * xCr * numer) / denom2;
-	const fp_t BstarNb = (D_NbNb * xNb * numer) / denom2;
-
-	const fp_t k1Cr = BstarCr * Zeldov * n_gam;
-	const fp_t k1Nb = BstarNb * Zeldov * n_gam;
-
-	const fp_t k2 = Gstar / d_kT();
-	const fp_t dc_Cr = fabs(par_xCr - xCr);
-    const fp_t dc_Nb = fabs(par_xNb - xNb);
-
-	const fp_t JCr = k1Cr * exp(-k2 / dc_Cr);
-	const fp_t JNb = k1Nb * exp(-k2 / dc_Nb);
-
-    const fp_t PCr = exp(-JCr * dt * dV);
-    const fp_t PNb = exp(-JNb * dt * dV);
-
-	*P_nuc = 1. - (PCr * PNb);
-	*Rstar = (sigma * lattice_const) / denom;
-}
-
 __device__ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
                                        const fp_t& par_xCr, const fp_t& par_xNb,
                                        const fp_t& dG_chem, const fp_t& D_CrCr, const fp_t& D_NbNb,
