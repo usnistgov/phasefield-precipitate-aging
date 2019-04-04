@@ -163,6 +163,7 @@ void generate(int dim, const char* filename)
 		}
 
 		// Embed two particles as a sanity check
+		/*
 		const fp_t rad = 1.51e-9 / meshres;
 		const fp_t w = ifce_width / meshres;
 		const int R = 5 * (rad + w) / 4;
@@ -181,6 +182,7 @@ void generate(int dim, const char* filename)
 				initGrid(y)[3] = f;
 			}
 		}
+		*/
 
 		// Update fictitious compositions
 		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
@@ -199,10 +201,10 @@ void generate(int dim, const char* filename)
 			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
 			        dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
-			printf("%9s %9s %9s %9s %9s %9s\n",
-			       "x_Cr", "x_Nb", "x_Ni", " p_g", " p_d", " p_l");
-			printf("%9g %9g %9g %9g %9g %9g\n",
-			       summary[0], summary[1], 1.0-summary[0]-summary[1], summary[2], summary[3], summary[4]);
+			printf("%9s %9s %9s %9s %9s\n",
+			       "x_Cr", "x_Nb", " p_g", " p_d", " p_l");
+			printf("%9g %9g %9g %9g %9g\n",
+			       summary[0], summary[1], summary[2], summary[3], summary[4]);
 		}
 
 		output(initGrid,filename);

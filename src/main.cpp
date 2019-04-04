@@ -38,8 +38,7 @@ int main(int argc, char* argv[])
 		MMSP::Abort(-1);
 	}
 
-	// Many of the example programs call rand(). srand() must be called
-	// _exactly once_, making this the proper place for it.
+	// srand() must be called exactly once to seed rand().
 	int rank = 0;
 	#ifdef MPI_VERSION
 	rank = MPI::COMM_WORLD.Get_rank();
@@ -295,14 +294,19 @@ int main(int argc, char* argv[])
 			init_cuda(&host, nx, ny, nm, &dev);
 			device_init_prng(&dev, nx, ny, nm, bx, by);
 
+			FILE* cfile = NULL;
+			if (rank == 0)
+				cfile = fopen("c.log", "a"); // existing log will be appended
+
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int nuc_interval = 10e-6 / dt;
-			int nuc_counter = 1;
+			const int nuc_interval = 5;
+			int nuc_counter = 0;
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
+				/* start update() */
 				for (int j = 0; j < increment; j++) {
 					print_progress(j, increment);
 					// === Start Architecture-Specific Kernel ===
@@ -353,7 +357,6 @@ int main(int argc, char* argv[])
 				for (unsigned int j=0; j<outstr.str().length(); j++)
 					filename[j]=outstr.str()[j];
 
-				// write grid output to file
 				for (int n = 0; n < MMSP::nodes(grid); n++) {
 					MMSP::vector<fp_t>& gridN = grid(n);
 					MMSP::vector<int> x = MMSP::position(grid, n);
@@ -366,8 +369,20 @@ int main(int argc, char* argv[])
 					gridN[4] = host.gam_Cr[j][i];
 					gridN[5] = host.gam_Nb[j][i];
 				}
+
+				// Log compositions, phase fractions
+
+				MMSP::vector<double> summary = summarize_fields(grid);
+				double energy = summarize_energy(grid);
+
+				if (rank == 0) {
+					fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
+							dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+				}
+
 				MMSP::output(grid, filename);
 				print_progress(increment, increment);
+				/* finish update() */
 			}
 			free_cuda(&dev);
 			free_arrays(&host);

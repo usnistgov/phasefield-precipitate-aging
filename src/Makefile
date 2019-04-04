@@ -16,7 +16,7 @@ OBJS = data.o discretization.o d_parabola625.o \
        mesh.o nucleation.o numerics.o output.o parabola625.o
 
 # Executable
-alloy625: alloy625.cpp $(OBJS)
+alloy625: alloy625.cpp main.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
 profile: CXXOPT = -O1 -g
