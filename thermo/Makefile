@@ -21,6 +21,9 @@ parabola625.so: parabola625.c
 nucleation.o: nucleation.c
 	gcc -O2 -Wall -fPIC -c $< -o $@
 
+nucleation.c: nucleation.py
+	python $<
+
 ternary-landscape.png: ternary-landscape.py tie-lines.npz
 	python $<
 
@@ -29,4 +32,4 @@ tie-lines.npz: phase-diagram.py
 
 .PHONY: clean
 clean:
-	rm -f check-nucleation nucleation.o parabola625.*
+	rm -f check-nucleation nucleation.c nucleation.o parabola625.*
