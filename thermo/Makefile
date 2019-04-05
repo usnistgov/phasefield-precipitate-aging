@@ -4,7 +4,7 @@ all: check-nucleation
 .PHONY: all
 
 check-nucleation: check-nucleation.cpp $(OBJS)
-	g++ -O2 -Wall $(OBJS) $< -o $@
+	g++ -O2 -Wall $(OBJS) $< -o $@ -lm
 
 parabola625.o: parabola625.c
 	g++ -O2 -Wall -c $< -o $@

@@ -93,7 +93,8 @@ void device_nucleation(struct CudaData* dev,
                        const fp_t* D_Cr, const fp_t* D_Nb,
                        const fp_t sigma_del, const fp_t sigma_lav,
                        const fp_t unit_a, const fp_t ifce_width,
-                       const fp_t dx, const fp_t dy, const fp_t dt);
+                       const fp_t dx, const fp_t dy, const fp_t dz,
+                       const fp_t dt);
 
 /**
  \brief Update fictitious composition fields on device

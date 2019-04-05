@@ -196,9 +196,9 @@ void generate(int dim, const char* filename)
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\t%9s\n",
-			        "ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "free_energy", "ifce_vel");
-			fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
+			fprintf(cfile, "%9s %9s %9s %9s %9s %9s %9s %9s\n",
+			        "ideal", "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "free_energy");
+			fprintf(cfile, "%9g %9g %9g %9g %9g %9g %9g %9g\n",
 			        dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
 			printf("%9s %9s %9s %9s %9s\n",

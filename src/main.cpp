@@ -326,7 +326,8 @@ int main(int argc, char* argv[])
 						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
 						                  aFccNi, ifce_width,
-						                  meshres, meshres, nuc_interval * dt);
+						                  meshres, meshres, meshres,
+										  nuc_interval * dt);
 					}
 					nuc_counter++;
 
@@ -376,7 +377,7 @@ int main(int argc, char* argv[])
 				double energy = summarize_energy(grid);
 
 				if (rank == 0) {
-					fprintf(cfile, "%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\t%9g\n",
+					fprintf(cfile, "%9g %9g %9g %9g %9g %9g %9g %9g\n",
 							dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 				}
 
