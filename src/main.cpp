@@ -297,7 +297,7 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int nuc_interval = 5;
+			const int nuc_interval = 20;
 			int nuc_counter = 0;
 
 			// perform computation
@@ -321,7 +321,7 @@ int main(int argc, char* argv[])
 						device_nucleation(&dev, nx, ny, nm, bx, by,
 						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
-						                  aFccNi, ifce_width,
+						                  lattice_const, ifce_width,
 						                  meshres, meshres, meshres,
 										  nuc_interval * dt);
 					}

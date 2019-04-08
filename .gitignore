@@ -23,7 +23,7 @@
 *.so
 *.txt
 *.vti
-src/parabola625.c
+src/*.?
 thermo/*.?
 
 # simulation executables
