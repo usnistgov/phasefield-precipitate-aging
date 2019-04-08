@@ -294,10 +294,6 @@ int main(int argc, char* argv[])
 			init_cuda(&host, nx, ny, nm, &dev);
 			device_init_prng(&dev, nx, ny, nm, bx, by);
 
-			FILE* cfile = NULL;
-			if (rank == 0)
-				cfile = fopen("c.log", "a"); // existing log will be appended
-
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
@@ -377,8 +373,10 @@ int main(int argc, char* argv[])
 				double energy = summarize_energy(grid);
 
 				if (rank == 0) {
-					fprintf(cfile, "%9g %9g %9g %9g %9g %9g %9g %9g\n",
-							dt, dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+					FILE* cfile = fopen("c.log", "a"); // existing log will be appended
+					fprintf(cfile, "%9g %9g %9g %12g %12g %12g %12g\n",
+							dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+					fclose(cfile);
 				}
 
 				MMSP::output(grid, filename);

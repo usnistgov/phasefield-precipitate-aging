@@ -506,7 +506,7 @@ __device__ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
     const fp_t PCr = 1. - exp(-JCr * dt * dV);
     const fp_t PNb = 1. - exp(-JNb * dt * dV);
 
-    const fp_t stifling_factor = 2e-5;
+    const fp_t stifling_factor = 1.0e-5;
 
 	*P_nuc = stifling_factor * PCr * PNb;
 	*Rstar = (2 * sigma) / dG_chem;
