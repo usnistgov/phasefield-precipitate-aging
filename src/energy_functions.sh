@@ -4,8 +4,8 @@
 cp ../thermo/parabola625.h parabola625.h
 cp ../thermo/parabola625.c parabola625.cpp
 
-cp ../thermo/nucleation.h nucleation.h
-cp ../thermo/nucleation.c nucleation.c
+cp ../thermo/enrichment.h enrichment.h
+cp ../thermo/enrichment.c enrichment.c
 
 sed "s/^double /__device__ double d_/g" parabola625.h   > parabola625.cuh
 sed "s/^double /__device__ double d_/g" parabola625.cpp > parabola625.cu

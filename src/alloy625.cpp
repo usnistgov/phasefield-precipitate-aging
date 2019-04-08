@@ -36,16 +36,16 @@
 #include "MMSP.hpp"
 #include "alloy625.hpp"
 #include "cuda_data.h"
+#include "enrichment.h"
 #include "mesh.h"
-#include "nucleation.h"
 #include "numerics.h"
 #include "output.h"
 #include "parabola625.h"
 
 // Kinetic and model parameters
-const double meshres = 0.25e-9;      // grid spacing (m)
-const fp_t alpha = 1.07e11;          // three-phase coexistence coefficient (J/m^3)
-const fp_t LinStab = 1.0 / 14.56876; // threshold of linear (von Neumann) stability
+const double meshres = 0.25e-9; // grid spacing (m)
+const fp_t alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
+const fp_t LinStab = 1.0 / 10.406257142857143; // threshold of linear (von Neumann) stability
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb

@@ -13,7 +13,7 @@ NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets --compiler-
 LINKS = -lcuda -lcurand -lm -lpng -lz
 
 OBJS = data.o discretization.o d_parabola625.o \
-       mesh.o nucleation.o numerics.o output.o parabola625.o
+       mesh.o enrichment.o numerics.o output.o parabola625.o
 
 # Executable
 alloy625: alloy625.cpp main.cpp $(OBJS)
@@ -41,7 +41,7 @@ parabola625.cu: energy_functions.sh ../thermo/parabola625.c
 mesh.o: mesh.cpp mesh.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-nucleation.o: nucleation.c nucleation.h
+enrichment.o: enrichment.c enrichment.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 numerics.o: numerics.cpp numerics.h

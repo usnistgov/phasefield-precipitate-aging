@@ -6,7 +6,6 @@
 #include <iostream>
 #include <random>
 
-#include "nucleation.h"
 #include "parabola625.h"
 
 // Number of precipitates and components (for array allocation)
@@ -18,7 +17,7 @@ typedef double fp_t;
 // Kinetic and model parameters
 const fp_t meshres = 0.25e-9;       // grid spacing (m)
 const fp_t LinStab = 1. / 14.56876; // threshold of linear (von Neumann) stability
-const fp_t aFccNi  = 0.352e-9;      // lattice spacing of FCC nickel (m)
+const fp_t lattice_const  = 0.352e-9;      // lattice spacing of FCC nickel (m)
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb
@@ -103,8 +102,8 @@ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
     const fp_t Zeldov = (Vatom * dG_chem * dG_chem)
                       / (8 * M_PI * sqrt(kT() * sigma*sigma*sigma));
     const fp_t Gstar = (16 * M_PI * sigma * sigma * sigma) / (3 * dG_chem * dG_chem);
-    const fp_t BstarCr = (3 * Gstar * D_CrCr * xCr) / (sigma * pow(aFccNi, 4));
-    const fp_t BstarNb = (3 * Gstar * D_NbNb * xNb) / (sigma * pow(aFccNi, 4));
+    const fp_t BstarCr = (3 * Gstar * D_CrCr * xCr) / (sigma * pow(lattice_const, 4));
+    const fp_t BstarNb = (3 * Gstar * D_NbNb * xNb) / (sigma * pow(lattice_const, 4));
 
 	const fp_t k1Cr = BstarCr * Zeldov * n_gam;
 	const fp_t k1Nb = BstarNb * Zeldov * n_gam;
@@ -116,10 +115,10 @@ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
 	const fp_t JCr = k1Cr * exp(-k2 / dc_Cr);
 	const fp_t JNb = k1Nb * exp(-k2 / dc_Nb);
 
-    const fp_t PCr = 1. - exp(-JCr * dt * dV);
-    const fp_t PNb = 1. - exp(-JNb * dt * dV);
+    const fp_t PCr = exp(-JCr * dt * dV);
+    const fp_t PNb = exp(-JNb * dt * dV);
 
-	*P_nuc = PCr * PNb;
+	*P_nuc = 1. - PCr * PNb;
 	*Rstar = (2 * sigma) / dG_chem;
 
     printf("         Zeldov:        %9.2e\n", Zeldov);
@@ -149,7 +148,7 @@ int main()
 
     const fp_t dV = meshres * meshres * meshres;
 
-    const fp_t vFccNi = aFccNi * aFccNi * aFccNi / 4.;
+    const fp_t vFccNi = lattice_const * lattice_const * lattice_const / 4.;
     const fp_t n_gam = M_PI / (3. * sqrt(2.) * vFccNi);
 
     // Test a delta particle

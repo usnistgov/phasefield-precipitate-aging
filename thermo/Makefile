@@ -1,4 +1,4 @@
-OBJS = parabola625.o nucleation.o
+OBJS = parabola625.o enrichment.o
 
 all: check-nucleation
 .PHONY: all
@@ -18,10 +18,10 @@ parabola625.c: CALPHAD_energies.py
 parabola625.so: parabola625.c
 	gcc -O2 -Wall -fPIC -shared $< -o $@
 
-nucleation.o: nucleation.c
+enrichment.o: enrichment.c
 	gcc -O2 -Wall -fPIC -c $< -o $@
 
-nucleation.c: nucleation.py
+enrichment.c: enrichment.py
 	python $<
 
 ternary-landscape.png: ternary-landscape.py tie-lines.npz
@@ -32,4 +32,4 @@ tie-lines.npz: phase-diagram.py
 
 .PHONY: clean
 clean:
-	rm -f check-nucleation nucleation.c nucleation.o parabola625.*
+	rm -f check-enrichment enrichment.c enrichment.o parabola625.*
