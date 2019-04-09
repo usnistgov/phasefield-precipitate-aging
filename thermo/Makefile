@@ -1,4 +1,4 @@
-FLAGS = -I../src
+FLAGS = -I. -I../src
 OBJS = enrichment.o nucleation.o parabola625.o
 
 all: check-nucleation

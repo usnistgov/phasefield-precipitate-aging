@@ -22,7 +22,7 @@ int main()
     fp_t xNb = enrich_Nb_range(generator);
 
     const fp_t dtDiffusionLimited = (meshres*meshres) / (4. * std::max(D_Cr[0], D_Nb[1]));
-    const fp_t dt = 5 * LinStab * dtDiffusionLimited;
+    const fp_t dt = 20 * LinStab * dtDiffusionLimited;
 
     const fp_t dV = meshres * meshres * meshres;
 
@@ -38,7 +38,7 @@ int main()
     nucleation_driving_force_delta(xCr, xNb, &del_xCr, &del_xNb, &dG_chem_del);
     nucleation_probability_sphere(xCr, xNb, del_xCr, del_xNb,
                                   dG_chem_del, D_Cr[0], D_Nb[1],
-                                  sigma[0],
+                                  0.38, // sigma[0],
                                   vFccNi, n_gam, dV, dt,
                                   &Rstar_del, &P_nuc_del);
 
@@ -51,17 +51,16 @@ int main()
     nucleation_driving_force_laves(xCr, xNb, &lav_xCr, &lav_xNb, &dG_chem_lav);
     nucleation_probability_sphere(xCr, xNb, lav_xCr, lav_xNb,
                                   dG_chem_lav, D_Cr[0], D_Nb[1],
-                                  sigma[1],
+                                  0.50, // sigma[1],
                                   vFccNi, n_gam, dV, dt,
                                   &Rstar_lav, &P_nuc_lav);
 
-    printf("Composition: %9.4f  %9.4f\n", xCr, xNb);
-    printf("Interval:    %9.3e\n", dt);
-    printf("Delta offst: %9.4f  %9.4f\n", del_xCr - xe_del_Cr(), del_xNb - xe_del_Nb());
-    printf("Laves offst: %9.4f  %9.4f\n", lav_xCr - xe_lav_Cr(), lav_xNb - xe_lav_Nb());
+    printf("Interval, D: %9.3e  %9.3e\n", dt,      n_gam);
+    printf("Composition: %9.4f  %9.4f\n", xCr,     xNb);
+    printf("Delta comp:  %9.4f  %9.4f\n", del_xCr, del_xNb);
+    printf("Laves comp:  %9.4f  %9.4f\n", lav_xCr, lav_xNb);
     printf("Driving frc: %9.2e  %9.2e\n", dG_chem_del, dG_chem_lav);
-    printf("Crit. radii: %9.2e  %9.2e\n", Rstar_del, Rstar_lav);
+    printf("Crit. radius:%9.2f  %9.2f\n", Rstar_del, Rstar_lav);
     printf("Probability: %9.2e  %9.2e\n", P_nuc_del, P_nuc_lav);
-
     return 0;
 }
