@@ -34,11 +34,11 @@ int main()
     printf("Delta particle:\n");
     #endif
     fp_t dG_chem_del, P_nuc_del, Rstar_del;
-    fp_t del_xCr = 0., del_xNb = 0.;
-    nucleation_driving_force_delta(xCr, xNb, &del_xCr, &del_xNb, &dG_chem_del);
-    nucleation_probability_sphere(xCr, xNb, del_xCr, del_xNb,
+    nucleation_driving_force_delta(xCr, xNb, &dG_chem_del);
+    nucleation_probability_sphere(xCr, xNb,
+                                  xe_del_Cr(), xe_del_Nb(),
                                   dG_chem_del, D_Cr[0], D_Nb[1],
-                                  0.38, // sigma[0],
+                                  sigma[0],
                                   vFccNi, n_gam, dV, dt,
                                   &Rstar_del, &P_nuc_del);
 
@@ -47,18 +47,16 @@ int main()
     printf("Laves particle:\n");
     #endif
     fp_t dG_chem_lav, P_nuc_lav, Rstar_lav;
-    fp_t lav_xCr = 0., lav_xNb = 0.;
-    nucleation_driving_force_laves(xCr, xNb, &lav_xCr, &lav_xNb, &dG_chem_lav);
-    nucleation_probability_sphere(xCr, xNb, lav_xCr, lav_xNb,
+    nucleation_driving_force_laves(xCr, xNb, &dG_chem_lav);
+    nucleation_probability_sphere(xCr, xNb,
+                                  xe_lav_Cr(), xe_lav_Nb(),
                                   dG_chem_lav, D_Cr[0], D_Nb[1],
-                                  0.50, // sigma[1],
+                                  sigma[1],
                                   vFccNi, n_gam, dV, dt,
                                   &Rstar_lav, &P_nuc_lav);
 
     printf("Interval, D: %9.3e  %9.3e\n", dt,      n_gam);
     printf("Composition: %9.4f  %9.4f\n", xCr,     xNb);
-    printf("Delta comp:  %9.4f  %9.4f\n", del_xCr, del_xNb);
-    printf("Laves comp:  %9.4f  %9.4f\n", lav_xCr, lav_xNb);
     printf("Driving frc: %9.2e  %9.2e\n", dG_chem_del, dG_chem_lav);
     printf("Crit. radius:%9.2f  %9.2f\n", Rstar_del, Rstar_lav);
     printf("Probability: %9.2e  %9.2e\n", P_nuc_del, P_nuc_lav);
