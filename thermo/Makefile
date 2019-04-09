@@ -44,4 +44,4 @@ tie-lines.npz: phase-diagram.py
 
 .PHONY: clean
 clean:
-	rm -f check-enrichment enrichment.c enrichment.o nucleation.c nucleation.o parabola625.*
+	rm -f check-enrichment enrichment.c enrichment.o nucleation.o parabola625.*
