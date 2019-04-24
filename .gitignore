@@ -24,6 +24,7 @@
 *.txt
 *.vti
 src/parabola625.c
+src/nucleation.*
 thermo/*.?
 
 # simulation executables
