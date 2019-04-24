@@ -42,11 +42,11 @@ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
 
 	const fp_t k2 = Gstar / kT();
 
-	const fp_t dc_Cr = fabs(par_xCr - xCr);
-	const fp_t dc_Nb = fabs(par_xNb - xNb);
+	const fp_t dc_Cr = xCr - xe_gam_Cr();
+	const fp_t dc_Nb = xNb - xe_gam_Nb();
 
-	const fp_t JCr = k1Cr * exp(-k2 / dc_Cr);
-	const fp_t JNb = k1Nb * exp(-k2 / dc_Nb);
+	const fp_t JCr = k1Cr * exp(-k2 / fabs(dc_Cr));
+	const fp_t JNb = k1Nb * exp(-k2 / fabs(dc_Nb));
 
     const fp_t P = exp(-dt * dV * (JCr + JNb));
 
