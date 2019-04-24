@@ -6,17 +6,21 @@
 #       CUDA_HDR_PATH - directory containing curand_kernel.h
 #       MMSP_PATH     - root directory of cloned MMSP repository
 
+CXX = g++ -O3
+CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -fopenmp \
+           -I../thermo -I$(MMSP_PATH)/include
+
 NVCXX = nvcc
-CXX = g++ -fPIC
-CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -fopenmp -I$(CUDA_HDR_PATH) -I$(MMSP_PATH)/include
-NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets --compiler-options="$(CXXFLAGS)"
+NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
+             --compiler-options="$(CXXFLAGS)"
+
 LINKS = -lcuda -lcurand -lm -lpng -lz
 
-OBJS = data.o discretization.o d_parabola625.o \
-       mesh.o nucleation.o numerics.o output.o parabola625.o
+OBJS = data.o discretization.o d_nucleation.o d_parabola625.o \
+       mesh.o enrichment.o numerics.o output.o parabola625.o
 
 # Executable
-alloy625: alloy625.cpp main.cpp $(OBJS)
+alloy625: alloy625.cpp globals.h main.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
 profile: CXXOPT = -O1 -g
@@ -25,23 +29,31 @@ profile: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
 profile: alloy625
 
 # CUDA objects
+
 data.o: cuda_data.cu cuda_data.h
 	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
-discretization.o: cuda_discretization.cu cuda_kernels.cuh
+discretization.o: cuda_discretization.cu globals.h cuda_kernels.cuh parabola625.cu parabola625.cuh
 	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
-d_parabola625.o: parabola625.cu parabola625.cuh parabola625.h
+d_nucleation.o: nucleation.cu nucleation.cuh
 	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
+
+d_parabola625.o: parabola625.cu parabola625.cuh
+	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
+
+nucleation.cu: energy_functions.sh ../thermo/nucleation.c
+	bash $<
 
 parabola625.cu: energy_functions.sh ../thermo/parabola625.c
 	bash $<
 
 # Common objects
+
 mesh.o: mesh.cpp mesh.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-nucleation.o: nucleation.c nucleation.h
+enrichment.o: ../thermo/enrichment.c ../thermo/enrichment.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 numerics.o: numerics.cpp numerics.h
@@ -50,7 +62,7 @@ numerics.o: numerics.cpp numerics.h
 output.o: output.cpp output.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-parabola625.o: parabola625.cpp parabola625.h
+parabola625.o: ../thermo/parabola625.c ../thermo/parabola625.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 .PHONY: clean

@@ -20,11 +20,9 @@
 
 #ifndef __CUDA625_HPP__
 #define __CUDA625_HPP__
-#include "type.h"
+#include "globals.h"
 
 // Number of precipitates and components (for array allocation)
-#define NP 2
-#define NC 2
 
 std::string PROGRAM = "alloy625";
 std::string MESSAGE = "Isotropic Cr-Nb-Ni alloy phase transformation code";

@@ -71,7 +71,6 @@
 
 # Numerical libraries
 import numpy as np
-from sympy.utilities.lambdify import lambdify
 
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
@@ -357,25 +356,3 @@ codegen([# Interpolator
          ('d2g_lav_dxCrCr', p_d2Glav_dxCrCr), ('d2g_lav_dxCrNb', p_d2Glav_dxCrNb),
          ('d2g_lav_dxNbCr', p_d2Glav_dxNbCr), ('d2g_lav_dxNbNb', p_d2Glav_dxNbNb)],
         language='C', prefix='parabola625', project='PrecipitateAging', to_files=True)
-
-# Generate numerically efficient Python code
-leverCr = lambdify([xo, yo, xb, yb, xc, yc, xd, yd], levers[y])
-leverNb = lambdify([xo, yo, xb, yb, xc, yc, xd, yd], levers[x])
-
-PG = lambdify([XCR, XNB], p_gamma)
-PD = lambdify([XCR, XNB], p_delta)
-PL = lambdify([XCR, XNB], p_laves)
-
-PGdxCr = lambdify([XCR, XNB], p_dGgam_dxCr)
-PGdxNb = lambdify([XCR, XNB], p_dGgam_dxNb)
-PDdxCr = lambdify([XCR, XNB], p_dGdel_dxCr)
-PDdxNb = lambdify([XCR, XNB], p_dGdel_dxNb)
-PLdxCr = lambdify([XCR, XNB], p_dGlav_dxCr)
-PLdxNb = lambdify([XCR, XNB], p_dGlav_dxNb)
-
-DXAB = lambdify([P_del, P_lav], dx_r_gam_Cr) # Cr in gamma phase
-DXAC = lambdify([P_del, P_lav], dx_r_gam_Nb) # Nb in gamma phase
-DXBB = lambdify([P_del, P_lav], dx_r_del_Cr) # Cr in delta phase
-DXBC = lambdify([P_del, P_lav], dx_r_del_Nb) # Nb in delta phase
-DXGB = lambdify([P_del, P_lav], dx_r_lav_Cr) # Cr in Laves phase
-DXGC = lambdify([P_del, P_lav], dx_r_lav_Nb) # Nb in Laves phase

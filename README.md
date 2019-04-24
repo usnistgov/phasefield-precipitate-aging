@@ -43,19 +43,25 @@ C++11 compiler are recommended. You will need to satisfy the following
 dependencies:
 
 - Python
+  - [Cloudpickle](https://github.com/cloudpipe/cloudpickle)
+  - [Dill](https://github.com/uqfoundation/dill)
+  - [NumPy](https://www.numpy.org/)
   - [PyCALPHAD](http://pycalphad.readthedocs.io/)
   - [SymPy](http://www.sympy.org/)
+  - [TinyDB](https://tinydb.readthedocs.io/)
+  - [Xarray](http://xarray.pydata.org/)
 
 - C++
+  - [CUDA](https://developer.nvidia.com/cuda-toolkit)
   - [MMSP](https://github.com/mesoscale/mmsp)
   
 After downloading MMSP, the core dependency of this model implementation,
-please set the environmental variable ```MMSP_PATH``` to its location. If
-you are using ```bash```, do something similar to
+please set the environmental variable `MMSP_PATH` to its location. If
+you are using `bash`, do something similar to
 
-```
-  echo "MMSP_PATH=~/Downloads/mmsp" >> ~/.bashrc
-  . ~/.bashrc
+```bash
+$ echo "MMSP_PATH=~/Downloads/mmsp" >> ~/.bashrc
+$ . ~/.bashrc
 ```
 
 You will also want to build the MMSP utilities, as described in the MMSP
@@ -63,20 +69,20 @@ documentation.
 
 ## Usage
 
-1. ```cd thermo; python CALPHAD_energies.py; python nucleation.py``` This
+1. `cd thermo; python CALPHAD_energies.py; python nucleation.py` This
    will use pycalphad to read the database and extract expressions, which
    are then manipulated and written into C-code by SymPy.
-2. ```make``` (OpenMP, Nvidia CUDA compiler). This will compile the source
-   code into a binary, ```alloy625```.
+2. `make` (OpenMP, Nvidia CUDA compiler). This will compile the source
+   code into a binary, `alloy625`.
 3. Run the code. Since your executable is built against
-   ```MMSP.main.hpp```, the options of that program apply to your binary.
-   For usage suggestions, run ```./alloy625 --help``` or ```./serial
-   --help``` or ```mpirun -np 1 parallel --help```, depending on which
+   `MMSP.main.hpp`, the options of that program apply to your binary.
+   For usage suggestions, run `./alloy625 --help` or `./serial
+   --help` or `mpirun -np 1 parallel --help`, depending on which
    executable you built. A typical MMSP run comprises two steps:
    initialization and update loops. So you would normally do:
-   - ```./alloy625 --example 2 data.dat```
-   - ```./alloy625 data.dat 10000000 1000000```
-   - ```mmsp2pvd data.dat data.*.dat``` to generate VTK visualization
+   - `./alloy625 --example 2 data.dat`
+   - `./alloy625 data.dat 10000000 1000000`
+   - `mmsp2pvd data.dat data.*.dat` to generate VTK visualization
      files, then use a VTK viewer such as ParaView or Mayavi to see the
      results.
 4. Remix, run, and analyze your own variants.
@@ -205,11 +211,11 @@ domain within the United States.
 
 ### Derivative Works
 
-The source files (```.py```, ```.hpp```, and ```.cpp```) in this repository
+The source files (`.py`, `.hpp`, and `.cpp`) in this repository
 were written by an employee of the United States federal government in the
 course of their employment, and are therefore not subject to copyright.
 They are public domain. However, the Mesoscale Microstructure Simulation
 Project (MMSP) is subject to the General Public License v3.0, and this
-software ```#include```s major aspects of that work. Therefore, if you are
+software `#include`s major aspects of that work. Therefore, if you are
 not an employee of the US government, your derivative works will likely be
 subject to the terms and conditions of the GPL.
