@@ -556,7 +556,6 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
     const fp_t n_gam = M_PI / (3. * sqrt(2.) * Vatom); // assuming FCC
     const fp_t w = ifce_width / dx;
-    /*
     fp_t phi_pre = 0.;
 
     if (x < nx && y < ny) {
@@ -576,9 +575,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
         }
     }
     __syncthreads();
-    */
 
-    if (x < nx && y < ny) {
+    if (x < nx && y < ny && phi_pre < 1.0e-10) {
         const int idx = nx * y + x;
         const fp_t xCr = d_conc_Cr[idx];
         const fp_t xNb = d_conc_Nb[idx];
@@ -598,7 +596,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
             const int R = 5 * ceil(rad + w) / 4;
             const double rand_del = (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-            if (rand_del > P_nuc_del) {
+            if (rand_del < P_nuc_del) {
                 for (int i = -R; i < R; i++) {
                     for (int j = -R; j < R; j++) {
                         const int idn = nx * (y + j) + (x + i);
@@ -626,7 +624,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
             const int R = 5 * ceil(rad + w) / 4;
             const double rand_lav = (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-            if (rand_lav > P_nuc_lav) {
+            if (rand_lav < P_nuc_lav) {
                 for (int i = -R; i < R; i++) {
                     for (int j = -R; j < R; j++) {
                         const int idn = nx * (y + j) + (x + i);
