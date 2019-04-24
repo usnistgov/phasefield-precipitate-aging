@@ -1,28 +1,40 @@
-OBJS = parabola625.o nucleation.o
+FLAGS = -I. -I../src
+OBJS = enrichment.o nucleation.o parabola625.o
 
 all: check-nucleation
 .PHONY: all
 
-check-nucleation: check-nucleation.cpp $(OBJS)
-	g++ -O2 -Wall $(OBJS) $< -o $@ -lm
+# === Executables ===
 
-parabola625.o: parabola625.c
-	g++ -O2 -Wall -c $< -o $@
+check-nucleation: check-nucleation.cpp ../src/globals.h nucleation.c $(OBJS)
+	g++ -O2 -Wall $(FLAGS) $(OBJS) $< -o $@ -lm
 
 ternary-diagram.png: phase-diagram.py parabola625.c parabola625.so
 	python $<
 
-parabola625.c: CALPHAD_energies.py
+# === Generated Sources ===
+
+enrichment.c: enrichment.py
 	python $<
+
+parabola625.c: CALPHAD_energies.py constants.py
+	python $<
+
+# === Objects ===
+
+enrichment.o: enrichment.c
+	g++ -O2 -Wall -c $< -o $@
+
+nucleation.o: nucleation.c nucleation.h parabola625.c
+	g++ -O2 -Wall $(FLAGS) -c $< -o $@
+
+parabola625.o: parabola625.c
+	g++ -O2 -Wall -c $< -o $@
 
 parabola625.so: parabola625.c
 	gcc -O2 -Wall -fPIC -shared $< -o $@
 
-nucleation.o: nucleation.c
-	gcc -O2 -Wall -fPIC -c $< -o $@
-
-nucleation.c: nucleation.py
-	python $<
+# === Extras ===
 
 ternary-landscape.png: ternary-landscape.py tie-lines.npz
 	python $<
@@ -32,4 +44,4 @@ tie-lines.npz: phase-diagram.py
 
 .PHONY: clean
 clean:
-	rm -f check-nucleation nucleation.c nucleation.o parabola625.*
+	rm -f check-enrichment enrichment.c enrichment.o nucleation.o parabola625.*

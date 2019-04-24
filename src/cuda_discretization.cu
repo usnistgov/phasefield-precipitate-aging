@@ -506,9 +506,7 @@ __device__ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
     const fp_t PCr = 1. - exp(-JCr * dt * dV);
     const fp_t PNb = 1. - exp(-JNb * dt * dV);
 
-    const fp_t stifling_factor = 2e-5;
-
-	*P_nuc = stifling_factor * PCr * PNb;
+    *P_nuc = PCr * PNb;
 	*Rstar = (2 * sigma) / dG_chem;
 }
 
@@ -558,6 +556,27 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
     const fp_t n_gam = M_PI / (3. * sqrt(2.) * Vatom); // assuming FCC
     const fp_t w = ifce_width / dx;
+    /*
+    fp_t phi_pre = 0.;
+
+    if (x < nx && y < ny) {
+        const fp_t rad = 1.75e-9 / dx;
+        const int R = 5 * ceil(rad + w) / 4;
+
+        for (int i = -R; i < R; i++) {
+            for (int j = -R; j < R; j++) {
+                const int idn = nx * (y + j) + (x + i);
+                const fp_t r = sqrt(fp_t(i*i + j*j));
+                if (idn >= 0 &&
+                    idn < nx * ny &&
+                    i*i + j*j < R*R)
+                    phi_pre = max(phi_pre, d_h(d_phi_del[idn])
+                                         + d_h(d_phi_lav[idn]));
+            }
+        }
+    }
+    __syncthreads();
+    */
 
     if (x < nx && y < ny) {
         const int idx = nx * y + x;
@@ -579,7 +598,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
             const int R = 5 * ceil(rad + w) / 4;
             const double rand_del = (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-            if (rand_del < P_nuc_del) {
+            if (rand_del > P_nuc_del) {
                 for (int i = -R; i < R; i++) {
                     for (int j = -R; j < R; j++) {
                         const int idn = nx * (y + j) + (x + i);
@@ -607,7 +626,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
             const int R = 5 * ceil(rad + w) / 4;
             const double rand_lav = (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-            if (rand_lav < P_nuc_lav) {
+            if (rand_lav > P_nuc_lav) {
                 for (int i = -R; i < R; i++) {
                     for (int j = -R; j < R; j++) {
                         const int idn = nx * (y + j) + (x + i);
