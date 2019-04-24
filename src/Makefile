@@ -6,9 +6,9 @@
 #       CUDA_HDR_PATH - directory containing curand_kernel.h
 #       MMSP_PATH     - root directory of cloned MMSP repository
 
-CXX = g++ -fPIC
+CXX = g++ -O3
 CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -fopenmp \
-           -I../thermo -I$(MMSP_PATH)/include -I$(CUDA_HDR_PATH)
+           -I../thermo -I$(MMSP_PATH)/include
 
 NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
