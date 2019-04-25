@@ -1,6 +1,6 @@
+CXX = g++ -O3 -Wall
 FLAGS = -I. -I../src
 OBJS = enrichment.o nucleation.o parabola625.o
-CXX = g++ -O3 -Wall
 
 all: check-nucleation
 .PHONY: all

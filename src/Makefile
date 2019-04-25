@@ -8,7 +8,7 @@
 
 CXX = g++ -O3
 CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -fopenmp \
-           -I../thermo -I$(MMSP_PATH)/include
+           -I. -I../thermo -I$(MMSP_PATH)/include
 
 NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
