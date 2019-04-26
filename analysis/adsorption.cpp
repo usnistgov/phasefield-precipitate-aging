@@ -1,28 +1,13 @@
-/*************************************************************************************
- * File: adsorption.cpp                                                              *
- * Input: MMSP grid containing stable interface between two phases                   *
- * Output: adsorption of species A, B, C=1-A-B on phase boundaries                   *
- *                                                                                   *
- * Questions/comments to trevor.keller@nist.gov (Trevor Keller, Ph.D.)               *
- *                                                                                   *
- * This software was developed at the National Institute of Standards and Technology *
- * by employees of the Federal Government in the course of their official duties.    *
- * Pursuant to title 17 section 105 of the United States Code this software is not   *
- * subject to copyright protection and is in the public domain. NIST assumes no      *
- * responsibility whatsoever for the use of this code by other parties, and makes no *
- * guarantees, expressed or implied, about its quality, reliability, or any other    *
- * characteristic. We would appreciate acknowledgement if the software is used.      *
- *                                                                                   *
- * This software can be redistributed and/or modified freely provided that any       *
- * derivative works bear some notice that they are derived from it, and any modified *
- * versions bear some notice that they have been modified. Derivative works that     *
- * include MMSP or other software licensed under the GPL may be subject to the GPL.  *
- *************************************************************************************/
+/**
+ \file adsorption.cpp
+ \brief Compute interface adsorption
+ Input: MMSP grid containing stable interface between two phases
+ Output: adsorption of species A, B, C=1-A-B on phase boundaries
 
-/* Reference: W. Villanueva, W.J. Boettinger, G.B. McFadden, J.A. Warren.
- * "A Diffuse-interface model of reactive wetting with intermetallic formation."
- * Acta Mater. 60 (2012) 3799-3814, Eqn. 30. This implementation defines the
- * integral equal to zero far from the interface.
+ Reference: W. Villanueva, W.J. Boettinger, G.B. McFadden, J.A. Warren.
+ "A Diffuse-interface model of reactive wetting with intermetallic formation."
+ Acta Mater. 60 (2012) 3799-3814, Eqn. 30. This implementation defines the
+ integral equal to zero far from the interface.
 */
 
 #include <vector>
