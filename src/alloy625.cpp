@@ -68,6 +68,7 @@ void generate(int dim, const char* filename)
 			if (x1(initGrid, d) == g1(initGrid, d))
 				b1(initGrid, d) = Neumann;
 		}
+		MMSP::grid<2,double> nickGrid(initGrid,1);
 
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
@@ -149,6 +150,12 @@ void generate(int dim, const char* filename)
 			update_compositions(initGrid(x));
 		}
 
+		#ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
+		for (int n = 0; n < MMSP::nodes(initGrid); n++)
+			nickGrid(n) = 1. - initGrid(n)[0] - initGrid(n)[1];
+
 		ghostswap(initGrid);
 
 		vector<double> summary = summarize_fields(initGrid);
@@ -168,6 +175,15 @@ void generate(int dim, const char* filename)
 
 		output(initGrid,filename);
 
+		// write iitial condition to VTK
+		std::string vtkname(filename);
+		vtkname.replace(vtkname.find("dat"), 3, "vti");
+		const int mode = 0; // for magnitude, set mode=1
+		#ifdef MPI_VERSION
+		std::cerr << "Error: cannot write VTK in parallel." <<std::endl;
+		MMSP::Abort(-1);
+		#endif
+		print_scalars(vtkname, nickGrid, mode);
 
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;

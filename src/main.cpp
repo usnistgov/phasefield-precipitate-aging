@@ -242,7 +242,8 @@ int main(int argc, char* argv[])
 
 		if (dim == 2) {
 			// construct grid objects
-			GRID2D grid(argv[1]);
+			GRID2D grid(argv[1]);                 // multiple fields
+			MMSP::grid<2,double> nickGrid(grid, 1); // single field
 
 			// declare host and device data structures
 			struct HostData host;
@@ -272,34 +273,40 @@ int main(int argc, char* argv[])
 			}
 
 			// initialize GPU
+			cudaStream_t st, stNi;
+			cudaStreamCreate(&st);
+			cudaStreamCreate(&stNi);
 			init_cuda(&host, nx, ny, nm, &dev);
-			device_init_prng(&dev, nx, ny, nm, bx, by);
+			device_init_prng(st, &dev, nx, ny, nm, bx, by);
 
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int nuc_interval = 20;
 			int nuc_counter = 0;
+			const int vtk_interval = 1000;
+			const int nuc_interval = 20;
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
 				/* start update() */
-				for (int j = 0; j < increment; j++) {
-					print_progress(j, increment);
+				for (int j = i; j < i + increment; j++) {
+					print_progress(j - i, increment);
 					// === Start Architecture-Specific Kernel ===
-					device_boundaries(&dev, nx, ny, nm, bx, by);
+					bool vtkStep = ((j+1) % vtk_interval == 0);
 
-					device_laplacian(&dev, nx, ny, nm, bx, by);
+					device_boundaries(st, &dev, nx, ny, nm, bx, by);
 
-					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
+					device_laplacian(st, &dev, nx, ny, nm, bx, by);
 
-					device_evolution(&dev, nx, ny, nm, bx, by,
+					device_laplacian_boundaries(st, &dev, nx, ny, nm, bx, by);
+
+					device_evolution(st, &dev, nx, ny, nm, bx, by,
 					                 D_Cr, D_Nb,
 					                 alpha, kappa[0], omega[0],
 					                 Lmob[0], Lmob[1], dt);
 
 					if (nuc_counter % nuc_interval == 0) {
-						device_nucleation(&dev, nx, ny, nm, bx, by,
+						device_nucleation(st, &dev, nx, ny, nm, bx, by,
 						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
 						                  lattice_const, ifce_width,
@@ -308,13 +315,40 @@ int main(int argc, char* argv[])
 					}
 					nuc_counter++;
 
-					device_fictitious(&dev, nx, ny, nm, bx, by);
+					device_fictitious(st, &dev, nx, ny, nm, bx, by);
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
 
+					if (vtkStep) {
+						device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
+						// transfer into MMSP
+						for (int n = 0; n < MMSP::nodes(nickGrid); n++) {
+							MMSP::vector<int> x = MMSP::position(nickGrid, n);
+							const int i = x[0] - MMSP::g0(nickGrid, 0) + nm / 2;
+							const int j = x[1] - MMSP::g0(nickGrid, 1) + nm / 2;
+							nickGrid(n) = host.conc_Ni[j][i];
+						}
+						// generate output filename
+						std::stringstream vtkname;
+						int n = vtkname.str().length();
+						for (int l = 0; n < length; l++) {
+							vtkname.str("");
+							vtkname << base;
+							for (int k = 0; k < l; k++) vtkname << 0;
+							vtkname << j+1 << ".vti";
+							n = vtkname.str().length();
+						}
+						// write compressed VTK
+						const int mode = 0; // raw value
+						#ifdef MPI_VERSION
+						std::cerr << "Error: cannot write VTK in parallel." <<std::endl;
+						MMSP::Abort(-1);
+                        #endif
+						print_scalars(vtkname.str(), nickGrid, mode);
+					}
 					// === Finish Architecture-Specific Kernel ===
 				}
 
@@ -346,6 +380,7 @@ int main(int argc, char* argv[])
 					gridN[3] = host.phi_lav_new[j][i];
 					gridN[4] = host.gam_Cr[j][i];
 					gridN[5] = host.gam_Nb[j][i];
+					nickGrid(n) = 1. - gridN[0] - gridN[1];
 				}
 
 				// Log compositions, phase fractions
@@ -361,6 +396,24 @@ int main(int argc, char* argv[])
 				}
 
 				MMSP::output(grid, filename);
+
+				// write last step to VTK
+				std::stringstream vtkname;
+				n = vtkname.str().length();
+				for (int l = 0; n < length; l++) {
+					vtkname.str("");
+					vtkname << base;
+					for (int k = 0; k < l; k++) vtkname << 0;
+					vtkname << i + increment << ".vti";
+					n = vtkname.str().length();
+				}
+				const int mode = 0; // for magnitude, set mode=1
+				#ifdef MPI_VERSION
+				std::cerr << "Error: cannot write VTK in parallel." <<std::endl;
+				MMSP::Abort(-1);
+				#endif
+				print_scalars(vtkname.str(), nickGrid, mode);
+
 				print_progress(increment, increment);
 				/* finish update() */
 			}
