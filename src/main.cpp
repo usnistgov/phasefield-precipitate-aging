@@ -347,7 +347,7 @@ int main(int argc, char* argv[])
 						std::cerr << "Error: cannot write VTK in parallel." <<std::endl;
 						MMSP::Abort(-1);
                         #endif
-						print_scalars(vtkname.str(), nickGrid, mode);
+						scalar_field_to_vtk(vtkname.str(), nickGrid, mode);
 					}
 					// === Finish Architecture-Specific Kernel ===
 				}
@@ -412,7 +412,7 @@ int main(int argc, char* argv[])
 				std::cerr << "Error: cannot write VTK in parallel." <<std::endl;
 				MMSP::Abort(-1);
 				#endif
-				print_scalars(vtkname.str(), nickGrid, mode);
+				scalar_field_to_vtk(vtkname.str(), nickGrid, mode);
 
 				print_progress(increment, increment);
 				/* finish update() */

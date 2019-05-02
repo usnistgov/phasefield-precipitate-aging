@@ -13,7 +13,7 @@ VTKFLAGS = $(VTK_SRC) $(VTK_LIB)
 
 CXX = g++ -O3
 CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -fopenmp \
-           -I. -I../thermo -I$(MMSP_PATH)/include $(VTKFLAGS)
+           -I. -I../thermo -I$(CUDA_HDR_PATH) -I$(MMSP_PATH)/include $(VTKFLAGS)
 
 NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \

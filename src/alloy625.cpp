@@ -18,6 +18,13 @@
 #ifdef _OPENMP
 #include "omp.h"
 #endif
+
+#include <vtkImageData.h>
+#include <vtkPointData.h>
+#include <vtkSmartPointer.h>
+#include <vtkVersion.h>
+#include <vtkXMLImageDataWriter.h>
+
 #include "MMSP.hpp"
 #include "alloy625.hpp"
 #include "cuda_data.h"
@@ -183,7 +190,7 @@ void generate(int dim, const char* filename)
 		std::cerr << "Error: cannot write VTK in parallel." <<std::endl;
 		MMSP::Abort(-1);
 		#endif
-		print_scalars(vtkname, nickGrid, mode);
+		scalar_field_to_vtk(vtkname, nickGrid, mode);
 
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
