@@ -388,14 +388,14 @@ int main(int argc, char* argv[])
 
 				MMSP::output(grid, filename);
 
-				// write last step to IMG
+				// write last step to image
 				std::stringstream imgname;
 				n = imgname.str().length();
 				for (int l = 0; n < length; l++) {
 					imgname.str("");
 					imgname << base;
 					for (int k = 0; k < l; k++) imgname << 0;
-					imgname << i + increment << ".vti";
+					imgname << i + increment << ".png";
 					n = imgname.str().length();
 				}
 				#ifdef MPI_VERSION

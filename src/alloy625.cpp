@@ -19,7 +19,7 @@
 #include "omp.h"
 #endif
 
-/* Un-comment his block if VTK is desired
+/* Un-comment this block if VTK is desired
  * #include <vtkImageData.h>
  * #include <vtkPointData.h>
  * #include <vtkSmartPointer.h>
@@ -192,8 +192,9 @@ void generate(int dim, const char* filename)
 			MMSP::vector<int> x = MMSP::position(nickGrid, n);
 			xNi[x[1]-yoff][x[0]-xoff] = 1. - initGrid(n)[0] - initGrid(n)[1];
 		}
+
 		std::string imgname(filename);
-		imgname.replace(imgname.find("dat"), 3, "vti");
+		imgname.replace(imgname.find("dat"), 3, "png");
 
 		#ifdef MPI_VERSION
 		std::cerr << "Error: cannot write images in parallel." <<std::endl;

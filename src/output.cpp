@@ -3,14 +3,16 @@
  \brief Implementation of file output functions for spinodal decomposition benchmarks
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
 #include <vector>
 #include <iso646.h>
-#include <png.h>
-#include "matplotlibcpp.h"
+// #include <png.h>
+#include <cmath>
 #include "output.h"
+#include "matplotlibcpp.h"
+
 namespace plt = matplotlibcpp;
 
 void param_parser(int* bx, int* by, int* code, int* nm)
@@ -119,25 +121,43 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 	fclose(output);
 }
 
-void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm, const int step, const fp_t dt, const std::string& filename)
+void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
+					  const int step, const fp_t dt, const std::string& filename)
 {
-	int w = nx - nm;
-	int h = ny - nm;
+	/*
+	int w = nx - nm/2;
+	int h = ny - nm/2;
 
-    std::vector<float> xNi(w * h);
-    std::vector<float> xbar(w);
+    std::vector<float> c(w * h);
+    std::vector<float> cbar(w);
     for(int j = 0; j < h; ++j) {
         for(int i = 0; i < w; ++i) {
-			const fp_t& c = conc[j+nm/2][i+nm/2];
-            xNi.at(w * j + i) = c;
-			xbar.at(i) += c / h;
+			const float x = conc[j+nm/2][i+nm/2];
+            c.at(w * j + i) = x;
+			cbar.at(i) += x / h;
         }
 	}
 
-    const float* z = &(xNi[0]);
+    const float* z = &(c[0]);
+    const int colors = 1;
+
+	plt::imshow(z, h, w, colors);
+	plt::save(filename.c_str());
+	*/
+
+	int ncols = 4000, nrows = 2500;
+    std::vector<float> z(ncols * nrows);
+    for (int j=0; j<nrows; ++j) {
+        for (int i=0; i<ncols; ++i) {
+            z.at(ncols * j + i) = std::sin(std::hypot(i - ncols/2, j - nrows/2));
+        }
+    }
+
+    const float* zptr = &(z[0]);
     const int colors = 1;
 
     plt::title("My matrix");
-	plt::imshow(z, h, w, colors);
-	plt::save(filename.c_str());
+    plt::imshow(zptr, nrows, ncols, colors);
+
+    plt::save("imshow.png");
 }
