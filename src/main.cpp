@@ -283,7 +283,7 @@ int main(int argc, char* argv[])
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 			int nuc_counter = 0;
-			const int vtk_interval = 1000;
+			const int img_interval = 1000;
 			const int nuc_interval = 20;
 
 			// perform computation
@@ -292,7 +292,7 @@ int main(int argc, char* argv[])
 				for (int j = i; j < i + increment; j++) {
 					print_progress(j - i, increment);
 					// === Start Architecture-Specific Kernel ===
-					bool vtkStep = ((j+1) % vtk_interval == 0);
+					bool img_step = ((j+1) % img_interval == 0);
 
 					device_boundaries(st, &dev, nx, ny, nm, bx, by);
 
@@ -322,32 +322,24 @@ int main(int argc, char* argv[])
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
 
-					if (vtkStep) {
+					if (img_step) {
 						device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
-						// transfer into MMSP
-						for (int n = 0; n < MMSP::nodes(nickGrid); n++) {
-							MMSP::vector<int> x = MMSP::position(nickGrid, n);
-							const int i = x[0] - MMSP::g0(nickGrid, 0) + nm / 2;
-							const int j = x[1] - MMSP::g0(nickGrid, 1) + nm / 2;
-							nickGrid(n) = host.conc_Ni[j][i];
-						}
 						// generate output filename
-						std::stringstream vtkname;
-						int n = vtkname.str().length();
+						std::stringstream imgname;
+						int n = imgname.str().length();
 						for (int l = 0; n < length; l++) {
-							vtkname.str("");
-							vtkname << base;
-							for (int k = 0; k < l; k++) vtkname << 0;
-							vtkname << j+1 << ".vti";
-							n = vtkname.str().length();
+							imgname.str("");
+							imgname << base;
+							for (int k = 0; k < l; k++) imgname << 0;
+							imgname << j+1 << ".vti";
+							n = imgname.str().length();
 						}
-						// write compressed VTK
-						const int mode = 0; // raw value
+						// write image
 						#ifdef MPI_VERSION
-						std::cerr << "Error: cannot write VTK in parallel." <<std::endl;
+						std::cerr << "Error: cannot write images in parallel." <<std::endl;
 						MMSP::Abort(-1);
                         #endif
-						scalar_field_to_vtk(vtkname.str(), nickGrid, mode);
+						write_matplotlib(host.conc_Ni, nx, ny, nm, j+1, dt, imgname.str());
 					}
 					// === Finish Architecture-Specific Kernel ===
 				}
@@ -380,7 +372,6 @@ int main(int argc, char* argv[])
 					gridN[3] = host.phi_lav_new[j][i];
 					gridN[4] = host.gam_Cr[j][i];
 					gridN[5] = host.gam_Nb[j][i];
-					nickGrid(n) = 1. - gridN[0] - gridN[1];
 				}
 
 				// Log compositions, phase fractions
@@ -397,22 +388,21 @@ int main(int argc, char* argv[])
 
 				MMSP::output(grid, filename);
 
-				// write last step to VTK
-				std::stringstream vtkname;
-				n = vtkname.str().length();
+				// write last step to IMG
+				std::stringstream imgname;
+				n = imgname.str().length();
 				for (int l = 0; n < length; l++) {
-					vtkname.str("");
-					vtkname << base;
-					for (int k = 0; k < l; k++) vtkname << 0;
-					vtkname << i + increment << ".vti";
-					n = vtkname.str().length();
+					imgname.str("");
+					imgname << base;
+					for (int k = 0; k < l; k++) imgname << 0;
+					imgname << i + increment << ".vti";
+					n = imgname.str().length();
 				}
-				const int mode = 0; // for magnitude, set mode=1
 				#ifdef MPI_VERSION
-				std::cerr << "Error: cannot write VTK in parallel." <<std::endl;
+				std::cerr << "Error: cannot write image in parallel." <<std::endl;
 				MMSP::Abort(-1);
 				#endif
-				scalar_field_to_vtk(vtkname.str(), nickGrid, mode);
+				write_matplotlib(host.conc_Ni, nx, ny, nm, steps, dt, imgname.str());
 
 				print_progress(increment, increment);
 				/* finish update() */
