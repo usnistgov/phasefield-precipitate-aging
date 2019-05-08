@@ -10,7 +10,7 @@ inVm = 1.0 / Vm     # mol/m³
 
 # Secondary-Phase Properties
 s_delta = 0.222 # J/m²
-s_laves = 1.25 * s_delta # J/m²
+s_laves = 1.250 * s_delta # J/m²
 
 # Specify gamma-delta-Laves corners (from phase diagram)
 # with compositions as mass fractions

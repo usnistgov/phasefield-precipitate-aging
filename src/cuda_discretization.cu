@@ -550,7 +550,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
     const fp_t n_gam = M_PI / (3. * sqrt(2.) * Vatom); // assuming FCC
     const fp_t w = ifce_width / dx;
-    const fp_t throttle = 1e-5;
+    const fp_t throttle = 5e-7;
 
     fp_t phi_pre = 0.;
     fp_t dG_chem_del = 0., del_xCr = 0., del_xNb = 0.;

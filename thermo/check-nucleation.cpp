@@ -66,7 +66,7 @@ int main()
     FILE* csv = fopen("sigma.csv", "w");
     fprintf(csv, "sigma,Pdel,Plav\n");
     const double ds = 0.001;
-    for (double s = ds; s < 0.25; s += ds) {
+    for (double s = ds; s < 1.0; s += ds) {
         fprintf(csv, "%.3f,", s);
         fp_t dG_chem_del, P_nuc_del, Rstar_del;
         nucleation_driving_force_delta(xCr, xNb, &dG_chem_del);
@@ -76,7 +76,8 @@ int main()
                                       s,
                                       vFccNi, n_gam, dV, dt,
                                       &Rstar_del, &P_nuc_del);
-        fprintf(csv, "%.4e,", P_nuc_del);
+        fprintf(csv, "%12.4e,", P_nuc_del);
+
         nucleation_driving_force_laves(xCr, xNb, &dG_chem_lav);
         nucleation_probability_sphere(xCr, xNb,
                                       xe_lav_Cr(), xe_lav_Nb(),
@@ -84,7 +85,7 @@ int main()
                                       s,
                                       vFccNi, n_gam, dV, dt,
                                       &Rstar_lav, &P_nuc_lav);
-        fprintf(csv, "%4.2e\n", P_nuc_lav);
+        fprintf(csv, "%12.4e\n", P_nuc_lav);
     }
     fclose(csv);
 
