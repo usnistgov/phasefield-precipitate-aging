@@ -6,14 +6,15 @@
 #       CUDA_HDR_PATH - directory containing curand_kernel.h
 #       MMSP_PATH     - root directory of cloned MMSP repository
 
-PYVER = 2.7
+PYVER = 3.5m
 PLT_SRC = -I./matplotlib-cpp
-PLT_LIB = -I/usr/include/python$(PYVER)
-PLT_LNK = -L/usr/lib/python$(PYVER) -lpython$(PYVER)
+PLT_LIB = -I/usr/include/python$(PYVER) \
+          -I/usr/include/x86_64-linux-gnu/python$(PYVER)
+PLT_LNK = -lpython$(PYVER)
 PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
 
-CXX = g++ -O3
-CXXFLAGS = -Wall -std=c++11 -fPIC \
+CXX = g++ -O0 -g
+CXXFLAGS = -Wall -std=c++11 \
            -funroll-loops -ffast-math -fopenmp \
            -I. -I../thermo -I$(MMSP_PATH)/include \
            -I$(CUDA_HDR_PATH) $(PLTFLAGS)
@@ -31,6 +32,9 @@ OBJS = data.o discretization.o d_nucleation.o d_parabola625.o \
 
 alloy625: alloy625.cpp globals.h main.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
+
+imshow: imshow.cpp
+	$(NVCXX) $(NVCXXFLAGS) -O2 $< -o $@ $(LINKS)
 
 # Debugging
 
@@ -70,11 +74,16 @@ enrichment.o: ../thermo/enrichment.c ../thermo/enrichment.h
 numerics.o: numerics.cpp numerics.h
 	$(CXX) $(CXXFLAGS) -c $<
 
-output.o: output.cpp output.h
+output.o: output.cpp output.h matplotlib-cpp/matplotlibcpp.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 parabola625.o: ../thermo/parabola625.c ../thermo/parabola625.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Testing
+
+pyCtest: pyCtest.c
+	gcc -g $< -o $@ -I/usr/include/python$(PYVER) -lpython$(PYVER)
 
 .PHONY: clean
 clean:

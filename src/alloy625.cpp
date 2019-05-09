@@ -202,7 +202,7 @@ void generate(int dim, const char* filename)
 		#endif
 		const int nm = 0, step = 0;
 		const double dt = 1.;
-		write_matplotlib(xNi, Nx, Ny, nm, step, dt, imgname);
+		write_matplotlib(xNi, Nx, Ny, nm, step, dt, imgname.c_str());
 
 		free(xNi[0]);
 		free(xNi);

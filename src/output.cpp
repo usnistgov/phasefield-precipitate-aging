@@ -5,10 +5,8 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <string>
 #include <vector>
 #include <iso646.h>
-// #include <png.h>
 #include <cmath>
 #include "output.h"
 #include "matplotlibcpp.h"
@@ -122,7 +120,7 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 }
 
 void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
-					  const int step, const fp_t dt, const std::string& filename)
+					  const int step, const fp_t dt, const char* filename)
 {
 	/*
 	int w = nx - nm/2;

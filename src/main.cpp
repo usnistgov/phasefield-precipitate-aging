@@ -339,7 +339,7 @@ int main(int argc, char* argv[])
 						std::cerr << "Error: cannot write images in parallel." <<std::endl;
 						MMSP::Abort(-1);
                         #endif
-						write_matplotlib(host.conc_Ni, nx, ny, nm, j+1, dt, imgname.str());
+						write_matplotlib(host.conc_Ni, nx, ny, nm, j+1, dt, imgname.str().c_str());
 					}
 					// === Finish Architecture-Specific Kernel ===
 				}
@@ -402,7 +402,7 @@ int main(int argc, char* argv[])
 				std::cerr << "Error: cannot write image in parallel." <<std::endl;
 				MMSP::Abort(-1);
 				#endif
-				write_matplotlib(host.conc_Ni, nx, ny, nm, steps, dt, imgname.str());
+				write_matplotlib(host.conc_Ni, nx, ny, nm, steps, dt, imgname.str().c_str());
 
 				print_progress(increment, increment);
 				/* finish update() */
