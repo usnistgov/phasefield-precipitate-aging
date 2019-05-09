@@ -82,9 +82,13 @@ parabola625.o: ../thermo/parabola625.c ../thermo/parabola625.h
 
 # Testing
 
+PYCFLAGS = $(shell python$(PYVER)-config --cflags)
+PYLDFLAGS = $(shell python$(PYVER)-config --ldflags)
+
 pyCtest: pyCtest.c
-	gcc -g $< -o $@ -I/usr/include/python$(PYVER) -lpython$(PYVER)
+	g++ -std=c++11 $< -o $@ $(CXXFLAGS) $(PYCFLAGS) $(PYLDFLAGS)
+
 
 .PHONY: clean
 clean:
-	rm -vf alloy625 $(OBJS)
+	rm -vf alloy625 $(OBJS) pyCtest.o pyCtest
