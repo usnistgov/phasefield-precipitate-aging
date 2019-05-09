@@ -33,9 +33,6 @@ OBJS = data.o discretization.o d_nucleation.o d_parabola625.o \
 alloy625: alloy625.cpp globals.h main.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
-imshow: imshow.cpp
-	$(NVCXX) $(NVCXXFLAGS) -O2 $< -o $@ $(LINKS)
-
 # Debugging
 
 profile: CXXOPT = -O1 -g -DDEBUG
@@ -86,9 +83,8 @@ PYCFLAGS = $(shell python$(PYVER)-config --cflags)
 PYLDFLAGS = $(shell python$(PYVER)-config --ldflags)
 
 pyCtest: pyCtest.c
-	g++ -std=c++11 $< -o $@ $(CXXFLAGS) $(PYCFLAGS) $(PYLDFLAGS)
-
+	gcc $< -o $@ $(PYCFLAGS) $(PYLDFLAGS)
 
 .PHONY: clean
 clean:
-	rm -vf alloy625 $(OBJS) pyCtest.o pyCtest
+	rm -vf alloy625 $(OBJS) pyCtest
