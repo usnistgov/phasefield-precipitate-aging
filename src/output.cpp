@@ -122,7 +122,8 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 					  const int step, const fp_t dt, const char* filename)
 {
-	/*
+	plt::backend("Agg");
+
 	int w = nx - nm/2;
 	int h = ny - nm/2;
 
@@ -140,22 +141,5 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     const int colors = 1;
 
 	plt::imshow(z, h, w, colors);
-	plt::save(filename.c_str());
-	*/
-
-	int ncols = 4000, nrows = 2500;
-    std::vector<float> z(ncols * nrows);
-    for (int j=0; j<nrows; ++j) {
-        for (int i=0; i<ncols; ++i) {
-            z.at(ncols * j + i) = std::sin(std::hypot(i - ncols/2, j - nrows/2));
-        }
-    }
-
-    const float* zptr = &(z[0]);
-    const int colors = 1;
-
-    plt::title("My matrix");
-    plt::imshow(zptr, nrows, ncols, colors);
-
-    plt::save("imshow.png");
+	plt::save(filename);
 }

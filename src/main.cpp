@@ -398,6 +398,9 @@ int main(int argc, char* argv[])
 					imgname << i + increment << ".png";
 					n = imgname.str().length();
 				}
+
+				device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
+
 				#ifdef MPI_VERSION
 				std::cerr << "Error: cannot write image in parallel." <<std::endl;
 				MMSP::Abort(-1);

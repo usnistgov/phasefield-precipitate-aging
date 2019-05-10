@@ -6,18 +6,18 @@
 #       CUDA_HDR_PATH - directory containing curand_kernel.h
 #       MMSP_PATH     - root directory of cloned MMSP repository
 
-PYVER = 3.5m
-PLT_SRC = -I./matplotlib-cpp
-PLT_LIB = -I/usr/include/python$(PYVER) \
-          -I/usr/include/x86_64-linux-gnu/python$(PYVER)
-PLT_LNK = -lpython$(PYVER)
-PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
-
 CXX = g++ -O0 -g
 CXXFLAGS = -Wall -std=c++11 \
            -funroll-loops -ffast-math -fopenmp \
            -I. -I../thermo -I$(MMSP_PATH)/include \
            -I$(CUDA_HDR_PATH) $(PLTFLAGS)
+
+PYVER = 3.5m
+PLT_SRC = -I./matplotlib-cpp
+PLT_LIB = -I/usr/include/python$(PYVER) \
+-I/usr/include/x86_64-linux-gnu/python$(PYVER)
+PLT_LNK = -lpython$(PYVER)
+PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
 
 NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
@@ -77,14 +77,6 @@ output.o: output.cpp output.h matplotlib-cpp/matplotlibcpp.h
 parabola625.o: ../thermo/parabola625.c ../thermo/parabola625.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Testing
-
-PYCFLAGS = $(shell python$(PYVER)-config --cflags)
-PYLDFLAGS = $(shell python$(PYVER)-config --ldflags)
-
-pyCtest: pyCtest.c
-	gcc $< -o $@ $(PYCFLAGS) $(PYLDFLAGS)
-
 .PHONY: clean
 clean:
-	rm -vf alloy625 $(OBJS) pyCtest
+	rm -vf alloy625 $(OBJS)
