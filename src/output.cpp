@@ -119,7 +119,29 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 	fclose(output);
 }
 
+void subplot(long nrows, long ncols, long plot_number, const std::map<std::string, double> &keywords = {})
+{
+    // construct positional args
+    PyObject* args = PyTuple_New(3);
+    PyTuple_SetItem(args, 0, PyFloat_FromDouble(nrows));
+    PyTuple_SetItem(args, 1, PyFloat_FromDouble(ncols));
+    PyTuple_SetItem(args, 2, PyFloat_FromDouble(plot_number));
+
+	PyObject* kwargs = PyDict_New();
+    for (auto it = keywords.begin(); it != keywords.end(); ++it) {
+        PyDict_SetItemString(kwargs, it->first.c_str(), PyFloat_FromDouble(it->second));
+    }
+
+    PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_subplot, args, kwargs);
+    if(!res) throw std::runtime_error("Call to subplot() failed.");
+
+    Py_DECREF(args);
+    Py_DECREF(res);
+}
+
+
 void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
+					  const fp_t deltax,
 					  const int step, const fp_t dt, const char* filename)
 {
 	plt::backend("Agg");
@@ -128,18 +150,31 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 	int h = ny - nm/2;
 
     std::vector<float> c(w * h);
+	std::vector<float> d(w);
     std::vector<float> cbar(w);
     for(int j = 0; j < h; ++j) {
         for(int i = 0; i < w; ++i) {
 			const float x = conc[j+nm/2][i+nm/2];
             c.at(w * j + i) = x;
 			cbar.at(i) += x / h;
+			d.at(i) = deltax * i;
         }
 	}
-
     const float* z = &(c[0]);
     const int colors = 1;
 
-	plt::imshow(z, h, w, colors);
+	std::map<std::string, std::string> kw;
+	kw["cmap"] = "viridis_r";
+
+	char timearr[256] = {0};
+	sprintf(timearr, "$t=%07f$ s\n", dt * step);
+	plt::text(0.5, -1.5, std::string(timearr));
+
+	plt::figure_size(w, h);
+
+	plt::imshow(z, h, w, colors, kw);
+	plt::axis("off");
+
+	plt::tight_layout();
 	plt::save(filename);
 }

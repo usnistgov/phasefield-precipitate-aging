@@ -324,7 +324,7 @@ int main(int argc, char* argv[])
 
 					if (img_step) {
 						device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
-						// generate output filename
+
 						std::stringstream imgname;
 						int n = imgname.str().length();
 						for (int l = 0; n < length; l++) {
@@ -334,12 +334,13 @@ int main(int argc, char* argv[])
 							imgname << j+1 << ".vti";
 							n = imgname.str().length();
 						}
-						// write image
-						#ifdef MPI_VERSION
+
+                        #ifdef MPI_VERSION
 						std::cerr << "Error: cannot write images in parallel." <<std::endl;
 						MMSP::Abort(-1);
                         #endif
-						write_matplotlib(host.conc_Ni, nx, ny, nm, j+1, dt, imgname.str().c_str());
+
+						write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), j+1, dt, imgname.str().c_str());
 					}
 					// === Finish Architecture-Specific Kernel ===
 				}
@@ -389,6 +390,8 @@ int main(int argc, char* argv[])
 				MMSP::output(grid, filename);
 
 				// write last step to image
+				device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
+
 				std::stringstream imgname;
 				n = imgname.str().length();
 				for (int l = 0; n < length; l++) {
@@ -399,13 +402,11 @@ int main(int argc, char* argv[])
 					n = imgname.str().length();
 				}
 
-				device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
-
 				#ifdef MPI_VERSION
 				std::cerr << "Error: cannot write image in parallel." <<std::endl;
 				MMSP::Abort(-1);
 				#endif
-				write_matplotlib(host.conc_Ni, nx, ny, nm, steps, dt, imgname.str().c_str());
+				write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), steps, dt, imgname.str().c_str());
 
 				print_progress(increment, increment);
 				/* finish update() */
