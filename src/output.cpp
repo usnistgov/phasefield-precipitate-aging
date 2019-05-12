@@ -3,12 +3,15 @@
  \brief Implementation of file output functions for spinodal decomposition benchmarks
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
 #include <iso646.h>
-#include <png.h>
+#include <cmath>
 #include "output.h"
+#include "matplotlibcpp.h"
+
+namespace plt = matplotlibcpp;
 
 void param_parser(int* bx, int* by, int* code, int* nm)
 {
@@ -116,111 +119,100 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 	fclose(output);
 }
 
-void write_png(fp_t** conc, const int nx, const int ny, const int step)
+void subplot(long nrows, long ncols, long plot_number, const std::map<std::string, double> &keywords = {})
 {
-	/* After "A simple libpng example program," http://zarb.org/~gc/html/libpng.html
-	   and the libpng manual, http://www.libpng.org/pub/png */
+    // construct positional args
+    PyObject* args = PyTuple_New(3);
+    PyTuple_SetItem(args, 0, PyFloat_FromDouble(nrows));
+    PyTuple_SetItem(args, 1, PyFloat_FromDouble(ncols));
+    PyTuple_SetItem(args, 2, PyFloat_FromDouble(plot_number));
 
-	fp_t min, max, *c;
-	int i, j, w, h, n;
-	FILE* output;
-	char name[256];
-	char num[20];
-	unsigned char* buffer;
+	PyObject* kwargs = PyDict_New();
+    for (auto it = keywords.begin(); it != keywords.end(); ++it) {
+        PyDict_SetItemString(kwargs, it->first.c_str(), PyFloat_FromDouble(it->second));
+    }
 
-	png_infop info_ptr;
-	png_bytepp row_pointers;
-	png_structp png_ptr;
-	png_byte color_type = PNG_COLOR_TYPE_GRAY;
-	png_byte bit_depth = 8;
+    PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_subplot, args, kwargs);
+    if(!res) throw std::runtime_error("Call to subplot() failed.");
 
-	w = nx - 2;
-	h = ny - 2;
+    Py_DECREF(args);
+    Py_DECREF(res);
+}
 
-	/* generate the filename */
-	sprintf(num, "%07i", step);
-	strcpy(name, "spinodal.");
-	strcat(name, num);
-	strcat(name, ".png");
+void figure(int w, int h, size_t dpi)
+{
+    PyObject* size = PyTuple_New(2);
+    PyTuple_SetItem(size, 0, PyFloat_FromDouble((double)w / dpi));
+    PyTuple_SetItem(size, 1, PyFloat_FromDouble((double)h / dpi));
 
-	/* open the file */
-	output = fopen(name, "wb");
-	if (output == NULL) {
-		printf("Error: unable to open %s for output. Check permissions.\n", name);
-		exit(-1);
+    PyObject* kwargs = PyDict_New();
+    PyDict_SetItemString(kwargs, "figsize", size);
+    PyDict_SetItemString(kwargs, "dpi", PyLong_FromSize_t(dpi));
+
+    PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_figure,
+								  plt::detail::_interpreter::get().s_python_empty_tuple, kwargs);
+    Py_DECREF(kwargs);
+
+    if(!res) throw std::runtime_error("Call to figure() failed.");
+    Py_DECREF(res);
+    Py_DECREF(size);
+}
+
+void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
+					  const fp_t deltax,
+					  const int step, const fp_t dt, const char* filename)
+{
+	plt::backend("Agg");
+
+	int w = nx - nm/2;
+	int h = ny - nm/2;
+
+    std::vector<float> c(w * h);
+	std::vector<float> d(w);
+    std::vector<float> cbar(w);
+    for(int j = 0; j < h; ++j) {
+        for(int i = 0; i < w; ++i) {
+			const float x = conc[j+nm/2][i+nm/2];
+            c.at(w * j + i) = x;
+			cbar.at(i) += x / h;
+			d.at(i) = deltax * i / 1e-6;
+        }
 	}
+    const float* z = &(c[0]);
+    const int colors = 1;
 
-	/* allocate and populate image array */
-	buffer = (unsigned char*)malloc(w * h * sizeof(unsigned char));
-	row_pointers = (png_bytepp)malloc(h * sizeof(png_bytep));
-	for (j = 0; j < h; j++)
-		row_pointers[j] = &buffer[w * j];
+	std::map<std::string, std::string> kw;
+	kw["cmap"] = "viridis_r";
+    kw["vmin"] = "0.";
+    kw["vmax"] = "1.";
 
-	/* determine data range */
-	min = 0.0;
-	max = 1.0;
-	for (j = ny-2; j > 0; j--) {
-		for (i = 1; i < nx-1; i++) {
-			c = &conc[j][i];
-			if (*c < min)
-				min = *c;
-			if (*c > max)
-				max = *c;
-		}
-	}
+	figure(2000, 1600, 300);
 
-	/* rescale data into buffer */
-	n = 0;
-	for (j = ny-2; j > 0; j--) {
-		for (i = 1; i < nx-1; i++) {
-			buffer[n] = (unsigned char) 255 * (min + (conc[j][i] - min) / (max - min));
-			n++;
-		}
-	}
-	if (n != w * h) {
-		printf("Error making image: expected %i values in buffer, got %i.\n", w*h, n);
-		exit(-1);
-	}
+	char timearr[256] = {0};
+	sprintf(timearr, "$t=%07f$ s\n", dt * step);
+	plt::suptitle(std::string(timearr));
 
-	/* let libpng do the heavy lifting */
-	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if (!png_ptr) {
-		printf("Error making image: png_create_write_struct failed.\n");
-		exit(-1);
-	}
-	info_ptr = png_create_info_struct(png_ptr);
-	if (setjmp(png_jmpbuf(png_ptr))) {
-		printf("Error making image: unable to init_io.\n");
-		exit(-1);
-	}
-	png_init_io(png_ptr, output);
+    long nrows = 3, ncols = 5;
+    long spanr = nrows, spanc = ncols;
 
-	/* write PNG header */
-	if (setjmp(png_jmpbuf(png_ptr))) {
-		printf("Error making image: unable to write header.\n");
-		exit(-1);
-	}
-	png_set_IHDR(png_ptr, info_ptr, w, h,
-	             bit_depth, color_type, PNG_INTERLACE_NONE,
-	             PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+    spanr -= 1;
+    plt::subplot2grid(nrows, ncols, 0, 0, spanr, spanc);
+	PyObject* mat = plt::imshow(z, h, w, colors, kw);
+	plt::axis("off");
 
-	png_write_info(png_ptr, info_ptr);
+    std::map<std::string, float> bar_opts;
+    bar_opts["shrink"] = 0.75;
+    plt::colorbar(mat, bar_opts);
+    Py_DECREF(mat);
 
-	/* write image */
-	if (setjmp(png_jmpbuf(png_ptr))) {
-		printf("Error making image: unable to write data.\n");
-		exit(-1);
-	}
-	png_write_image(png_ptr, row_pointers);
+    spanr = 1;
+    spanc = ncols-1;
+    plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
+    plt::plot(d, cbar);
+    plt::xlim(0., 1.);
+    plt::ylim(0.4, 0.8);
+    plt::xlabel("$x\\ /\\ [\\mu m]$");
+    plt::ylabel("$\\chi_{\\mathrm{Ni}}$");
 
-	if (setjmp(png_jmpbuf(png_ptr))) {
-		printf("Error making image: unable to finish writing.\n");
-		exit(-1);
-	}
-	png_write_end(png_ptr, NULL);
-
-	/* clean up */
-	fclose(output);
-	free(row_pointers);
-	free(buffer);
+	plt::save(filename);
 }

@@ -23,6 +23,7 @@ typedef double fp_t;
 */
 struct HostData {
 	fp_t** mask_lap;
+	fp_t** conc_Ni;
 
 	fp_t** conc_Cr_old;
 	fp_t** conc_Cr_new;
@@ -44,6 +45,8 @@ struct HostData {
  \brief Container for pointers to arrays on the GPU
 */
 struct CudaData {
+	fp_t* conc_Ni;
+
 	fp_t* conc_Cr_old;
 	fp_t* conc_Cr_new;
 

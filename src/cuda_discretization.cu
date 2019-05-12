@@ -3,11 +3,12 @@
  \brief Implementation of boundary condition functions with CUDA acceleration
 */
 
-#include <stdio.h>
-#include <math.h>
-#include <omp.h>
+#include <assert.h>
 #include <cuda.h>
 #include <curand_kernel.h>
+#include <math.h>
+#include <omp.h>
+#include <stdio.h>
 
 #include "cuda_data.h"
 #include "numerics.h"
@@ -15,6 +16,18 @@
 
 #include "cuda_kernels.cuh"
 #include "parabola625.cuh"
+
+// Convenience function for checking CUDA runtime API results
+// can be wrapped around any runtime API call. No-op in release builds.
+cudaError_t checkCuda(cudaError_t result)
+{
+    if (result != cudaSuccess) {
+		fprintf(stderr, "CUDA Runtime Error: %s\n", cudaGetErrorString(result));
+		assert(result == cudaSuccess);
+	}
+	return result;
+}
+
 
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
@@ -86,7 +99,8 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	}
 }
 
-void device_boundaries(struct CudaData* dev,
+void device_boundaries(cudaStream_t& stream,
+                       struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by)
 {
@@ -96,7 +110,7 @@ void device_boundaries(struct CudaData* dev,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
-	boundary_kernel<<<num_tiles,tile_size>>> (
+	boundary_kernel<<<num_tiles, tile_size, 0, stream>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
 	    dev->gam_Cr,      dev->gam_Nb,
@@ -104,7 +118,8 @@ void device_boundaries(struct CudaData* dev,
 	);
 }
 
-void device_laplacian_boundaries(struct CudaData* dev,
+void device_laplacian_boundaries(cudaStream_t& stream,
+                                 struct CudaData* dev,
                                  const int nx, const int ny, const int nm,
                                  const int bx, const int by)
 {
@@ -114,7 +129,7 @@ void device_laplacian_boundaries(struct CudaData* dev,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
-	boundary_kernel<<<num_tiles,tile_size>>> (
+	boundary_kernel<<<num_tiles, tile_size, 0, stream>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
@@ -171,11 +186,10 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
 			d_conc_new[nx * dst_y + dst_x] = value;
 		}
 	}
-
-	__syncthreads();
 }
 
-void device_laplacian(struct CudaData* dev,
+void device_laplacian(cudaStream_t& stream,
+                      struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by)
 {
@@ -186,19 +200,19 @@ void device_laplacian(struct CudaData* dev,
 	               1);
 	size_t buf_size = (tile_size.x + nm) * (tile_size.y + nm) * sizeof(fp_t);
 
-	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
 	    dev->conc_Cr_old, dev->conc_Cr_new, nx, ny, nm);
-	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
 	    dev->conc_Nb_old, dev->conc_Nb_new, nx, ny, nm);
 
-	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
 	    dev->phi_del_old, dev->phi_del_new, nx, ny, nm);
-	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
 	    dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
 
-	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
 	    dev->gam_Cr, dev->lap_gam_Cr, nx, ny, nm);
-	convolution_kernel<<<num_tiles,tile_size,buf_size>>> (
+	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
 	    dev->gam_Nb, dev->lap_gam_Nb, nx, ny, nm);
 }
 
@@ -297,11 +311,10 @@ __global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		d_gam_Nb[idx] = d_fict_gam_Nb(inv_fict_det, d_conc_Cr[idx], d_conc_Nb[idx],
 		                              f_del, f_gam, f_lav);
 	}
-
-	__syncthreads();
 }
 
-void device_fictitious(struct CudaData* dev,
+void device_fictitious(cudaStream_t& stream,
+                       struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by)
 {
@@ -311,7 +324,7 @@ void device_fictitious(struct CudaData* dev,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
-	fictitious_kernel<<<num_tiles,tile_size>>>(
+	fictitious_kernel<<<num_tiles, tile_size, 0, stream>>>(
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    dev->gam_Cr,      dev->gam_Nb,
@@ -367,11 +380,10 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, kappa, omega,
 		             M_lav, dt);
 	}
-
-	__syncthreads();
 }
 
-void device_evolution(struct CudaData* dev,
+void device_evolution(cudaStream_t& stream,
+                      struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by,
                       const fp_t* D_Cr, const fp_t* D_Nb,
@@ -384,7 +396,7 @@ void device_evolution(struct CudaData* dev,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
-	evolution_kernel<<<num_tiles,tile_size>>> (
+	evolution_kernel<<<num_tiles, tile_size, 0, stream>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
 	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
@@ -504,16 +516,17 @@ __global__ void init_prng_kernel(curandState* d_prng, const int nx, const int ny
         curand_init((unsigned long long)clock() + idx, x, 0, &(d_prng[idx]));
 }
 
-void device_init_prng(struct CudaData* dev,
-                       const int nx, const int ny, const int nm,
-                       const int bx, const int by)
+void device_init_prng(cudaStream_t& stream,
+                      struct CudaData* dev,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by)
 {
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
-	init_prng_kernel<<<num_tiles,tile_size>>> (
+	init_prng_kernel<<<num_tiles, tile_size, 0, stream>>> (
 	    dev->prng, nx, ny);
 }
 
@@ -537,7 +550,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
     const fp_t n_gam = M_PI / (3. * sqrt(2.) * Vatom); // assuming FCC
     const fp_t w = ifce_width / dx;
-    const fp_t throttle = 5e-5;
+    const fp_t throttle = 5e-7;
 
     fp_t phi_pre = 0.;
     fp_t dG_chem_del = 0., del_xCr = 0., del_xNb = 0.;
@@ -617,10 +630,10 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
             }
         }
     }
-    __syncthreads();
 }
 
-void device_nucleation(struct CudaData* dev,
+void device_nucleation(cudaStream_t& stream,
+                       struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by,
                        const fp_t* D_Cr, const fp_t* D_Nb,
@@ -634,7 +647,7 @@ void device_nucleation(struct CudaData* dev,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
-	nucleation_kernel<<<num_tiles,tile_size>>> (
+	nucleation_kernel<<<num_tiles, tile_size, 0, stream>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
         dev->prng,
@@ -643,6 +656,38 @@ void device_nucleation(struct CudaData* dev,
 	    sigma_del, sigma_lav,
 	    lattice_const, ifce_width,
 	    dx, dy, dz, dt);
+}
+
+__global__ void nickel_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb, fp_t* d_conc_Ni,
+                              const int nx, const int ny)
+{
+	const int thr_x = threadIdx.x;
+	const int thr_y = threadIdx.y;
+	const int x = blockDim.x * blockIdx.x + thr_x;
+	const int y = blockDim.y * blockIdx.y + thr_y;
+	const int idx = nx * y + x;
+
+	if (x < nx && y < ny)
+		d_conc_Ni[idx] = 1. - d_conc_Cr[idx] - d_conc_Nb[idx]; 
+}
+
+void device_compute_Ni(cudaStream_t& stream,
+                       struct CudaData* dev, struct HostData* host,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by)
+{
+	/* divide matrices into blocks of bx * by threads */
+	dim3 tile_size(bx, by, 1);
+	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
+	               nTiles(ny, tile_size.y, nm),
+	               1);
+
+	nickel_kernel<<<num_tiles, tile_size, 0, stream>>>(
+	    dev->conc_Cr_old, dev->conc_Nb_old, dev->conc_Ni,
+	    nx, ny);
+
+    cudaMemcpyAsync(host->conc_Ni[0], dev->conc_Ni, nx * ny * sizeof(fp_t),
+                    cudaMemcpyDeviceToHost, stream);
 }
 
 void read_out_result(struct CudaData* dev, struct HostData* host, const int nx, const int ny)

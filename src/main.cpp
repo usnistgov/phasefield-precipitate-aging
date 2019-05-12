@@ -242,7 +242,8 @@ int main(int argc, char* argv[])
 
 		if (dim == 2) {
 			// construct grid objects
-			GRID2D grid(argv[1]);
+			GRID2D grid(argv[1]);                 // multiple fields
+			MMSP::grid<2,double> nickGrid(grid, 1); // single field
 
 			// declare host and device data structures
 			struct HostData host;
@@ -272,34 +273,40 @@ int main(int argc, char* argv[])
 			}
 
 			// initialize GPU
+			cudaStream_t st, stNi;
+			cudaStreamCreate(&st);
+			cudaStreamCreate(&stNi);
 			init_cuda(&host, nx, ny, nm, &dev);
-			device_init_prng(&dev, nx, ny, nm, bx, by);
+			device_init_prng(st, &dev, nx, ny, nm, bx, by);
 
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int nuc_interval = 20;
 			int nuc_counter = 0;
+			const int img_interval = 1000;
+			const int nuc_interval = 20;
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
 				/* start update() */
-				for (int j = 0; j < increment; j++) {
-					print_progress(j, increment);
+				for (int j = i; j < i + increment; j++) {
+					print_progress(j - i, increment);
 					// === Start Architecture-Specific Kernel ===
-					device_boundaries(&dev, nx, ny, nm, bx, by);
+					bool img_step = ((j+1) % img_interval == 0);
 
-					device_laplacian(&dev, nx, ny, nm, bx, by);
+					device_boundaries(st, &dev, nx, ny, nm, bx, by);
 
-					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
+					device_laplacian(st, &dev, nx, ny, nm, bx, by);
 
-					device_evolution(&dev, nx, ny, nm, bx, by,
+					device_laplacian_boundaries(st, &dev, nx, ny, nm, bx, by);
+
+					device_evolution(st, &dev, nx, ny, nm, bx, by,
 					                 D_Cr, D_Nb,
 					                 alpha, kappa[0], omega[0],
 					                 Lmob[0], Lmob[1], dt);
 
 					if (nuc_counter % nuc_interval == 0) {
-						device_nucleation(&dev, nx, ny, nm, bx, by,
+						device_nucleation(st, &dev, nx, ny, nm, bx, by,
 						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
 						                  lattice_const, ifce_width,
@@ -308,13 +315,33 @@ int main(int argc, char* argv[])
 					}
 					nuc_counter++;
 
-					device_fictitious(&dev, nx, ny, nm, bx, by);
+					device_fictitious(st, &dev, nx, ny, nm, bx, by);
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
 
+					if (img_step) {
+						device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
+
+						std::stringstream imgname;
+						int n = imgname.str().length();
+						for (int l = 0; n < length; l++) {
+							imgname.str("");
+							imgname << base;
+							for (int k = 0; k < l; k++) imgname << 0;
+							imgname << j+1 << ".vti";
+							n = imgname.str().length();
+						}
+
+                        #ifdef MPI_VERSION
+						std::cerr << "Error: cannot write images in parallel." <<std::endl;
+						MMSP::Abort(-1);
+                        #endif
+
+						write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), j+1, dt, imgname.str().c_str());
+					}
 					// === Finish Architecture-Specific Kernel ===
 				}
 
@@ -361,6 +388,26 @@ int main(int argc, char* argv[])
 				}
 
 				MMSP::output(grid, filename);
+
+				// write last step to image
+				device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
+
+				std::stringstream imgname;
+				n = imgname.str().length();
+				for (int l = 0; n < length; l++) {
+					imgname.str("");
+					imgname << base;
+					for (int k = 0; k < l; k++) imgname << 0;
+					imgname << i + increment << ".png";
+					n = imgname.str().length();
+				}
+
+				#ifdef MPI_VERSION
+				std::cerr << "Error: cannot write image in parallel." <<std::endl;
+				MMSP::Abort(-1);
+				#endif
+				write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), steps, dt, imgname.str().c_str());
+
 				print_progress(increment, increment);
 				/* finish update() */
 			}

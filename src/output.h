@@ -35,9 +35,11 @@ void print_progress(const int step, const int steps);
 void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const int step);
 
 /**
- \brief Writes scalar composition field to diffusion.???????.png
+ \brief Writes scalar composition field to PNG using matplotlib-cpp
 */
-void write_png(fp_t** conc, const int nx, const int ny, const int step);
+void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
+                      const fp_t deltax,
+                      const int step, const fp_t dt, const char* filename);
 
 /** \cond SuppressGuard */
 #endif /* _OUTPUT_H_ */

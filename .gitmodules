@@ -1,0 +1,4 @@
+[submodule "src/matplotlib-cpp"]
+	path = src/matplotlib-cpp
+	url = github:tkphd/matplotlib-cpp
+	branch = develop

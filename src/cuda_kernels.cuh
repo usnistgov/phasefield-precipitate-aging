@@ -110,6 +110,9 @@ __global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
                                   const int nx,    const int ny);
 
+__global__ void nickel_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb, fp_t* d_conc_Ni,
+                              const int nx, const int ny);
+
 /** \cond SuppressGuard */
 #endif /* _CUDA_KERNELS_H_ */
 /** \endcond */

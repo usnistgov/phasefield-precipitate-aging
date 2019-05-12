@@ -17,6 +17,7 @@ void make_arrays(struct HostData* host,
 	host->conc_Cr_new = (fp_t**)calloc(nx, sizeof(fp_t*));
 	host->conc_Nb_old = (fp_t**)calloc(nx, sizeof(fp_t*));
 	host->conc_Nb_new = (fp_t**)calloc(nx, sizeof(fp_t*));
+	host->conc_Ni     = (fp_t**)calloc(nx, sizeof(fp_t*));
 
 	host->phi_del_old = (fp_t**)calloc(nx, sizeof(fp_t*));
 	host->phi_del_new = (fp_t**)calloc(nx, sizeof(fp_t*));
@@ -33,6 +34,7 @@ void make_arrays(struct HostData* host,
 	(host->conc_Cr_new)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 	(host->conc_Nb_old)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 	(host->conc_Nb_new)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
+	(host->conc_Ni)[0]     = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 
 	(host->phi_del_old)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 	(host->phi_del_new)[0] = (fp_t*)calloc(nx * ny, sizeof(fp_t));
@@ -50,6 +52,7 @@ void make_arrays(struct HostData* host,
 		(host->conc_Cr_new)[i] = &(host->conc_Cr_new[0])[nx * i];
 		(host->conc_Nb_old)[i] = &(host->conc_Nb_old[0])[nx * i];
 		(host->conc_Nb_new)[i] = &(host->conc_Nb_new[0])[nx * i];
+		(host->conc_Ni)[i]     = &(host->conc_Ni[0]    )[nx * i];
 
 		(host->phi_del_old)[i] = &(host->phi_del_old[0])[nx * i];
 		(host->phi_del_new)[i] = &(host->phi_del_new[0])[nx * i];
@@ -71,6 +74,7 @@ void free_arrays(struct HostData* host)
 	free((host->conc_Cr_new)[0]);
 	free((host->conc_Nb_old)[0]);
 	free((host->conc_Nb_new)[0]);
+	free((host->conc_Ni)[0]);
 	free((host->phi_del_old)[0]);
 	free((host->phi_del_new)[0]);
 	free((host->phi_lav_old)[0]);
@@ -83,6 +87,7 @@ void free_arrays(struct HostData* host)
 	free(host->conc_Cr_new);
 	free(host->conc_Nb_old);
 	free(host->conc_Nb_new);
+	free(host->conc_Ni);
 	free(host->phi_del_old);
 	free(host->phi_del_new);
 	free(host->phi_lav_old);

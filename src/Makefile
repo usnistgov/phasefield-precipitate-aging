@@ -7,23 +7,36 @@
 #       MMSP_PATH     - root directory of cloned MMSP repository
 
 CXX = g++ -O3
-CXXFLAGS = -Wall -std=c++11 -funroll-loops -ffast-math -fopenmp \
-           -I. -I../thermo -I$(MMSP_PATH)/include
+CXXFLAGS = -Wall -std=c++11 \
+           -funroll-loops -ffast-math -fopenmp \
+           -I. -I../thermo -I$(MMSP_PATH)/include \
+           -I$(CUDA_HDR_PATH) $(PLTFLAGS)
+
+PYVER = 2.7
+PLT_SRC = -I./matplotlib-cpp
+PLT_LIB = -I/usr/include/python$(PYVER) \
+          -I/usr/include/x86_64-linux-gnu/python$(PYVER) \
+          -I/usr/lib/python$(PYVER)/site-packages/numpy/core/include
+PLT_LNK = -lpython$(PYVER)
+PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
 
 NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
              --compiler-options="$(CXXFLAGS)"
 
-LINKS = -lcuda -lcurand -lm -lpng -lz
+LINKS = -lcuda -lcurand -lm $(PLT_LNK) -lz
 
 OBJS = data.o discretization.o d_nucleation.o d_parabola625.o \
        mesh.o enrichment.o numerics.o output.o parabola625.o
 
 # Executable
+
 alloy625: alloy625.cpp globals.h main.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
-profile: CXXOPT = -O1 -g
+# Debugging
+
+profile: CXXOPT = -O1 -g -DDEBUG
 profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
 profile: alloy625
@@ -59,7 +72,7 @@ enrichment.o: ../thermo/enrichment.c ../thermo/enrichment.h
 numerics.o: numerics.cpp numerics.h
 	$(CXX) $(CXXFLAGS) -c $<
 
-output.o: output.cpp output.h
+output.o: output.cpp output.h matplotlib-cpp/matplotlibcpp.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 parabola625.o: ../thermo/parabola625.c ../thermo/parabola625.h
@@ -67,4 +80,4 @@ parabola625.o: ../thermo/parabola625.c ../thermo/parabola625.h
 
 .PHONY: clean
 clean:
-	rm -f alloy625 $(OBJS)
+	rm -vf alloy625 $(OBJS)

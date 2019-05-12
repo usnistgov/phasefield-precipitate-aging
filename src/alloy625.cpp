@@ -18,6 +18,14 @@
 #ifdef _OPENMP
 #include "omp.h"
 #endif
+
+/* Un-comment this block if VTK is desired
+ * #include <vtkImageData.h>
+ * #include <vtkPointData.h>
+ * #include <vtkSmartPointer.h>
+ * #include <vtkVersion.h>
+ * #include <vtkXMLImageDataWriter.h>
+ */
 #include "MMSP.hpp"
 #include "alloy625.hpp"
 #include "cuda_data.h"
@@ -68,6 +76,7 @@ void generate(int dim, const char* filename)
 			if (x1(initGrid, d) == g1(initGrid, d))
 				b1(initGrid, d) = Neumann;
 		}
+		MMSP::grid<2,double> nickGrid(initGrid,1);
 
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
@@ -168,7 +177,35 @@ void generate(int dim, const char* filename)
 
 		output(initGrid,filename);
 
+		// write initial condition image
+		fp_t** xNi = (fp_t**)calloc(Nx, sizeof(fp_t*));
+		xNi[0]    = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
+		for (int i = 1; i < Ny; i++)
+			xNi[i] = &(xNi[0])[Nx * i];
+		const int xoff = MMSP::x0(initGrid);
+		const int yoff = MMSP::y0(initGrid);
 
+		#ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
+		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
+			MMSP::vector<int> x = MMSP::position(nickGrid, n);
+			xNi[x[1]-yoff][x[0]-xoff] = 1. - initGrid(n)[0] - initGrid(n)[1];
+		}
+
+		std::string imgname(filename);
+		imgname.replace(imgname.find("dat"), 3, "png");
+
+		#ifdef MPI_VERSION
+		std::cerr << "Error: cannot write images in parallel." <<std::endl;
+		MMSP::Abort(-1);
+		#endif
+		const int nm = 0, step = 0;
+		const double dt = 1.;
+		write_matplotlib(xNi, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
+
+		free(xNi[0]);
+		free(xNi);
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
 		MMSP::Abort(-1);

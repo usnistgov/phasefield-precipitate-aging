@@ -15,6 +15,7 @@ void init_cuda(struct HostData* host,
 	cudaMalloc((void**) &(dev->conc_Cr_new), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->conc_Nb_old), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->conc_Nb_new), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->conc_Ni), nx * ny * sizeof(fp_t));
 
 	cudaMalloc((void**) &(dev->phi_del_old), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->phi_del_new), nx * ny * sizeof(fp_t));
@@ -55,6 +56,7 @@ void free_cuda(struct CudaData* dev)
 	cudaFree(dev->conc_Cr_new);
 	cudaFree(dev->conc_Nb_old);
 	cudaFree(dev->conc_Nb_new);
+	cudaFree(dev->conc_Ni);
 
 	cudaFree(dev->phi_del_old);
 	cudaFree(dev->phi_del_new);
