@@ -139,6 +139,24 @@ void subplot(long nrows, long ncols, long plot_number, const std::map<std::strin
     Py_DECREF(res);
 }
 
+void figure(int w, int h, size_t dpi)
+{
+    PyObject* size = PyTuple_New(2);
+    PyTuple_SetItem(size, 0, PyFloat_FromDouble((double)w / dpi));
+    PyTuple_SetItem(size, 1, PyFloat_FromDouble((double)h / dpi));
+
+    PyObject* kwargs = PyDict_New();
+    PyDict_SetItemString(kwargs, "figsize", size);
+    PyDict_SetItemString(kwargs, "dpi", PyLong_FromSize_t(dpi));
+
+    PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_figure,
+								  plt::detail::_interpreter::get().s_python_empty_tuple, kwargs);
+    Py_DECREF(kwargs);
+
+    if(!res) throw std::runtime_error("Call to figure() failed.");
+    Py_DECREF(res);
+    Py_DECREF(size);
+}
 
 void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 					  const fp_t deltax,
@@ -157,7 +175,7 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 			const float x = conc[j+nm/2][i+nm/2];
             c.at(w * j + i) = x;
 			cbar.at(i) += x / h;
-			d.at(i) = deltax * i;
+			d.at(i) = deltax * i / 1e-6;
         }
 	}
     const float* z = &(c[0]);
@@ -165,16 +183,36 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 
 	std::map<std::string, std::string> kw;
 	kw["cmap"] = "viridis_r";
+    kw["vmin"] = "0.";
+    kw["vmax"] = "1.";
+
+	figure(2000, 1600, 300);
 
 	char timearr[256] = {0};
 	sprintf(timearr, "$t=%07f$ s\n", dt * step);
-	plt::text(0.5, -1.5, std::string(timearr));
+	plt::suptitle(std::string(timearr));
 
-	plt::figure_size(w, h);
+    long nrows = 3, ncols = 5;
+    long spanr = nrows, spanc = ncols;
 
-	plt::imshow(z, h, w, colors, kw);
+    spanr -= 1;
+    plt::subplot2grid(nrows, ncols, 0, 0, spanr, spanc);
+	PyObject* mat = plt::imshow(z, h, w, colors, kw);
 	plt::axis("off");
 
-	plt::tight_layout();
+    std::map<std::string, float> bar_opts;
+    bar_opts["shrink"] = 0.75;
+    plt::colorbar(mat, bar_opts);
+    Py_DECREF(mat);
+
+    spanr = 1;
+    spanc = ncols-1;
+    plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
+    plt::plot(d, cbar);
+    plt::xlim(0., 1.);
+    plt::ylim(0.4, 0.8);
+    plt::xlabel("$x\\ /\\ [\\mu m]$");
+    plt::ylabel("$\\chi_{\\mathrm{Ni}}$");
+
 	plt::save(filename);
 }

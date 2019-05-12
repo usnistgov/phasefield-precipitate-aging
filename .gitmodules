@@ -1,8 +1,4 @@
-[submodule "matplotlib-cpp"]
-	path = matplotlib-cpp
-	url = github:tkphd/matplotlib-cpp
-	branch = imshow-example
 [submodule "src/matplotlib-cpp"]
 	path = src/matplotlib-cpp
 	url = github:tkphd/matplotlib-cpp
-	branch = imshow-example
+	branch = develop

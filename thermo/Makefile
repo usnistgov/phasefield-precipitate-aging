@@ -1,5 +1,5 @@
 CXX = g++ -O3 -Wall
-FLAGS = -I. -I../src
+FLAGS = -I. -I../src -I$(CUDA_HDR_PATH)
 OBJS = enrichment.o nucleation.o parabola625.o
 
 all: check-nucleation
