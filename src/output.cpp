@@ -184,7 +184,7 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 	std::map<std::string, std::string> str_kw;
 	str_kw["cmap"] = "viridis_r";
 
-	std::map<std::string, double> num_kw;
+    std::map<std::string, double> num_kw;
     num_kw["vmin"] = 0.;
     num_kw["vmax"] = 1.;
 
@@ -205,6 +205,7 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     std::map<std::string, float> bar_opts;
     bar_opts["shrink"] = 0.75;
     plt::colorbar(mat, bar_opts);
+    Py_DECREF(mat);
 
     spanr = 1;
     spanc = ncols-1;
@@ -216,5 +217,4 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     plt::ylabel("$\\chi_{\\mathrm{Ni}}$");
 
 	plt::save(filename);
-    plt::close();
 }

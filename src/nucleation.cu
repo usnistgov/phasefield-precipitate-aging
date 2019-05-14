@@ -43,8 +43,8 @@ __device__ void d_nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb
 
     const fp_t k2 = Gstar /  d_kT();
 
-    const fp_t dc_Cr =-xCr +  d_xe_gam_Cr();
-    const fp_t dc_Nb = xNb -  d_xe_gam_Nb();
+    const fp_t dc_Cr = xCr -  d_xe_gam_Cr();
+    const fp_t dc_Nb =-xNb +  d_xe_gam_Nb();
 
     const fp_t JCr = k1Cr * exp(-k2 / dc_Cr);
     const fp_t JNb = k1Nb * exp(-k2 / dc_Nb);
