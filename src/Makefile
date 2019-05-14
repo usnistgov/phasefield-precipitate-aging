@@ -16,7 +16,7 @@ PYVER = 2.7
 PLT_SRC = -I./matplotlib-cpp
 PLT_LIB = -I/usr/include/python$(PYVER) \
           -I/usr/include/x86_64-linux-gnu/python$(PYVER) \
-          -I/usr/lib/python$(PYVER)/site-packages/numpy/core/include
+          -I/usr/lib/python$(PYVER)/dist-packages/numpy/core/include
 PLT_LNK = -lpython$(PYVER)
 PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
 

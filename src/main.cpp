@@ -331,7 +331,7 @@ int main(int argc, char* argv[])
 							imgname.str("");
 							imgname << base;
 							for (int k = 0; k < l; k++) imgname << 0;
-							imgname << j+1 << ".vti";
+							imgname << j+1 << ".png";
 							n = imgname.str().length();
 						}
 
@@ -339,7 +339,7 @@ int main(int argc, char* argv[])
 						std::cerr << "Error: cannot write images in parallel." <<std::endl;
 						MMSP::Abort(-1);
                         #endif
-
+						cudaDeviceSynchronize();
 						write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), j+1, dt, imgname.str().c_str());
 					}
 					// === Finish Architecture-Specific Kernel ===
@@ -402,10 +402,11 @@ int main(int argc, char* argv[])
 					n = imgname.str().length();
 				}
 
-				#ifdef MPI_VERSION
+                #ifdef MPI_VERSION
 				std::cerr << "Error: cannot write image in parallel." <<std::endl;
 				MMSP::Abort(-1);
 				#endif
+				cudaDeviceSynchronize();
 				write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), steps, dt, imgname.str().c_str());
 
 				print_progress(increment, increment);

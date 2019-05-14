@@ -59,6 +59,7 @@ are recommended. You will need to satisfy the following dependencies:
 - C++
   - [CUDA](https://developer.nvidia.com/cuda-toolkit)
   - [MMSP](https://github.com/mesoscale/mmsp)
+  - [matplotlib-cpp](https://github.com/tkphd/matplotlib-cpp/tree/develop) (submodule)
 
 After downloading MMSP, please set the environmental variable `MMSP_PATH`
 to its location. If you are using `bash`, do something similar to
