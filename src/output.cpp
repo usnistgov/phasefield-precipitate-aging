@@ -181,10 +181,12 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     const float* z = &(c[0]);
     const int colors = 1;
 
-	std::map<std::string, std::string> kw;
-	kw["cmap"] = "viridis_r";
-    kw["vmin"] = "0.";
-    kw["vmax"] = "1.";
+	std::map<std::string, std::string> str_kw;
+	str_kw["cmap"] = "viridis_r";
+
+	std::map<std::string, double> num_kw;
+    num_kw["vmin"] = 0.;
+    num_kw["vmax"] = 1.;
 
 	figure(2000, 1600, 300);
 
@@ -197,7 +199,7 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 
     spanr -= 1;
     plt::subplot2grid(nrows, ncols, 0, 0, spanr, spanc);
-	PyObject* mat = plt::imshow(z, h, w, colors, kw);
+	PyObject* mat = plt::imshow(z, h, w, colors, str_kw, num_kw);
 	plt::axis("off");
 
     std::map<std::string, float> bar_opts;
