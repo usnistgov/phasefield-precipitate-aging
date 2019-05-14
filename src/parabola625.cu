@@ -5,7 +5,7 @@
  *                                                                            *
  *                  This file is part of 'PrecipitateAging'                   *
  ******************************************************************************/
-#include "parabola625.h"
+#include "parabola625.cuh"
 #include <math.h>
 
 __device__ double d_h(double x) {
