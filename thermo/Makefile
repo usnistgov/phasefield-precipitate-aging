@@ -1,14 +1,21 @@
-CXX = g++ -O3 -Wall
-FLAGS = -I. -I../src -I$(CUDA_HDR_PATH)
+CXX = g++
+CXXFLAGS = -O3 -Wall
+INCLUDES = -I. -I../src -I$(CUDA_HDR_PATH)
 OBJS = enrichment.o nucleation.o parabola625.o
 
 all: check-nucleation
 .PHONY: all
 
+debug: CXXFLAGS += -O0 -g
+debug: $(OBJS)
+
+profile: CXXFLAGS += -O1 -pg
+profile: $(OBJS)
+
 # === Executables ===
 
 check-nucleation: check-nucleation.cpp ../src/globals.h nucleation.c $(OBJS)
-	$(CXX) $(FLAGS) $(OBJS) $< -o $@ -lm
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(OBJS) $< -o $@ -lm
 
 ternary-diagram.png: phase-diagram.py parabola625.c parabola625.so
 	python $<
@@ -27,7 +34,7 @@ enrichment.o: enrichment.c
 	$(CXX) -c $< -o $@
 
 nucleation.o: nucleation.c nucleation.h parabola625.c
-	$(CXX) $(FLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 parabola625.o: parabola625.c
 	$(CXX) -c $< -o $@
@@ -45,4 +52,4 @@ tie-lines.npz: phase-diagram.py
 
 .PHONY: clean
 clean:
-	rm -f check-enrichment enrichment.c enrichment.o nucleation.o parabola625.*
+	rm -vf check-nucleation enrichment.c enrichment.o nucleation.o parabola625.* sigma.csv sigma.png

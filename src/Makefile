@@ -6,12 +6,6 @@
 #       CUDA_HDR_PATH - directory containing curand_kernel.h
 #       MMSP_PATH     - root directory of cloned MMSP repository
 
-CXX = g++ -O3
-CXXFLAGS = -Wall -std=c++11 \
-           -funroll-loops -ffast-math -fopenmp \
-           -I. -I../thermo -I$(MMSP_PATH)/include \
-           -I$(CUDA_HDR_PATH) $(PLTFLAGS)
-
 PYVER = 2.7
 PLT_SRC = -I./matplotlib-cpp
 PLT_LIB = -I/usr/include/python$(PYVER) \
@@ -20,9 +14,16 @@ PLT_LIB = -I/usr/include/python$(PYVER) \
 PLT_LNK = -lpython$(PYVER)
 PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
 
+CXX = g++
+INCLUDES = -I. -I../thermo -I$(MMSP_PATH)/include -I$(CUDA_HDR_PATH) $(PLTFLAGS)
+
+CXXFLAGS = -O3 -Wall -std=c++11 \
+           -funroll-loops -ffast-math -fopenmp \
+           $(INCLUDES)
+
 NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
-             --compiler-options="$(CXXFLAGS)"
+             $(INCLUDES) --compiler-options="$(CXXFLAGS)"
 
 LINKS = -lcuda -lcurand -lm $(PLT_LNK) -lz
 
@@ -36,7 +37,12 @@ alloy625: alloy625.cpp globals.h main.cpp $(OBJS)
 
 # Debugging
 
-profile: CXXOPT = -O1 -g -DDEBUG
+debug: CXXOPT = -O0 -g
+debug: CXXFLAGS += $(CXXOPT)
+debug: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
+debug: alloy625
+
+profile: CXXOPT = -O1 -pg
 profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
 profile: alloy625

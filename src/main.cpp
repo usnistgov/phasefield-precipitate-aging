@@ -292,7 +292,7 @@ int main(int argc, char* argv[])
 				for (int j = i; j < i + increment; j++) {
 					print_progress(j - i, increment);
 					// === Start Architecture-Specific Kernel ===
-					bool img_step = ((j+1) % img_interval == 0);
+					bool img_step = ((j+1) % img_interval == 0 && (j+1) != steps);
 
 					device_boundaries(st, &dev, nx, ny, nm, bx, by);
 
@@ -339,7 +339,7 @@ int main(int argc, char* argv[])
 						std::cerr << "Error: cannot write images in parallel." <<std::endl;
 						MMSP::Abort(-1);
                         #endif
-						cudaDeviceSynchronize();
+						cudaStreamSynchronize(stNi);
 						write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), j+1, dt, imgname.str().c_str());
 					}
 					// === Finish Architecture-Specific Kernel ===
@@ -406,7 +406,7 @@ int main(int argc, char* argv[])
 				std::cerr << "Error: cannot write image in parallel." <<std::endl;
 				MMSP::Abort(-1);
 				#endif
-				cudaDeviceSynchronize();
+				cudaStreamSynchronize(stNi);
 				write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), steps, dt, imgname.str().c_str());
 
 				print_progress(increment, increment);

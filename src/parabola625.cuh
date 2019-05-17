@@ -7,8 +7,8 @@
  ******************************************************************************/
 
 
-#ifndef PRECIPITATEAGING__PARABOLA625__H
-#define PRECIPITATEAGING__PARABOLA625__H
+#ifndef D_PRECIPITATEAGING__PARABOLA625__H
+#define D_PRECIPITATEAGING__PARABOLA625__H
 
 __device__ double d_h(double x);
 __device__ double d_hprime(double x);

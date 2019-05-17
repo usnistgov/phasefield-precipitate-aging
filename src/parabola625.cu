@@ -5,7 +5,7 @@
  *                                                                            *
  *                  This file is part of 'PrecipitateAging'                   *
  ******************************************************************************/
-#include "parabola625.h"
+#include "parabola625.cuh"
 #include <math.h>
 
 __device__ double d_h(double x) {
@@ -275,7 +275,7 @@ __device__ double d_fict_lav_Nb(double INV_DET, double XCR, double XNB, double f
 __device__ double d_s_delta() {
 
    double s_delta_result;
-   s_delta_result = 0.222;
+   s_delta_result = 1.01;
    return s_delta_result;
 
 }
@@ -283,7 +283,7 @@ __device__ double d_s_delta() {
 __device__ double d_s_laves() {
 
    double s_laves_result;
-   s_laves_result = 0.27750000000000002;
+   s_laves_result = 1.01;
    return s_laves_result;
 
 }
