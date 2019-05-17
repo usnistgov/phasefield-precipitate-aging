@@ -292,7 +292,7 @@ int main(int argc, char* argv[])
 				for (int j = i; j < i + increment; j++) {
 					print_progress(j - i, increment);
 					// === Start Architecture-Specific Kernel ===
-					bool img_step = ((j+1) % img_interval == 0);
+					bool img_step = ((j+1) % img_interval == 0 && (j+1) != steps);
 
 					device_boundaries(st, &dev, nx, ny, nm, bx, by);
 

@@ -119,43 +119,24 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 	fclose(output);
 }
 
-void subplot(long nrows, long ncols, long plot_number, const std::map<std::string, double> &keywords = {})
-{
-    // construct positional args
-    PyObject* args = PyTuple_New(3);
-    PyTuple_SetItem(args, 0, PyFloat_FromDouble(nrows));
-    PyTuple_SetItem(args, 1, PyFloat_FromDouble(ncols));
-    PyTuple_SetItem(args, 2, PyFloat_FromDouble(plot_number));
-
-	PyObject* kwargs = PyDict_New();
-    for (auto it = keywords.begin(); it != keywords.end(); ++it) {
-        PyDict_SetItemString(kwargs, it->first.c_str(), PyFloat_FromDouble(it->second));
-    }
-
-    PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_subplot, args, kwargs);
-    if(!res) throw std::runtime_error("Call to subplot() failed.");
-
-    Py_DECREF(args);
-    Py_DECREF(res);
-}
-
 void figure(int w, int h, size_t dpi)
 {
     PyObject* size = PyTuple_New(2);
-    PyTuple_SetItem(size, 0, PyFloat_FromDouble((double)w / dpi));
-    PyTuple_SetItem(size, 1, PyFloat_FromDouble((double)h / dpi));
+    PyTuple_SetItem(size, 0, PyFloat_FromDouble(static_cast<double>(w)/dpi));
+    PyTuple_SetItem(size, 1, PyFloat_FromDouble(static_cast<double>(h)/dpi));
 
     PyObject* kwargs = PyDict_New();
     PyDict_SetItemString(kwargs, "figsize", size);
     PyDict_SetItemString(kwargs, "dpi", PyLong_FromSize_t(dpi));
+    Py_DECREF(size);
 
     PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_figure,
-								  plt::detail::_interpreter::get().s_python_empty_tuple, kwargs);
+								  plt::detail::_interpreter::get().s_python_empty_tuple,
+                                  kwargs);
     Py_DECREF(kwargs);
 
     if(!res) throw std::runtime_error("Call to figure() failed.");
     Py_DECREF(res);
-    Py_DECREF(size);
 }
 
 void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
@@ -181,14 +162,14 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     const float* z = &(c[0]);
     const int colors = 1;
 
+	figure(3000, 2400, 200);
+
 	std::map<std::string, std::string> str_kw;
 	str_kw["cmap"] = "viridis_r";
 
     std::map<std::string, double> num_kw;
     num_kw["vmin"] = 0.;
     num_kw["vmax"] = 1.;
-
-	figure(2000, 1600, 300);
 
 	char timearr[256] = {0};
 	sprintf(timearr, "$t=%07f$ s\n", dt * step);
@@ -205,7 +186,6 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     std::map<std::string, float> bar_opts;
     bar_opts["shrink"] = 0.75;
     plt::colorbar(mat, bar_opts);
-    Py_DECREF(mat);
 
     spanr = 1;
     spanc = ncols-1;
@@ -216,5 +196,6 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     plt::xlabel("$x\\ /\\ [\\mu m]$");
     plt::ylabel("$\\chi_{\\mathrm{Ni}}$");
 
-	plt::save(filename);
+    plt::save(filename);
+    plt::close();
 }

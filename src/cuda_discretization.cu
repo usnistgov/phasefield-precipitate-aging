@@ -459,16 +459,13 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
     const fp_t n_gam = M_PI / (3. * sqrt(2.) * Vatom); // assuming FCC
     const fp_t w = ifce_width / dx;
-    const fp_t throttle = 5e-7;
 
     fp_t phi_pre = 0.;
-    fp_t dG_chem_del = 0., del_xCr = 0., del_xNb = 0.;
-    fp_t dG_chem_lav = 0., lav_xCr = 0., lav_xNb = 0.;
-    int R_del, R_lav;
-    fp_t r_del, r_del_star;
-    fp_t r_lav, r_lav_star;
-    fp_t P_nuc_del, P_nuc_lav;
-    fp_t rand_del, rand_lav;
+    fp_t dG_chem = 0., pre_xCr = 0., pre_xNb = 0.;
+    int R_pre;
+    fp_t r_pre, r_pre_star;
+    fp_t P_nuc_pre;
+    fp_t rand_pre;
 
     if (x < nx && y < ny) {
         const fp_t rad = 1.75e-9 / dx;
@@ -494,55 +491,59 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
         const fp_t xNb = d_conc_Nb[idx];
 
         // Test a delta particle
-        d_nucleation_driving_force_delta(xCr, xNb, &dG_chem_del);
+        d_nucleation_driving_force_delta(xCr, xNb, &dG_chem);
         d_nucleation_probability_sphere(xCr, xNb,
-                                        del_xCr, del_xNb,
-                                        dG_chem_del,
+                                        pre_xCr, pre_xNb,
+                                        dG_chem,
                                         D_CrCr, D_NbNb,
                                         sigma_del,
                                         Vatom,
                                         n_gam,
                                         dV, dt,
-                                        &r_del_star, &P_nuc_del);
-        r_del = r_del_star / dx;
-        R_del = 5 * ceil(r_del + w) / 4;
-        rand_del = throttle * P_nuc_del - (fp_t)curand_uniform_double(&(d_prng[idx]));
+                                        &r_pre_star, &P_nuc_pre);
+        if (r_pre_star > 0.) {
+            r_pre = r_pre_star / dx;
+            R_pre = 5 * ceil(r_pre + w) / 4;
+            rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
+
+            if (rand_pre > 0) {
+                for (int i = -R_pre; i < R_pre; i++) {
+                    for (int j = -R_pre; j < R_pre; j++) {
+                        const int idn = nx * (y + j) + (x + i);
+                        const fp_t r = sqrt(fp_t(i*i + j*j));
+                        const fp_t z = r - (r_pre + w);
+                        if (idn >= 0 && idn < nx * ny)
+                            d_phi_del[idn] = d_interface_profile(4 * z / w);
+                    }
+                }
+            }
+        }
 
         // Test a Laves particle
-        d_nucleation_driving_force_laves(xCr, xNb, &dG_chem_lav);
+        d_nucleation_driving_force_laves(xCr, xNb, &dG_chem);
         d_nucleation_probability_sphere(xCr, xNb,
-                                        lav_xCr, lav_xNb,
-                                        dG_chem_lav,
+                                        pre_xCr, pre_xNb,
+                                        dG_chem,
                                         D_CrCr, D_NbNb,
                                         sigma_lav,
                                         Vatom,
                                         n_gam,
                                         dV, dt,
-                                        &r_lav_star, &P_nuc_lav);
-        r_lav = r_lav_star / dx;
-        R_lav = 5 * ceil(r_lav + w) / 4;
-        rand_lav = throttle * P_nuc_lav - (fp_t)curand_uniform_double(&(d_prng[idx]));
+                                        &r_pre_star, &P_nuc_pre);
+        if (r_pre_star > 0.) {
+            r_pre = r_pre_star / dx;
+            R_pre = 5 * ceil(r_pre + w) / 4;
+            rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-        if (rand_del > 0 && rand_del > rand_lav) {
-            for (int i = -R_del; i < R_del; i++) {
-                for (int j = -R_del; j < R_del; j++) {
-                    const int idn = nx * (y + j) + (x + i);
-                    const fp_t r = sqrt(fp_t(i*i + j*j));
-                    const fp_t z = r - (r_del + w);
-                    if (idn >= 0 && idn < nx * ny)
-                        d_phi_del[idn] = d_interface_profile(4 * z / w);
-                }
-            }
-        }
-
-        if (rand_lav > 0 && rand_lav > rand_del) {
-            for (int i = -R_lav; i < R_lav; i++) {
-                for (int j = -R_lav; j < R_lav; j++) {
-                    const int idn = nx * (y + j) + (x + i);
-                    const fp_t r = sqrt(fp_t(i*i + j*j));
-                    const fp_t z = r - (r_lav + w);
-                    if (idn >= 0 && idn < nx * ny)
-                        d_phi_lav[idn] = d_interface_profile(4 * z / w);
+            if (rand_pre > 0) {
+                for (int i = -R_pre; i < R_pre; i++) {
+                    for (int j = -R_pre; j < R_pre; j++) {
+                        const int idn = nx * (y + j) + (x + i);
+                        const fp_t r = sqrt(fp_t(i*i + j*j));
+                        const fp_t z = r - (r_pre + w);
+                        if (idn >= 0 && idn < nx * ny)
+                            d_phi_lav[idn] = d_interface_profile(4 * z / w);
+                    }
                 }
             }
         }

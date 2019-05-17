@@ -275,7 +275,7 @@ double fict_lav_Nb(double INV_DET, double XCR, double XNB, double f_del, double 
 double s_delta() {
 
    double s_delta_result;
-   s_delta_result = 0.222;
+   s_delta_result = 1.01;
    return s_delta_result;
 
 }
@@ -283,7 +283,7 @@ double s_delta() {
 double s_laves() {
 
    double s_laves_result;
-   s_laves_result = 0.27750000000000002;
+   s_laves_result = 1.01;
    return s_laves_result;
 
 }
