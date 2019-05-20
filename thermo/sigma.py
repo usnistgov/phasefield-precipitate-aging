@@ -10,7 +10,7 @@ plt.semilogy((0,1), (1e-7,1e-7), ":k")
 
 plt.title("Nucleation Probability (Enriched Material)")
 
-plt.xlim([0., 0.2])
+plt.xlim([0., 0.25])
 plt.xlabel(r"$\sigma$")
 
 plt.ylim([5e-9, 0.05])

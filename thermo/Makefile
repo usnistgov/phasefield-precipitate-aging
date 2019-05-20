@@ -7,7 +7,7 @@ all: check-nucleation
 .PHONY: all
 
 debug: CXXFLAGS += -O0 -g
-debug: $(OBJS)
+debug: check-nucleation $(OBJS)
 
 profile: CXXFLAGS += -O1 -pg
 profile: $(OBJS)
