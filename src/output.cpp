@@ -193,7 +193,7 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     plt::plot(d, cbar);
     plt::xlim(0., 1.);
     plt::ylim(0.4, 0.8);
-    plt::xlabel("$x\\ /\\ [\\mu m]$");
+    plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
     plt::ylabel("$\\chi_{\\mathrm{Ni}}$");
 
     plt::save(filename);
