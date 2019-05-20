@@ -275,7 +275,7 @@ __device__ double d_fict_lav_Nb(double INV_DET, double XCR, double XNB, double f
 __device__ double d_s_delta() {
 
    double s_delta_result;
-   s_delta_result = 0.13500000000000001;
+   s_delta_result = 0.14899999999999999;
    return s_delta_result;
 
 }
@@ -283,7 +283,7 @@ __device__ double d_s_delta() {
 __device__ double d_s_laves() {
 
    double s_laves_result;
-   s_laves_result = 0.17820000000000003;
+   s_laves_result = 0.19700000000000001;
    return s_laves_result;
 
 }
