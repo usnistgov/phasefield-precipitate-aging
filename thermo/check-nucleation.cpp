@@ -21,7 +21,7 @@ int main()
 
     // Constants
     const fp_t dtDiffusionLimited = (meshres*meshres) / (4. * std::max(D_Cr[0], D_Nb[1]));
-    const fp_t dt = 1000 * LinStab * dtDiffusionLimited;
+    const fp_t dt = LinStab * dtDiffusionLimited;
     const fp_t dV = meshres * meshres * meshres;
     const fp_t vFccNi = lattice_const * lattice_const * lattice_const / 4.;
     const fp_t n_gam = M_PI / (3. * sqrt(2.) * vFccNi);
