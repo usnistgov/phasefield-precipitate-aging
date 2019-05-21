@@ -282,7 +282,7 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			int nuc_counter = 0;
+			int nuc_counter = iterations_start;
 			const int img_interval = 1000;
 			const int nuc_interval = 20;
 
@@ -306,12 +306,14 @@ int main(int argc, char* argv[])
 					                 Lmob[0], Lmob[1], dt);
 
 					if (nuc_counter % nuc_interval == 0) {
+						#ifndef CONVERGENCE
 						device_nucleation(st, &dev, nx, ny, nm, bx, by,
 						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
 						                  lattice_const, ifce_width,
 						                  meshres, meshres, meshres,
 										  nuc_interval * dt);
+						#endif
 					}
 					nuc_counter++;
 

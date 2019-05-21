@@ -191,7 +191,9 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     spanc = ncols-1;
     plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
     plt::plot(d, cbar);
+    #ifndef CONVERGENCE
     plt::xlim(0., 1.);
+    #endif
     plt::ylim(0.4, 0.8);
     plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
     plt::ylabel("$\\chi_{\\mathrm{Ni}}$");

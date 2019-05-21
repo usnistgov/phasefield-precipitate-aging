@@ -19,19 +19,13 @@
 #include "omp.h"
 #endif
 
-/* Un-comment this block if VTK is desired
- * #include <vtkImageData.h>
- * #include <vtkPointData.h>
- * #include <vtkSmartPointer.h>
- * #include <vtkVersion.h>
- * #include <vtkXMLImageDataWriter.h>
- */
 #include "MMSP.hpp"
 #include "alloy625.hpp"
 #include "cuda_data.h"
 #include "enrichment.h"
 #include "globals.h"
 #include "mesh.h"
+#include "nucleation.h"
 #include "numerics.h"
 #include "output.h"
 #include "parabola625.h"
@@ -39,6 +33,139 @@
 namespace MMSP
 {
 
+void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
+{
+	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
+	 * corresponding to enriched IN625 per DICTRA simulations, with compositions in
+	 * mole fraction (not weight fraction!)
+	 */
+	std::uniform_real_distribution<double> matrixCrDist(matrix_min_Cr(), matrix_max_Cr());
+	std::uniform_real_distribution<double> matrixNbDist(matrix_min_Nb(), matrix_max_Nb());
+	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
+	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
+
+	double xCr0 = matrixCrDist(mtrand);
+	double xNb0 = matrixNbDist(mtrand);
+	double xCrE = enrichCrDist(mtrand);
+	double xNbE = enrichNbDist(mtrand);
+
+    #ifdef MPI_VERSION
+	MPI::COMM_WORLD.Barrier();
+	MPI::COMM_WORLD.Bcast(&xCrE, 1, MPI_DOUBLE, 0);
+	MPI::COMM_WORLD.Bcast(&xNbE, 1, MPI_DOUBLE, 0);
+    #endif
+
+	// Zero initial condition
+	const MMSP::vector<fp_t> blank(MMSP::fields(grid), 0.);
+
+    #ifdef _OPENMP
+    #pragma omp parallel for
+    #endif
+	for (int n = 0; n < MMSP::nodes(grid); n++) {
+		grid(n) = blank;
+	}
+
+	// Initialize matrix (gamma phase): bell curve along x-axis for Cr and Nb composition
+	#ifndef CONVERGENCE
+	const int Nx = g1(grid, 0) - g0(grid, 0);
+	const double avgCr = bell_average(-Nx*meshres/2, Nx*meshres/2, bell[0]);
+	const double avgNb = bell_average(-Nx*meshres/2, Nx*meshres/2, bell[1]);
+	#else
+	const int Nx = 4000;
+	const double avgCr = bell_average(-0.25e-9 * Nx/2, 0.25e-9 * Nx/2, bell[0]);
+	const double avgNb = bell_average(-0.25e-9 * Nx/2, 0.25e-9 * Nx/2, bell[1]);
+	#endif
+
+	vector<int> x(2,0);
+	for (x[1]=y0(grid); x[1]<y1(grid); x[1]++) {
+		for (x[0]=x0(grid); x[0]<x1(grid); x[0]++) {
+			const double pos = dx(grid,0)*x[0];
+			const double matrixCr = xCr0 + (xCrE - xCr0) * (1. - avgCr)
+				                  * (bell_curve(bell[0], pos) - avgCr);
+			const double matrixNb = xNb0 + (xNbE - xNb0) * (1. - avgNb)
+				                  * (bell_curve(bell[1], pos) - avgNb);
+			grid(x)[0] = matrixCr;
+			grid(x)[1] = matrixNb;
+		}
+	}
+}
+
+void embed_pair(GRID2D& grid, const fp_t w,
+				const fp_t D_CrCr, const fp_t D_NbNb,
+				const fp_t sigma_del, const fp_t sigma_lav,
+				const fp_t lattice_const, const fp_t ifce_width,
+				const fp_t dx, const fp_t dt)
+{
+    fp_t dG_chem = 0., pre_xCr = 0., pre_xNb = 0.;
+    fp_t r_star = 0., P_nuc = 0.;
+	fp_t xCr = 0., xNb = 0.;
+	vector<int> x(2, 0);
+
+    const fp_t dV = dx * dx * dx;
+    const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
+    const fp_t n_gam = M_PI / (3. * sqrt(2.) * Vatom); // assuming FCC
+
+
+	// Embed a delta particle
+	x[0] = (g1(grid, 0) - g0(grid, 0)) / 4;
+	xCr = grid(x)[0];
+	xNb = grid(x)[1];
+
+	nucleation_driving_force_delta(xCr, xNb, &dG_chem);
+	nucleation_probability_sphere(xCr, xNb,
+								  pre_xCr, pre_xNb,
+								  dG_chem,
+								  D_CrCr, D_NbNb,
+								  sigma_del,
+								  Vatom,
+								  n_gam,
+								  dV, dt,
+								  &r_star, &P_nuc);
+	if (r_star > 0.) {
+		const fp_t r = r_star / dx;
+		const int R = 5 * ceil(r + w) / 4;
+		for (int i = -R; i < R; i++) {
+			for (int j = -R; j < R; j++) {
+				vector<int> y(x);
+				y[0] += i;
+				y[1] += j;
+				const fp_t rad = sqrt(fp_t(i*i + j*j));
+				const fp_t z = rad - (r + w);
+				grid(y)[2] = interface_profile(4 * z / w);
+			}
+		}
+	}
+
+	// Embed a Laves particle
+	x[0] *= -1;
+	xCr = grid(x)[0];
+	xNb = grid(x)[1];
+
+	nucleation_driving_force_laves(xCr, xNb, &dG_chem);
+	nucleation_probability_sphere(xCr, xNb,
+								  pre_xCr, pre_xNb,
+								  dG_chem,
+								  D_CrCr, D_NbNb,
+								  sigma_lav,
+								  Vatom,
+								  n_gam,
+								  dV, dt,
+								  &r_star, &P_nuc);
+	if (r_star > 0.) {
+		const fp_t r = r_star / dx;
+		const int R = 5 * ceil(r + w) / 4;
+		for (int i = -R; i < R; i++) {
+			for (int j = -R; j < R; j++) {
+				vector<int> y(x);
+				y[0] += i;
+				y[1] += j;
+				const fp_t rad = sqrt(fp_t(i*i + j*j));
+				const fp_t z = rad - (r + w);
+				grid(y)[3] = interface_profile(4 * z / w);
+			}
+		}
+	}
+}
 
 void generate(int dim, const char* filename)
 {
@@ -56,16 +183,25 @@ void generate(int dim, const char* filename)
 
 	const double dtTransformLimited = (meshres*meshres) / (std::pow(2.0, dim) * Lmob[0]*kappa[0]);
 	const double dtDiffusionLimited = (meshres*meshres) / (std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1]));
+	#ifndef CONVERGENCE
 	const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+	#else
+	const fp_t dt = 1.25e-7;
+	#endif
 
 	// Initialize pseudo-random number generator
 	std::mt19937 mtrand; // Mersenne Twister PRNG
-	unsigned int seed = (std::chrono::high_resolution_clock::now() - beginning).count();
+	const unsigned int seed = (std::chrono::high_resolution_clock::now() - beginning).count();
 	mtrand.seed(seed);
 
 	if (dim==2) {
+		#ifndef CONVERGENCE
 		const int Nx = 4000;
 		const int Ny = 2500;
+		#else
+		const int Nx = 1000;
+		const int Ny = 1000;
+		#endif
 		double Ntot = 1.0;
 		GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
 		for (int d = 0; d < dim; d++) {
@@ -84,77 +220,19 @@ void generate(int dim, const char* filename)
 			          << ", dtDiffusionLimited=" << dtDiffusionLimited
 			          << '.' << std::endl;
 
-		/* Randomly choose enriched compositions in a rectangular region of the phase diagram
-		 * corresponding to enriched IN625 per DICTRA simulations, with compositions in
-		 * mole fraction (not weight fraction!)
-		 */
-		std::uniform_real_distribution<double> matrixCrDist(matrix_min_Cr(), matrix_max_Cr());
-		std::uniform_real_distribution<double> matrixNbDist(matrix_min_Nb(), matrix_max_Nb());
-		std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
-		std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
-
-		double xCr0 = matrixCrDist(mtrand);
-		double xNb0 = matrixNbDist(mtrand);
-		double xCrE = enrichCrDist(mtrand);
-		double xNbE = enrichNbDist(mtrand);
-
-		#ifdef MPI_VERSION
-		MPI::COMM_WORLD.Barrier();
-		MPI::COMM_WORLD.Bcast(&xCrE, 1, MPI_DOUBLE, 0);
-		MPI::COMM_WORLD.Bcast(&xNbE, 1, MPI_DOUBLE, 0);
-		#endif
-
-		// Zero initial condition
-		const MMSP::vector<fp_t> blank(MMSP::fields(initGrid), 0.);
-		#ifdef _OPENMP
-		#pragma omp parallel for
-		#endif
-		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
-			initGrid(n) = blank;
-		}
-
-		vector<int> x(2, 0);
-
-		// Initialize matrix (gamma phase): bell curve along x-axis for Cr and Nb composition
-		const double avgCr = bell_average(-Nx*meshres/2, Nx*meshres/2, bell[0]);
-		const double avgNb = bell_average(-Nx*meshres/2, Nx*meshres/2, bell[1]);
-		for (x[1]=y0(initGrid); x[1]<y1(initGrid); x[1]++) {
-			for (x[0]=x0(initGrid); x[0]<x1(initGrid); x[0]++) {
-				const double pos = dx(initGrid,0)*x[0];
-				const double matrixCr = xCr0 + (xCrE - xCr0) * (1. - avgCr)
-				                             * (bell_curve(bell[0], pos) - avgCr);
-				const double matrixNb = xNb0 + (xNbE - xNb0) * (1. - avgNb)
-				                             * (bell_curve(bell[1], pos) - avgNb);
-				initGrid(x)[0] = matrixCr;
-				initGrid(x)[1] = matrixNb;
-			}
-		}
+		init_gaussian_enrichment(initGrid, mtrand);
 
 		// Embed two particles as a sanity check
-		/*
-		const fp_t rad = 1.51e-9 / meshres;
+		#ifdef CONVERGENCE
 		const fp_t w = ifce_width / meshres;
-		const int R = 5 * (rad + w) / 4;
-		x[0] = (g1(initGrid, 0) - g0(initGrid, 0)) / 4;
-		x[1] = (g1(initGrid, 1) + g0(initGrid, 1)) / 2;
-		for (int i = -R; i < R; i++) {
-			for (int j = -R; j < R; j++) {
-				vector<int> y(x);
-				y[0] += i;
-				y[1] += j;
-				const fp_t r = sqrt(fp_t(i*i + j*j));
-				const fp_t z = 4 * (r - rad - w) / w;
-				const fp_t f = interface_profile(z);
-				initGrid(y)[2] = f;
-				y[0] *= -1;
-				initGrid(y)[3] = f;
-			}
-		}
-		*/
+		embed_pair(initGrid, w, D_Cr[0], D_Nb[1],
+				   s_delta(), s_laves(),
+				   lattice_const, ifce_width, meshres, dt);
+		#endif
 
 		// Update fictitious compositions
 		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
-			x = MMSP::position(initGrid, n);
+			vector<int> x = MMSP::position(initGrid, n);
 			update_compositions(initGrid(x));
 		}
 
@@ -179,7 +257,7 @@ void generate(int dim, const char* filename)
 
 		// write initial condition image
 		fp_t** xNi = (fp_t**)calloc(Nx, sizeof(fp_t*));
-		xNi[0]    = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
+		xNi[0]     = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
 		for (int i = 1; i < Ny; i++)
 			xNi[i] = &(xNi[0])[Nx * i];
 		const int xoff = MMSP::x0(initGrid);
@@ -190,7 +268,9 @@ void generate(int dim, const char* filename)
 		#endif
 		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
 			MMSP::vector<int> x = MMSP::position(nickGrid, n);
-			xNi[x[1]-yoff][x[0]-xoff] = 1. - initGrid(n)[0] - initGrid(n)[1];
+			const int i = x[0] - xoff;
+			const int j = x[1] - yoff;
+			xNi[j][i] = 1. - initGrid(n)[0] - initGrid(n)[1];
 		}
 
 		std::string imgname(filename);

@@ -8,7 +8,7 @@
 #define NC 2 // number of components
 
 // Kinetic and model parameters
-const double meshres = 0.25e-9; // grid spacing (m)
+const double meshres = 0.125e-9; // grid spacing (m)
 const fp_t alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 const fp_t LinStab = 1. / 7.28438; // threshold of linear (von Neumann) stability
 

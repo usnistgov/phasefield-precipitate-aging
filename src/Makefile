@@ -27,8 +27,8 @@ NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
 
 LINKS = -lcuda -lcurand -lm $(PLT_LNK) -lz
 
-OBJS = data.o discretization.o d_nucleation.o d_parabola625.o \
-       mesh.o enrichment.o numerics.o output.o parabola625.o
+OBJS = data.o discretization.o d_nucleation.o d_parabola625.o mesh.o \
+       enrichment.o nucleation.o numerics.o output.o parabola625.o
 
 # Executable
 
@@ -46,6 +46,9 @@ profile: CXXOPT = -O1 -pg
 profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
 profile: alloy625
+
+convergence: CXXFLAGS += -DCONVERGENCE
+convergence: alloy625
 
 # CUDA objects
 
@@ -74,6 +77,9 @@ mesh.o: mesh.cpp mesh.h
 
 enrichment.o: ../thermo/enrichment.c ../thermo/enrichment.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+nucleation.o: ../thermo/nucleation.c ../thermo/nucleation.h
+	$(CXX) $(CXXFLAGS) -c $<
 
 numerics.o: numerics.cpp numerics.h
 	$(CXX) $(CXXFLAGS) -c $<
