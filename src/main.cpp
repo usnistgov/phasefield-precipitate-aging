@@ -385,7 +385,7 @@ int main(int argc, char* argv[])
 				if (rank == 0) {
 					FILE* cfile = fopen("c.log", "a"); // existing log will be appended
 					fprintf(cfile, "%9g %9g %9g %12g %12g %12g %12g\n",
-							dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+							dt * (i+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 					fclose(cfile);
 				}
 

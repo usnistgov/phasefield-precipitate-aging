@@ -468,8 +468,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     fp_t rand_pre;
 
     if (x < nx && y < ny) {
-        const fp_t rad = 1.75e-9 / dx;
-        const int R = 5 * ceil(rad + w) / 4;
+        const fp_t rad = anticap * 1.75e-9 / dx;
+        const int R = 1.25 * ceil(rad + w);
 
         for (int i = -R; i < R; i++) {
             for (int j = -R; j < R; j++) {
@@ -502,8 +502,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                         dV, dt,
                                         &r_pre_star, &P_nuc_pre);
         if (r_pre_star > 0.) {
-            r_pre = r_pre_star / dx;
-            R_pre = 5 * ceil(r_pre + w) / 4;
+            r_pre = anticap * r_pre_star / dx;
+            R_pre = 1.25 * ceil(r_pre + w);
             rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
             if (rand_pre > 0) {
@@ -531,8 +531,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                         dV, dt,
                                         &r_pre_star, &P_nuc_pre);
         if (r_pre_star > 0.) {
-            r_pre = r_pre_star / dx;
-            R_pre = 5 * ceil(r_pre + w) / 4;
+            r_pre = anticap * r_pre_star / dx;
+            R_pre = 1.25 * ceil(r_pre + w);
             rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
             if (rand_pre > 0) {

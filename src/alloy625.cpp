@@ -107,7 +107,8 @@ void embed_pair(GRID2D& grid, const fp_t w,
 
 
 	// Embed a delta particle
-	x[0] = (g1(grid, 0) - g0(grid, 0)) / 4;
+	x[0] = -2;
+	x[1] = (g1(grid, 1) - g0(grid, 1)) / 8;
 	xCr = grid(x)[0];
 	xNb = grid(x)[1];
 
@@ -122,8 +123,8 @@ void embed_pair(GRID2D& grid, const fp_t w,
 								  dV, dt,
 								  &r_star, &P_nuc);
 	if (r_star > 0.) {
-		const fp_t r = r_star / dx;
-		const int R = 5 * ceil(r + w) / 4;
+		const fp_t r = anticap * r_star / dx;
+		const int R = 1.25 * ceil(r + w);
 		for (int i = -R; i < R; i++) {
 			for (int j = -R; j < R; j++) {
 				vector<int> y(x);
@@ -138,6 +139,7 @@ void embed_pair(GRID2D& grid, const fp_t w,
 
 	// Embed a Laves particle
 	x[0] *= -1;
+	x[1] *= -1;
 	xCr = grid(x)[0];
 	xNb = grid(x)[1];
 
@@ -152,8 +154,8 @@ void embed_pair(GRID2D& grid, const fp_t w,
 								  dV, dt,
 								  &r_star, &P_nuc);
 	if (r_star > 0.) {
-		const fp_t r = r_star / dx;
-		const int R = 5 * ceil(r + w) / 4;
+		const fp_t r = anticap * r_star / dx;
+		const int R = 1.25 * ceil(r + w);
 		for (int i = -R; i < R; i++) {
 			for (int j = -R; j < R; j++) {
 				vector<int> y(x);
@@ -243,9 +245,9 @@ void generate(int dim, const char* filename)
 
 		if (rank == 0) {
 			fprintf(cfile, "%9s %9s %9s %12s %12s %12s %12s\n",
-			               "timestep", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
+			               "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
 			fprintf(cfile, "%9g %9g %9g %12g %12g %12g %12g\n",
-			                dt, summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+			                0., summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
 			printf("%9s %9s %9s %9s %9s\n",
 			       "x_Cr", "x_Nb", " p_g", " p_d", " p_l");
