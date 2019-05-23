@@ -14,9 +14,11 @@ from pyCinterface import *
 from constants import *
 
 density = 256
+
 colors = ['red', 'green', 'blue', 'gray']
 salmon = '#fa8072'
 rust = '#b7410e'
+
 alignment = {'horizontalalignment': 'center', 'verticalalignment': 'center'}
 warnings.filterwarnings('ignore', 'The iteration is not making good progress')
 warnings.filterwarnings('ignore', 'The number of calls to function has reached maxfev = 500.')
@@ -79,7 +81,8 @@ def labelAxes(xlabel, ylabel, n):
   plot_ticks(right, top, right_tick, -60, n)
   plot_ticks(left, top, left_tick, 60, n)
 
-# Plot phase diagram
+# === Prepare Axes ===
+
 pltsize = 10
 plt.figure(figsize=(pltsize, 0.5 * sqrt(3.) * pltsize))
 plt.title("Cr-Nb-Ni at {0} K".format(int(temp)), fontsize=18)
@@ -89,7 +92,6 @@ plt.text(simX(0.05, 0.10), simY(0.10), '$\gamma$',  color=colors[0], fontsize=16
 plt.text(0.265,            -0.006,     '$\delta$',  color=colors[1], fontsize=16, zorder=2, **alignment)
 plt.text(simX(0.29, 0.35), simY(0.35), '$\lambda$', color=colors[2], fontsize=16, zorder=2, **alignment)
 
-# Draw composition bounding boxes
 xCrMat = (matrixMinCr, matrixMaxCr)
 xNbMat = (matrixMinNb, matrixMaxNb)
 xMatLbl = xNbMat[0] - 0.009
@@ -117,6 +119,8 @@ plt.fill(XM, YM, color=salmon, lw=1)
 plt.text(simX(xMatLbl, yMatLbl), simY(yMatLbl), "matrix", rotation=60, fontsize=8, **alignment)
 plt.fill(XE, YE, color=rust, lw=1)
 plt.text(simX(xEnrLbl, yEnrLbl), simY(yEnrLbl), "enrich", rotation=60, fontsize=8, **alignment)
+
+# === Define Systems of Equations ===
 
 def ABSolver(x1, x2):
   def system(X):
@@ -308,7 +312,7 @@ def ABCSolver(x1, x2):
   # returns the tuple [x1A, x2A, x1B, x2B]
   return fsolve(func=system, x0=[x1, x2, x1, x2, x1, x2], fprime=jacobian)
 
-# Find three-phase coexistence region. There can be only one!
+# === Plot 3-phase coexistence ===
 
 coexist = []
 
@@ -455,6 +459,27 @@ for x1test in tqdm(np.linspace(0.5/density, 1 - 0.5/density, density)):
         mBC.append(b)
         mCB.append(c)
 
+# === Overlay composition pathway ===
+
+def plotEnrichment(xCrM, xNbM, xCrE, xNbE):
+  xlo, xhi = (-0.5e-6, 0.5e-6)
+  wCr, wNb = (150e-9, 50e-9)
+  pos = np.linspace(xlo, xhi, 256, dtype=float)
+  bCr = np.empty_like(pos)
+  bNb = np.empty_like(pos)
+  for i in range(len(pos)):
+    bCr[i] = bellCurve(xlo, xhi, wCr, pos[i], xCrM, xCrE)
+    bNb[i] = bellCurve(xlo, xhi, wNb, pos[i], xNbM, xNbE)
+  x = simX(bNb, bCr)
+  y = simY(bCr)
+  plt.plot(x, y, "-r", linewidth=1, zorder=0)
+
+plotEnrichment(matrixMinCr, matrixMinNb, enrichMinCr, enrichMaxNb)
+
+plotEnrichment(matrixMaxCr, matrixMinNb, enrichMaxCr, enrichMaxNb)
+
+# === Save Image ===
+
 plt.savefig("ternary-diagram.png", dpi=400, bbox_inches="tight")
 
 np.savez_compressed('tie-lines.npz', np.asarray(sAB), np.asarray(sAC), np.asarray(sBC),
@@ -462,3 +487,5 @@ np.savez_compressed('tie-lines.npz', np.asarray(sAB), np.asarray(sAC), np.asarra
 
 np.savez_compressed('metastable-lines.npz', np.asarray(mAB), np.asarray(mAC), np.asarray(mBC),
                                             np.asarray(mBA), np.asarray(mCA), np.asarray(mCB))
+
+plt.close()

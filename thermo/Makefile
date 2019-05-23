@@ -17,7 +17,7 @@ profile: $(OBJS)
 check-nucleation: check-nucleation.cpp ../src/globals.h nucleation.c $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $(OBJS) $< -o $@ -lm
 
-ternary-diagram.png: phase-diagram.py parabola625.c parabola625.so
+ternary-diagram.png: phase-diagram.py parabola625.c parabola625.so enrichment.so
 	python $<
 
 # === Generated Sources ===
@@ -30,17 +30,20 @@ parabola625.c: CALPHAD_energies.py constants.py
 
 # === Objects ===
 
-enrichment.o: enrichment.c
-	$(CXX) -c $< -o $@
+enrichment.o: enrichment.c enrichment.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+enrichment.so: enrichment.c enrichment.c
+	$(CXX) $(CXXFLAGS) -shared -fPIC $< -o $@
 
 nucleation.o: nucleation.c nucleation.h parabola625.c
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 parabola625.o: parabola625.c
-	$(CXX) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 parabola625.so: parabola625.c
-	$(CXX) -shared $< -o $@
+	$(CXX) $(CXXFLAGS) -shared -fPIC $< -o $@
 
 # === Extras ===
 

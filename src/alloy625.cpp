@@ -44,13 +44,15 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
-	double xCr0 = matrixCrDist(mtrand);
-	double xNb0 = matrixNbDist(mtrand);
+	double xCrM = matrixCrDist(mtrand);
+	double xNbM = matrixNbDist(mtrand);
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
 
     #ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
+	MPI::COMM_WORLD.Bcast(&xCrM, 1, MPI_DOUBLE, 0);
+	MPI::COMM_WORLD.Bcast(&xNbM, 1, MPI_DOUBLE, 0);
 	MPI::COMM_WORLD.Bcast(&xCrE, 1, MPI_DOUBLE, 0);
 	MPI::COMM_WORLD.Bcast(&xNbE, 1, MPI_DOUBLE, 0);
     #endif
@@ -66,24 +68,16 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 	}
 
 	// Initialize matrix (gamma phase): bell curve along x-axis for Cr and Nb composition
-	#ifndef CONVERGENCE
 	const int Nx = g1(grid, 0) - g0(grid, 0);
-	const double avgCr = bell_average(-Nx*meshres/2, Nx*meshres/2, bell[0]);
-	const double avgNb = bell_average(-Nx*meshres/2, Nx*meshres/2, bell[1]);
-	#else
-	const int Nx = 4000;
-	const double avgCr = bell_average(-0.25e-9 * Nx/2, 0.25e-9 * Nx/2, bell[0]);
-	const double avgNb = bell_average(-0.25e-9 * Nx/2, 0.25e-9 * Nx/2, bell[1]);
-	#endif
+	const double a = -Nx*meshres/2;
+	const double b =  Nx*meshres/2;
 
 	vector<int> x(2,0);
 	for (x[1]=y0(grid); x[1]<y1(grid); x[1]++) {
 		for (x[0]=x0(grid); x[0]<x1(grid); x[0]++) {
 			const double pos = dx(grid,0)*x[0];
-			const double matrixCr = xCr0 + (xCrE - xCr0) * (1. - avgCr)
-				                  * (bell_curve(bell[0], pos) - avgCr);
-			const double matrixNb = xNb0 + (xNbE - xNb0) * (1. - avgNb)
-				                  * (bell_curve(bell[1], pos) - avgNb);
+			const double matrixCr = bell_curve(a, b, bell[0], pos, xCrM, xCrE);
+			const double matrixNb = bell_curve(a, b, bell[1], pos, xNbM, xNbE);
 			grid(x)[0] = matrixCr;
 			grid(x)[1] = matrixNb;
 		}
