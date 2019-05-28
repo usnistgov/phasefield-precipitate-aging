@@ -6,7 +6,7 @@ OBJS = enrichment.o nucleation.o parabola625.o
 all: check-nucleation
 .PHONY: all
 
-debug: CXXFLAGS += -O0 -g
+debug: CXXFLAGS += -O0 -g -DDEBUG
 debug: check-nucleation $(OBJS)
 
 profile: CXXFLAGS += -O1 -pg
@@ -34,7 +34,7 @@ enrichment.o: enrichment.c enrichment.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 enrichment.so: enrichment.c enrichment.c
-	$(CXX) $(CXXFLAGS) -shared -fPIC $< -o $@
+	gcc $(CXXFLAGS) -shared -fPIC $< -o $@
 
 nucleation.o: nucleation.c nucleation.h parabola625.c
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
@@ -43,7 +43,7 @@ parabola625.o: parabola625.c
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 parabola625.so: parabola625.c
-	$(CXX) $(CXXFLAGS) -shared -fPIC $< -o $@
+	gcc $(CXXFLAGS) -shared -fPIC $< -o $@
 
 # === Extras ===
 
