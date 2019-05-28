@@ -25,7 +25,7 @@ xe_lav_Cr = 0.3750
 xe_lav_Nb = 0.2590
 
 # allowable matrix compositions from ASTM F3056
-matrixMinNb = 0.0202
+matrixMinNb = 0.0215
 matrixMaxNb = 0.0269
 matrixMinCr = 0.2794
 matrixMaxCr = 0.3288

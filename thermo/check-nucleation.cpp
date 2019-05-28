@@ -216,5 +216,35 @@ int main()
     }
     fclose(csv);
 
+    /*
+    // Sweep xNb
+    csv = fopen("composition.csv", "w");
+    fprintf(csv, "xCr,xNb,dGdel,Pdel,dGlav,Plav\n");
+    for (double xNb = ds; xNb < 1. - ds; xNb += ds) {
+        double xCr = 0.01;
+        fprintf(csv, "%.3f,%.3f,", xCr, xNb);
+        nucleation_driving_force_delta(xCr, xNb, &adGdelE);
+        fprintf(csv, "%12.4e,", adGdelE);
+        nucleation_probability_sphere(xCr, xNb,
+                                      xe_del_Cr(), xe_del_Nb(),
+                                      adGdelE, D_Cr[0], D_Nb[1],
+                                      s_delta(),
+                                      vFccNi, n_gam, dV, dt,
+                                      &aRdelE, &aPdelE);
+        fprintf(csv, "%12.4e,", aPdelE);
+
+        nucleation_driving_force_laves(xCr, xNb, &adGlavE);
+        fprintf(csv, "%12.4e,", adGlavE);
+        nucleation_probability_sphere(xCr, xNb,
+                                      xe_lav_Cr(), xe_lav_Nb(),
+                                      adGlavE, D_Cr[0], D_Nb[1],
+                                      s_laves(),
+                                      vFccNi, n_gam, dV, dt,
+                                      &aRlavE, &aPlavE);
+        fprintf(csv, "%12.4e\n", aPlavE);
+    }
+    fclose(csv);
+    */
+
     return 0;
 }

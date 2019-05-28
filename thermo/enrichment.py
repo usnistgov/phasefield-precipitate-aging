@@ -41,4 +41,19 @@ if True:
     plt.plot((pos[0], pos[-1]), (cE, cE))
     plt.savefig("enrichment.png", dpi=400, bbox_inches="tight")
     plt.close()
+
+xmat = 0.0215
+xenr = 0.1659
+
+print("Average composition for Nb would be {0}".format(N(bell_a.subs(A, coeff).subs([(sigma, 50e-9),
+                                                                                     (a, -0.5e-6),
+                                                                                     (b, 0.5e-6),
+                                                                                     (x0, xmat),
+                                                                                     (xe, xenr)]))))
+print("Minimum composition for Nb would be {0}".format(N(bell_f.subs(A, coeff).subs([(sigma, 50e-9),
+                                                                                     (a, -0.5e-6),
+                                                                                     (b, 0.5e-6),
+                                                                                     (x0, xmat),
+                                                                                     (xe, xenr),
+                                                                                     (x, -0.5e-6)]))))
 """

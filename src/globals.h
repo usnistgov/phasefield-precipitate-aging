@@ -11,7 +11,7 @@
 const double meshres = 0.125e-9; // grid spacing (m)
 const fp_t alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 const fp_t LinStab = 1. / 7.28438; // threshold of linear (von Neumann) stability
-const fp_t anticap = 8.; // upscale critical precipitate radii to stabilize against Gibbs-Thomson
+const fp_t anticap = 1.; // upscale critical precipitate radii to stabilize against Gibbs-Thomson
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb

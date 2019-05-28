@@ -62,6 +62,6 @@ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
     printf("         k2, kT:        %9.2e  %9.2e\n", k2, kT());
     printf("         dc_(Cr,Nb):    %9.2e  %9.2e\n", dc_Cr, dc_Nb);
     printf("         J(Cr,Nb):      %9.2e  %9.2e\n", JCr, JNb);
-    printf("         Pnuc, P:       %9.2e  %9.2e\n", *P_nuc, P);
+    printf("         Pnuc, P:       %9.2e  %9.2e\n", *P_nuc, P0);
     #endif
 }

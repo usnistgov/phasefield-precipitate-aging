@@ -123,7 +123,7 @@ double matrix_max_Cr() {
 double matrix_min_Nb() {
 
    double matrix_min_Nb_result;
-   matrix_min_Nb_result = 0.020199999999999999;
+   matrix_min_Nb_result = 0.021499999999999998;
    return matrix_min_Nb_result;
 
 }
