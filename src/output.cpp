@@ -193,10 +193,12 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     plt::plot(d, cbar);
     #ifndef CONVERGENCE
     plt::xlim(0., 1.);
+    #else
+    plt::xlim(0., 0.125);
     #endif
     plt::ylim(0.4, 0.8);
     plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
-    plt::ylabel("$\\chi_{\\mathrm{Ni}}$");
+    plt::ylabel("$\\bar{\\chi}_{\\mathrm{Ni}}$");
 
     plt::save(filename);
     plt::close();

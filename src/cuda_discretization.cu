@@ -456,8 +456,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	const int y = blockDim.y * blockIdx.y + thr_y;
 
     const fp_t dV = dx * dy * dz;
-    const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
-    const fp_t n_gam = M_PI / (3. * sqrt(2.) * Vatom); // assuming FCC
+    const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // m³/atom, assuming FCC
+    const fp_t n_gam = dV / Vatom; // atoms, assuming FCC
     const fp_t w = ifce_width / dx;
 
     fp_t phi_pre = 0.;
@@ -468,7 +468,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     fp_t rand_pre;
 
     if (x < nx && y < ny) {
-        const fp_t rad = anticap * 1.75e-9 / dx;
+        const fp_t rad = 1.75e-9 / dx;
         const int R = 1.25 * ceil(rad + w);
 
         for (int i = -R; i < R; i++) {
@@ -502,7 +502,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                         dV, dt,
                                         &r_pre_star, &P_nuc_pre);
         if (r_pre_star > 0.) {
-            r_pre = anticap * r_pre_star / dx;
+            r_pre = r_pre_star / dx;
             R_pre = 1.25 * ceil(r_pre + w);
             rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
@@ -531,7 +531,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                         dV, dt,
                                         &r_pre_star, &P_nuc_pre);
         if (r_pre_star > 0.) {
-            r_pre = anticap * r_pre_star / dx;
+            r_pre = r_pre_star / dx;
             R_pre = 1.25 * ceil(r_pre + w);
             rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
@@ -608,7 +608,8 @@ void device_compute_Ni(cudaStream_t& stream,
                     cudaMemcpyDeviceToHost, stream);
 }
 
-void read_out_result(struct CudaData* dev, struct HostData* host, const int nx, const int ny)
+void read_out_result(struct CudaData* dev, struct HostData* host,
+                     const int nx, const int ny)
 {
 	cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_old, nx * ny * sizeof(fp_t),
 	           cudaMemcpyDeviceToHost);
