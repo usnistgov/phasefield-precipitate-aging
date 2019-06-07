@@ -10,7 +10,6 @@ __device__ void d_nucleation_driving_force_delta(const fp_t& xCr, const fp_t& xN
 __device__ void d_nucleation_driving_force_laves(const fp_t& xCr, const fp_t& xNb, fp_t* dG);
 
 __device__ void d_nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
-                                   const fp_t par_xCr, const fp_t par_xNb,
                                    const fp_t& dG_chem,
                                    const fp_t& D_CrCr, const fp_t& D_NbNb,
                                    const fp_t& sigma,

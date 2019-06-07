@@ -11,20 +11,17 @@
 
 __device__ void d_nucleation_driving_force_delta(const fp_t& xCr, const fp_t& xNb, fp_t* dG)
 {
-    *dG = d_g_gam(xCr, xNb)
-        - d_dg_gam_dxCr(xCr, xNb) * (xCr -  d_xe_del_Cr())
-        - d_dg_gam_dxNb(xCr, xNb) * (xNb -  d_xe_del_Nb());
+    // TKR5p271
+    *dG = d_g_gam(xCr, xNb);
 }
 
 __device__ void d_nucleation_driving_force_laves(const fp_t& xCr, const fp_t& xNb, fp_t* dG)
 {
-    *dG = d_g_gam(xCr, xNb)
-        - d_dg_gam_dxCr(xCr, xNb) * (xCr -  d_xe_lav_Cr())
-        - d_dg_gam_dxNb(xCr, xNb) * (xNb -  d_xe_lav_Nb());
+    // TKR5p271
+    *dG = d_g_gam(xCr, xNb);
 }
 
 __device__ void d_nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
-                                   const fp_t par_xCr, const fp_t par_xNb,
                                    const fp_t& dG_chem,
                                    const fp_t& D_CrCr, const fp_t& D_NbNb,
                                    const fp_t& sigma,
@@ -62,6 +59,6 @@ __device__ void d_nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb
     printf("         k2,  d_kT:        %9.2e  %9.2e\n", k2,  d_kT());
     printf("         dc_(Cr,Nb):    %9.2e  %9.2e\n", dc_Cr, dc_Nb);
     printf("         J(Cr,Nb):      %9.2e  %9.2e\n", JCr, JNb);
-    printf("         Pnuc, P:       %9.2e  %9.2e\n", *P_nuc, P);
+    printf("         Pnuc, P:       %9.2e  %9.2e\n", *P_nuc, P0);
     #endif
 }

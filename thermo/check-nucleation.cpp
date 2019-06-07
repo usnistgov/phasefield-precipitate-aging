@@ -55,14 +55,12 @@ Properties describe(const std::vector<fp_t> & xCr, const std::vector<fp_t> & xNb
     for (size_t i=0; i<xCr.size(); i++) {
         nucleation_driving_force_delta(xCr[i], xNb[i], &(dGdel[i]));
         nucleation_probability_sphere(xCr[i], xNb[i],
-                                      xe_del_Cr(), xe_del_Nb(),
                                       dGdel[i], D_Cr[0], D_Nb[1],
                                       s_delta(),
                                       vFccNi, n_gam, dV, dt,
                                       &(Rdel[i]), &(Pdel[i]));
         nucleation_driving_force_laves(xCr[i], xNb[i], &(dGlav[i]));
         nucleation_probability_sphere(xCr[i], xNb[i],
-                                      xe_lav_Cr(), xe_lav_Nb(),
                                       dGlav[i], D_Cr[0], D_Nb[1],
                                       s_laves(),
                                       vFccNi, n_gam, dV, dt,
@@ -175,7 +173,6 @@ int main()
         fprintf(csv, "%.3f,", s);
         nucleation_driving_force_delta(Mean.xCr, Mean.xNb, &Mean.dGdel);
         nucleation_probability_sphere(Mean.xCr, Mean.xNb,
-                                      xe_del_Cr(), xe_del_Nb(),
                                       Mean.dGdel, D_Cr[0], D_Nb[1],
                                       s,
                                       vFccNi, n_gam, dV, dt,
@@ -184,7 +181,6 @@ int main()
 
         nucleation_driving_force_laves(Mean.xCr, Mean.xNb, &Mean.dGlav);
         nucleation_probability_sphere(Mean.xCr, Mean.xNb,
-                                      xe_lav_Cr(), xe_lav_Nb(),
                                       Mean.dGlav, D_Cr[0], D_Nb[1],
                                       s,
                                       vFccNi, n_gam, dV, dt,

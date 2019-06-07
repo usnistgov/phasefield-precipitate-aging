@@ -11,32 +11,17 @@
 
 void nucleation_driving_force_delta(const fp_t& xCr, const fp_t& xNb, fp_t* dG)
 {
-    // TKR5p269
-    const fp_t & yNb = xe_del_Nb();
-    const fp_t & yCr = xe_del_Cr();
-
-    *dG = - g_gam(xCr, xNb)
-          - dg_gam_dxNb(xCr, xNb) * (yNb - xNb)
-          - dg_gam_dxCr(xCr, xNb) * (yCr - xCr)
-          - dg_del_dxNb(yCr, yNb) * (yNb - yCr)
-          - dg_del_dxCr(yCr, yNb) * (yCr - yNb);
+    // TKR5p271
+    *dG = g_gam(xCr, xNb);
 }
 
 void nucleation_driving_force_laves(const fp_t& xCr, const fp_t& xNb, fp_t* dG)
 {
-    // TKR5p269
-    const fp_t & yNb = xe_lav_Nb();
-    const fp_t & yCr = xe_lav_Cr();
-
-    *dG = - g_gam(xCr, xNb)
-          - dg_gam_dxNb(xCr, xNb) * (yNb - xNb)
-          - dg_gam_dxCr(xCr, xNb) * (yCr - xCr)
-          - dg_lav_dxNb(yCr, yNb) * (yNb - yCr)
-          - dg_lav_dxCr(yCr, yNb) * (yCr - yNb);
+    // TKR5p271
+    *dG = g_gam(xCr, xNb);
 }
 
 void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
-                                   const fp_t par_xCr, const fp_t par_xNb,
                                    const fp_t& dG_chem,
                                    const fp_t& D_CrCr, const fp_t& D_NbNb,
                                    const fp_t& sigma,
@@ -65,7 +50,7 @@ void nucleation_probability_sphere(const fp_t& xCr, const fp_t& xNb,
     const fp_t P0 = exp(-dt * dV * (JCr + JNb)); // zero-event probability
 
     *P_nuc = 1. - P0;
-    *Rstar = -(2. * sigma) / dG_chem;
+    *Rstar = (2. * sigma) / dG_chem;
 
     #ifdef DEBUG
     printf("         Zeldov, G*:    %9.2e  %9.2e\n", Zeldov, Gstar);
