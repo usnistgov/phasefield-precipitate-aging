@@ -439,13 +439,51 @@ void device_init_prng(cudaStream_t& stream,
 	    dev->prng, nx, ny);
 }
 
+__device__ void embed_OPC_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                                 fp_t* d_phi_del, fp_t* d_phi_lav,
+                                 const int nx, const int ny,
+                                 const int x, const int y, const int idx,
+                                 const fp_t& xCr,
+                                 const fp_t& xNb,
+                                 const fp_t& par_xe_Cr,
+                                 const fp_t& par_xe_Nb,
+                                 const int& R_pre,
+                                 const fp_t& r_pre,
+                                 const fp_t& r_pre_star,
+                                 const fp_t& w)
+{    
+    const fp_t R_depletion_Cr = fp_t(R_pre) * sqrt((par_xe_Cr - xCr) / (xCr - d_xe_gam_Cr()));
+    const fp_t R_depletion_Nb = fp_t(R_pre) * sqrt((par_xe_Nb - xNb) / (xNb - d_xe_gam_Nb()));
+
+    for (int i = -R_pre; i < R_pre; i++) {
+        for (int j = -R_pre; j < R_pre; j++) {
+            const int idn = nx * (y + j) + (x + i);
+            const fp_t r = sqrt(fp_t(i*i + j*j));
+            const fp_t z = r - (r_pre + w);
+            if (idn >= 0 && idn < nx * ny) {
+                d_phi_del[idn] = d_interface_profile(4 * z / w);
+                if (r <= R_pre) {
+                    d_conc_Cr[idx] = par_xe_Cr;
+                    d_conc_Nb[idx] = par_xe_Nb;
+                } else {
+                    if (r <= R_depletion_Cr)
+                        d_conc_Cr[idx] = d_xe_gam_Cr();
+                    if (r <= R_depletion_Nb)
+                        d_conc_Nb[idx] = d_xe_gam_Nb();
+                }
+            }
+        }
+    }
+}
+
 __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   fp_t* d_phi_del, fp_t* d_phi_lav,
                                   curandState* d_prng,
                                   const int nx, const int ny, const int nm,
                                   const fp_t D_CrCr, const fp_t D_NbNb,
                                   const fp_t sigma_del, const fp_t sigma_lav,
-                                  const fp_t lattice_const, const fp_t ifce_width,
+                                  const fp_t lattice_const,
+                                  const fp_t ifce_width,
                                   const fp_t dx, const fp_t dy, const fp_t dz,
                                   const fp_t dt)
 {
@@ -461,12 +499,13 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
     const fp_t w = ifce_width / dx;
 
     fp_t phi_pre = 0.;
-    fp_t dG_chem = 0., pre_xCr = 0., pre_xNb = 0.;
+    fp_t dG_chem = 0.;
     int R_pre;
     fp_t r_pre, r_pre_star;
     fp_t P_nuc_pre;
     fp_t rand_pre;
 
+    // Scan neighborhood for existing precipitates
     if (x < nx && y < ny) {
         const fp_t rad = 1.75e-9 / dx;
         const int R = 1.25 * ceil(rad + w);
@@ -493,59 +532,54 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
         // Test a delta particle
         d_nucleation_driving_force_delta(xCr, xNb, &dG_chem);
         d_nucleation_probability_sphere(xCr, xNb,
-                                        pre_xCr, pre_xNb,
                                         dG_chem,
                                         D_CrCr, D_NbNb,
                                         sigma_del,
                                         Vatom,
                                         n_gam,
                                         dV, dt,
-                                        &r_pre_star, &P_nuc_pre);
+                                        &r_pre_star,
+                                        &P_nuc_pre);
         if (r_pre_star > 0.) {
             r_pre = r_pre_star / dx;
             R_pre = 1.25 * ceil(r_pre + w);
             rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-            if (rand_pre > 0) {
-                for (int i = -R_pre; i < R_pre; i++) {
-                    for (int j = -R_pre; j < R_pre; j++) {
-                        const int idn = nx * (y + j) + (x + i);
-                        const fp_t r = sqrt(fp_t(i*i + j*j));
-                        const fp_t z = r - (r_pre + w);
-                        if (idn >= 0 && idn < nx * ny)
-                            d_phi_del[idn] = d_interface_profile(4 * z / w);
-                    }
-                }
-            }
+            if (rand_pre > 0)
+                embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
+                                 d_phi_del, d_phi_lav,
+                                 nx, ny,
+                                 x, y, idx,
+                                 xCr, xNb,
+                                 d_xe_del_Cr(), d_xe_del_Nb(),
+                                 R_pre, r_pre, r_pre_star, w);
         }
 
         // Test a Laves particle
         d_nucleation_driving_force_laves(xCr, xNb, &dG_chem);
         d_nucleation_probability_sphere(xCr, xNb,
-                                        pre_xCr, pre_xNb,
                                         dG_chem,
                                         D_CrCr, D_NbNb,
                                         sigma_lav,
                                         Vatom,
                                         n_gam,
                                         dV, dt,
-                                        &r_pre_star, &P_nuc_pre);
+                                        &r_pre_star,
+                                        &P_nuc_pre);
         if (r_pre_star > 0.) {
             r_pre = r_pre_star / dx;
             R_pre = 1.25 * ceil(r_pre + w);
             rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-            if (rand_pre > 0) {
-                for (int i = -R_pre; i < R_pre; i++) {
-                    for (int j = -R_pre; j < R_pre; j++) {
-                        const int idn = nx * (y + j) + (x + i);
-                        const fp_t r = sqrt(fp_t(i*i + j*j));
-                        const fp_t z = r - (r_pre + w);
-                        if (idn >= 0 && idn < nx * ny)
-                            d_phi_lav[idn] = d_interface_profile(4 * z / w);
-                    }
-                }
-            }
+            if (rand_pre > 0)
+                embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
+                                 d_phi_lav, d_phi_lav,
+                                 nx, ny,
+                                 x, y, idx,
+                                 xCr, xNb,
+                                 d_xe_lav_Cr(), d_xe_lav_Nb(),
+                                 R_pre, r_pre, r_pre_star,
+                                 w);
         }
     }
 }

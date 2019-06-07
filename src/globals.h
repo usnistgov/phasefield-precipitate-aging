@@ -11,7 +11,14 @@
 const double meshres = 0.125e-9; // grid spacing (m)
 const fp_t alpha = 1.07e11;     // three-phase coexistence coefficient (J/m^3)
 const fp_t LinStab = 1. / 7.28438; // threshold of linear (von Neumann) stability
-const fp_t anticap = 1.; // upscale critical precipitate radii to stabilize against Gibbs-Thomson
+/* CFL Values
+| dx[/nm] | dt[/s]  | CFL       | Note     |
+| ------- | ------- | --------- | -------- |
+| 0.125   | 1.00e-7 | 9.105475  |          |
+| 0.125   | 1.25e-7 | 7.28438   |          |
+| 0.125   | 1.50e-7 | 6.0703167 | unstable |
+| 0.250   | 5.00e-7 | 7.28438   |          |
+*/
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb
@@ -32,6 +39,6 @@ const fp_t sigma[NP] = {s_delta(), s_laves()}; // interfacial energy (J/m^2)
 // Compute interfacial width (nm) and well height (J/m^3)
 const fp_t ifce_width = 10. * meshres;
 const fp_t width_factor = 2.2; // since interface is [0.1,0.9]; 2.94 if [0.05,0.95]
-const fp_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,  // delta
-                        3.0 * width_factor* sigma[1] / ifce_width}; // Laves
+const fp_t omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width,  // delta
+                        3.0 * width_factor * sigma[1] / ifce_width}; // Laves
 #endif

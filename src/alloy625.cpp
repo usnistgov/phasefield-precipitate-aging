@@ -35,18 +35,20 @@ namespace MMSP
 
 void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 {
+    #ifndef CONVERGENCE
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
-	#ifndef CONVERGENCE
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
 	#else
-	double xCrE = 0.520;
-	double xNbE = 0.022;
+	/* Favor a high delta-phase fraction
+	 */
+	double xCrE = 0.4000;
+	double xNbE = 0.0375;
 	#endif
 
 	#ifdef MPI_VERSION
@@ -117,13 +119,50 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 	}
 }
 
-void embed_solitaire(GRID2D& grid, const fp_t w,
+void embed_OPC(GRID2D& grid,
+			   const MMSP::vector<int>& x,
+			   const fp_t& xCr,
+			   const fp_t& xNb,
+			   const fp_t& par_xe_Cr,
+			   const fp_t& par_xe_Nb,
+			   const int& R_pre,
+			   const fp_t& r_pre,
+			   const fp_t& r_pre_star,
+			   const fp_t& w,
+			   const int pid)
+{
+    const fp_t R_depletion_Cr = fp_t(R_pre) * sqrt((par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
+    const fp_t R_depletion_Nb = fp_t(R_pre) * sqrt((par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
+
+	for (int i = -R_pre; i < R_pre; i++) {
+		for (int j = -R_pre; j < R_pre; j++) {
+			vector<int> y(x);
+			y[0] += i;
+			y[1] += j;
+			MMSP::vector<fp_t>& GridY = grid(y);
+			const fp_t rad = sqrt(fp_t(i*i + j*j));
+			const fp_t z = rad - (r_pre + w);
+			GridY[pid] = interface_profile(4 * z / w);
+			if (rad <= R_pre) {
+				GridY[0] = par_xe_Cr;
+				GridY[1] = par_xe_Nb;
+			} else {
+				if (rad <= R_depletion_Cr)
+					GridY[0] = xe_gam_Cr();
+				if (rad <= R_depletion_Nb)
+					GridY[1] = xe_gam_Nb();
+			}
+		}
+	}
+}
+
+void seed_solitaire(GRID2D& grid, const fp_t w,
 					 const fp_t D_CrCr, const fp_t D_NbNb,
 					 const fp_t sigma_del, const fp_t sigma_lav,
 					 const fp_t lattice_const, const fp_t ifce_width,
 					 const fp_t dx, const fp_t dt, std::mt19937& mtrand)
 {
-	fp_t dG_chem = 0., pre_xCr = 0., pre_xNb = 0.;
+	fp_t dG_chem = 0.;
 	fp_t r_star = 0., P_nuc = 0.;
 	fp_t xCr = 0., xNb = 0.;
 	vector<int> x(2, 0);
@@ -147,7 +186,6 @@ void embed_solitaire(GRID2D& grid, const fp_t w,
 
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
-									  pre_xCr, pre_xNb,
 									  dG_chem,
 									  D_CrCr, D_NbNb,
 									  sigma_del,
@@ -156,18 +194,15 @@ void embed_solitaire(GRID2D& grid, const fp_t w,
 									  dV, dt,
 									  &r_star, &P_nuc);
 		if (r_star > 0.) {
-			const fp_t r = anticap * r_star / dx;
+			const fp_t r =  r_star / dx;
 			const int R = 1.25 * ceil(r + w);
-			for (int i = -R; i < R; i++) {
-				for (int j = -R; j < R; j++) {
-					vector<int> y(x);
-					y[0] += i;
-					y[1] += j;
-					const fp_t rad = sqrt(fp_t(i*i + j*j));
-					const fp_t z = rad - (r + w);
-					grid(y)[2] = interface_profile(4 * z / w);
-				}
-			}
+			embed_OPC(grid, x,
+					  xCr, xNb,
+					  xe_del_Cr(),
+					  xe_del_Nb(),
+					  R, r, r_star,
+					  w,
+					  NC);
 		}
 	} else {
 		// Embed a Laves particle
@@ -178,7 +213,6 @@ void embed_solitaire(GRID2D& grid, const fp_t w,
 
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
-									  pre_xCr, pre_xNb,
 									  dG_chem,
 									  D_CrCr, D_NbNb,
 									  sigma_lav,
@@ -187,18 +221,15 @@ void embed_solitaire(GRID2D& grid, const fp_t w,
 									  dV, dt,
 									  &r_star, &P_nuc);
 		if (r_star > 0.) {
-			const fp_t r = anticap * r_star / dx;
+			const fp_t r =  r_star / dx;
 			const int R = 1.25 * ceil(r + w);
-			for (int i = -R; i < R; i++) {
-				for (int j = -R; j < R; j++) {
-					vector<int> y(x);
-					y[0] += i;
-					y[1] += j;
-					const fp_t rad = sqrt(fp_t(i*i + j*j));
-					const fp_t z = rad - (r + w);
-					grid(y)[3] = interface_profile(4 * z / w);
-				}
-			}
+			embed_OPC(grid, x,
+					  xCr, xNb,
+					  xe_lav_Cr(),
+					  xe_lav_Nb(),
+					  R, r, r_star,
+					  w,
+					  NC+1);
 		}
 	}
 	#ifdef CONVERGENCE
@@ -217,23 +248,42 @@ void embed_solitaire(GRID2D& grid, const fp_t w,
 	#endif
 }
 
-void embed_planar_delta(GRID2D& grid, const fp_t w)
+void seed_planar_delta(GRID2D& grid,
+					   const fp_t w)
 {
-	for (int n=0; n<MMSP::nodes(grid); n++) {
+	const fp_t& xCr = grid(0)[0];
+	const fp_t& xNb = grid(0)[1];
+
+	const int r = 10;
+	const int R = 1.25 * ceil(r + w);
+
+	const fp_t R_depletion_Cr = fp_t(R) * sqrt((xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = fp_t(R) * sqrt((xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
+	const int R_depletion = ceil(2. * R_depletion_Cr * R_depletion_Nb / (R_depletion_Cr + R_depletion_Nb)); // harmonic mean
+
+	for (int n = 0; n < MMSP::nodes(grid); n++) {
 		MMSP::vector<int> x = MMSP::position(grid, n);
+		MMSP::vector<fp_t>& GridX = grid(x);
 		const fp_t rad = x[0] - MMSP::g0(grid, 0);
-		const fp_t z = rad - (10 + w);
-		grid(x)[2] = interface_profile(4 * z / w);
+		const fp_t z = rad - (r + w);
+		GridX[2] = interface_profile(4 * z / w);
+		if (rad <= R) {
+			GridX[0] = xe_del_Cr();
+			GridX[1] = xe_del_Nb();
+		} else if (rad <= R_depletion) {
+			GridX[0] = xe_gam_Cr();
+			GridX[1] = xe_gam_Nb();
+		}
 	}
 }
 
-void embed_pair(GRID2D& grid, const fp_t w,
-				const fp_t D_CrCr, const fp_t D_NbNb,
-				const fp_t sigma_del, const fp_t sigma_lav,
-				const fp_t lattice_const, const fp_t ifce_width,
-				const fp_t dx, const fp_t dt)
+void seed_pair(GRID2D& grid, const fp_t w,
+			   const fp_t D_CrCr, const fp_t D_NbNb,
+			   const fp_t sigma_del, const fp_t sigma_lav,
+			   const fp_t lattice_const, const fp_t ifce_width,
+			   const fp_t dx, const fp_t dt)
 {
-    fp_t dG_chem = 0., pre_xCr = 0., pre_xNb = 0.;
+    fp_t dG_chem = 0.;
     fp_t r_star = 0., P_nuc = 0.;
 	fp_t xCr = 0., xNb = 0.;
 	vector<int> x(2, 0);
@@ -250,7 +300,6 @@ void embed_pair(GRID2D& grid, const fp_t w,
 
 	nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 	nucleation_probability_sphere(xCr, xNb,
-								  pre_xCr, pre_xNb,
 								  dG_chem,
 								  D_CrCr, D_NbNb,
 								  sigma_del,
@@ -259,18 +308,14 @@ void embed_pair(GRID2D& grid, const fp_t w,
 								  dV, dt,
 								  &r_star, &P_nuc);
 	if (r_star > 0.) {
-		const fp_t r = anticap * r_star / dx;
+		const fp_t r = r_star / dx;
 		const int R = 1.25 * ceil(r + w);
-		for (int i = -R; i < R; i++) {
-			for (int j = -R; j < R; j++) {
-				vector<int> y(x);
-				y[0] += i;
-				y[1] += j;
-				const fp_t rad = sqrt(fp_t(i*i + j*j));
-				const fp_t z = rad - (r + w);
-				grid(y)[2] = interface_profile(4 * z / w);
-			}
-		}
+		embed_OPC(grid, x,
+				  xCr, xNb,
+				  xe_del_Cr(),
+				  xe_del_Nb(),
+				  R, r, r_star,
+				  w, NC);
 	}
 
 	// Embed a Laves particle
@@ -281,7 +326,6 @@ void embed_pair(GRID2D& grid, const fp_t w,
 
 	nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 	nucleation_probability_sphere(xCr, xNb,
-								  pre_xCr, pre_xNb,
 								  dG_chem,
 								  D_CrCr, D_NbNb,
 								  sigma_lav,
@@ -290,18 +334,14 @@ void embed_pair(GRID2D& grid, const fp_t w,
 								  dV, dt,
 								  &r_star, &P_nuc);
 	if (r_star > 0.) {
-		const fp_t r = anticap * r_star / dx;
+		const fp_t r = r_star / dx;
 		const int R = 1.25 * ceil(r + w);
-		for (int i = -R; i < R; i++) {
-			for (int j = -R; j < R; j++) {
-				vector<int> y(x);
-				y[0] += i;
-				y[1] += j;
-				const fp_t rad = sqrt(fp_t(i*i + j*j));
-				const fp_t z = rad - (r + w);
-				grid(y)[3] = interface_profile(4 * z / w);
-			}
-		}
+		embed_OPC(grid, x,
+				  xCr, xNb,
+				  xe_lav_Cr(),
+				  xe_lav_Nb(),
+				  R, r, r_star,
+				  w, NC+1);
 	}
 }
 
@@ -334,7 +374,7 @@ void generate(int dim, const char* filename)
 		const int Ny = 2500;
 		#else
 		const int Nx = 1000;
-		const int Ny = 1000;
+		const int Ny = 200;
 		#endif
 		double Ntot = 1.0;
 		GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
@@ -363,9 +403,12 @@ void generate(int dim, const char* filename)
 		// Embed two particles as a sanity check
 		#ifdef CONVERGENCE
 		const fp_t w = ifce_width / meshres;
-		embed_solitaire(initGrid, w, D_Cr[0], D_Nb[1],
-						s_delta(), s_laves(),
-						lattice_const, ifce_width, meshres, dt, mtrand);
+		seed_planar_delta(initGrid, w);
+		/*
+		seed_solitaire(initGrid, w, D_Cr[0], D_Nb[1],
+			           s_delta(), s_laves(),
+					   lattice_const, ifce_width, meshres, dt, mtrand);
+		*/
 		#endif
 
 		// Update fictitious compositions

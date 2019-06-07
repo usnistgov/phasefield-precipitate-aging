@@ -282,9 +282,22 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			int nuc_counter = iterations_start;
 			const int img_interval = 1000;
+			const int nrg_interval = 10000;
+			#ifndef CONVERGENCE
 			const int nuc_interval = 20;
+			#endif
+
+			// setup logging
+			FILE* cfile = NULL;
+			FILE* mfile = NULL;
+			const bool inRangeX = (0 >= x0(grid) && 0 < x1(grid));
+			const bool inRangeY = (0 >= y0(grid) && 0 < y1(grid));
+
+			if (rank == 0)
+				cfile = fopen("c.log", "a"); // existing log will be appended
+			if (inRangeX && inRangeY)
+				mfile = fopen("mid.log", "a"); // existing log will be appended
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
@@ -292,8 +305,6 @@ int main(int argc, char* argv[])
 				for (int j = i; j < i + increment; j++) {
 					print_progress(j - i, increment);
 					// === Start Architecture-Specific Kernel ===
-					bool img_step = ((j+1) % img_interval == 0 && (j+1) != steps);
-
 					device_boundaries(st, &dev, nx, ny, nm, bx, by);
 
 					device_laplacian(st, &dev, nx, ny, nm, bx, by);
@@ -305,17 +316,17 @@ int main(int argc, char* argv[])
 					                 alpha, kappa[0], omega[0],
 					                 Lmob[0], Lmob[1], dt);
 
-					if (nuc_counter % nuc_interval == 0) {
-						#ifndef CONVERGENCE
+                    #ifndef CONVERGENCE
+					const bool nuc_step = (j % nuc_interval == 0);
+					if (nuc_step) {
 						device_nucleation(st, &dev, nx, ny, nm, bx, by,
 						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
 						                  lattice_const, ifce_width,
 						                  meshres, meshres, meshres,
 										  nuc_interval * dt);
-						#endif
 					}
-					nuc_counter++;
+                    #endif
 
 					device_fictitious(st, &dev, nx, ny, nm, bx, by);
 
@@ -324,6 +335,7 @@ int main(int argc, char* argv[])
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
 
+					const bool img_step = ((j+1) % img_interval == 0 || (j+1) == steps);
 					if (img_step) {
 						device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
 
@@ -343,13 +355,61 @@ int main(int argc, char* argv[])
                         #endif
 						cudaStreamSynchronize(stNi);
 						write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), j+1, dt, imgname.str().c_str());
+                        #ifdef CONVERGENCE
+						// Log compositions, phase fractions
+						fp_t xCrMid, xNbMid;
+						const size_t midpoint = nx * ny / 2;
+						cudaMemcpy(&xCrMid, &(dev.conc_Cr_old[midpoint]), sizeof(fp_t),
+								   cudaMemcpyDeviceToHost);
+						cudaMemcpy(&xNbMid, &(dev.conc_Nb_old[midpoint]), sizeof(fp_t),
+								   cudaMemcpyDeviceToHost);
+						if (inRangeX && inRangeY)
+							fprintf(mfile, "%9g\t%9g\n", xCrMid, xNbMid);
+                        #endif
+					}
+
+					const bool nrg_step = ((j+1) % nrg_interval == 0 || (j+1) == steps);
+					if (nrg_step) {
+						read_out_result(&dev, &host, nx, ny);
+
+						std::stringstream outstr;
+						int n = outstr.str().length();
+						for (int j = 0; n < length; j++) {
+							outstr.str("");
+							outstr << base;
+							for (int k = 0; k < j; k++) outstr << 0;
+							outstr << i + increment << suffix;
+							n = outstr.str().length();
+						}
+
+						for (int n = 0; n < MMSP::nodes(grid); n++) {
+							MMSP::vector<fp_t>& gridN = grid(n);
+							MMSP::vector<int> x = MMSP::position(grid, n);
+							const int i = x[0] - MMSP::g0(grid, 0) + nm / 2;
+							const int j = x[1] - MMSP::g0(grid, 1) + nm / 2;
+							gridN[0] = host.conc_Cr_new[j][i];
+							gridN[1] = host.conc_Nb_new[j][i];
+							gridN[2] = host.phi_del_new[j][i];
+							gridN[3] = host.phi_lav_new[j][i];
+							gridN[4] = host.gam_Cr[j][i];
+							gridN[5] = host.gam_Nb[j][i];
+						}
+
+						// Log compositions, phase fractions
+
+						ghostswap(grid);
+
+						MMSP::vector<double> summary = summarize_fields(grid);
+						double energy = summarize_energy(grid);
+
+						if (rank == 0) {
+							fprintf(cfile, "%9g %9g %9g %12g %12g %12g %12g\n",
+									dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+						}
 					}
 					// === Finish Architecture-Specific Kernel ===
 				}
 
-				read_out_result(&dev, &host, nx, ny);
-
-				// generate output filename
 				std::stringstream outstr;
 				int n = outstr.str().length();
 				for (int j = 0; n < length; j++) {
@@ -364,58 +424,17 @@ int main(int argc, char* argv[])
 				for (unsigned int j=0; j<outstr.str().length(); j++)
 					filename[j]=outstr.str()[j];
 
-				for (int n = 0; n < MMSP::nodes(grid); n++) {
-					MMSP::vector<fp_t>& gridN = grid(n);
-					MMSP::vector<int> x = MMSP::position(grid, n);
-					const int i = x[0] - MMSP::g0(grid, 0) + nm / 2;
-					const int j = x[1] - MMSP::g0(grid, 1) + nm / 2;
-					gridN[0] = host.conc_Cr_new[j][i];
-					gridN[1] = host.conc_Nb_new[j][i];
-					gridN[2] = host.phi_del_new[j][i];
-					gridN[3] = host.phi_lav_new[j][i];
-					gridN[4] = host.gam_Cr[j][i];
-					gridN[5] = host.gam_Nb[j][i];
-				}
-
-				// Log compositions, phase fractions
-
-				MMSP::vector<double> summary = summarize_fields(grid);
-				double energy = summarize_energy(grid);
-
-				if (rank == 0) {
-					FILE* cfile = fopen("c.log", "a"); // existing log will be appended
-					fprintf(cfile, "%9g %9g %9g %12g %12g %12g %12g\n",
-							dt * (i+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
-					fclose(cfile);
-				}
-
 				MMSP::output(grid, filename);
-
-				// write last step to image
-				device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
-
-				std::stringstream imgname;
-				n = imgname.str().length();
-				for (int l = 0; n < length; l++) {
-					imgname.str("");
-					imgname << base;
-					for (int k = 0; k < l; k++) imgname << 0;
-					imgname << i + increment << ".png";
-					n = imgname.str().length();
-				}
-
-                #ifdef MPI_VERSION
-				std::cerr << "Error: cannot write image in parallel." <<std::endl;
-				MMSP::Abort(-1);
-				#endif
-				cudaStreamSynchronize(stNi);
-				write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), steps, dt, imgname.str().c_str());
 
 				print_progress(increment, increment);
 				/* finish update() */
 			}
 			free_cuda(&dev);
 			free_arrays(&host);
+			if (rank == 0)
+				fclose(cfile);
+			if (inRangeX && inRangeY)
+				fclose(mfile);
 		} else {
 			std::cerr << dim << "-dimensional grids are unsupported in the CUDA version." << std::endl;
 			MMSP::Abort(-1);

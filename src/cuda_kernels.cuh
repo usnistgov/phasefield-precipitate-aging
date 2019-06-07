@@ -92,6 +92,22 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 __global__ void init_prng_kernel(curandState* prng, const int nx, const int ny);
 
 /**
+ \brief Device kernel to initialize supercritical nucleus
+*/
+__device__ void embed_OPC_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                                 fp_t* d_phi_del, fp_t* d_phi_lav,
+                                 const int nx, const int ny,
+                                 const int x, const int y, const int idx,
+                                 const fp_t& xCr,
+                                 const fp_t& xNb,
+                                 const fp_t& par_xe_Cr,
+                                 const fp_t& par_xe_Nb,
+                                 const int& R_pre,
+                                 const fp_t& r_pre,
+                                 const fp_t& r_pre_star,
+                                 const fp_t& w);
+
+/**
  \brief Device kernel to compute driving force for nucleation and stochastically seed nuclei
 */
 __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
