@@ -1,4 +1,4 @@
-/*
+/**
  \file cuda625.cpp
  \brief Algorithms for 2D and 3D isotropic Cr-Nb-Ni alloy phase transformations
  This implementation depends on the GNU Scientific Library for multivariate root
@@ -104,13 +104,13 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 
 	// Initialize matrix (gamma phase): bell curve along x-axis for Cr and Nb composition
 	const int Nx = g1(grid, 0) - g0(grid, 0);
-	const double a = -Nx*meshres/2;
-	const double b =  Nx*meshres/2;
+	const double a = -Nx * meshres / 2;
+	const double b =  Nx * meshres / 2;
 
-	vector<int> x(2,0);
-	for (x[1]=y0(grid); x[1]<y1(grid); x[1]++) {
-		for (x[0]=x0(grid); x[0]<x1(grid); x[0]++) {
-			const double pos = dx(grid,0)*x[0];
+	vector<int> x(2, 0);
+	for (x[1] = y0(grid); x[1] < y1(grid); x[1]++) {
+		for (x[0] = x0(grid); x[0] < x1(grid); x[0]++) {
+			const double pos = dx(grid, 0) * x[0];
 			const double matrixCr = bell_curve(a, b, bell[0], pos, xCrM, xCrE);
 			const double matrixNb = bell_curve(a, b, bell[1], pos, xNbM, xNbE);
 			grid(x)[0] = matrixCr;
@@ -125,45 +125,41 @@ void embed_OPC(GRID2D& grid,
                const fp_t& xNb,
                const fp_t& par_xe_Cr,
                const fp_t& par_xe_Nb,
-               const int& R_pre,
-               const fp_t& r_pre,
-               const fp_t& r_pre_star,
-               const fp_t& w,
+               const fp_t& R_precip,
                const int pid)
 {
-	const fp_t R_depletion_Cr = fp_t(R_pre) * sqrt((par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
-	const fp_t R_depletion_Nb = fp_t(R_pre) * sqrt((par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t R_depletion_Cr = fp_t(R_precip) * sqrt((par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = fp_t(R_precip) * sqrt((par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
 
-	for (int i = -R_pre; i < R_pre; i++) {
-		for (int j = -R_pre; j < R_pre; j++) {
+	for (int i = -R_precip; i < R_precip; i++) {
+		for (int j = -R_precip; j < R_precip; j++) {
 			vector<int> y(x);
 			y[0] += i;
 			y[1] += j;
 			MMSP::vector<fp_t>& GridY = grid(y);
-			const fp_t rad = sqrt(fp_t(i*i + j*j));
-			const fp_t z = rad - (r_pre + w);
-			GridY[pid] = interface_profile(4 * z / w);
-			if (rad <= R_pre) {
+			const fp_t r = sqrt(fp_t(i * i + j * j));
+			if (r <= R_precip) {
 				GridY[0] = par_xe_Cr;
 				GridY[1] = par_xe_Nb;
+				GridY[pid] = 1.;
 			} else {
-				if (rad <= R_depletion_Cr)
+				if (r <= R_depletion_Cr)
 					GridY[0] = xe_gam_Cr();
-				if (rad <= R_depletion_Nb)
+				if (r <= R_depletion_Nb)
 					GridY[1] = xe_gam_Nb();
 			}
 		}
 	}
 }
 
-void seed_solitaire(GRID2D& grid, const fp_t w,
+void seed_solitaire(GRID2D& grid,
                     const fp_t D_CrCr, const fp_t D_NbNb,
                     const fp_t sigma_del, const fp_t sigma_lav,
                     const fp_t lattice_const, const fp_t ifce_width,
                     const fp_t dx, const fp_t dt, std::mt19937& mtrand)
 {
 	fp_t dG_chem = 0.;
-	fp_t r_star = 0., P_nuc = 0.;
+	fp_t R_star = 0., P_nuc = 0.;
 	fp_t xCr = 0., xNb = 0.;
 	vector<int> x(2, 0);
 
@@ -192,16 +188,15 @@ void seed_solitaire(GRID2D& grid, const fp_t w,
 		                              Vatom,
 		                              n_gam,
 		                              dV, dt,
-		                              &r_star, &P_nuc);
-		if (r_star > 0.) {
-			const fp_t r =  r_star / dx;
-			const int R = 1.25 * ceil(r + w);
+		                              &R_star,
+		                              &P_nuc);
+		if (R_star > 0.) {
+			const fp_t R_precip =  R_star / dx;
 			embed_OPC(grid, x,
 			          xCr, xNb,
 			          xe_del_Cr(),
 			          xe_del_Nb(),
-			          R, r, r_star,
-			          w,
+			          R_precip,
 			          NC);
 		}
 	} else {
@@ -219,17 +214,16 @@ void seed_solitaire(GRID2D& grid, const fp_t w,
 		                              Vatom,
 		                              n_gam,
 		                              dV, dt,
-		                              &r_star, &P_nuc);
-		if (r_star > 0.) {
-			const fp_t r =  r_star / dx;
-			const int R = 1.25 * ceil(r + w);
+		                              &R_star,
+		                              &P_nuc);
+		if (R_star > 0.) {
+			const fp_t R_precip =  R_star / dx;
 			embed_OPC(grid, x,
 			          xCr, xNb,
 			          xe_lav_Cr(),
 			          xe_lav_Nb(),
-			          R, r, r_star,
-			          w,
-			          NC+1);
+			          R_precip,
+			          NC + 1);
 		}
 	}
 	#ifdef CONVERGENCE
@@ -248,20 +242,20 @@ void seed_solitaire(GRID2D& grid, const fp_t w,
 	#endif
 }
 
-void seed_planar_delta(GRID2D& grid, const int w)
+void seed_planar_delta(GRID2D& grid, const int w_precip)
 {
 	const int mid = MMSP::nodes(grid) / 2;
 	const fp_t& xCr = grid(mid)[0];
 	const fp_t& xNb = grid(mid)[1];
 
-	const int R_depletion_Cr = w * sqrt((xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
-	const int R_depletion_Nb = w * sqrt((xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
+	const int R_depletion_Cr = w_precip * sqrt((xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
+	const int R_depletion_Nb = w_precip * sqrt((xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	for (int n = 0; n < MMSP::nodes(grid); n++) {
 		MMSP::vector<fp_t>& GridN = grid(n);
 		MMSP::vector<int> x = MMSP::position(grid, n);
 		const int r = x[0] - MMSP::g0(grid, 0);
-		if (r <= w) {
+		if (r <= w_precip) {
 			GridN[0] = xe_del_Cr();
 			GridN[1] = xe_del_Nb();
 			GridN[2] = 1.;
@@ -276,14 +270,14 @@ void seed_planar_delta(GRID2D& grid, const int w)
 	}
 }
 
-void seed_pair(GRID2D& grid, const fp_t w,
+void seed_pair(GRID2D& grid,
                const fp_t D_CrCr, const fp_t D_NbNb,
                const fp_t sigma_del, const fp_t sigma_lav,
                const fp_t lattice_const, const fp_t ifce_width,
                const fp_t dx, const fp_t dt)
 {
 	fp_t dG_chem = 0.;
-	fp_t r_star = 0., P_nuc = 0.;
+	fp_t R_star = 0., P_nuc = 0.;
 	fp_t xCr = 0., xNb = 0.;
 	vector<int> x(2, 0);
 
@@ -305,16 +299,16 @@ void seed_pair(GRID2D& grid, const fp_t w,
 	                              Vatom,
 	                              n_gam,
 	                              dV, dt,
-	                              &r_star, &P_nuc);
-	if (r_star > 0.) {
-		const fp_t r = r_star / dx;
-		const int R = 1.25 * ceil(r + w);
+	                              &R_star,
+	                              &P_nuc);
+	if (R_star > 0.) {
+		const fp_t R_precip = R_star / dx;
 		embed_OPC(grid, x,
 		          xCr, xNb,
 		          xe_del_Cr(),
 		          xe_del_Nb(),
-		          R, r, r_star,
-		          w, NC);
+		          R_precip,
+		          NC);
 	}
 
 	// Embed a Laves particle
@@ -331,16 +325,16 @@ void seed_pair(GRID2D& grid, const fp_t w,
 	                              Vatom,
 	                              n_gam,
 	                              dV, dt,
-	                              &r_star, &P_nuc);
-	if (r_star > 0.) {
-		const fp_t r = r_star / dx;
-		const int R = 1.25 * ceil(r + w);
+	                              &R_star,
+	                              &P_nuc);
+	if (R_star > 0.) {
+		const fp_t R_precip = R_star / dx;
 		embed_OPC(grid, x,
 		          xCr, xNb,
 		          xe_lav_Cr(),
 		          xe_lav_Nb(),
-		          R, r, r_star,
-		          w, NC+1);
+		          R_precip,
+		          NC + 1);
 	}
 }
 
@@ -358,8 +352,8 @@ void generate(int dim, const char* filename)
 	if (rank == 0)
 		cfile = fopen("c.log", "w"); // existing log will be overwritten
 
-	const double dtTransformLimited = (meshres*meshres) / (std::pow(2.0, dim) * Lmob[0]*kappa[0]);
-	const double dtDiffusionLimited = (meshres*meshres) / (std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1]));
+	const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
+	const double dtDiffusionLimited = (meshres * meshres) / (std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1]));
 	const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 
 	// Initialize pseudo-random number generator
@@ -367,7 +361,7 @@ void generate(int dim, const char* filename)
 	const unsigned int seed = (std::chrono::high_resolution_clock::now() - beginning).count();
 	mtrand.seed(seed);
 
-	if (dim==2) {
+	if (dim == 2) {
 		#ifndef CONVERGENCE
 		const int Nx = 4000;
 		const int Ny = 2500;
@@ -376,16 +370,16 @@ void generate(int dim, const char* filename)
 		const int Ny = 180;
 		#endif
 		double Ntot = 1.0;
-		GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
+		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
 		for (int d = 0; d < dim; d++) {
-			dx(initGrid,d) = meshres;
+			dx(initGrid, d) = meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
 			if (x0(initGrid, d) == g0(initGrid, d))
 				b0(initGrid, d) = Neumann;
 			if (x1(initGrid, d) == g1(initGrid, d))
 				b1(initGrid, d) = Neumann;
 		}
-		MMSP::grid<2,double> nickGrid(initGrid,1);
+		MMSP::grid<2, double> nickGrid(initGrid, 1);
 
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
@@ -401,12 +395,12 @@ void generate(int dim, const char* filename)
 
 		// Embed two particles as a sanity check
 		#ifdef CONVERGENCE
-		const int w = 32;
-		seed_planar_delta(initGrid, w);
+		const int w_precip = 32;
+		seed_planar_delta(initGrid, w_precip);
 		/*
-		seed_solitaire(initGrid, w, D_Cr[0], D_Nb[1],
-			           s_delta(), s_laves(),
-					   lattice_const, ifce_width, meshres, dt, mtrand);
+		seed_solitaire(initGrid, D_Cr[0], D_Nb[1],
+		               s_delta(), s_laves(),
+		               lattice_const, ifce_width, meshres, dt, mtrand);
 		*/
 		#endif
 
@@ -431,7 +425,7 @@ void generate(int dim, const char* filename)
 			       summary[0], summary[1], summary[2], summary[3], summary[4]);
 		}
 
-		output(initGrid,filename);
+		output(initGrid, filename);
 
 		// write initial condition image
 		fp_t** xNi = (fp_t**)calloc(Nx, sizeof(fp_t*));
@@ -455,7 +449,7 @@ void generate(int dim, const char* filename)
 		imgname.replace(imgname.find("dat"), 3, "png");
 
 		#ifdef MPI_VERSION
-		std::cerr << "Error: cannot write images in parallel." <<std::endl;
+		std::cerr << "Error: cannot write images in parallel." << std::endl;
 		MMSP::Abort(-1);
 		#endif
 		const int nm = 0, step = 0;
@@ -481,7 +475,7 @@ double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const doub
 	double r = 0.0;
 	for (int i = 0; i < a.length() && i < b.length(); i++)
 		r += std::pow(a[i] - b[i], 2.0);
-	return dx*std::sqrt(r);
+	return dx * std::sqrt(r);
 }
 
 template<typename T>
@@ -495,8 +489,8 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 	const T fgam = 1. - fdel - flav;
 
 	const T inv_det = inv_fict_det(fdel, fgam, flav);
-	GRIDN[NC+NP  ] = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
-	GRIDN[NC+NP+1] = fict_gam_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[NC + NP  ] = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[NC + NP + 1] = fict_gam_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
 }
 
 template <typename T>
@@ -505,11 +499,11 @@ T gibbs(const MMSP::vector<T>& v)
 	const T xCr = v[0];
 	const T xNb = v[1];
 	const T f_del = h(v[NC  ]);
-	const T f_lav = h(v[NC+1]);
+	const T f_lav = h(v[NC + 1]);
 	const T f_gam = 1.0 - f_del - f_lav;
 	const T inv_det = inv_fict_det(f_del, f_gam, f_lav);
-	const T gam_Cr = v[NC+NP];
-	const T gam_Nb = v[NC+NP];
+	const T gam_Cr = v[NC + NP];
+	const T gam_Nb = v[NC + NP];
 	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
@@ -518,25 +512,25 @@ T gibbs(const MMSP::vector<T>& v)
 	MMSP::vector<T> vsq(NP);
 
 	for (int i = 0; i < NP; i++)
-		vsq[i] = v[NC+i]*v[NC+i];
+		vsq[i] = v[NC + i] * v[NC + i];
 
 	T g  = f_gam * g_gam(gam_Cr, gam_Nb);
 	g += f_del * g_del(del_Cr, del_Nb);
 	g += f_lav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
-		g += omega[i] * vsq[i] * pow(1.0 - v[NC+i], 2);
+		g += omega[i] * vsq[i] * pow(1.0 - v[NC + i], 2);
 
 	// Trijunction penalty
-	for (int i = 0; i < NP-1; i++)
-		for (int j = i+1; j < NP; j++)
-			g += 2.0 * alpha * vsq[i] *vsq[j];
+	for (int i = 0; i < NP - 1; i++)
+		for (int j = i + 1; j < NP; j++)
+			g += 2.0 * alpha * vsq[i] * vsq[j];
 
 	return g;
 }
 
 template <int dim, typename T>
-MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N)
+MMSP::vector<T> maskedgradient(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N)
 {
 	MMSP::vector<T> gradient(dim);
 	MMSP::vector<int> s = x;
@@ -555,8 +549,8 @@ MMSP::vector<T> maskedgradient(const MMSP::grid<dim,MMSP::vector<T> >& GRID, con
 	return gradient;
 }
 
-template<int dim,class T>
-MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
+template<int dim, class T>
+MMSP::vector<double> summarize_fields(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
 {
 	#ifdef MPI_VERSION
 	MPI_Request reqs;
@@ -564,18 +558,18 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GR
 	#endif
 
 	double Ntot = 1.0;
-	for (int d = 0; d<dim; d++)
+	for (int d = 0; d < dim; d++)
 		Ntot *= double(MMSP::g1(GRID, d) - MMSP::g0(GRID, d));
 
-	MMSP::vector<double> summary(NC+NP+1, 0.0);
+	MMSP::vector<double> summary(NC + NP + 1, 0.0);
 
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (int n = 0; n<MMSP::nodes(GRID); n++) {
-		MMSP::vector<int> x = MMSP::position(GRID,n);
+	for (int n = 0; n < MMSP::nodes(GRID); n++) {
+		MMSP::vector<int> x = MMSP::position(GRID, n);
 		MMSP::vector<T>& gridN = GRID(n);
-		MMSP::vector<double> mySummary(NC+NP+1, 0.0);
+		MMSP::vector<double> mySummary(NC + NP + 1, 0.0);
 
 		for (int i = 0; i < NC; i++)
 			mySummary[i] = gridN[i]; // compositions
@@ -583,9 +577,9 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GR
 		mySummary[NC] = 1.0; // gamma fraction init
 
 		for (int i = 0; i < NP; i++) {
-			const T newPhaseFrac = h(gridN[NC+i]);
+			const T newPhaseFrac = h(gridN[NC + i]);
 
-			mySummary[NC+i+1] = newPhaseFrac;  // secondary phase fraction
+			mySummary[NC + i + 1] = newPhaseFrac; // secondary phase fraction
 			mySummary[NC    ] -= newPhaseFrac; // contributes to gamma phase;
 		}
 
@@ -599,20 +593,20 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GR
 			#endif
 	}
 
-	for (int i = 0; i < NC+NP+1; i++)
+	for (int i = 0; i < NC + NP + 1; i++)
 		summary[i] /= Ntot;
 
 	#ifdef MPI_VERSION
 	MMSP::vector<double> temp(summary);
-	MPI_Ireduce(&(temp[0]), &(summary[0]), NC+NP+1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD, &reqs);
+	MPI_Ireduce(&(temp[0]), &(summary[0]), NC + NP + 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD, &reqs);
 	MPI_Wait(&reqs, &stat);
 	#endif
 
 	return summary;
 }
 
-template<int dim,class T>
-double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
+template<int dim, class T>
+double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
 {
 	#ifdef MPI_VERSION
 	MPI_Request reqs;
@@ -620,7 +614,7 @@ double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
 	#endif
 
 	double dV = 1.0;
-	for (int d = 0; d<dim; d++)
+	for (int d = 0; d < dim; d++)
 		dV *= MMSP::dx(GRID, d);
 
 	double energy = 0.0;
@@ -628,14 +622,14 @@ double summarize_energy(MMSP::grid<dim,MMSP::vector<T> > const& GRID)
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (int n = 0; n<MMSP::nodes(GRID); n++) {
-		MMSP::vector<int> x = MMSP::position(GRID,n);
+	for (int n = 0; n < MMSP::nodes(GRID); n++) {
+		MMSP::vector<int> x = MMSP::position(GRID, n);
 		MMSP::vector<T>& gridN = GRID(n);
 
 		double myEnergy = dV * gibbs(gridN); // energy density init
 
 		for (int i = 0; i < NP; i++) {
-			const MMSP::vector<T> gradPhi = maskedgradient(GRID, x, NC+i);
+			const MMSP::vector<T> gradPhi = maskedgradient(GRID, x, NC + i);
 			const T gradSq = (gradPhi * gradPhi); // vector inner product
 
 			myEnergy += dV * kappa[i] * gradSq; // gradient contributes to energy

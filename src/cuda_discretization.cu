@@ -55,47 +55,47 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 
 	/* apply no-flux boundary conditions: inside to out, sequence matters */
 
-	for (int offset = 0; offset < nm/2; offset++) {
-		const int ilo = nm/2 - offset;
-		const int ihi = nx - 1 - nm/2 + offset;
-		const int jlo = nm/2 - offset;
-		const int jhi = ny - 1 - nm/2 + offset;
+	for (int offset = 0; offset < nm / 2; offset++) {
+		const int ilo = nm / 2 - offset;
+		const int ihi = nx - 1 - nm / 2 + offset;
+		const int jlo = nm / 2 - offset;
+		const int jhi = ny - 1 - nm / 2 + offset;
 
-		if (ilo-1 == col && row < ny) {
+		if (ilo - 1 == col && row < ny) {
 			/* left condition */
-			d_conc_Cr[row * nx + ilo-1] = d_conc_Cr[row * nx + ilo];
-			d_conc_Nb[row * nx + ilo-1] = d_conc_Nb[row * nx + ilo];
-			d_phi_del[row * nx + ilo-1] = d_phi_del[row * nx + ilo];
-			d_phi_lav[row * nx + ilo-1] = d_phi_lav[row * nx + ilo];
-			d_gam_Cr[ row * nx + ilo-1] = d_gam_Cr[ row * nx + ilo];
-			d_gam_Nb[ row * nx + ilo-1] = d_gam_Nb[ row * nx + ilo];
+			d_conc_Cr[row * nx + ilo - 1] = d_conc_Cr[row * nx + ilo];
+			d_conc_Nb[row * nx + ilo - 1] = d_conc_Nb[row * nx + ilo];
+			d_phi_del[row * nx + ilo - 1] = d_phi_del[row * nx + ilo];
+			d_phi_lav[row * nx + ilo - 1] = d_phi_lav[row * nx + ilo];
+			d_gam_Cr[ row * nx + ilo - 1] = d_gam_Cr[ row * nx + ilo];
+			d_gam_Nb[ row * nx + ilo - 1] = d_gam_Nb[ row * nx + ilo];
 		}
-		if (ihi+1 == col && row < ny) {
+		if (ihi + 1 == col && row < ny) {
 			/* right condition */
-			d_conc_Cr[row * nx + ihi+1] = d_conc_Cr[row * nx + ihi];
-			d_conc_Nb[row * nx + ihi+1] = d_conc_Nb[row * nx + ihi];
-			d_phi_del[row * nx + ihi+1] = d_phi_del[row * nx + ihi];
-			d_phi_lav[row * nx + ihi+1] = d_phi_lav[row * nx + ihi];
-			d_gam_Cr[ row * nx + ihi+1] = d_gam_Cr[ row * nx + ihi];
-			d_gam_Nb[ row * nx + ihi+1] = d_gam_Nb[ row * nx + ihi];
+			d_conc_Cr[row * nx + ihi + 1] = d_conc_Cr[row * nx + ihi];
+			d_conc_Nb[row * nx + ihi + 1] = d_conc_Nb[row * nx + ihi];
+			d_phi_del[row * nx + ihi + 1] = d_phi_del[row * nx + ihi];
+			d_phi_lav[row * nx + ihi + 1] = d_phi_lav[row * nx + ihi];
+			d_gam_Cr[ row * nx + ihi + 1] = d_gam_Cr[ row * nx + ihi];
+			d_gam_Nb[ row * nx + ihi + 1] = d_gam_Nb[ row * nx + ihi];
 		}
-		if (jlo-1 == row && col < nx) {
+		if (jlo - 1 == row && col < nx) {
 			/* bottom condition */
-			d_conc_Cr[(jlo-1) * nx + col] = d_conc_Cr[jlo * nx + col];
-			d_conc_Nb[(jlo-1) * nx + col] = d_conc_Nb[jlo * nx + col];
-			d_phi_del[(jlo-1) * nx + col] = d_phi_del[jlo * nx + col];
-			d_phi_lav[(jlo-1) * nx + col] = d_phi_lav[jlo * nx + col];
-			d_gam_Cr[ (jlo-1) * nx + col] = d_gam_Cr[ jlo * nx + col];
-			d_gam_Nb[ (jlo-1) * nx + col] = d_gam_Nb[ jlo * nx + col];
+			d_conc_Cr[(jlo - 1) * nx + col] = d_conc_Cr[jlo * nx + col];
+			d_conc_Nb[(jlo - 1) * nx + col] = d_conc_Nb[jlo * nx + col];
+			d_phi_del[(jlo - 1) * nx + col] = d_phi_del[jlo * nx + col];
+			d_phi_lav[(jlo - 1) * nx + col] = d_phi_lav[jlo * nx + col];
+			d_gam_Cr[ (jlo - 1) * nx + col] = d_gam_Cr[ jlo * nx + col];
+			d_gam_Nb[ (jlo - 1) * nx + col] = d_gam_Nb[ jlo * nx + col];
 		}
-		if (jhi+1 == row && col < nx) {
+		if (jhi + 1 == row && col < nx) {
 			/* top condition */
-			d_conc_Cr[(jhi+1) * nx + col] = d_conc_Cr[jhi * nx + col];
-			d_conc_Nb[(jhi+1) * nx + col] = d_conc_Nb[jhi * nx + col];
-			d_phi_del[(jhi+1) * nx + col] = d_phi_del[jhi * nx + col];
-			d_phi_lav[(jhi+1) * nx + col] = d_phi_lav[jhi * nx + col];
-			d_gam_Cr[ (jhi+1) * nx + col] = d_gam_Cr[ jhi * nx + col];
-			d_gam_Nb[ (jhi+1) * nx + col] = d_gam_Nb[ jhi * nx + col];
+			d_conc_Cr[(jhi + 1) * nx + col] = d_conc_Cr[jhi * nx + col];
+			d_conc_Nb[(jhi + 1) * nx + col] = d_conc_Nb[jhi * nx + col];
+			d_phi_del[(jhi + 1) * nx + col] = d_phi_del[jhi * nx + col];
+			d_phi_lav[(jhi + 1) * nx + col] = d_phi_lav[jhi * nx + col];
+			d_gam_Cr[ (jhi + 1) * nx + col] = d_gam_Cr[ jhi * nx + col];
+			d_gam_Nb[ (jhi + 1) * nx + col] = d_gam_Nb[ jhi * nx + col];
 		}
 
 		__syncthreads();
@@ -113,7 +113,7 @@ void device_boundaries(cudaStream_t& stream,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
-	boundary_kernel<<<num_tiles, tile_size, 0, stream>>> (
+	boundary_kernel <<< num_tiles, tile_size, 0, stream>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
 	    dev->gam_Cr,      dev->gam_Nb,
@@ -132,7 +132,7 @@ void device_laplacian_boundaries(cudaStream_t& stream,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
-	boundary_kernel<<<num_tiles, tile_size, 0, stream>>> (
+	boundary_kernel <<< num_tiles, tile_size, 0, stream>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
@@ -159,8 +159,8 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
 	const int dst_x = blockIdx.x * dst_nx + til_x;
 	const int dst_y = blockIdx.y * dst_ny + til_y;
 
-	const int src_x = dst_x - nm/2;
-	const int src_y = dst_y - nm/2;
+	const int src_x = dst_x - nm / 2;
+	const int src_y = dst_y - nm / 2;
 
 	/* copy tile: __shared__ gives access to all threads working on this tile */
 	extern __shared__ fp_t d_conc_tile[];
@@ -179,7 +179,7 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
 		fp_t value = 0.;
 		for (int j = 0; j < nm; j++) {
 			for (int i = 0; i < nm; i++) {
-				value += d_mask[j * nm + i] * d_conc_tile[til_nx * (til_y+j) + til_x+i];
+				value += d_mask[j * nm + i] * d_conc_tile[til_nx * (til_y + j) + til_x + i];
 			}
 		}
 		/* record value */
@@ -203,19 +203,19 @@ void device_laplacian(cudaStream_t& stream,
 	               1);
 	size_t buf_size = (tile_size.x + nm) * (tile_size.y + nm) * sizeof(fp_t);
 
-	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
+	convolution_kernel <<< num_tiles, tile_size, buf_size, stream>>> (
 	    dev->conc_Cr_old, dev->conc_Cr_new, nx, ny, nm);
-	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
+	convolution_kernel <<< num_tiles, tile_size, buf_size, stream>>> (
 	    dev->conc_Nb_old, dev->conc_Nb_new, nx, ny, nm);
 
-	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
+	convolution_kernel <<< num_tiles, tile_size, buf_size, stream>>> (
 	    dev->phi_del_old, dev->phi_del_new, nx, ny, nm);
-	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
+	convolution_kernel <<< num_tiles, tile_size, buf_size, stream>>> (
 	    dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
 
-	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
+	convolution_kernel <<< num_tiles, tile_size, buf_size, stream>>> (
 	    dev->gam_Cr, dev->lap_gam_Cr, nx, ny, nm);
-	convolution_kernel<<<num_tiles, tile_size, buf_size, stream>>> (
+	convolution_kernel <<< num_tiles, tile_size, buf_size, stream>>> (
 	    dev->gam_Nb, dev->lap_gam_Nb, nx, ny, nm);
 }
 
@@ -327,7 +327,7 @@ void device_fictitious(cudaStream_t& stream,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
-	fictitious_kernel<<<num_tiles, tile_size, 0, stream>>>(
+	fictitious_kernel <<< num_tiles, tile_size, 0, stream>>>(
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    dev->gam_Cr,      dev->gam_Nb,
@@ -358,7 +358,7 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	if (x < nx && y < ny) {
 		const fp_t f_del = d_h(d_phi_del_old[idx]);
 		const fp_t f_lav = d_h(d_phi_lav_old[idx]);
-		const fp_t inv_fict_det = d_inv_fict_det(f_del, 1.-f_del-f_lav, f_lav);
+		const fp_t inv_fict_det = d_inv_fict_det(f_del, 1. - f_del - f_lav, f_lav);
 
 		/* pure phase energy */
 		const fp_t gam_nrg = d_g_gam(d_gam_Cr[idx], d_gam_Nb[idx]);
@@ -399,7 +399,7 @@ void device_evolution(cudaStream_t& stream,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
-	evolution_kernel<<<num_tiles, tile_size, 0, stream>>> (
+	evolution_kernel <<< num_tiles, tile_size, 0, stream>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
 	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
@@ -437,7 +437,7 @@ void device_init_prng(cudaStream_t& stream,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
-	init_prng_kernel<<<num_tiles, tile_size, 0, stream>>> (
+	init_prng_kernel <<< num_tiles, tile_size, 0, stream>>> (
 	    dev->prng, nx, ny);
 }
 
@@ -449,29 +449,25 @@ __device__ void embed_OPC_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                  const fp_t& xNb,
                                  const fp_t& par_xe_Cr,
                                  const fp_t& par_xe_Nb,
-                                 const int& R_pre,
-                                 const fp_t& r_pre,
-                                 const fp_t& r_pre_star,
-                                 const fp_t& w)
+                                 const fp_t& R_precip)
 {
-	const fp_t R_depletion_Cr = fp_t(R_pre) * sqrt((par_xe_Cr - xCr) / (xCr - d_xe_gam_Cr()));
-	const fp_t R_depletion_Nb = fp_t(R_pre) * sqrt((par_xe_Nb - xNb) / (xNb - d_xe_gam_Nb()));
+	const fp_t R_depletion_Cr = fp_t(R_precip) * sqrt((par_xe_Cr - xCr) / (xCr - d_xe_gam_Cr()));
+	const fp_t R_depletion_Nb = fp_t(R_precip) * sqrt((par_xe_Nb - xNb) / (xNb - d_xe_gam_Nb()));
 
-	for (int i = -R_pre; i < R_pre; i++) {
-		for (int j = -R_pre; j < R_pre; j++) {
+	for (int i = -R_precip; i < R_precip; i++) {
+		for (int j = -R_precip; j < R_precip; j++) {
 			const int idn = nx * (y + j) + (x + i);
-			const fp_t r = sqrt(fp_t(i*i + j*j));
-			const fp_t z = r - (r_pre + w);
+			const fp_t r = sqrt(fp_t(i * i + j * j));
 			if (idn >= 0 && idn < nx * ny) {
-				d_phi_del[idn] = d_interface_profile(4 * z / w);
-				if (r <= R_pre) {
-					d_conc_Cr[idx] = par_xe_Cr;
-					d_conc_Nb[idx] = par_xe_Nb;
+				if (r <= R_precip) {
+					d_conc_Cr[idn] = par_xe_Cr;
+					d_conc_Nb[idn] = par_xe_Nb;
+					d_phi_del[idn] = 1.;
 				} else {
 					if (r <= R_depletion_Cr)
-						d_conc_Cr[idx] = d_xe_gam_Cr();
+						d_conc_Cr[idn] = d_xe_gam_Cr();
 					if (r <= R_depletion_Nb)
-						d_conc_Nb[idx] = d_xe_gam_Nb();
+						d_conc_Nb[idn] = d_xe_gam_Nb();
 				}
 			}
 		}
@@ -498,27 +494,24 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	const fp_t dV = dx * dy * dz;
 	const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // m³/atom, assuming FCC
 	const fp_t n_gam = dV / Vatom; // atoms, assuming FCC
-	const fp_t w = ifce_width / dx;
 
 	fp_t phi_pre = 0.;
 	fp_t dG_chem = 0.;
-	int R_pre;
-	fp_t r_pre, r_pre_star;
-	fp_t P_nuc_pre;
+	fp_t R_precip, R_star;
+	fp_t P_nuc;
 	fp_t rand_pre;
 
 	// Scan neighborhood for existing precipitates
 	if (x < nx && y < ny) {
-		const fp_t rad = 1.75e-9 / dx;
-		const int R = 1.25 * ceil(rad + w);
+		const fp_t R = 1.75e-9 / dx;
 
 		for (int i = -R; i < R; i++) {
 			for (int j = -R; j < R; j++) {
 				const int idn = nx * (y + j) + (x + i);
-				const fp_t r = sqrt(fp_t(i*i + j*j));
+				const fp_t r = sqrt(fp_t(i * i + j * j));
 				if (idn >= 0 &&
 				    idn < nx * ny &&
-				    i*i + j*j < R*R)
+				    i * i + j * j < R * R)
 					phi_pre = max(phi_pre, d_h(d_phi_del[idn])
 					              + d_h(d_phi_lav[idn]));
 			}
@@ -540,12 +533,11 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		                                Vatom,
 		                                n_gam,
 		                                dV, dt,
-		                                &r_pre_star,
-		                                &P_nuc_pre);
-		if (r_pre_star > 0.) {
-			r_pre = r_pre_star / dx;
-			R_pre = 1.25 * ceil(r_pre + w);
-			rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
+		                                &R_star,
+		                                &P_nuc);
+		if (R_star > 0.) {
+			R_precip = R_star / dx;
+			rand_pre = P_nuc - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
 			if (rand_pre > 0)
 				embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
@@ -554,7 +546,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 				                 x, y, idx,
 				                 xCr, xNb,
 				                 d_xe_del_Cr(), d_xe_del_Nb(),
-				                 R_pre, r_pre, r_pre_star, w);
+				                 R_precip);
 		}
 
 		// Test a Laves particle
@@ -566,12 +558,11 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		                                Vatom,
 		                                n_gam,
 		                                dV, dt,
-		                                &r_pre_star,
-		                                &P_nuc_pre);
-		if (r_pre_star > 0.) {
-			r_pre = r_pre_star / dx;
-			R_pre = 1.25 * ceil(r_pre + w);
-			rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
+		                                &R_star,
+		                                &P_nuc);
+		if (R_star > 0.) {
+			R_precip = R_star / dx;
+			rand_pre = P_nuc - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
 			if (rand_pre > 0)
 				embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
@@ -580,8 +571,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 				                 x, y, idx,
 				                 xCr, xNb,
 				                 d_xe_lav_Cr(), d_xe_lav_Nb(),
-				                 R_pre, r_pre, r_pre_star,
-				                 w);
+				                 R_precip);
 		}
 	}
 }
@@ -601,7 +591,7 @@ void device_nucleation(cudaStream_t& stream,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
-	nucleation_kernel<<<num_tiles, tile_size, 0, stream>>> (
+	nucleation_kernel <<< num_tiles, tile_size, 0, stream>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    dev->prng,
@@ -636,7 +626,7 @@ void device_compute_Ni(cudaStream_t& stream,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
-	nickel_kernel<<<num_tiles, tile_size, 0, stream>>>(
+	nickel_kernel <<< num_tiles, tile_size, 0, stream>>>(
 	    dev->conc_Cr_old, dev->conc_Nb_old, dev->conc_Ni,
 	    nx, ny);
 

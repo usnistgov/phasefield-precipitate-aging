@@ -102,10 +102,7 @@ __device__ void embed_OPC_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                  const fp_t& xNb,
                                  const fp_t& par_xe_Cr,
                                  const fp_t& par_xe_Nb,
-                                 const int& R_pre,
-                                 const fp_t& r_pre,
-                                 const fp_t& r_pre_star,
-                                 const fp_t& w);
+                                 const fp_t& R_precip);
 
 /**
  \brief Device kernel to compute driving force for nucleation and stochastically seed nuclei
