@@ -316,7 +316,7 @@ int main(int argc, char* argv[])
 					                 alpha, kappa[0], omega[0],
 					                 Lmob[0], Lmob[1], dt);
 
-                    #ifndef CONVERGENCE
+					#ifndef CONVERGENCE
 					const bool nuc_step = (j % nuc_interval == 0);
 					if (nuc_step) {
 						device_nucleation(st, &dev, nx, ny, nm, bx, by,
@@ -324,9 +324,9 @@ int main(int argc, char* argv[])
 						                  sigma[0], sigma[1],
 						                  lattice_const, ifce_width,
 						                  meshres, meshres, meshres,
-										  nuc_interval * dt);
+						                  nuc_interval * dt);
 					}
-                    #endif
+					#endif
 
 					device_fictitious(st, &dev, nx, ny, nm, bx, by);
 
@@ -349,23 +349,23 @@ int main(int argc, char* argv[])
 							n = imgname.str().length();
 						}
 
-                        #ifdef MPI_VERSION
+						#ifdef MPI_VERSION
 						std::cerr << "Error: cannot write images in parallel." <<std::endl;
 						MMSP::Abort(-1);
-                        #endif
+						#endif
 						cudaStreamSynchronize(stNi);
 						write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), j+1, dt, imgname.str().c_str());
-                        #ifdef CONVERGENCE
+						#ifdef CONVERGENCE
 						// Log compositions, phase fractions
 						fp_t xCrMid, xNbMid;
 						const size_t midpoint = nx * ny / 2;
 						cudaMemcpy(&xCrMid, &(dev.conc_Cr_old[midpoint]), sizeof(fp_t),
-								   cudaMemcpyDeviceToHost);
+						           cudaMemcpyDeviceToHost);
 						cudaMemcpy(&xNbMid, &(dev.conc_Nb_old[midpoint]), sizeof(fp_t),
-								   cudaMemcpyDeviceToHost);
+						           cudaMemcpyDeviceToHost);
 						if (inRangeX && inRangeY)
 							fprintf(mfile, "%9g\t%9g\n", xCrMid, xNbMid);
-                        #endif
+						#endif
 					}
 
 					const bool nrg_step = ((j+1) % nrg_interval == 0 || (j+1) == steps);
@@ -404,7 +404,7 @@ int main(int argc, char* argv[])
 
 						if (rank == 0) {
 							fprintf(cfile, "%9g %9g %9g %12g %12g %12g %12g\n",
-									dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+							        dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 						}
 					}
 					// === Finish Architecture-Specific Kernel ===

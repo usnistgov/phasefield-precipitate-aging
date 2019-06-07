@@ -39,6 +39,7 @@ const fp_t sigma[NP] = {s_delta(), s_laves()}; // interfacial energy (J/m^2)
 // Compute interfacial width (nm) and well height (J/m^3)
 const fp_t ifce_width = 10. * meshres;
 const fp_t width_factor = 2.2; // since interface is [0.1,0.9]; 2.94 if [0.05,0.95]
-const fp_t omega[NP] = {3.0 * width_factor * sigma[0] / ifce_width,  // delta
-                        3.0 * width_factor * sigma[1] / ifce_width}; // Laves
+const fp_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,   // delta
+                        3.0 * width_factor* sigma[1] / ifce_width
+                       }; // Laves
 #endif

@@ -121,81 +121,81 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 
 void figure(int w, int h, size_t dpi)
 {
-    PyObject* size = PyTuple_New(2);
-    PyTuple_SetItem(size, 0, PyFloat_FromDouble(static_cast<double>(w)/dpi));
-    PyTuple_SetItem(size, 1, PyFloat_FromDouble(static_cast<double>(h)/dpi));
+	PyObject* size = PyTuple_New(2);
+	PyTuple_SetItem(size, 0, PyFloat_FromDouble(static_cast<double>(w)/dpi));
+	PyTuple_SetItem(size, 1, PyFloat_FromDouble(static_cast<double>(h)/dpi));
 
-    PyObject* kwargs = PyDict_New();
-    PyDict_SetItemString(kwargs, "figsize", size);
-    PyDict_SetItemString(kwargs, "dpi", PyLong_FromSize_t(dpi));
-    Py_DECREF(size);
+	PyObject* kwargs = PyDict_New();
+	PyDict_SetItemString(kwargs, "figsize", size);
+	PyDict_SetItemString(kwargs, "dpi", PyLong_FromSize_t(dpi));
+	Py_DECREF(size);
 
-    PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_figure,
-								  plt::detail::_interpreter::get().s_python_empty_tuple,
-                                  kwargs);
-    Py_DECREF(kwargs);
+	PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_figure,
+	                              plt::detail::_interpreter::get().s_python_empty_tuple,
+	                              kwargs);
+	Py_DECREF(kwargs);
 
-    if(!res) throw std::runtime_error("Call to figure() failed.");
-    Py_DECREF(res);
+	if (!res) throw std::runtime_error("Call to figure() failed.");
+	Py_DECREF(res);
 }
 
 void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
-					  const fp_t deltax,
-					  const int step, const fp_t dt, const char* filename)
+                      const fp_t deltax,
+                      const int step, const fp_t dt, const char* filename)
 {
 	plt::backend("Agg");
 
 	int w = nx - nm/2;
 	int h = ny - nm/2;
 
-    std::vector<float> c(w * h);
+	std::vector<float> c(w * h);
 	std::vector<float> d(w);
-    std::vector<float> cbar(w);
-    for(int j = 0; j < h; ++j) {
-        for(int i = 0; i < w; ++i) {
+	std::vector<float> cbar(w);
+	for (int j = 0; j < h; ++j) {
+		for (int i = 0; i < w; ++i) {
 			const float x = conc[j+nm/2][i+nm/2];
-            c.at(w * j + i) = x;
+			c.at(w * j + i) = x;
 			cbar.at(i) += x / h;
 			d.at(i) = 1e-6 * deltax * i;
-        }
+		}
 	}
-    const float* z = &(c[0]);
-    const int colors = 1;
+	const float* z = &(c[0]);
+	const int colors = 1;
 
 	figure(3000, 2400, 200);
 
 	std::map<std::string, std::string> str_kw;
 	str_kw["cmap"] = "viridis_r";
 
-    std::map<std::string, double> num_kw;
-    num_kw["vmin"] = 0.;
-    num_kw["vmax"] = 1.;
+	std::map<std::string, double> num_kw;
+	num_kw["vmin"] = 0.;
+	num_kw["vmax"] = 1.;
 
 	char timearr[256] = {0};
 	sprintf(timearr, "$t=%07f$ s\n", dt * step);
 	plt::suptitle(std::string(timearr));
 
-    long nrows = 3, ncols = 5;
-    long spanr = nrows, spanc = ncols;
+	long nrows = 3, ncols = 5;
+	long spanr = nrows, spanc = ncols;
 
-    spanr -= 1;
-    plt::subplot2grid(nrows, ncols, 0, 0, spanr, spanc);
+	spanr -= 1;
+	plt::subplot2grid(nrows, ncols, 0, 0, spanr, spanc);
 	PyObject* mat = plt::imshow(z, h, w, colors, str_kw, num_kw);
 	plt::axis("off");
 
-    std::map<std::string, float> bar_opts;
-    bar_opts["shrink"] = 0.75;
-    plt::colorbar(mat, bar_opts);
+	std::map<std::string, float> bar_opts;
+	bar_opts["shrink"] = 0.75;
+	plt::colorbar(mat, bar_opts);
 
-    spanr = 1;
-    spanc = ncols-1;
-    plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
-    plt::plot(d, cbar);
-    plt::xlim(0., 1e-6 * deltax * nx);
-    plt::ylim(0.4, 0.8);
-    plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
-    plt::ylabel("$\\bar{\\chi}_{\\mathrm{Ni}}$");
+	spanr = 1;
+	spanc = ncols-1;
+	plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
+	plt::plot(d, cbar);
+	plt::xlim(0., 1e-6 * deltax * nx);
+	plt::ylim(0.4, 0.8);
+	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
+	plt::ylabel("$\\bar{\\chi}_{\\mathrm{Ni}}$");
 
-    plt::save(filename);
-    plt::close();
+	plt::save(filename);
+	plt::close();
 }

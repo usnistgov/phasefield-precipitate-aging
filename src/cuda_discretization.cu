@@ -25,7 +25,7 @@
 */
 cudaError_t checkCuda(cudaError_t result)
 {
-    if (result != cudaSuccess) {
+	if (result != cudaSuccess) {
 		fprintf(stderr, "CUDA Runtime Error: %s\n", cudaGetErrorString(result));
 		assert(result == cudaSuccess);
 	}
@@ -221,16 +221,16 @@ void device_laplacian(cudaStream_t& stream,
 
 __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                                    const fp_t& lap_gam_Cr,  const fp_t& lap_gam_Nb,
-                                         fp_t& conc_Cr_new,       fp_t& conc_Nb_new,
+                                   fp_t& conc_Cr_new,       fp_t& conc_Nb_new,
                                    const fp_t& D_CrCr,      const fp_t& D_CrNb,
                                    const fp_t& D_NbCr,      const fp_t& D_NbNb,
                                    const fp_t& dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
 	const fp_t lap_mu_Cr = D_CrCr * lap_gam_Cr
-	                     + D_NbCr * lap_gam_Nb;
+	                       + D_NbCr * lap_gam_Nb;
 	const fp_t lap_mu_Nb = D_CrNb * lap_gam_Cr
-	                     + D_NbNb * lap_gam_Nb;
+	                       + D_NbNb * lap_gam_Nb;
 
 	conc_Cr_new = conc_Cr_old + dt * lap_mu_Cr;
 	conc_Nb_new = conc_Nb_old + dt * lap_mu_Nb;
@@ -238,7 +238,7 @@ __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_
 
 __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
-                                   fp_t& phi_del_new, const fp_t& inv_fict_det,
+                             fp_t& phi_del_new, const fp_t& inv_fict_det,
                              const fp_t& f_del,       const fp_t& f_lav,
                              const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
                              const fp_t& gam_Cr,      const fp_t& gam_Nb,
@@ -256,9 +256,9 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 
 	/* variational derivative */
 	const fp_t dFdPhi_del = -d_hprime(phi_del_old) * P_del
-	                      + 2. * omega * phi_del_old * (phi_del_old - 1.) * (2. * phi_del_old - 1.)
-	                      + 2. * alpha * phi_del_old * (phi_lav_old * phi_lav_old)
-	                      - kappa * phi_del_new;
+	                        + 2. * omega * phi_del_old * (phi_del_old - 1.) * (2. * phi_del_old - 1.)
+	                        + 2. * alpha * phi_del_old * (phi_lav_old * phi_lav_old)
+	                        - kappa * phi_del_new;
 
 	/* Allen-Cahn equation of motion for delta phase */
 	phi_del_new = phi_del_old - dt * M_del * dFdPhi_del;
@@ -266,7 +266,7 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 
 __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
-                                   fp_t& phi_lav_new, const fp_t& inv_fict_det,
+                             fp_t& phi_lav_new, const fp_t& inv_fict_det,
                              const fp_t& f_del,       const fp_t& f_lav,
                              const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
                              const fp_t& gam_Cr,      const fp_t& gam_Nb,
@@ -284,9 +284,9 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 
 	/* variational derivative */
 	const fp_t dFdPhi_lav = -d_hprime(phi_lav_old) * P_lav
-	                      + 2. * omega * phi_lav_old * (phi_lav_old - 1.) * (2. * phi_lav_old - 1.)
-	                      + 2. * alpha * phi_lav_old * (phi_del_old * phi_del_old)
-	                      - kappa * phi_lav_new;
+	                        + 2. * omega * phi_lav_old * (phi_lav_old - 1.) * (2. * phi_lav_old - 1.)
+	                        + 2. * alpha * phi_lav_old * (phi_del_old * phi_del_old)
+	                        - kappa * phi_lav_new;
 
 	/* Allen-Cahn equation of motion for Laves phase */
 	phi_lav_new = phi_lav_old - dt * M_lav * dFdPhi_lav;
@@ -424,7 +424,7 @@ __global__ void init_prng_kernel(curandState* d_prng, const int nx, const int ny
 	const int idx = nx * y + x;
 
 	if (x < nx && y < ny)
-        curand_init((unsigned long long)clock() + idx, x, 0, &(d_prng[idx]));
+		curand_init((unsigned long long)clock() + idx, x, 0, &(d_prng[idx]));
 }
 
 void device_init_prng(cudaStream_t& stream,
@@ -453,29 +453,29 @@ __device__ void embed_OPC_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                  const fp_t& r_pre,
                                  const fp_t& r_pre_star,
                                  const fp_t& w)
-{    
-    const fp_t R_depletion_Cr = fp_t(R_pre) * sqrt((par_xe_Cr - xCr) / (xCr - d_xe_gam_Cr()));
-    const fp_t R_depletion_Nb = fp_t(R_pre) * sqrt((par_xe_Nb - xNb) / (xNb - d_xe_gam_Nb()));
+{
+	const fp_t R_depletion_Cr = fp_t(R_pre) * sqrt((par_xe_Cr - xCr) / (xCr - d_xe_gam_Cr()));
+	const fp_t R_depletion_Nb = fp_t(R_pre) * sqrt((par_xe_Nb - xNb) / (xNb - d_xe_gam_Nb()));
 
-    for (int i = -R_pre; i < R_pre; i++) {
-        for (int j = -R_pre; j < R_pre; j++) {
-            const int idn = nx * (y + j) + (x + i);
-            const fp_t r = sqrt(fp_t(i*i + j*j));
-            const fp_t z = r - (r_pre + w);
-            if (idn >= 0 && idn < nx * ny) {
-                d_phi_del[idn] = d_interface_profile(4 * z / w);
-                if (r <= R_pre) {
-                    d_conc_Cr[idx] = par_xe_Cr;
-                    d_conc_Nb[idx] = par_xe_Nb;
-                } else {
-                    if (r <= R_depletion_Cr)
-                        d_conc_Cr[idx] = d_xe_gam_Cr();
-                    if (r <= R_depletion_Nb)
-                        d_conc_Nb[idx] = d_xe_gam_Nb();
-                }
-            }
-        }
-    }
+	for (int i = -R_pre; i < R_pre; i++) {
+		for (int j = -R_pre; j < R_pre; j++) {
+			const int idn = nx * (y + j) + (x + i);
+			const fp_t r = sqrt(fp_t(i*i + j*j));
+			const fp_t z = r - (r_pre + w);
+			if (idn >= 0 && idn < nx * ny) {
+				d_phi_del[idn] = d_interface_profile(4 * z / w);
+				if (r <= R_pre) {
+					d_conc_Cr[idx] = par_xe_Cr;
+					d_conc_Nb[idx] = par_xe_Nb;
+				} else {
+					if (r <= R_depletion_Cr)
+						d_conc_Cr[idx] = d_xe_gam_Cr();
+					if (r <= R_depletion_Nb)
+						d_conc_Nb[idx] = d_xe_gam_Nb();
+				}
+			}
+		}
+	}
 }
 
 __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
@@ -495,95 +495,95 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	const int x = blockDim.x * blockIdx.x + thr_x;
 	const int y = blockDim.y * blockIdx.y + thr_y;
 
-    const fp_t dV = dx * dy * dz;
-    const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // m³/atom, assuming FCC
-    const fp_t n_gam = dV / Vatom; // atoms, assuming FCC
-    const fp_t w = ifce_width / dx;
+	const fp_t dV = dx * dy * dz;
+	const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // m³/atom, assuming FCC
+	const fp_t n_gam = dV / Vatom; // atoms, assuming FCC
+	const fp_t w = ifce_width / dx;
 
-    fp_t phi_pre = 0.;
-    fp_t dG_chem = 0.;
-    int R_pre;
-    fp_t r_pre, r_pre_star;
-    fp_t P_nuc_pre;
-    fp_t rand_pre;
+	fp_t phi_pre = 0.;
+	fp_t dG_chem = 0.;
+	int R_pre;
+	fp_t r_pre, r_pre_star;
+	fp_t P_nuc_pre;
+	fp_t rand_pre;
 
-    // Scan neighborhood for existing precipitates
-    if (x < nx && y < ny) {
-        const fp_t rad = 1.75e-9 / dx;
-        const int R = 1.25 * ceil(rad + w);
+	// Scan neighborhood for existing precipitates
+	if (x < nx && y < ny) {
+		const fp_t rad = 1.75e-9 / dx;
+		const int R = 1.25 * ceil(rad + w);
 
-        for (int i = -R; i < R; i++) {
-            for (int j = -R; j < R; j++) {
-                const int idn = nx * (y + j) + (x + i);
-                const fp_t r = sqrt(fp_t(i*i + j*j));
-                if (idn >= 0 &&
-                    idn < nx * ny &&
-                    i*i + j*j < R*R)
-                    phi_pre = max(phi_pre, d_h(d_phi_del[idn])
-                                         + d_h(d_phi_lav[idn]));
-            }
-        }
-    }
-    __syncthreads();
+		for (int i = -R; i < R; i++) {
+			for (int j = -R; j < R; j++) {
+				const int idn = nx * (y + j) + (x + i);
+				const fp_t r = sqrt(fp_t(i*i + j*j));
+				if (idn >= 0 &&
+				    idn < nx * ny &&
+				    i*i + j*j < R*R)
+					phi_pre = max(phi_pre, d_h(d_phi_del[idn])
+					              + d_h(d_phi_lav[idn]));
+			}
+		}
+	}
+	__syncthreads();
 
-    if (x < nx && y < ny && phi_pre < 1e-10) {
-        const int idx = nx * y + x;
-        const fp_t xCr = d_conc_Cr[idx];
-        const fp_t xNb = d_conc_Nb[idx];
+	if (x < nx && y < ny && phi_pre < 1e-10) {
+		const int idx = nx * y + x;
+		const fp_t xCr = d_conc_Cr[idx];
+		const fp_t xNb = d_conc_Nb[idx];
 
-        // Test a delta particle
-        d_nucleation_driving_force_delta(xCr, xNb, &dG_chem);
-        d_nucleation_probability_sphere(xCr, xNb,
-                                        dG_chem,
-                                        D_CrCr, D_NbNb,
-                                        sigma_del,
-                                        Vatom,
-                                        n_gam,
-                                        dV, dt,
-                                        &r_pre_star,
-                                        &P_nuc_pre);
-        if (r_pre_star > 0.) {
-            r_pre = r_pre_star / dx;
-            R_pre = 1.25 * ceil(r_pre + w);
-            rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
+		// Test a delta particle
+		d_nucleation_driving_force_delta(xCr, xNb, &dG_chem);
+		d_nucleation_probability_sphere(xCr, xNb,
+		                                dG_chem,
+		                                D_CrCr, D_NbNb,
+		                                sigma_del,
+		                                Vatom,
+		                                n_gam,
+		                                dV, dt,
+		                                &r_pre_star,
+		                                &P_nuc_pre);
+		if (r_pre_star > 0.) {
+			r_pre = r_pre_star / dx;
+			R_pre = 1.25 * ceil(r_pre + w);
+			rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-            if (rand_pre > 0)
-                embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
-                                 d_phi_del, d_phi_lav,
-                                 nx, ny,
-                                 x, y, idx,
-                                 xCr, xNb,
-                                 d_xe_del_Cr(), d_xe_del_Nb(),
-                                 R_pre, r_pre, r_pre_star, w);
-        }
+			if (rand_pre > 0)
+				embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
+				                 d_phi_del, d_phi_lav,
+				                 nx, ny,
+				                 x, y, idx,
+				                 xCr, xNb,
+				                 d_xe_del_Cr(), d_xe_del_Nb(),
+				                 R_pre, r_pre, r_pre_star, w);
+		}
 
-        // Test a Laves particle
-        d_nucleation_driving_force_laves(xCr, xNb, &dG_chem);
-        d_nucleation_probability_sphere(xCr, xNb,
-                                        dG_chem,
-                                        D_CrCr, D_NbNb,
-                                        sigma_lav,
-                                        Vatom,
-                                        n_gam,
-                                        dV, dt,
-                                        &r_pre_star,
-                                        &P_nuc_pre);
-        if (r_pre_star > 0.) {
-            r_pre = r_pre_star / dx;
-            R_pre = 1.25 * ceil(r_pre + w);
-            rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
+		// Test a Laves particle
+		d_nucleation_driving_force_laves(xCr, xNb, &dG_chem);
+		d_nucleation_probability_sphere(xCr, xNb,
+		                                dG_chem,
+		                                D_CrCr, D_NbNb,
+		                                sigma_lav,
+		                                Vatom,
+		                                n_gam,
+		                                dV, dt,
+		                                &r_pre_star,
+		                                &P_nuc_pre);
+		if (r_pre_star > 0.) {
+			r_pre = r_pre_star / dx;
+			R_pre = 1.25 * ceil(r_pre + w);
+			rand_pre = P_nuc_pre - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
-            if (rand_pre > 0)
-                embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
-                                 d_phi_lav, d_phi_lav,
-                                 nx, ny,
-                                 x, y, idx,
-                                 xCr, xNb,
-                                 d_xe_lav_Cr(), d_xe_lav_Nb(),
-                                 R_pre, r_pre, r_pre_star,
-                                 w);
-        }
-    }
+			if (rand_pre > 0)
+				embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
+				                 d_phi_lav, d_phi_lav,
+				                 nx, ny,
+				                 x, y, idx,
+				                 xCr, xNb,
+				                 d_xe_lav_Cr(), d_xe_lav_Nb(),
+				                 R_pre, r_pre, r_pre_star,
+				                 w);
+		}
+	}
 }
 
 void device_nucleation(cudaStream_t& stream,
@@ -604,7 +604,7 @@ void device_nucleation(cudaStream_t& stream,
 	nucleation_kernel<<<num_tiles, tile_size, 0, stream>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
-        dev->prng,
+	    dev->prng,
 	    nx, ny, nm,
 	    D_Cr[0], D_Nb[1],
 	    sigma_del, sigma_lav,
@@ -622,7 +622,7 @@ __global__ void nickel_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb, fp_t* d_conc_Ni,
 	const int idx = nx * y + x;
 
 	if (x < nx && y < ny)
-		d_conc_Ni[idx] = 1. - d_conc_Cr[idx] - d_conc_Nb[idx]; 
+		d_conc_Ni[idx] = 1. - d_conc_Cr[idx] - d_conc_Nb[idx];
 }
 
 void device_compute_Ni(cudaStream_t& stream,
@@ -640,8 +640,8 @@ void device_compute_Ni(cudaStream_t& stream,
 	    dev->conc_Cr_old, dev->conc_Nb_old, dev->conc_Ni,
 	    nx, ny);
 
-    cudaMemcpyAsync(host->conc_Ni[0], dev->conc_Ni, nx * ny * sizeof(fp_t),
-                    cudaMemcpyDeviceToHost, stream);
+	cudaMemcpyAsync(host->conc_Ni[0], dev->conc_Ni, nx * ny * sizeof(fp_t),
+	                cudaMemcpyDeviceToHost, stream);
 }
 
 void read_out_result(struct CudaData* dev, struct HostData* host,

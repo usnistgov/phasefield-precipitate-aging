@@ -39,7 +39,7 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
 */
 __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc_Nb_old,
                                    const fp_t& d_lap_gam_Cr,  const fp_t& d_lap_gam_Nb,
-                                         fp_t& d_conc_Cr_new,       fp_t& d_conc_Nb_new,
+                                   fp_t& d_conc_Cr_new,       fp_t& d_conc_Nb_new,
                                    const fp_t& D_CrCr,        const fp_t& D_CrNb,
                                    const fp_t& D_NbCr,        const fp_t& D_NbNb,
                                    const fp_t& dt);
@@ -49,7 +49,7 @@ __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc
 */
 __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
-                                   fp_t& phi_del_new, const fp_t& inv_fict_det,
+                             fp_t& phi_del_new, const fp_t& inv_fict_det,
                              const fp_t& f_del,       const fp_t& f_lav,
                              const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
                              const fp_t& gam_Cr,      const fp_t& gam_Nb,
@@ -62,7 +62,7 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 */
 __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
-                                   fp_t& phi_lav_new, const fp_t& inv_fict_det,
+                             fp_t& phi_lav_new, const fp_t& inv_fict_det,
                              const fp_t& f_del,       const fp_t& f_lav,
                              const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
                              const fp_t& gam_Cr,      const fp_t& gam_Nb,

@@ -35,7 +35,7 @@ namespace MMSP
 
 void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 {
-    #ifndef CONVERGENCE
+	#ifndef CONVERGENCE
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
@@ -55,15 +55,15 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	MPI::COMM_WORLD.Barrier();
 	MPI::COMM_WORLD.Bcast(&xCrE, 1, MPI_DOUBLE, 0);
 	MPI::COMM_WORLD.Bcast(&xNbE, 1, MPI_DOUBLE, 0);
-    #endif
+	#endif
 
 	MMSP::vector<fp_t> init(MMSP::fields(grid), 0.);
 	init[0] = xCrE;
 	init[1] = xNbE;
 
-    #ifdef _OPENMP
-    #pragma omp parallel for
-    #endif
+	#ifdef _OPENMP
+	#pragma omp parallel for
+	#endif
 	for (int n = 0; n < MMSP::nodes(grid); n++) {
 		grid(n) = init;
 	}
@@ -84,20 +84,20 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
 
-    #ifdef MPI_VERSION
+	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
 	MPI::COMM_WORLD.Bcast(&xCrM, 1, MPI_DOUBLE, 0);
 	MPI::COMM_WORLD.Bcast(&xNbM, 1, MPI_DOUBLE, 0);
 	MPI::COMM_WORLD.Bcast(&xCrE, 1, MPI_DOUBLE, 0);
 	MPI::COMM_WORLD.Bcast(&xNbE, 1, MPI_DOUBLE, 0);
-    #endif
+	#endif
 
 	// Zero initial condition
 	const MMSP::vector<fp_t> blank(MMSP::fields(grid), 0.);
 
-    #ifdef _OPENMP
-    #pragma omp parallel for
-    #endif
+	#ifdef _OPENMP
+	#pragma omp parallel for
+	#endif
 	for (int n = 0; n < MMSP::nodes(grid); n++) {
 		grid(n) = blank;
 	}
@@ -120,19 +120,19 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 }
 
 void embed_OPC(GRID2D& grid,
-			   const MMSP::vector<int>& x,
-			   const fp_t& xCr,
-			   const fp_t& xNb,
-			   const fp_t& par_xe_Cr,
-			   const fp_t& par_xe_Nb,
-			   const int& R_pre,
-			   const fp_t& r_pre,
-			   const fp_t& r_pre_star,
-			   const fp_t& w,
-			   const int pid)
+               const MMSP::vector<int>& x,
+               const fp_t& xCr,
+               const fp_t& xNb,
+               const fp_t& par_xe_Cr,
+               const fp_t& par_xe_Nb,
+               const int& R_pre,
+               const fp_t& r_pre,
+               const fp_t& r_pre_star,
+               const fp_t& w,
+               const int pid)
 {
-    const fp_t R_depletion_Cr = fp_t(R_pre) * sqrt((par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
-    const fp_t R_depletion_Nb = fp_t(R_pre) * sqrt((par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t R_depletion_Cr = fp_t(R_pre) * sqrt((par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = fp_t(R_pre) * sqrt((par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
 
 	for (int i = -R_pre; i < R_pre; i++) {
 		for (int j = -R_pre; j < R_pre; j++) {
@@ -157,10 +157,10 @@ void embed_OPC(GRID2D& grid,
 }
 
 void seed_solitaire(GRID2D& grid, const fp_t w,
-					 const fp_t D_CrCr, const fp_t D_NbNb,
-					 const fp_t sigma_del, const fp_t sigma_lav,
-					 const fp_t lattice_const, const fp_t ifce_width,
-					 const fp_t dx, const fp_t dt, std::mt19937& mtrand)
+                    const fp_t D_CrCr, const fp_t D_NbNb,
+                    const fp_t sigma_del, const fp_t sigma_lav,
+                    const fp_t lattice_const, const fp_t ifce_width,
+                    const fp_t dx, const fp_t dt, std::mt19937& mtrand)
 {
 	fp_t dG_chem = 0.;
 	fp_t r_star = 0., P_nuc = 0.;
@@ -174,7 +174,7 @@ void seed_solitaire(GRID2D& grid, const fp_t w,
 	std::uniform_real_distribution<double> heads_or_tails(0, 1);
 	double penny = heads_or_tails(mtrand);
 
-    #ifdef MPI_VERSION
+	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
 	MPI::COMM_WORLD.Bcast(&penny, 1, MPI_DOUBLE, 0);
 	#endif
@@ -186,23 +186,23 @@ void seed_solitaire(GRID2D& grid, const fp_t w,
 
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
-									  dG_chem,
-									  D_CrCr, D_NbNb,
-									  sigma_del,
-									  Vatom,
-									  n_gam,
-									  dV, dt,
-									  &r_star, &P_nuc);
+		                              dG_chem,
+		                              D_CrCr, D_NbNb,
+		                              sigma_del,
+		                              Vatom,
+		                              n_gam,
+		                              dV, dt,
+		                              &r_star, &P_nuc);
 		if (r_star > 0.) {
 			const fp_t r =  r_star / dx;
 			const int R = 1.25 * ceil(r + w);
 			embed_OPC(grid, x,
-					  xCr, xNb,
-					  xe_del_Cr(),
-					  xe_del_Nb(),
-					  R, r, r_star,
-					  w,
-					  NC);
+			          xCr, xNb,
+			          xe_del_Cr(),
+			          xe_del_Nb(),
+			          R, r, r_star,
+			          w,
+			          NC);
 		}
 	} else {
 		// Embed a Laves particle
@@ -213,23 +213,23 @@ void seed_solitaire(GRID2D& grid, const fp_t w,
 
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
-									  dG_chem,
-									  D_CrCr, D_NbNb,
-									  sigma_lav,
-									  Vatom,
-									  n_gam,
-									  dV, dt,
-									  &r_star, &P_nuc);
+		                              dG_chem,
+		                              D_CrCr, D_NbNb,
+		                              sigma_lav,
+		                              Vatom,
+		                              n_gam,
+		                              dV, dt,
+		                              &r_star, &P_nuc);
 		if (r_star > 0.) {
 			const fp_t r =  r_star / dx;
 			const int R = 1.25 * ceil(r + w);
 			embed_OPC(grid, x,
-					  xCr, xNb,
-					  xe_lav_Cr(),
-					  xe_lav_Nb(),
-					  R, r, r_star,
-					  w,
-					  NC+1);
+			          xCr, xNb,
+			          xe_lav_Cr(),
+			          xe_lav_Nb(),
+			          R, r, r_star,
+			          w,
+			          NC+1);
 		}
 	}
 	#ifdef CONVERGENCE
@@ -277,19 +277,19 @@ void seed_planar_delta(GRID2D& grid, const int w)
 }
 
 void seed_pair(GRID2D& grid, const fp_t w,
-			   const fp_t D_CrCr, const fp_t D_NbNb,
-			   const fp_t sigma_del, const fp_t sigma_lav,
-			   const fp_t lattice_const, const fp_t ifce_width,
-			   const fp_t dx, const fp_t dt)
+               const fp_t D_CrCr, const fp_t D_NbNb,
+               const fp_t sigma_del, const fp_t sigma_lav,
+               const fp_t lattice_const, const fp_t ifce_width,
+               const fp_t dx, const fp_t dt)
 {
-    fp_t dG_chem = 0.;
-    fp_t r_star = 0., P_nuc = 0.;
+	fp_t dG_chem = 0.;
+	fp_t r_star = 0., P_nuc = 0.;
 	fp_t xCr = 0., xNb = 0.;
 	vector<int> x(2, 0);
 
-    const fp_t dV = dx * dx * dx;
-    const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
-    const fp_t n_gam = dV / Vatom;
+	const fp_t dV = dx * dx * dx;
+	const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
+	const fp_t n_gam = dV / Vatom;
 
 	// Embed a delta particle
 	x[0] = -16;
@@ -299,22 +299,22 @@ void seed_pair(GRID2D& grid, const fp_t w,
 
 	nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 	nucleation_probability_sphere(xCr, xNb,
-								  dG_chem,
-								  D_CrCr, D_NbNb,
-								  sigma_del,
-								  Vatom,
-								  n_gam,
-								  dV, dt,
-								  &r_star, &P_nuc);
+	                              dG_chem,
+	                              D_CrCr, D_NbNb,
+	                              sigma_del,
+	                              Vatom,
+	                              n_gam,
+	                              dV, dt,
+	                              &r_star, &P_nuc);
 	if (r_star > 0.) {
 		const fp_t r = r_star / dx;
 		const int R = 1.25 * ceil(r + w);
 		embed_OPC(grid, x,
-				  xCr, xNb,
-				  xe_del_Cr(),
-				  xe_del_Nb(),
-				  R, r, r_star,
-				  w, NC);
+		          xCr, xNb,
+		          xe_del_Cr(),
+		          xe_del_Nb(),
+		          R, r, r_star,
+		          w, NC);
 	}
 
 	// Embed a Laves particle
@@ -325,22 +325,22 @@ void seed_pair(GRID2D& grid, const fp_t w,
 
 	nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 	nucleation_probability_sphere(xCr, xNb,
-								  dG_chem,
-								  D_CrCr, D_NbNb,
-								  sigma_lav,
-								  Vatom,
-								  n_gam,
-								  dV, dt,
-								  &r_star, &P_nuc);
+	                              dG_chem,
+	                              D_CrCr, D_NbNb,
+	                              sigma_lav,
+	                              Vatom,
+	                              n_gam,
+	                              dV, dt,
+	                              &r_star, &P_nuc);
 	if (r_star > 0.) {
 		const fp_t r = r_star / dx;
 		const int R = 1.25 * ceil(r + w);
 		embed_OPC(grid, x,
-				  xCr, xNb,
-				  xe_lav_Cr(),
-				  xe_lav_Nb(),
-				  R, r, r_star,
-				  w, NC+1);
+		          xCr, xNb,
+		          xe_lav_Cr(),
+		          xe_lav_Nb(),
+		          R, r, r_star,
+		          w, NC+1);
 	}
 }
 
@@ -393,7 +393,7 @@ void generate(int dim, const char* filename)
 			          << ", dtDiffusionLimited=" << dtDiffusionLimited
 			          << '.' << std::endl;
 
-        #ifdef CONVERGENCE
+		#ifdef CONVERGENCE
 		init_flat_composition(initGrid, mtrand);
 		#else
 		init_gaussian_enrichment(initGrid, mtrand);
@@ -421,9 +421,9 @@ void generate(int dim, const char* filename)
 
 		if (rank == 0) {
 			fprintf(cfile, "%9s %9s %9s %12s %12s %12s %12s\n",
-			               "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
+			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
 			fprintf(cfile, "%9g %9g %9g %12g %12g %12g %12g\n",
-			                0., summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+			        0., summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
 			printf("%9s %9s %9s %9s %9s\n",
 			       "x_Cr", "x_Nb", " p_g", " p_d", " p_l");
@@ -594,9 +594,9 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim,MMSP::vector<T> > const& GR
 		{
 		#endif
 			summary += mySummary;
-		#ifdef _OPENMP
+			#ifdef _OPENMP
 		}
-		#endif
+			#endif
 	}
 
 	for (int i = 0; i < NC+NP+1; i++)

@@ -88,41 +88,41 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand);
  See TKR5p271.
 */
 void embed_OPC(GRID2D& grid,
-			   const MMSP::vector<int>& x,
-			   const fp_t& xCr,
-			   const fp_t& xNb,
-			   const fp_t& par_xe_Cr,
-			   const fp_t& par_xe_Nb,
-			   const int& R_pre,
-			   const fp_t& r_pre,
-			   const fp_t& r_pre_star,
-			   const fp_t& w,
-			   const int pid);
+               const MMSP::vector<int>& x,
+               const fp_t& xCr,
+               const fp_t& xNb,
+               const fp_t& par_xe_Cr,
+               const fp_t& par_xe_Nb,
+               const int& R_pre,
+               const fp_t& r_pre,
+               const fp_t& r_pre_star,
+               const fp_t& w,
+               const int pid);
 
 /**
    \brief Embed particle at specified position
    Set the <b>O</b>rder <b>P</b>arameter <b>O</b>nly.
 */
 void embed_OPO(GRID2D& grid,
-			   const MMSP::vector<int>& x,
-			   const fp_t& xCr,
-			   const fp_t& xNb,
-			   const fp_t& par_xe_Cr,
-			   const fp_t& par_xe_Nb,
-			   const int& R_pre,
-			   const fp_t& r_pre,
-			   const fp_t& r_pre_star,
-			   const fp_t& w);
+               const MMSP::vector<int>& x,
+               const fp_t& xCr,
+               const fp_t& xNb,
+               const fp_t& par_xe_Cr,
+               const fp_t& par_xe_Nb,
+               const int& R_pre,
+               const fp_t& r_pre,
+               const fp_t& r_pre_star,
+               const fp_t& w);
 
 /**
  \brief Insert a single particle at the specified location
  Secondary phase will be chosen by random "coin toss".
 */
 void seed_solitaire(GRID2D& grid, const fp_t w,
-					 const fp_t D_CrCr, const fp_t D_NbNb,
-					 const fp_t sigma_del, const fp_t sigma_lav,
-					 const fp_t lattice_const, const fp_t ifce_width,
-					 const fp_t dx, const fp_t dt, std::mt19937& mtrand);
+                    const fp_t D_CrCr, const fp_t D_NbNb,
+                    const fp_t sigma_del, const fp_t sigma_lav,
+                    const fp_t lattice_const, const fp_t ifce_width,
+                    const fp_t dx, const fp_t dt, std::mt19937& mtrand);
 
 /**
  \brief Insert a slab of delta phase at the left border
@@ -135,10 +135,10 @@ void embed_planar_delta(GRID2D& grid, const int w);
  and separated vertically by an equal distance from the midpoint.
 */
 void seed_pair(GRID2D& grid, const fp_t w,
-			   const fp_t D_CrCr, const fp_t D_NbNb,
-			   const fp_t sigma_del, const fp_t sigma_lav,
-			   const fp_t lattice_const, const fp_t ifce_width,
-			   const fp_t dx, const fp_t dt);
+               const fp_t D_CrCr, const fp_t D_NbNb,
+               const fp_t sigma_del, const fp_t sigma_lav,
+               const fp_t lattice_const, const fp_t ifce_width,
+               const fp_t dx, const fp_t dt);
 
 /**
  \brief Compute distance between MMSP coordinates

@@ -160,15 +160,15 @@ int main(int argc, char* argv[])
 
 					// Adsorption of A
 					gamma[0] += inVm * (xa - coeffB(xah, xbh, xch, xal, xbl, xcl) * xb
-					                       - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
+					                    - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
 
 					// Adsorption of B (xa->xz, xb->xa, xz->xb)
 					gamma[1] += inVm * (xb - coeffB(xbh, xah, xch, xbl, xal, xcl) * xa
-					                       - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
+					                    - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
 
 					// Adsorption of C (xa->xz, xc->xa, xz->xc
 					gamma[2] += inVm * (xc - coeffB(xch, xbh, xah, xcl, xbl, xal) * xb
-					                       - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
+					                    - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
 
 				}
 			} else {
@@ -199,15 +199,15 @@ int main(int argc, char* argv[])
 
 					// Adsorption of A
 					gamma[0] += inVm * (xa - coeffB(xah, xbh, xch, xal, xbl, xcl) * xb
-					                       - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
+					                    - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
 
 					// Adsorption of B (xa->xz, xb->xa, xz->xb)
 					gamma[1] += inVm * (xb - coeffB(xbh, xah, xch, xbl, xal, xcl) * xa
-					                       - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
+					                    - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
 
 					// Adsorption of C (xa->xz, xc->xa, xz->xc
 					gamma[2] += inVm * (xc - coeffB(xch, xbh, xah, xcl, xbl, xal) * xb
-					                       - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
+					                    - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
 
 				}
 			} else {
@@ -238,15 +238,15 @@ int main(int argc, char* argv[])
 
 					// Adsorption of A
 					gamma[0] += inVm * (xa - coeffB(xah, xbh, xch, xal, xbl, xcl) * xb
-					                       - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
+					                    - coeffC(xah, xbh, xch, xal, xbl, xcl) * xc) * dz;
 
 					// Adsorption of B (xa->xz, xb->xa, xz->xb)
 					gamma[1] += inVm * (xb - coeffB(xbh, xah, xch, xbl, xal, xcl) * xa
-					                       - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
+					                    - coeffC(xbh, xah, xch, xbl, xal, xcl) * xc) * dz;
 
 					// Adsorption of C (xa->xz, xc->xa, xz->xc
 					gamma[2] += inVm * (xc - coeffB(xch, xbh, xah, xcl, xbl, xal) * xb
-					                       - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
+					                    - coeffC(xch, xbh, xah, xcl, xbl, xal) * xa) * dz;
 
 				}
 			} else {
