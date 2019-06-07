@@ -248,31 +248,30 @@ void seed_solitaire(GRID2D& grid, const fp_t w,
 	#endif
 }
 
-void seed_planar_delta(GRID2D& grid,
-					   const fp_t w)
+void seed_planar_delta(GRID2D& grid, const int w)
 {
-	const fp_t& xCr = grid(0)[0];
-	const fp_t& xNb = grid(0)[1];
+	const int mid = MMSP::nodes(grid) / 2;
+	const fp_t& xCr = grid(mid)[0];
+	const fp_t& xNb = grid(mid)[1];
 
-	const int r = 10;
-	const int R = 1.25 * ceil(r + w);
-
-	const fp_t R_depletion_Cr = fp_t(R) * sqrt((xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
-	const fp_t R_depletion_Nb = fp_t(R) * sqrt((xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
-	const int R_depletion = ceil(2. * R_depletion_Cr * R_depletion_Nb / (R_depletion_Cr + R_depletion_Nb)); // harmonic mean
+	const int R_depletion_Cr = w * sqrt((xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
+	const int R_depletion_Nb = w * sqrt((xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	for (int n = 0; n < MMSP::nodes(grid); n++) {
+		MMSP::vector<fp_t>& GridN = grid(n);
 		MMSP::vector<int> x = MMSP::position(grid, n);
-		MMSP::vector<fp_t>& GridX = grid(x);
-		const fp_t rad = x[0] - MMSP::g0(grid, 0);
-		const fp_t z = rad - (r + w);
-		GridX[2] = interface_profile(4 * z / w);
-		if (rad <= R) {
-			GridX[0] = xe_del_Cr();
-			GridX[1] = xe_del_Nb();
-		} else if (rad <= R_depletion) {
-			GridX[0] = xe_gam_Cr();
-			GridX[1] = xe_gam_Nb();
+		const int r = x[0] - MMSP::g0(grid, 0);
+		if (r <= w) {
+			GridN[0] = xe_del_Cr();
+			GridN[1] = xe_del_Nb();
+			GridN[2] = 1.;
+		} else {
+			if (r <= R_depletion_Cr) {
+				GridN[0] = xe_gam_Cr();
+			}
+			if (r <= R_depletion_Nb) {
+				GridN[1] = xe_gam_Nb();
+			}
 		}
 	}
 }
@@ -373,8 +372,8 @@ void generate(int dim, const char* filename)
 		const int Nx = 4000;
 		const int Ny = 2500;
 		#else
-		const int Nx = 1000;
-		const int Ny = 200;
+		const int Nx = 1024;
+		const int Ny = 180;
 		#endif
 		double Ntot = 1.0;
 		GRID2D initGrid(2*NC+NP, -Nx/2, Nx/2, -Ny/2, Ny/2);
@@ -402,7 +401,7 @@ void generate(int dim, const char* filename)
 
 		// Embed two particles as a sanity check
 		#ifdef CONVERGENCE
-		const fp_t w = ifce_width / meshres;
+		const int w = 32;
 		seed_planar_delta(initGrid, w);
 		/*
 		seed_solitaire(initGrid, w, D_Cr[0], D_Nb[1],
@@ -412,10 +411,8 @@ void generate(int dim, const char* filename)
 		#endif
 
 		// Update fictitious compositions
-		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
-			vector<int> x = MMSP::position(initGrid, n);
-			update_compositions(initGrid(x));
-		}
+		for (int n = 0; n < MMSP::nodes(initGrid); n++)
+			update_compositions(initGrid(n));
 
 		ghostswap(initGrid);
 

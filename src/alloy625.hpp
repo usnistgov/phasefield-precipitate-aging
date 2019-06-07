@@ -127,7 +127,7 @@ void seed_solitaire(GRID2D& grid, const fp_t w,
 /**
  \brief Insert a slab of delta phase at the left border
 */
-void embed_planar_delta(GRID2D& grid, const fp_t w);
+void embed_planar_delta(GRID2D& grid, const int w);
 
 /**
  \brief Insert one particle of each secondary phase

@@ -1,6 +1,7 @@
 /**
  \file  cuda_discretization.cu
- \brief Implementation of boundary condition functions with CUDA acceleration
+ \brief Implementation of discretized equations with CUDA acceleration
+ Contains functions for boundary conditions, equations of motion, and nucleation.
 */
 
 #include <assert.h>
@@ -18,8 +19,10 @@
 #include "parabola625.cuh"
 #include "nucleation.cuh"
 
-// Convenience function for checking CUDA runtime API results
-// can be wrapped around any runtime API call. No-op in release builds.
+/**
+ \brief Convenience function for checking CUDA runtime API results
+ No-op in release builds.
+*/
 cudaError_t checkCuda(cudaError_t result)
 {
     if (result != cudaSuccess) {
@@ -28,7 +31,6 @@ cudaError_t checkCuda(cudaError_t result)
 	}
 	return result;
 }
-
 
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
@@ -90,10 +92,10 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			/* top condition */
 			d_conc_Cr[(jhi+1) * nx + col] = d_conc_Cr[jhi * nx + col];
 			d_conc_Nb[(jhi+1) * nx + col] = d_conc_Nb[jhi * nx + col];
-			d_gam_Cr[ (jhi+1) * nx + col] = d_gam_Cr[ jhi * nx + col];
-			d_gam_Nb[ (jhi+1) * nx + col] = d_gam_Nb[ jhi * nx + col];
 			d_phi_del[(jhi+1) * nx + col] = d_phi_del[jhi * nx + col];
 			d_phi_lav[(jhi+1) * nx + col] = d_phi_lav[jhi * nx + col];
+			d_gam_Cr[ (jhi+1) * nx + col] = d_gam_Cr[ jhi * nx + col];
+			d_gam_Nb[ (jhi+1) * nx + col] = d_gam_Nb[ jhi * nx + col];
 		}
 
 		__syncthreads();

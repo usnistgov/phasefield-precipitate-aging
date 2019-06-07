@@ -156,7 +156,7 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 			const float x = conc[j+nm/2][i+nm/2];
             c.at(w * j + i) = x;
 			cbar.at(i) += x / h;
-			d.at(i) = deltax * i / 1e-6;
+			d.at(i) = 1e-6 * deltax * i;
         }
 	}
     const float* z = &(c[0]);
@@ -191,11 +191,7 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
     spanc = ncols-1;
     plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
     plt::plot(d, cbar);
-    #ifndef CONVERGENCE
-    plt::xlim(0., 1.);
-    #else
-    plt::xlim(0., 0.125);
-    #endif
+    plt::xlim(0., 1e-6 * deltax * nx);
     plt::ylim(0.4, 0.8);
     plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
     plt::ylabel("$\\bar{\\chi}_{\\mathrm{Ni}}$");
