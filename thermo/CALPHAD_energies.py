@@ -73,38 +73,44 @@ from sympy.utilities.codegen import codegen
 from pycalphad import Database, Model
 from constants import *
 
-interpolator = x**3 * (6.*x**2 - 15.*x + 10.)
-dinterpdx = 30. * x**2 * (1.0 - x)**2
+interpolator = x ** 3 * (6.0 * x ** 2 - 15.0 * x + 10.0)
+dinterpdx = 30.0 * x ** 2 * (1.0 - x) ** 2
 interfaceProfile = (1 - tanh(z)) / 2
 
 # Read CALPHAD database from disk, specify phases and elements of interest
-tdb = Database('Du_Cr-Nb-Ni_simple.tdb')
-elements = ['CR', 'NB', 'NI']
+tdb = Database("Du_Cr-Nb-Ni_simple.tdb")
+elements = ["CR", "NB", "NI"]
 
-species = list(set([i for c in tdb.phases['FCC_A1'].constituents for i in c]))
-model = Model(tdb, species, 'FCC_A1')
+species = list(set([i for c in tdb.phases["FCC_A1"].constituents for i in c]))
+model = Model(tdb, species, "FCC_A1")
 g_gamma = parse_expr(str(model.ast))
 
-species = list(set([i for c in tdb.phases['D0A_NBNI3'].constituents for i in c]))
-model = Model(tdb, species, 'D0A_NBNI3')
+species = list(set([i for c in tdb.phases["D0A_NBNI3"].constituents for i in c]))
+model = Model(tdb, species, "D0A_NBNI3")
 g_delta = parse_expr(str(model.ast))
 
-species = list(set([i for c in tdb.phases['C14_LAVES'].constituents for i in c]))
-model = Model(tdb, species, 'C14_LAVES')
+species = list(set([i for c in tdb.phases["C14_LAVES"].constituents for i in c]))
+model = Model(tdb, species, "C14_LAVES")
 g_laves = parse_expr(str(model.ast))
 
 
 # Declare sublattice variables used in Pycalphad expressions
-XCR, XNB = symbols('XCR XNB')
+XCR, XNB = symbols("XCR XNB")
 
 # Define lever rule equations
-xo, yo = symbols('xo yo')
-xb, yb = symbols('xb yb')
-xc, yc = symbols('xc yc')
-xd, yd = symbols('xd yd')
+xo, yo = symbols("xo yo")
+xb, yb = symbols("xb yb")
+xc, yc = symbols("xc yc")
+xd, yd = symbols("xd yd")
 
-levers = solve_linear_system(Matrix( ((yo - yb, xb - xo, xb * yo - xo * yb),
-                                      (yc - yd, xd - xc, xd * yc - xc * yd)) ), x, y)
+levers = solve_linear_system(
+    Matrix(
+        ((yo - yb, xb - xo, xb * yo - xo * yb), (yc - yd, xd - xc, xd * yc - xc * yd))
+    ),
+    x,
+    y,
+)
+
 
 def draw_bisector(weightA, weightB):
     bNb = (weightA * xe_del_Nb + weightB * xe_lav_Nb) / (weightA + weightB)
@@ -113,28 +119,46 @@ def draw_bisector(weightA, weightB):
     yPrime = [simY(xe_gam_Cr), simY(bCr)]
     return xPrime, yPrime
 
+
 # triangle bounding three-phase coexistence
-X0 = [simX(xe_gam_Nb, xe_gam_Cr), simX(xe_del_Nb, xe_del_Cr), simX(xe_lav_Nb, xe_lav_Cr), simX(xe_gam_Nb, xe_gam_Cr)]
-Y0 = [simY(xe_gam_Cr),            simY(xe_del_Cr),            simY(xe_lav_Cr),            simY(xe_gam_Cr)]
+X0 = [
+    simX(xe_gam_Nb, xe_gam_Cr),
+    simX(xe_del_Nb, xe_del_Cr),
+    simX(xe_lav_Nb, xe_lav_Cr),
+    simX(xe_gam_Nb, xe_gam_Cr),
+]
+Y0 = [simY(xe_gam_Cr), simY(xe_del_Cr), simY(xe_lav_Cr), simY(xe_gam_Cr)]
 
 # Make sublattice -> system substitutions
-g_gamma = inVm * g_gamma.subs({symbols('FCC_A10CR'): XCR,
-                               symbols('FCC_A10NB'): XNB,
-                               symbols('FCC_A10NI'): 1 - XCR - XNB,
-                               symbols('FCC_A11VA'): 1,
-                               symbols('T'): temp})
+g_gamma = inVm * g_gamma.subs(
+    {
+        symbols("FCC_A10CR"): XCR,
+        symbols("FCC_A10NB"): XNB,
+        symbols("FCC_A10NI"): 1 - XCR - XNB,
+        symbols("FCC_A11VA"): 1,
+        symbols("T"): temp,
+    }
+)
 
-g_delta = inVm * g_delta.subs({symbols('D0A_NBNI30NB'): 4*XNB,
-                               symbols('D0A_NBNI30NI'): 1 - 4*XNB,
-                               symbols('D0A_NBNI31CR'): fr4by3 * XCR,
-                               symbols('D0A_NBNI31NI'): 1 - fr4by3 * XCR,
-                               symbols('T'): temp})
+g_delta = inVm * g_delta.subs(
+    {
+        symbols("D0A_NBNI30NB"): 4 * XNB,
+        symbols("D0A_NBNI30NI"): 1 - 4 * XNB,
+        symbols("D0A_NBNI31CR"): fr4by3 * XCR,
+        symbols("D0A_NBNI31NI"): 1 - fr4by3 * XCR,
+        symbols("T"): temp,
+    }
+)
 
-g_laves = inVm * g_laves.subs({symbols('C14_LAVES0CR'): 1 - fr3by2 * (1 - XCR - XNB),
-                               symbols('C14_LAVES0NI'): fr3by2 * (1 - XCR - XNB),
-                               symbols('C14_LAVES1CR'): 1 - 3*XNB,
-                               symbols('C14_LAVES1NB'): 3 * XNB,
-                               symbols('T'): temp})
+g_laves = inVm * g_laves.subs(
+    {
+        symbols("C14_LAVES0CR"): 1 - fr3by2 * (1 - XCR - XNB),
+        symbols("C14_LAVES0NI"): fr3by2 * (1 - XCR - XNB),
+        symbols("C14_LAVES1CR"): 1 - 3 * XNB,
+        symbols("C14_LAVES1NB"): 3 * XNB,
+        symbols("T"): temp,
+    }
+)
 
 # Generate paraboloid expressions (2nd-order Taylor series approximations)
 
@@ -152,17 +176,23 @@ PC_lav_CrNb = diff(g_laves, XCR, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
 PC_lav_NbNb = diff(g_laves, XNB, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
 
 # Expressions
-p_gamma = fr1by2 * PC_gam_CrCr * (XCR - xe_gam_Cr)**2                      \
-        +          PC_gam_CrNb * (XCR - xe_gam_Cr)    * (XNB - xe_gam_Nb)  \
-        + fr1by2 * PC_gam_NbNb                        * (XNB - xe_gam_Nb)**2
+p_gamma = (
+    fr1by2 * PC_gam_CrCr * (XCR - xe_gam_Cr) ** 2
+    + PC_gam_CrNb * (XCR - xe_gam_Cr) * (XNB - xe_gam_Nb)
+    + fr1by2 * PC_gam_NbNb * (XNB - xe_gam_Nb) ** 2
+)
 
-p_delta = fr1by2 * PC_del_CrCr * (XCR - xe_del_Cr)**2                      \
-        +          PC_del_CrNb * (XCR - xe_del_Cr)    * (XNB - xe_del_Nb)  \
-        + fr1by2 * PC_del_NbNb                        * (XNB - xe_del_Nb)**2
+p_delta = (
+    fr1by2 * PC_del_CrCr * (XCR - xe_del_Cr) ** 2
+    + PC_del_CrNb * (XCR - xe_del_Cr) * (XNB - xe_del_Nb)
+    + fr1by2 * PC_del_NbNb * (XNB - xe_del_Nb) ** 2
+)
 
-p_laves = fr1by2 * PC_lav_CrCr * (XCR - xe_lav_Cr)**2                      \
-        +          PC_lav_CrNb * (XCR - xe_lav_Cr)    * (XNB - xe_lav_Nb)  \
-        + fr1by2 * PC_lav_NbNb                        * (XNB - xe_lav_Nb)**2
+p_laves = (
+    fr1by2 * PC_lav_CrCr * (XCR - xe_lav_Cr) ** 2
+    + PC_lav_CrNb * (XCR - xe_lav_Cr) * (XNB - xe_lav_Nb)
+    + fr1by2 * PC_lav_NbNb * (XNB - xe_lav_Nb) ** 2
+)
 
 # Generate first derivatives of paraboloid landscape
 p_dGgam_dxCr = diff(p_gamma, XCR)
@@ -191,11 +221,11 @@ p_d2Glav_dxNbCr = diff(p_laves, XNB, XCR)
 p_d2Glav_dxNbNb = diff(p_laves, XNB, XNB)
 
 # ========= FICTITIOUS COMPOSITIONS ==========
-gamCr, gamNb = symbols('gamCr, gamNb')
-delCr, delNb = symbols('delCr, delNb')
-lavCr, lavNb = symbols('lavCr, lavNb')
-f_gam, f_del, f_lav = symbols('f_gam, f_del, f_lav')
-INV_DET = symbols('INV_DET')
+gamCr, gamNb = symbols("gamCr, gamNb")
+delCr, delNb = symbols("delCr, delNb")
+lavCr, lavNb = symbols("lavCr, lavNb")
+f_gam, f_del, f_lav = symbols("f_gam, f_del, f_lav")
+INV_DET = symbols("INV_DET")
 gcd = 1.0e-60
 
 ficGdCr = p_dGgam_dxCr.subs({XCR: gamCr, XNB: gamNb})
@@ -205,18 +235,16 @@ ficDdNb = p_dGdel_dxNb.subs({XCR: delCr, XNB: delNb})
 ficLdCr = p_dGlav_dxCr.subs({XCR: lavCr, XNB: lavNb})
 ficLdNb = p_dGlav_dxNb.subs({XCR: lavCr, XNB: lavNb})
 
-ficEqns = (XCR - f_gam*gamCr - f_del*delCr - f_lav*lavCr,
-                      XNB - f_gam*gamNb - f_del*delNb - f_lav*lavNb,
-                      ficGdCr - ficDdCr,
-                      ficGdNb - ficDdNb,
-                      ficGdCr - ficLdCr,
-                      ficGdNb - ficLdNb
-           )
-
-ficVars = (gamCr, gamNb,
-           delCr, delNb,
-           lavCr, lavNb
+ficEqns = (
+    XCR - f_gam * gamCr - f_del * delCr - f_lav * lavCr,
+    XNB - f_gam * gamNb - f_del * delNb - f_lav * lavNb,
+    ficGdCr - ficDdCr,
+    ficGdNb - ficDdNb,
+    ficGdCr - ficLdCr,
+    ficGdNb - ficLdNb,
 )
+
+ficVars = (gamCr, gamNb, delCr, delNb, lavCr, lavNb)
 
 fictitious = solve(ficEqns, ficVars, dict=True)
 
@@ -239,7 +267,7 @@ fict_lav_Cr = factor(expand(gcd * fict_lav_Cr)) * INV_DET
 fict_lav_Nb = factor(expand(gcd * fict_lav_Nb)) * INV_DET
 
 # ============ COMPOSITION SHIFTS ============
-P_del, P_lav = symbols('P_del, P_lav')
+P_del, P_lav = symbols("P_del, P_lav")
 
 GaCrCr = p_d2Ggam_dxCrCr
 GaCrNb = p_d2Ggam_dxCrNb
@@ -270,19 +298,18 @@ DgNbNb = xe_lav_Nb * GgNbNb
 
 # Three-Component Points: Gamma-Delta-Laves Equilibrium with Curvature
 
-A  = Matrix([[GaCrCr       , GaCrNb       ,-GbCrCr       ,-GbCrNb       , 0            , 0            ],
-             [GaCrNb       , GaNbNb       ,-GbCrNb       ,-GbNbNb       , 0            , 0            ],
-             [GaCrCr       , GaCrNb       , 0            , 0            ,-GgCrCr       ,-GgCrNb       ],
-             [GaCrNb       , GaNbNb       , 0            , 0            ,-GgCrNb       ,-GgNbNb       ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb,-DbCrCr-DbNbCr,-DbCrNb-DbNbNb, 0            , 0            ],
-             [DaCrCr+DaNbCr, DaCrNb+DaNbNb, 0            , 0            ,-DgCrCr-DgNbCr,-DgCrNb-DgNbNb]])
+A = Matrix(
+    [
+        [GaCrCr, GaCrNb, -GbCrCr, -GbCrNb, 0, 0],
+        [GaCrNb, GaNbNb, -GbCrNb, -GbNbNb, 0, 0],
+        [GaCrCr, GaCrNb, 0, 0, -GgCrCr, -GgCrNb],
+        [GaCrNb, GaNbNb, 0, 0, -GgCrNb, -GgNbNb],
+        [DaCrCr + DaNbCr, DaCrNb + DaNbNb, -DbCrCr - DbNbCr, -DbCrNb - DbNbNb, 0, 0],
+        [DaCrCr + DaNbCr, DaCrNb + DaNbNb, 0, 0, -DgCrCr - DgNbCr, -DgCrNb - DgNbNb],
+    ]
+)
 
-br = Matrix([[ 0    ],
-             [ 0    ],
-             [ 0    ],
-             [ 0    ],
-             [-P_del],
-             [-P_lav]])
+br = Matrix([[0], [0], [0], [0], [-P_del], [-P_lav]])
 
 xr = A.cholesky_solve(br)
 
@@ -295,49 +322,77 @@ dx_r_lav_Nb = xr[5]
 
 # Generate numerically efficient C-code
 
-codegen([# Interpolator
-         ('h', interpolator),
-         ('hprime', dinterpdx),
-         ('interface_profile', interfaceProfile),
-         # temperature
-         ('kT', 1.38064852e-23 * temp),
-         ('RT', 8.314472 * temp),
-         ('Vm', Vm),
-         # Equilibrium Compositions
-         ('xe_gam_Cr', xe_gam_Cr),  ('xe_gam_Nb', xe_gam_Nb),
-         ('xe_del_Cr', xe_del_Cr),  ('xe_del_Nb', xe_del_Nb),
-         ('xe_lav_Cr', xe_lav_Cr),  ('xe_lav_Nb', xe_lav_Nb),
-         # Matrix composition range
-         ('matrix_min_Cr', matrixMinCr), ('matrix_max_Cr', matrixMaxCr),
-         ('matrix_min_Nb', matrixMinNb), ('matrix_max_Nb', matrixMaxNb),
-         # Enriched composition range
-         ('enrich_min_Cr', enrichMinCr), ('enrich_max_Cr', enrichMaxCr),
-         ('enrich_min_Nb', enrichMinNb), ('enrich_max_Nb', enrichMaxNb),
-         # Curvature-Corrected Compositions
-         ('xr_gam_Cr', xe_gam_Cr + dx_r_gam_Cr),  ('xr_gam_Nb', xe_gam_Nb + dx_r_gam_Nb),
-         ('xr_del_Cr', xe_del_Cr + dx_r_del_Cr),  ('xr_del_Nb', xe_del_Nb + dx_r_del_Nb),
-         ('xr_lav_Cr', xe_lav_Cr + dx_r_lav_Cr),  ('xr_lav_Nb', xe_lav_Nb + dx_r_lav_Nb),
-         # Fictitious compositions
-         ('inv_fict_det', inv_fict_det),
-         ('fict_gam_Cr', fict_gam_Cr),
-         ('fict_gam_Nb', fict_gam_Nb),
-         ('fict_del_Cr', fict_del_Cr),
-         ('fict_del_Nb', fict_del_Nb),
-         ('fict_lav_Cr', fict_lav_Cr),
-         ('fict_lav_Nb', fict_lav_Nb),
-         # Interfacial energies
-         ('s_delta', s_delta),  ('s_laves', s_laves),
-         # Gibbs energies
-         ('g_gam', p_gamma),  ('g_del', p_delta),  ('g_lav', p_laves),
-         # First derivatives
-         ('dg_gam_dxCr', p_dGgam_dxCr),  ('dg_gam_dxNb', p_dGgam_dxNb),
-         ('dg_del_dxCr', p_dGdel_dxCr),  ('dg_del_dxNb', p_dGdel_dxNb),
-         ('dg_lav_dxCr', p_dGlav_dxCr),  ('dg_lav_dxNb', p_dGlav_dxNb),
-         # Second derivatives
-         ('d2g_gam_dxCrCr', p_d2Ggam_dxCrCr), ('d2g_gam_dxCrNb', p_d2Ggam_dxCrNb),
-         ('d2g_gam_dxNbCr', p_d2Ggam_dxNbCr), ('d2g_gam_dxNbNb', p_d2Ggam_dxNbNb),
-         ('d2g_del_dxCrCr', p_d2Gdel_dxCrCr), ('d2g_del_dxCrNb', p_d2Gdel_dxCrNb),
-         ('d2g_del_dxNbCr', p_d2Gdel_dxNbCr), ('d2g_del_dxNbNb', p_d2Gdel_dxNbNb),
-         ('d2g_lav_dxCrCr', p_d2Glav_dxCrCr), ('d2g_lav_dxCrNb', p_d2Glav_dxCrNb),
-         ('d2g_lav_dxNbCr', p_d2Glav_dxNbCr), ('d2g_lav_dxNbNb', p_d2Glav_dxNbNb)],
-        language='C', prefix='parabola625', project='PrecipitateAging', to_files=True)
+codegen(
+    [  # Interpolator
+        ("h", interpolator),
+        ("hprime", dinterpdx),
+        ("interface_profile", interfaceProfile),
+        # temperature
+        ("kT", 1.38064852e-23 * temp),
+        ("RT", 8.314472 * temp),
+        ("Vm", Vm),
+        # Equilibrium Compositions
+        ("xe_gam_Cr", xe_gam_Cr),
+        ("xe_gam_Nb", xe_gam_Nb),
+        ("xe_del_Cr", xe_del_Cr),
+        ("xe_del_Nb", xe_del_Nb),
+        ("xe_lav_Cr", xe_lav_Cr),
+        ("xe_lav_Nb", xe_lav_Nb),
+        # Matrix composition range
+        ("matrix_min_Cr", matrixMinCr),
+        ("matrix_max_Cr", matrixMaxCr),
+        ("matrix_min_Nb", matrixMinNb),
+        ("matrix_max_Nb", matrixMaxNb),
+        # Enriched composition range
+        ("enrich_min_Cr", enrichMinCr),
+        ("enrich_max_Cr", enrichMaxCr),
+        ("enrich_min_Nb", enrichMinNb),
+        ("enrich_max_Nb", enrichMaxNb),
+        # Curvature-Corrected Compositions
+        ("xr_gam_Cr", xe_gam_Cr + dx_r_gam_Cr),
+        ("xr_gam_Nb", xe_gam_Nb + dx_r_gam_Nb),
+        ("xr_del_Cr", xe_del_Cr + dx_r_del_Cr),
+        ("xr_del_Nb", xe_del_Nb + dx_r_del_Nb),
+        ("xr_lav_Cr", xe_lav_Cr + dx_r_lav_Cr),
+        ("xr_lav_Nb", xe_lav_Nb + dx_r_lav_Nb),
+        # Fictitious compositions
+        ("inv_fict_det", inv_fict_det),
+        ("fict_gam_Cr", fict_gam_Cr),
+        ("fict_gam_Nb", fict_gam_Nb),
+        ("fict_del_Cr", fict_del_Cr),
+        ("fict_del_Nb", fict_del_Nb),
+        ("fict_lav_Cr", fict_lav_Cr),
+        ("fict_lav_Nb", fict_lav_Nb),
+        # Interfacial energies
+        ("s_delta", s_delta),
+        ("s_laves", s_laves),
+        # Gibbs energies
+        ("g_gam", p_gamma),
+        ("g_del", p_delta),
+        ("g_lav", p_laves),
+        # First derivatives
+        ("dg_gam_dxCr", p_dGgam_dxCr),
+        ("dg_gam_dxNb", p_dGgam_dxNb),
+        ("dg_del_dxCr", p_dGdel_dxCr),
+        ("dg_del_dxNb", p_dGdel_dxNb),
+        ("dg_lav_dxCr", p_dGlav_dxCr),
+        ("dg_lav_dxNb", p_dGlav_dxNb),
+        # Second derivatives
+        ("d2g_gam_dxCrCr", p_d2Ggam_dxCrCr),
+        ("d2g_gam_dxCrNb", p_d2Ggam_dxCrNb),
+        ("d2g_gam_dxNbCr", p_d2Ggam_dxNbCr),
+        ("d2g_gam_dxNbNb", p_d2Ggam_dxNbNb),
+        ("d2g_del_dxCrCr", p_d2Gdel_dxCrCr),
+        ("d2g_del_dxCrNb", p_d2Gdel_dxCrNb),
+        ("d2g_del_dxNbCr", p_d2Gdel_dxNbCr),
+        ("d2g_del_dxNbNb", p_d2Gdel_dxNbNb),
+        ("d2g_lav_dxCrCr", p_d2Glav_dxCrCr),
+        ("d2g_lav_dxCrNb", p_d2Glav_dxCrNb),
+        ("d2g_lav_dxNbCr", p_d2Glav_dxNbCr),
+        ("d2g_lav_dxNbNb", p_d2Glav_dxNbNb),
+    ],
+    language="C",
+    prefix="parabola625",
+    project="PrecipitateAging",
+    to_files=True,
+)

@@ -6,16 +6,23 @@ from sympy import exp, integrate, simplify, init_printing, pprint, symbols
 from sympy import solve, Eq, N
 from sympy.utilities.codegen import codegen
 from sympy.abc import A, a, b, x
-sigma, xe, x0 = symbols('sigma x_e x_0', positive=True)
+
+sigma, xe, x0 = symbols("sigma x_e x_0", positive=True)
 init_printing()
 
-bell_f = A * (exp(-0.5 * (x / sigma)**2) - 1) + xe
+bell_f = A * (exp(-0.5 * (x / sigma) ** 2) - 1) + xe
 bell_F = integrate(bell_f, x)
 bell_a = simplify(bell_F.subs(x, b) - bell_F.subs(x, a)) / (b - a)
 coeff = simplify(solve(Eq(x0, bell_a), A))[0]
 bell_f = simplify(bell_f.subs(A, coeff))
 
-codegen(('bell_curve', bell_f), language='C', prefix='enrichment', project='PrecipitateAging', to_files=True)
+codegen(
+    ("bell_curve", bell_f),
+    language="C",
+    prefix="enrichment",
+    project="PrecipitateAging",
+    to_files=True,
+)
 
 """
 # === Check Enrichment ===

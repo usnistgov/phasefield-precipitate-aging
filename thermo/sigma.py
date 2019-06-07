@@ -3,17 +3,17 @@ import numpy as np
 
 # === Interfacial Energy ===
 
-s, d, l = np.loadtxt("sigma.csv", delimiter=',', skiprows=1, unpack=True)
+s, d, l = np.loadtxt("sigma.csv", delimiter=",", skiprows=1, unpack=True)
 
 plt.semilogy(s, d, label=r"$\delta$")
 plt.semilogy(s, l, label=r"$\lambda$")
 
 # 1e-7 is "about right", per AMJ
-plt.semilogy((0,1), (1e-7,1e-7), ":k")
+plt.semilogy((0, 1), (1e-7, 1e-7), ":k")
 
 plt.title("Nucleation Probability (Enriched Material)")
 
-plt.xlim([0., 0.25])
+plt.xlim([0.0, 0.25])
 plt.xlabel(r"$\sigma$")
 
 plt.ylim([5e-9, 0.05])
