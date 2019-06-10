@@ -45,10 +45,11 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
 	#else
-	/* Favor a high delta-phase fraction
+	/* Favor a high delta-phase fraction, with a composition
+	 * chosen from the gamma-delta edge of the three-phase field
 	 */
-	double xCrE = 0.4000;
-	double xNbE = 0.0375;
+	double xCrE = 0.415625;
+	double xNbE = 0.0625;
 	#endif
 
 	#ifdef MPI_VERSION
@@ -128,11 +129,12 @@ void embed_OPC(GRID2D& grid,
                const fp_t& R_precip,
                const int pid)
 {
-	const fp_t R_depletion_Cr = fp_t(R_precip) * sqrt((par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
-	const fp_t R_depletion_Nb = fp_t(R_precip) * sqrt((par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t R_depletion_Cr = fp_t(R_precip) * sqrt(1. + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = fp_t(R_precip) * sqrt(1. + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t R = std::max(R_depletion_Cr, R_depletion_Nb);
 
-	for (int i = -R_precip; i < R_precip; i++) {
-		for (int j = -R_precip; j < R_precip; j++) {
+	for (int i = -R; i < R; i++) {
+		for (int j = -R; j < R; j++) {
 			vector<int> y(x);
 			y[0] += i;
 			y[1] += j;
@@ -246,10 +248,11 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 {
 	const int mid = nodes(grid) / 2;
 	const fp_t& xCr = grid(mid)[0];
+
 	const fp_t& xNb = grid(mid)[1];
 
-	const int R_depletion_Cr = w_precip * sqrt((xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
-	const int R_depletion_Nb = w_precip * sqrt((xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
+	const int R_depletion_Cr = w_precip * (1. + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
+	const int R_depletion_Nb = w_precip * (1. + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	for (int n = 0; n < nodes(grid); n++) {
 		vector<fp_t>& GridN = grid(n);
@@ -395,7 +398,7 @@ void generate(int dim, const char* filename)
 
 		// Embed two particles as a sanity check
 		#ifdef CONVERGENCE
-		const int w_precip = glength(initGrid, 0) / 4;
+		const int w_precip = glength(initGrid, 0) / 6;
 		seed_planar_delta(initGrid, w_precip);
 		/*
 		seed_solitaire(initGrid, D_Cr[0], D_Nb[1],
