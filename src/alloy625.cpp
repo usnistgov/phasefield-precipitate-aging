@@ -57,14 +57,14 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	MPI::COMM_WORLD.Bcast(&xNbE, 1, MPI_DOUBLE, 0);
 	#endif
 
-	MMSP::vector<fp_t> init(MMSP::fields(grid), 0.);
+	vector<fp_t> init(fields(grid), 0.);
 	init[0] = xCrE;
 	init[1] = xNbE;
 
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (int n = 0; n < MMSP::nodes(grid); n++) {
+	for (int n = 0; n < nodes(grid); n++) {
 		grid(n) = init;
 	}
 }
@@ -93,12 +93,12 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 	#endif
 
 	// Zero initial condition
-	const MMSP::vector<fp_t> blank(MMSP::fields(grid), 0.);
+	const vector<fp_t> blank(fields(grid), 0.);
 
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (int n = 0; n < MMSP::nodes(grid); n++) {
+	for (int n = 0; n < nodes(grid); n++) {
 		grid(n) = blank;
 	}
 
@@ -120,7 +120,7 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 }
 
 void embed_OPC(GRID2D& grid,
-               const MMSP::vector<int>& x,
+               const vector<int>& x,
                const fp_t& xCr,
                const fp_t& xNb,
                const fp_t& par_xe_Cr,
@@ -136,7 +136,7 @@ void embed_OPC(GRID2D& grid,
 			vector<int> y(x);
 			y[0] += i;
 			y[1] += j;
-			MMSP::vector<fp_t>& GridY = grid(y);
+			vector<fp_t>& GridY = grid(y);
 			const fp_t r = sqrt(fp_t(i * i + j * j));
 			if (r <= R_precip) {
 				GridY[0] = par_xe_Cr;
@@ -244,17 +244,17 @@ void seed_solitaire(GRID2D& grid,
 
 void seed_planar_delta(GRID2D& grid, const int w_precip)
 {
-	const int mid = MMSP::nodes(grid) / 2;
+	const int mid = nodes(grid) / 2;
 	const fp_t& xCr = grid(mid)[0];
 	const fp_t& xNb = grid(mid)[1];
 
 	const int R_depletion_Cr = w_precip * sqrt((xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
 	const int R_depletion_Nb = w_precip * sqrt((xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
-	for (int n = 0; n < MMSP::nodes(grid); n++) {
-		MMSP::vector<fp_t>& GridN = grid(n);
-		MMSP::vector<int> x = MMSP::position(grid, n);
-		const int r = x[0] - MMSP::g0(grid, 0);
+	for (int n = 0; n < nodes(grid); n++) {
+		vector<fp_t>& GridN = grid(n);
+		vector<int> x = position(grid, n);
+		const int r = x[0] - g0(grid, 0);
 		if (r <= w_precip) {
 			GridN[0] = xe_del_Cr();
 			GridN[1] = xe_del_Nb();
@@ -379,7 +379,7 @@ void generate(int dim, const char* filename)
 			if (x1(initGrid, d) == g1(initGrid, d))
 				b1(initGrid, d) = Neumann;
 		}
-		MMSP::grid<2, double> nickGrid(initGrid, 1);
+		grid<2, double> nickGrid(initGrid, 1);
 
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
@@ -405,7 +405,7 @@ void generate(int dim, const char* filename)
 		#endif
 
 		// Update fictitious compositions
-		for (int n = 0; n < MMSP::nodes(initGrid); n++)
+		for (int n = 0; n < nodes(initGrid); n++)
 			update_compositions(initGrid(n));
 
 		ghostswap(initGrid);
@@ -432,14 +432,14 @@ void generate(int dim, const char* filename)
 		xNi[0]     = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
 		for (int i = 1; i < Ny; i++)
 			xNi[i] = &(xNi[0])[Nx * i];
-		const int xoff = MMSP::x0(initGrid);
-		const int yoff = MMSP::y0(initGrid);
+		const int xoff = x0(initGrid);
+		const int yoff = y0(initGrid);
 
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
-		for (int n = 0; n < MMSP::nodes(initGrid); n++) {
-			MMSP::vector<int> x = MMSP::position(nickGrid, n);
+		for (int n = 0; n < nodes(initGrid); n++) {
+			vector<int> x = position(nickGrid, n);
 			const int i = x[0] - xoff;
 			const int j = x[1] - yoff;
 			xNi[j][i] = 1. - initGrid(n)[0] - initGrid(n)[1];
@@ -450,7 +450,7 @@ void generate(int dim, const char* filename)
 
 		#ifdef MPI_VERSION
 		std::cerr << "Error: cannot write images in parallel." << std::endl;
-		MMSP::Abort(-1);
+		Abort(-1);
 		#endif
 		const int nm = 0, step = 0;
 		const double dt = 1.;
@@ -460,7 +460,7 @@ void generate(int dim, const char* filename)
 		free(xNi);
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
-		MMSP::Abort(-1);
+		Abort(-1);
 	}
 
 	if (rank == 0)
@@ -585,12 +585,10 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim, MMSP::vector<T> > const& G
 
 		#ifdef _OPENMP
 		#pragma omp critical (critSum)
-		{
 		#endif
+		{
 			summary += mySummary;
-			#ifdef _OPENMP
 		}
-			#endif
 	}
 
 	for (int i = 0; i < NC + NP + 1; i++)

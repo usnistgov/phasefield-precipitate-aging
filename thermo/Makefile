@@ -26,7 +26,7 @@ enrichment.c: enrichment.py
 	python $<
 
 parabola625.c: CALPHAD_energies.py constants.py
-	python $<
+	python $< && astyle --style=linux --indent-col1-comments --indent=tab --indent-preprocessor --indent-preproc-cond --pad-header --align-pointer=type --align-reference=type --keep-one-line-blocks --suffix=none parabola625.c
 
 # === Objects ===
 

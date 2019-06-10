@@ -372,16 +372,6 @@ int main(int argc, char* argv[])
 					if (nrg_step) {
 						read_out_result(&dev, &host, nx, ny);
 
-						std::stringstream outstr;
-						int n = outstr.str().length();
-						for (int j = 0; n < length; j++) {
-							outstr.str("");
-							outstr << base;
-							for (int k = 0; k < j; k++) outstr << 0;
-							outstr << i + increment << suffix;
-							n = outstr.str().length();
-						}
-
 						for (int n = 0; n < MMSP::nodes(grid); n++) {
 							MMSP::vector<fp_t>& gridN = grid(n);
 							MMSP::vector<int> x = MMSP::position(grid, n);
@@ -393,6 +383,16 @@ int main(int argc, char* argv[])
 							gridN[3] = host.phi_lav_new[j][i];
 							gridN[4] = host.gam_Cr[j][i];
 							gridN[5] = host.gam_Nb[j][i];
+						}
+
+						std::stringstream outstr;
+						int n = outstr.str().length();
+						for (int j = 0; n < length; j++) {
+							outstr.str("");
+							outstr << base;
+							for (int k = 0; k < j; k++) outstr << 0;
+							outstr << i + increment << suffix;
+							n = outstr.str().length();
 						}
 
 						// Log compositions, phase fractions
