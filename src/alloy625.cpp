@@ -395,7 +395,7 @@ void generate(int dim, const char* filename)
 
 		// Embed two particles as a sanity check
 		#ifdef CONVERGENCE
-		const int w_precip = 32;
+		const int w_precip = glength(initGrid, 0) / 4;
 		seed_planar_delta(initGrid, w_precip);
 		/*
 		seed_solitaire(initGrid, D_Cr[0], D_Nb[1],
