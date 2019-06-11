@@ -35,7 +35,6 @@ namespace MMSP
 
 void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 {
-	#ifndef CONVERGENCE
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
@@ -44,14 +43,15 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
-	#else
+
 	/* Favor a high delta-phase fraction, with a composition
 	 * chosen from the gamma-delta edge of the three-phase field
 	 */
+	/*
 	double xCrE = 0.415625;
 	double xNbE = 0.0625;
-	#endif
-
+	*/
+	
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
 	MPI::COMM_WORLD.Bcast(&xCrE, 1, MPI_DOUBLE, 0);
@@ -193,7 +193,7 @@ void seed_solitaire(GRID2D& grid,
 		                              &R_star,
 		                              &P_nuc);
 		if (R_star > 0.) {
-			const fp_t R_precip =  R_star / dx;
+			const fp_t R_precip = precip_stabilizer * R_star / dx;
 			embed_OPC(grid, x,
 			          xCr, xNb,
 			          xe_del_Cr(),
@@ -219,7 +219,7 @@ void seed_solitaire(GRID2D& grid,
 		                              &R_star,
 		                              &P_nuc);
 		if (R_star > 0.) {
-			const fp_t R_precip =  R_star / dx;
+			const fp_t R_precip = precip_stabilizer * R_star / dx;
 			embed_OPC(grid, x,
 			          xCr, xNb,
 			          xe_lav_Cr(),
@@ -305,7 +305,7 @@ void seed_pair(GRID2D& grid,
 	                              &R_star,
 	                              &P_nuc);
 	if (R_star > 0.) {
-		const fp_t R_precip = R_star / dx;
+		const fp_t R_precip = precip_stabilizer * R_star / dx;
 		embed_OPC(grid, x,
 		          xCr, xNb,
 		          xe_del_Cr(),
@@ -331,7 +331,7 @@ void seed_pair(GRID2D& grid,
 	                              &R_star,
 	                              &P_nuc);
 	if (R_star > 0.) {
-		const fp_t R_precip = R_star / dx;
+		const fp_t R_precip = precip_stabilizer * R_star / dx;
 		embed_OPC(grid, x,
 		          xCr, xNb,
 		          xe_lav_Cr(),
@@ -369,8 +369,8 @@ void generate(int dim, const char* filename)
 		const int Nx = 4000;
 		const int Ny = 2500;
 		#else
-		const int Nx = 1024;
-		const int Ny = 180;
+		const int Nx = 768;
+		const int Ny = 768;
 		#endif
 		double Ntot = 1.0;
 		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
@@ -396,15 +396,15 @@ void generate(int dim, const char* filename)
 		init_gaussian_enrichment(initGrid, mtrand);
 		#endif
 
-		// Embed two particles as a sanity check
 		#ifdef CONVERGENCE
+		// Embed a particle
+		/*
 		const int w_precip = glength(initGrid, 0) / 6;
 		seed_planar_delta(initGrid, w_precip);
-		/*
+		*/
 		seed_solitaire(initGrid, D_Cr[0], D_Nb[1],
 		               s_delta(), s_laves(),
 		               lattice_const, ifce_width, meshres, dt, mtrand);
-		*/
 		#endif
 
 		// Update fictitious compositions
@@ -417,9 +417,9 @@ void generate(int dim, const char* filename)
 		double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
-			fprintf(cfile, "%9s %9s %9s %12s %12s %12s %12s\n",
+			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s\n",
 			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
-			fprintf(cfile, "%9g %9g %9g %12g %12g %12g %12g\n",
+			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
 			        0., summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
 			printf("%9s %9s %9s %9s %9s\n",

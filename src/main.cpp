@@ -290,14 +290,9 @@ int main(int argc, char* argv[])
 
 			// setup logging
 			FILE* cfile = NULL;
-			FILE* mfile = NULL;
-			const bool inRangeX = (0 >= x0(grid) && 0 < x1(grid));
-			const bool inRangeY = (0 >= y0(grid) && 0 < y1(grid));
 
 			if (rank == 0)
 				cfile = fopen("c.log", "a"); // existing log will be appended
-			if (inRangeX && inRangeY)
-				mfile = fopen("mid.log", "a"); // existing log will be appended
 
 			// perform computation
 			for (int i = iterations_start; i < steps; i += increment) {
@@ -355,17 +350,6 @@ int main(int argc, char* argv[])
 						#endif
 						cudaStreamSynchronize(stNi);
 						write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), j+1, dt, imgname.str().c_str());
-						#ifdef CONVERGENCE
-						// Log compositions, phase fractions
-						fp_t xCrMid, xNbMid;
-						const size_t midpoint = nx * ny / 2;
-						cudaMemcpy(&xCrMid, &(dev.conc_Cr_old[midpoint]), sizeof(fp_t),
-						           cudaMemcpyDeviceToHost);
-						cudaMemcpy(&xNbMid, &(dev.conc_Nb_old[midpoint]), sizeof(fp_t),
-						           cudaMemcpyDeviceToHost);
-						if (inRangeX && inRangeY)
-							fprintf(mfile, "%9g\t%9g\n", xCrMid, xNbMid);
-						#endif
 					}
 
 					const bool nrg_step = ((j+1) % nrg_interval == 0 || (j+1) == steps);
@@ -403,8 +387,9 @@ int main(int argc, char* argv[])
 						double energy = summarize_energy(grid);
 
 						if (rank == 0) {
-							fprintf(cfile, "%9g %9g %9g %12g %12g %12g %12g\n",
+							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
 							        dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+							fflush(cfile);
 						}
 					}
 					// === Finish Architecture-Specific Kernel ===
@@ -433,8 +418,6 @@ int main(int argc, char* argv[])
 			free_arrays(&host);
 			if (rank == 0)
 				fclose(cfile);
-			if (inRangeX && inRangeY)
-				fclose(mfile);
 		} else {
 			std::cerr << dim << "-dimensional grids are unsupported in the CUDA version." << std::endl;
 			MMSP::Abort(-1);

@@ -309,7 +309,7 @@ double s_delta()
 {
 
 	double s_delta_result;
-	s_delta_result = 0.079000000000000001;
+	s_delta_result = 0.13;
 	return s_delta_result;
 
 }
@@ -318,7 +318,7 @@ double s_laves()
 {
 
 	double s_laves_result;
-	s_laves_result = 0.079000000000000001;
+	s_laves_result = 0.13;
 	return s_laves_result;
 
 }
