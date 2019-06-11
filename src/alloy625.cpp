@@ -51,7 +51,7 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	double xCrE = 0.415625;
 	double xNbE = 0.0625;
 	*/
-	
+
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
 	MPI::COMM_WORLD.Bcast(&xCrE, 1, MPI_DOUBLE, 0);
@@ -163,11 +163,11 @@ void seed_solitaire(GRID2D& grid,
 	fp_t dG_chem = 0.;
 	fp_t R_star = 0., P_nuc = 0.;
 	fp_t xCr = 0., xNb = 0.;
-	vector<int> x(2, 0);
 
 	const fp_t dV = dx * dx * dx;
 	const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // assuming FCC
 	const fp_t n_gam = dV / Vatom;
+	const vector<int> x(2, 0);
 
 	std::uniform_real_distribution<double> heads_or_tails(0, 1);
 	double penny = heads_or_tails(mtrand);
@@ -203,8 +203,6 @@ void seed_solitaire(GRID2D& grid,
 		}
 	} else {
 		// Embed a Laves particle
-		x[0] *= -1;
-		x[1] *= -1;
 		xCr = grid(x)[0];
 		xNb = grid(x)[1];
 
@@ -228,20 +226,6 @@ void seed_solitaire(GRID2D& grid,
 			          NC + 1);
 		}
 	}
-	#ifdef CONVERGENCE
-	FILE* mfile;
-	x[0] = 0;
-	x[1] = 0;
-	const bool inRangeX = (x[0] >= x0(grid) && x[0] < x1(grid));
-	const bool inRangeY = (x[1] >= y0(grid) && x[1] < y1(grid));
-	if (inRangeX && inRangeY) {
-		mfile = fopen("mid.log", "w"); // existing log will be overwritten
-		const fp_t& xCrMid = grid(x)[0];
-		const fp_t& xNbMid = grid(x)[1];
-		fprintf(mfile, "%9g\t%9g\n", xCrMid, xNbMid);
-		fclose(mfile);
-	}
-	#endif
 }
 
 void seed_planar_delta(GRID2D& grid, const int w_precip)
