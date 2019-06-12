@@ -151,12 +151,17 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 	std::vector<float> c(w * h);
 	std::vector<float> d(w);
 	std::vector<float> cbar(w);
-	for (int j = 0; j < h; ++j) {
-		for (int i = 0; i < w; ++i) {
+	for (int i = 0; i < w; ++i) {
+		d.at(i) = 1e-6 * deltax * i;
+		for (int j = 0; j < h; ++j) {
 			const float x = conc[j+nm/2][i+nm/2];
 			c.at(w * j + i) = x;
+			#ifndef CONVERGENCE
 			cbar.at(i) += x / h;
-			d.at(i) = 1e-6 * deltax * i;
+			#else
+			if (j == h/2)
+				cbar.at(i) = x;
+			#endif
 		}
 	}
 	const float* z = &(c[0]);
@@ -192,7 +197,9 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 	plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
 	plt::plot(d, cbar);
 	plt::xlim(0., 1e-6 * deltax * nx);
+	#ifndef CONVERGENCE
 	plt::ylim(0.4, 0.8);
+	#endif
 	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
 	plt::ylabel("$\\bar{\\chi}_{\\mathrm{Ni}}$");
 

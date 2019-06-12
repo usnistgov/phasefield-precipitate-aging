@@ -353,8 +353,8 @@ void generate(int dim, const char* filename)
 		const int Nx = 4000;
 		const int Ny = 2500;
 		#else
-		const int Nx = 768;
-		const int Ny = 768;
+		const int Nx = 1024;
+		const int Ny = 1024;
 		#endif
 		double Ntot = 1.0;
 		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
