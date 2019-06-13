@@ -3,7 +3,7 @@
 
 sed -e "s/^void /__device__ void d_/g" \
     -e "s/NUCLEATION/D_NUCLEATION/g" \
-    -e "s/^void /__device__ void d_/g" \
+    -e "s/^fp_t /__device__ fp_t d_/g" \
     ../thermo/nucleation.h > nucleation.cuh
 astyle --style=linux --indent-col1-comments --indent=tab \
        --indent-preprocessor --indent-preproc-cond --pad-header \
@@ -12,6 +12,7 @@ astyle --style=linux --indent-col1-comments --indent=tab \
 
 sed -e "s/^double /__device__ double d_/g" \
     -e "s/^void /__device__ void d_/g" \
+    -e "s/^fp_t /__device__ fp_t d_/g" \
     -e "s/ g_/ d_g_/g" \
     -e "s/ dg_/ d_dg_/g" \
     -e "s/xe_/ d_xe_/g" \

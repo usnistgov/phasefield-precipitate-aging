@@ -139,7 +139,8 @@ void figure(int w, int h, size_t dpi)
 	Py_DECREF(res);
 }
 
-void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
+void write_matplotlib(fp_t** conc, fp_t** phi,
+					  const int nx, const int ny, const int nm,
                       const fp_t deltax,
                       const int step, const fp_t dt, const char* filename)
 {
@@ -149,13 +150,20 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 	int h = ny - nm/2;
 
 	std::vector<float> c(w * h);
+	std::vector<float> p(w * h);
+
 	std::vector<float> d(w);
 	std::vector<float> cbar(w);
+
+	PyObject* mat;
+
 	for (int i = 0; i < w; ++i) {
-		d.at(i) = 1e-6 * deltax * i;
+		d.at(i) = 1e6 * deltax * i;
 		for (int j = 0; j < h; ++j) {
 			const float x = conc[j+nm/2][i+nm/2];
 			c.at(w * j + i) = x;
+			p.at(w * j + i) = phi[j+nm/2][i+nm/2];
+
 			#ifndef CONVERGENCE
 			cbar.at(i) += x / h;
 			#else
@@ -164,7 +172,6 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 			#endif
 		}
 	}
-	const float* z = &(c[0]);
 	const int colors = 1;
 
 	figure(3000, 2400, 200);
@@ -177,15 +184,20 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 	num_kw["vmax"] = 1.;
 
 	char timearr[256] = {0};
-	sprintf(timearr, "$t=%07f$ s\n", dt * step);
+	sprintf(timearr, "$t=%07f\\ \\mathrm{s}$\n", dt * step);
 	plt::suptitle(std::string(timearr));
 
 	long nrows = 3, ncols = 5;
-	long spanr = nrows, spanc = ncols;
+	long spanr = nrows - 1, spanc = ncols / 2;
 
-	spanr -= 1;
 	plt::subplot2grid(nrows, ncols, 0, 0, spanr, spanc);
-	PyObject* mat = plt::imshow(z, h, w, colors, str_kw, num_kw);
+	mat = plt::imshow(&(p[0]), h, w, colors, str_kw, num_kw);
+	plt::title("$\\phi$");
+	plt::axis("off");
+
+	plt::subplot2grid(nrows, ncols, 0, spanc, spanr, spanc+1);
+	mat = plt::imshow(&(c[0]), h, w, colors, str_kw, num_kw);
+	plt::title("$c$");
 	plt::axis("off");
 
 	std::map<std::string, float> bar_opts;
@@ -196,10 +208,8 @@ void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
 	spanc = ncols-1;
 	plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
 	plt::plot(d, cbar);
-	plt::xlim(0., 1e-6 * deltax * nx);
-	#ifndef CONVERGENCE
-	plt::ylim(0.4, 0.8);
-	#endif
+	plt::xlim(0., 1e6 * deltax * nx);
+	plt::ylim(0.3, 0.8);
 	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
 	plt::ylabel("$\\bar{\\chi}_{\\mathrm{Ni}}$");
 

@@ -97,12 +97,12 @@ void device_fictitious(cudaStream_t& st,
                        const int bx, const int by);
 
 /**
-   \brief Compute Ni composition on device
+   \brief Compute Ni composition and order parameter on device
 */
-void device_compute_Ni(cudaStream_t& st,
-                       struct CudaData* dev,struct HostData* host,
-                       const int nx, const int ny, const int nm,
-                       const int bx, const int by);
+void device_dataviz(cudaStream_t& st,
+                    struct CudaData* dev,struct HostData* host,
+                    const int nx, const int ny, const int nm,
+                    const int bx, const int by);
 
 /**
   \brief Copy fields from device to host

@@ -5,6 +5,8 @@
 
 #include "globals.h"
 
+__device__ fp_t d_tanh_interp(const fp_t r, const fp_t w);
+
 __device__ void d_nucleation_driving_force_delta(const fp_t& xCr, const fp_t& xNb, fp_t* dG);
 
 __device__ void d_nucleation_driving_force_laves(const fp_t& xCr, const fp_t& xNb, fp_t* dG);

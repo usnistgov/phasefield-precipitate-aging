@@ -5,6 +5,8 @@
 
 #include "globals.h"
 
+fp_t tanh_interp(const fp_t r, const fp_t w);
+
 void nucleation_driving_force_delta(const fp_t& xCr, const fp_t& xNb, fp_t* dG);
 
 void nucleation_driving_force_laves(const fp_t& xCr, const fp_t& xNb, fp_t* dG);

@@ -9,6 +9,12 @@
 #include <stdio.h>
 #endif
 
+__device__ fp_t d_tanh_interp(const fp_t r, const fp_t w)
+{
+	// TKR5p243
+	return 0.5 - 0.5 * tanh(r / w);
+}
+
 __device__ void d_nucleation_driving_force_delta(const fp_t& xCr, const fp_t& xNb, fp_t* dG)
 {
 	// TKR5p271

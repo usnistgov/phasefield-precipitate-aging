@@ -602,8 +602,9 @@ void device_nucleation(cudaStream_t& stream,
 	    dx, dy, dz, dt);
 }
 
-__global__ void nickel_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb, fp_t* d_conc_Ni,
-                              const int nx, const int ny)
+__global__ void dataviz_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb, fp_t* d_conc_Ni,
+                               fp_t* d_phi_del, fp_t* d_phi_lav, fp_t* d_phi,
+                               const int nx, const int ny)
 {
 	const int thr_x = threadIdx.x;
 	const int thr_y = threadIdx.y;
@@ -611,14 +612,16 @@ __global__ void nickel_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb, fp_t* d_conc_Ni,
 	const int y = blockDim.y * blockIdx.y + thr_y;
 	const int idx = nx * y + x;
 
-	if (x < nx && y < ny)
+	if (x < nx && y < ny) {
 		d_conc_Ni[idx] = 1. - d_conc_Cr[idx] - d_conc_Nb[idx];
+		d_phi[idx] = d_h(d_phi_del[idx]) + d_h(d_phi_lav[idx]);
+    }
 }
 
-void device_compute_Ni(cudaStream_t& stream,
-                       struct CudaData* dev, struct HostData* host,
-                       const int nx, const int ny, const int nm,
-                       const int bx, const int by)
+void device_dataviz(cudaStream_t& stream,
+                    struct CudaData* dev, struct HostData* host,
+                    const int nx, const int ny, const int nm,
+                    const int bx, const int by)
 {
 	/* divide matrices into blocks of bx * by threads */
 	dim3 tile_size(bx, by, 1);
@@ -626,11 +629,14 @@ void device_compute_Ni(cudaStream_t& stream,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
-	nickel_kernel <<< num_tiles, tile_size, 0, stream>>>(
+	dataviz_kernel <<< num_tiles, tile_size, 0, stream>>>(
 	    dev->conc_Cr_old, dev->conc_Nb_old, dev->conc_Ni,
+	    dev->phi_del_old, dev->phi_lav_old, dev->phi,
 	    nx, ny);
 
 	cudaMemcpyAsync(host->conc_Ni[0], dev->conc_Ni, nx * ny * sizeof(fp_t),
+	                cudaMemcpyDeviceToHost, stream);
+	cudaMemcpyAsync(host->phi[0], dev->phi, nx * ny * sizeof(fp_t),
 	                cudaMemcpyDeviceToHost, stream);
 }
 

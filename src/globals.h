@@ -8,7 +8,8 @@
 #define NC 2 // number of components
 
 // Numerical parameters
-const double meshres = 0.0125e-9;  // grid spacing (m)
+const double meshres = 0.0625e-9;  // grid spacing (m)
+const double ifce_width = 7.5e-10; // interface thickness (m), TKR5p274
 const fp_t LinStab = 1. / 7.28438; // threshold of linear (von Neumann) stability
 
 /* CFL Values
@@ -25,15 +26,9 @@ const fp_t precip_stabilizer = 7.; // 1.5 Rc = R0, the root of the curve
 /* Stabilizer Values
 | dx[/nm] | stabilizer | Delta       | Laves       |
 | ------- | ---------- | ----------- | ----------- |
-| 0.125   |          1 | unstable    | unstable    |
 | 0.125   |         16 | unstable    | unstable    |
 | 0.125   |         17*| stable      | stable      |
-| 0.025   |          1 | unstable    | unstable    |
-| 0.0125  |          1 | unstable    | unstable    |
-| 0.0125  |          2 | unstable    | unstable    |
-| 0.0125  |          7 | unstable    | unstable    |
-| 0.0125  |          9 | unstable    | unstable    |
-| 0.0125  |         11*| stable      | stable      |
+| 0.0625  |          7 |     |     |
 */
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
@@ -53,8 +48,7 @@ const fp_t Lmob[NP]  = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
 const fp_t sigma[NP] = {s_delta(), s_laves()}; // interfacial energy (J/m^2)
 const fp_t alpha = 1.07e11;                    // three-phase coexistence coefficient (J/m^3)
 
-// Compute interfacial width (nm) and well height (J/m^3)
-const fp_t ifce_width = 10. * meshres;
+// Compute well height (J/m^3) from interfacial width (nm) and energy (J/m^2)
 const fp_t width_factor = 2.2; // since interface is [0.1,0.9]; 2.94 if [0.05,0.95]
 const fp_t omega[NP] = {3.0 * width_factor* sigma[0] / ifce_width,  // delta
                         3.0 * width_factor* sigma[1] / ifce_width}; // Laves

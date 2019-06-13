@@ -9,6 +9,7 @@
 #ifndef __CUDA625_CPP__
 #define __CUDA625_CPP__
 
+#include <cassert>
 #include <chrono>
 #include <cmath>
 #include <random>
@@ -129,21 +130,28 @@ void embed_OPC(GRID2D& grid,
                const fp_t& R_precip,
                const int pid)
 {
-	const fp_t R_depletion_Cr = fp_t(R_precip) * sqrt(1. + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
-	const fp_t R_depletion_Nb = fp_t(R_precip) * sqrt(1. + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
-	const fp_t R = std::max(R_depletion_Cr, R_depletion_Nb);
+	const fp_t R_depletion_Cr = R_precip * sqrt(1. + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = R_precip * sqrt(1. + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t R = std::max(std::max(R_depletion_Cr, R_depletion_Nb),
+							R_precip + 4 * ifce_width / meshres);
 
-	for (int i = -R; i < R; i++) {
-		for (int j = -R; j < R; j++) {
+	for (int i = -R; i < R + 1; i++) {
+		for (int j = -R; j < R + 1; j++) {
 			vector<int> y(x);
 			y[0] += i;
 			y[1] += j;
 			vector<fp_t>& GridY = grid(y);
-			const fp_t r = sqrt(fp_t(i * i + j * j));
+			const fp_t r = sqrt(fp_t(i * i + j * j)); // distance to seed center
+			const fp_t z = meshres * (r - R_precip);
+			/*
+			GridY[0] = xe_gam_Cr() + (xe_gam_Cr() - par_xe_Cr) * tanh_interp(z, ifce_width);
+			GridY[1] = xe_gam_Nb() + (xe_gam_Nb() - par_xe_Nb) * tanh_interp(z, ifce_width);
+			*/
+			GridY[pid] = tanh_interp(z, ifce_width);
+
 			if (r <= R_precip) {
 				GridY[0] = par_xe_Cr;
 				GridY[1] = par_xe_Nb;
-				GridY[pid] = 1.;
 			} else {
 				if (r <= R_depletion_Cr)
 					GridY[0] = xe_gam_Cr();
@@ -327,6 +335,7 @@ void seed_pair(GRID2D& grid,
 
 void generate(int dim, const char* filename)
 {
+	assert (ifce_width > 4.5 * meshres);
 	std::chrono::high_resolution_clock::time_point beginning = std::chrono::high_resolution_clock::now();
 
 	int rank = 0;
@@ -353,8 +362,8 @@ void generate(int dim, const char* filename)
 		const int Nx = 4000;
 		const int Ny = 2500;
 		#else
-		const int Nx = 1024;
-		const int Ny = 1024;
+		const int Nx = 768;
+		const int Ny = 768;
 		#endif
 		double Ntot = 1.0;
 		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
@@ -417,8 +426,14 @@ void generate(int dim, const char* filename)
 		// write initial condition image
 		fp_t** xNi = (fp_t**)calloc(Nx, sizeof(fp_t*));
 		xNi[0]     = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
-		for (int i = 1; i < Ny; i++)
+
+		fp_t** phi = (fp_t**)calloc(Nx, sizeof(fp_t*));
+		phi[0]     = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
+
+		for (int i = 1; i < Ny; i++) {
 			xNi[i] = &(xNi[0])[Nx * i];
+			phi[i] = &(phi[0])[Nx * i];
+		}
 		const int xoff = x0(initGrid);
 		const int yoff = y0(initGrid);
 
@@ -430,6 +445,7 @@ void generate(int dim, const char* filename)
 			const int i = x[0] - xoff;
 			const int j = x[1] - yoff;
 			xNi[j][i] = 1. - initGrid(n)[0] - initGrid(n)[1];
+			phi[j][i] = h(initGrid(n)[2]) + h(initGrid(n)[3]);
 		}
 
 		std::string imgname(filename);
@@ -441,7 +457,7 @@ void generate(int dim, const char* filename)
 		#endif
 		const int nm = 0, step = 0;
 		const double dt = 1.;
-		write_matplotlib(xNi, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
+		write_matplotlib(xNi, phi, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
 
 		free(xNi[0]);
 		free(xNi);

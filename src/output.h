@@ -37,7 +37,8 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 /**
  \brief Writes scalar composition field to PNG using matplotlib-cpp
 */
-void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
+void write_matplotlib(fp_t** conc, fp_t** phi,
+                      const int nx, const int ny, const int nm,
                       const fp_t deltax,
                       const int step, const fp_t dt, const char* filename);
 

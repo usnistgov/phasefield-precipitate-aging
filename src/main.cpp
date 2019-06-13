@@ -332,7 +332,7 @@ int main(int argc, char* argv[])
 
 					const bool img_step = ((j+1) % img_interval == 0 || (j+1) == steps);
 					if (img_step) {
-						device_compute_Ni(stNi, &dev, &host, nx, ny, nm, bx, by);
+						device_dataviz(stNi, &dev, &host, nx, ny, nm, bx, by);
 
 						std::stringstream imgname;
 						int n = imgname.str().length();
@@ -349,7 +349,9 @@ int main(int argc, char* argv[])
 						MMSP::Abort(-1);
 						#endif
 						cudaStreamSynchronize(stNi);
-						write_matplotlib(host.conc_Ni, nx, ny, nm, MMSP::dx(grid), j+1, dt, imgname.str().c_str());
+						write_matplotlib(host.conc_Ni, host.phi,
+										 nx, ny, nm, MMSP::dx(grid),
+										 j+1, dt, imgname.str().c_str());
 					}
 
 					const bool nrg_step = ((j+1) % nrg_interval == 0 || (j+1) == steps);
