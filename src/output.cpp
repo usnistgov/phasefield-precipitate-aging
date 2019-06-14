@@ -154,6 +154,7 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 
 	std::vector<float> d(w);
 	std::vector<float> cbar(w);
+	std::vector<float> pbar(w);
 
 	PyObject* mat;
 
@@ -161,14 +162,18 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 		d.at(i) = 1e6 * deltax * i;
 		for (int j = 0; j < h; ++j) {
 			const float x = conc[j+nm/2][i+nm/2];
+			const float z = phi[j+nm/2][i+nm/2];
 			c.at(w * j + i) = x;
-			p.at(w * j + i) = phi[j+nm/2][i+nm/2];
+			p.at(w * j + i) = z;
 
 			#ifndef CONVERGENCE
 			cbar.at(i) += x / h;
+			pbar.at(i) += z / h;
 			#else
-			if (j == h/2)
+			if (j == h/2) {
 				cbar.at(i) = x;
+				pbar.at(i) = z;
+			}
 			#endif
 		}
 	}
@@ -208,6 +213,7 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	spanc = ncols-1;
 	plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
 	plt::plot(d, cbar);
+	plt::plot(d, pbar);
 	plt::xlim(0., 1e6 * deltax * nx);
 	plt::ylim(0.3, 0.8);
 	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");

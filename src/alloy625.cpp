@@ -147,7 +147,7 @@ void embed_OPC(GRID2D& grid,
 			GridY[0] = xe_gam_Cr() + (xe_gam_Cr() - par_xe_Cr) * tanh_interp(z, ifce_width);
 			GridY[1] = xe_gam_Nb() + (xe_gam_Nb() - par_xe_Nb) * tanh_interp(z, ifce_width);
 			*/
-			GridY[pid] = tanh_interp(z, ifce_width);
+			GridY[pid] = tanh_interp(z, 0.5 * ifce_width);
 
 			if (r <= R_precip) {
 				GridY[0] = par_xe_Cr;
