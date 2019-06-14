@@ -143,21 +143,17 @@ void embed_OPC(GRID2D& grid,
 			vector<fp_t>& GridY = grid(y);
 			const fp_t r = sqrt(fp_t(i * i + j * j)); // distance to seed center
 			const fp_t z = meshres * (r - R_precip);
-			/*
-			GridY[0] = xe_gam_Cr() + (xe_gam_Cr() - par_xe_Cr) * tanh_interp(z, ifce_width);
-			GridY[1] = xe_gam_Nb() + (xe_gam_Nb() - par_xe_Nb) * tanh_interp(z, ifce_width);
-			*/
-			GridY[pid] = tanh_interp(z, 0.5 * ifce_width);
 
-			if (r <= R_precip) {
-				GridY[0] = par_xe_Cr;
-				GridY[1] = par_xe_Nb;
-			} else {
-				if (r <= R_depletion_Cr)
-					GridY[0] = xe_gam_Cr();
-				if (r <= R_depletion_Nb)
-					GridY[1] = xe_gam_Nb();
-			}
+			// Smoothly interpolate through the interface , TKR5p276
+			GridY[0] = xe_gam_Cr()
+				+ (par_xe_Cr - xe_gam_Cr()) * tanh_interp(z, 0.1 * ifce_width)
+			    + (xCr - xe_gam_Cr()) * tanh_interp(meshres * (R_depletion_Cr - r), 0.1 * ifce_width);
+
+			GridY[1] = xe_gam_Nb()
+				+ (par_xe_Nb - xe_gam_Nb()) * tanh_interp(z, 0.1 * ifce_width)
+			    + (xNb - xe_gam_Nb()) * tanh_interp(meshres * (R_depletion_Nb - r), 0.1 * ifce_width);
+
+			GridY[pid] = tanh_interp(z, 0.5 * ifce_width);
 		}
 	}
 }
@@ -177,8 +173,12 @@ void seed_solitaire(GRID2D& grid,
 	const fp_t n_gam = dV / Vatom;
 	const vector<int> x(2, 0);
 
+	#ifdef CONVERGENCE
+	const double penny = 0.;
+	#else
 	std::uniform_real_distribution<double> heads_or_tails(0, 1);
-	double penny = heads_or_tails(mtrand);
+	const double penny = heads_or_tails(mtrand);
+	#endif
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
