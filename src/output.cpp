@@ -189,7 +189,7 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	num_kw["vmax"] = 1.;
 
 	char timearr[256] = {0};
-	sprintf(timearr, "$t=%07f\\ \\mathrm{s}$\n", dt * step);
+	sprintf(timearr, "$t=%7.3f\\ \\mathrm{s}$\n", dt * step);
 	plt::suptitle(std::string(timearr));
 
 	long nrows = 3, ncols = 5;
@@ -212,12 +212,18 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	spanr = 1;
 	spanc = ncols-1;
 	plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
-	plt::plot(d, cbar);
-	plt::plot(d, pbar);
 	plt::xlim(0., 1e6 * deltax * nx);
-	plt::ylim(0.3, 0.8);
+	plt::ylim(0., 1.);
 	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
 	plt::ylabel("$\\bar{\\chi}_{\\mathrm{Ni}}$");
+
+	str_kw.clear();
+	str_kw["label"] = "$x_{\\mathrm{Ni}}$";
+	plt::plot(d, cbar, str_kw);
+	str_kw["label"] = "$\\phi_{\\mathrm{precip}}$";
+	plt::plot(d, pbar, str_kw);
+
+	plt::legend();
 
 	plt::save(filename);
 	plt::close();
