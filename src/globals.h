@@ -8,9 +8,11 @@
 #define NC 2 // number of components
 
 // Numerical parameters
-const double meshres = 0.0625e-9;  // grid spacing, Δx (m)
-const double ifce_width = 7.5e-10; // interface thickness, 2λ (m), TKR5p274
-const fp_t LinStab = 1. / 7.28438; // threshold of linear (von Neumann) stability, Co (dimensionless)
+
+const double meshres = 0.0625e-9;   // grid spacing, Δx (m)
+const double ifce_width = 7.5e-10;  // interface thickness, 2λ (m), TKR5p274
+const fp_t LinStab = 1. / 7.28438;  // threshold of linear (von Neumann) stability, Co (dimensionless)
+const fp_t precip_stabilizer = 13.; // 1.5 Rc = R0, the root of the curve; fitting parameter
 
 /* CFL Values
 | dx[/nm] | dt[/s]  | CFL       | Note     |
@@ -21,14 +23,13 @@ const fp_t LinStab = 1. / 7.28438; // threshold of linear (von Neumann) stabilit
 | 0.250   | 5.00e-7 | 7.28438   |          |
 */
 
-const fp_t precip_stabilizer = 7.; // 1.5 Rc = R0, the root of the curve; fitting parameter
-
 /* Stabilizer Values
-| dx[/nm] | stabilizer | Delta       | Laves       |
-| ------- | ---------- | ----------- | ----------- |
-| 0.125   |         16 | unstable    | unstable    |
-| 0.125   |         17*| stable      | stable      |
-| 0.0625  |          7 |     |     |
+| dx[/nm] | stabilizer | Delta       | Laves       | Comment               |
+| ------- | ---------- | ----------- | ----------- | --------------------- |
+| 0.125   |         16 | unstable    | unstable    |                       |
+| 0.125   |         17*| stable      | stable      |                       |
+| 0.0625  |          7 | unstable    | unstable    | melted before growing |
+| 0.0625  |         13 |     |     |  |
 */
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
