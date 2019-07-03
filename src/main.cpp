@@ -273,11 +273,8 @@ int main(int argc, char* argv[])
 			}
 
 			// initialize GPU
-			cudaStream_t st, stNi;
-			cudaStreamCreate(&st);
-			cudaStreamCreate(&stNi);
 			init_cuda(&host, nx, ny, nm, &dev);
-			device_init_prng(st, &dev, nx, ny, nm, bx, by);
+			device_init_prng(&dev, nx, ny, nm, bx, by);
 
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
@@ -300,13 +297,13 @@ int main(int argc, char* argv[])
 				for (int j = i; j < i + increment; j++) {
 					print_progress(j - i, increment);
 					// === Start Architecture-Specific Kernel ===
-					device_boundaries(st, &dev, nx, ny, nm, bx, by);
+					device_boundaries(&dev, nx, ny, nm, bx, by);
 
-					device_laplacian(st, &dev, nx, ny, nm, bx, by);
+					device_laplacian(&dev, nx, ny, nm, bx, by);
 
-					device_laplacian_boundaries(st, &dev, nx, ny, nm, bx, by);
+					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 
-					device_evolution(st, &dev, nx, ny, nm, bx, by,
+					device_evolution(&dev, nx, ny, nm, bx, by,
 					                 D_Cr, D_Nb,
 					                 alpha, kappa[0], omega[0],
 					                 Lmob[0], Lmob[1], dt);
@@ -314,7 +311,7 @@ int main(int argc, char* argv[])
 					#ifndef CONVERGENCE
 					const bool nuc_step = (j % nuc_interval == 0);
 					if (nuc_step) {
-						device_nucleation(st, &dev, nx, ny, nm, bx, by,
+						device_nucleation(&dev, nx, ny, nm, bx, by,
 						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
 						                  lattice_const, ifce_width,
@@ -323,7 +320,7 @@ int main(int argc, char* argv[])
 					}
 					#endif
 
-					device_fictitious(st, &dev, nx, ny, nm, bx, by);
+					device_fictitious(&dev, nx, ny, nm, bx, by);
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
@@ -332,7 +329,7 @@ int main(int argc, char* argv[])
 
 					const bool img_step = ((j+1) % img_interval == 0 || (j+1) == steps);
 					if (img_step) {
-						device_dataviz(stNi, &dev, &host, nx, ny, nm, bx, by);
+						device_dataviz(&dev, &host, nx, ny, nm, bx, by);
 
 						std::stringstream imgname;
 						int n = imgname.str().length();
@@ -348,7 +345,6 @@ int main(int argc, char* argv[])
 						std::cerr << "Error: cannot write images in parallel." <<std::endl;
 						MMSP::Abort(-1);
 						#endif
-						cudaStreamSynchronize(stNi);
 						write_matplotlib(host.conc_Ni, host.phi,
 										 nx, ny, nm, MMSP::dx(grid),
 										 j+1, dt, imgname.str().c_str());

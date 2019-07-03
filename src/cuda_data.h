@@ -34,32 +34,28 @@ float nTiles(int domain_size, int tile_loc, int mask_size);
 /**
  \brief Apply boundary conditions to fields on device
 */
-void device_boundaries(cudaStream_t& st,
-                       struct CudaData* dev,
+void device_boundaries(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by);
 
 /**
    \brief Apply boundary conditions to Laplacian fields on device
 */
-void device_laplacian_boundaries(cudaStream_t& st,
-                                 struct CudaData* dev,
+void device_laplacian_boundaries(struct CudaData* dev,
                                  const int nx, const int ny, const int nm,
                                  const int bx, const int by);
 
 /**
    \brief Update Laplacian fields on device
 */
-void device_laplacian(cudaStream_t& st,
-                      struct CudaData* dev,
+void device_laplacian(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by);
 
 /**
  \brief Step equations of motion to update fields on device
 */
-void device_evolution(cudaStream_t& st,
-                      struct CudaData* dev,
+void device_evolution(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by,
                       const fp_t* D_Cr, const fp_t* D_Nb,
@@ -70,16 +66,14 @@ void device_evolution(cudaStream_t& st,
 /**
    \brief Initialize PRNG on device
 */
-void device_init_prng(cudaStream_t& st,
-                      struct CudaData* dev,
+void device_init_prng(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by);
 
 /**
  \brief Stochastically seed nuclei on device
 */
-void device_nucleation(cudaStream_t& st,
-                       struct CudaData* dev,
+void device_nucleation(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by,
                        const fp_t* D_Cr, const fp_t* D_Nb,
@@ -91,16 +85,14 @@ void device_nucleation(cudaStream_t& st,
 /**
  \brief Update fictitious composition fields on device
 */
-void device_fictitious(cudaStream_t& st,
-                       struct CudaData* dev,
+void device_fictitious(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by);
 
 /**
    \brief Compute Ni composition and order parameter on device
 */
-void device_dataviz(cudaStream_t& st,
-                    struct CudaData* dev,struct HostData* host,
+void device_dataviz(struct CudaData* dev,struct HostData* host,
                     const int nx, const int ny, const int nm,
                     const int bx, const int by);
 

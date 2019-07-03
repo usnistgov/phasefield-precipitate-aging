@@ -55,4 +55,4 @@ tie-lines.npz: phase-diagram.py
 
 .PHONY: clean
 clean:
-	rm -vf check-nucleation enrichment.c enrichment.o nucleation.o parabola625.* sigma.csv sigma.png
+	rm -vf check-nucleation enrichment.c enrichment.o enrichment.so nucleation.o parabola625.* sigma.csv sigma.png
