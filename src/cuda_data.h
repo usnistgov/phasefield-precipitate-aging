@@ -59,8 +59,9 @@ void device_evolution(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by,
                       const fp_t* D_Cr, const fp_t* D_Nb,
-                      const fp_t alpha, const fp_t kappa, const fp_t omega,
-                      const fp_t M_del, const fp_t M_lav,
+                      const fp_t alpha,
+                      const fp_t* kappa, const fp_t* omega,
+                      const fp_t* Lmob,
                       const fp_t dt);
 
 /**

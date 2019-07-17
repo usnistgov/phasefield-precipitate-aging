@@ -339,8 +339,9 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                  const int nx, const int ny, const int nm,
                                  const fp_t D_CrCr, const fp_t D_CrNb,
                                  const fp_t D_NbCr, const fp_t D_NbNb,
-                                 const fp_t alpha, const fp_t kappa, const fp_t omega,
-                                 const fp_t M_del, const fp_t M_lav,
+                                 const fp_t alpha,
+                                 const fp_t* kappa, const fp_t* omega,
+                                 const fp_t* Lmob,
                                  const fp_t dt)
 {
 	/* determine indices on which to operate */
@@ -372,12 +373,12 @@ __global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		/* Allen-Cahn equations of motion for phase */
 		delta_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
 		             d_phi_del_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
-		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, kappa, omega,
-		             M_del, dt);
+		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, kappa[0], omega[0],
+		             Lmob[0], dt);
 		laves_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
 		             d_phi_lav_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
-		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, kappa, omega,
-		             M_lav, dt);
+		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, kappa[1], omega[1],
+		             Lmob[1], dt);
 	}
 }
 
@@ -385,8 +386,9 @@ void device_evolution(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by,
                       const fp_t* D_Cr, const fp_t* D_Nb,
-                      const fp_t alpha, const fp_t kappa, const fp_t omega,
-                      const fp_t M_del, const fp_t M_lav,
+                      const fp_t alpha,
+                      const fp_t* kappa, const fp_t* omega,
+                      const fp_t* Lmob,
                       const fp_t dt)
 {
 	/* divide matrices into blocks of bx * by threads */
@@ -404,8 +406,8 @@ void device_evolution(struct CudaData* dev,
 	    nx, ny, nm,
 	    D_Cr[0], D_Cr[1],
 	    D_Nb[0], D_Nb[1],
-	    alpha, kappa, omega,
-	    M_del, M_lav,
+	    alpha,
+        kappa, omega, Lmob,
 	    dt);
 }
 

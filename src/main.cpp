@@ -305,8 +305,9 @@ int main(int argc, char* argv[])
 
 					device_evolution(&dev, nx, ny, nm, bx, by,
 					                 D_Cr, D_Nb,
-					                 alpha, kappa[0], omega[0],
-					                 Lmob[0], Lmob[1], dt);
+					                 alpha,
+									 kappa, omega, Lmob,
+									 dt);
 
 					#ifndef CONVERGENCE
 					const bool nuc_step = (j % nuc_interval == 0);
