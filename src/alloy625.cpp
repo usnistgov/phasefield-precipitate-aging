@@ -363,7 +363,7 @@ void generate(int dim, const char* filename)
 		const int Ny = 2500;
 		#else
 		const int Nx = 768;
-		const int Ny = 768;
+		const int Ny = 192; // 768 for particles
 		#endif
 		double Ntot = 1.0;
 		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
@@ -390,14 +390,13 @@ void generate(int dim, const char* filename)
 		#endif
 
 		#ifdef CONVERGENCE
-		// Embed a particle
-		/*
 		const int w_precip = glength(initGrid, 0) / 6;
 		seed_planar_delta(initGrid, w_precip);
-		*/
+		/*
 		seed_solitaire(initGrid, D_Cr[0], D_Nb[1],
 		               s_delta(), s_laves(),
 		               lattice_const, ifce_width, meshres, dt, mtrand);
+		*/
 		#endif
 
 		// Update fictitious compositions
