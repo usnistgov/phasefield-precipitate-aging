@@ -279,7 +279,7 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int img_interval = std::min(increment / 4, int(1e-3 / dt));
+			const int img_interval = std::min(increment / 4, int(1e-1 / dt));
 			const int nrg_interval = std::min(increment / 4, int(1e-2 / dt));
 			#ifndef CONVERGENCE
 			const int nuc_interval = 1e-5 / dt;

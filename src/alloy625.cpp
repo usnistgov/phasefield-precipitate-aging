@@ -363,7 +363,7 @@ void generate(int dim, const char* filename)
 		const int Ny = 2500;
 		#else
 		const int Nx = 768;
-		const int Ny = 192; // 768 for particles
+		const int Ny =  14; // Nx for particles
 		#endif
 		double Ntot = 1.0;
 		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
