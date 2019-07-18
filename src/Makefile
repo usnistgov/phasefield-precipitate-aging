@@ -27,15 +27,14 @@ NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
 
 LINKS = -lcuda -lcurand -lm $(PLT_LNK) -lz
 
-OBJS = data.o discretization.o d_nucleation.o d_parabola625.o mesh.o \
-       enrichment.o nucleation.o numerics.o output.o parabola625.o
+OBJS = data_cu.o discretization_cu.o nucleation_cu.o parabola625_cu.o \
+       enrichment_c.o nucleation_c.o parabola625_c.o \
+       mesh_cpp.o output_cpp.o
 
-# Executable
+# Executables
 
 alloy625: alloy625.cpp globals.h main.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
-
-# Debugging
 
 debug: CXXOPT = -O0 -g
 debug: CXXFLAGS += $(CXXOPT)
@@ -47,44 +46,22 @@ profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
 profile: alloy625
 
-# CUDA objects
-
-data.o: cuda_data.cu cuda_data.h
-	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
-
-discretization.o: cuda_discretization.cu globals.h cuda_data.h cuda_kernels.cuh parabola625.cu parabola625.cuh
-	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
-
-d_nucleation.o: nucleation.cu nucleation.cuh
-	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
-
-d_parabola625.o: parabola625.cu parabola625.cuh
-	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
-
+# Derived source code
 nucleation.cu: energy_functions.sh ../thermo/nucleation.c
 	bash $<
 
 parabola625.cu: energy_functions.sh ../thermo/parabola625.c
 	bash $<
 
-# Common objects
+# CUDA objects
+%_cu.o: %.cu %.cuh
+	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
-mesh.o: mesh.cpp mesh.h
+# Host objects
+%_cpp.o: %.cpp %.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-enrichment.o: ../thermo/enrichment.c ../thermo/enrichment.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-nucleation.o: ../thermo/nucleation.c ../thermo/nucleation.h
-	$(CXX) $(CXXFLAGS) -c $<
-
-numerics.o: numerics.cpp numerics.h
-	$(CXX) $(CXXFLAGS) -c $<
-
-output.o: output.cpp output.h matplotlib-cpp/matplotlibcpp.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-parabola625.o: ../thermo/parabola625.c ../thermo/parabola625.h
+%_c.o: ../thermo/%.c ../thermo/%.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 .PHONY: clean
