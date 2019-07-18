@@ -281,9 +281,7 @@ int main(int argc, char* argv[])
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 			const int img_interval = std::min(increment / 4, int(1e-1 / dt));
 			const int nrg_interval = std::min(increment / 4, int(1e-2 / dt));
-			#ifndef CONVERGENCE
-			const int nuc_interval = 1e-5 / dt;
-			#endif
+			// const int nuc_interval = 1e-5 / dt;
 
 			// setup logging
 			FILE* cfile = NULL;
@@ -309,7 +307,7 @@ int main(int argc, char* argv[])
 									 kappa, omega, Lmob,
 									 dt);
 
-					#ifndef CONVERGENCE
+					/*
 					const bool nuc_step = (j % nuc_interval == 0);
 					if (nuc_step) {
 						device_nucleation(&dev, nx, ny, nm, bx, by,
@@ -319,7 +317,7 @@ int main(int argc, char* argv[])
 						                  meshres, meshres, meshres,
 						                  nuc_interval * dt);
 					}
-					#endif
+					*/
 
 					device_fictitious(&dev, nx, ny, nm, bx, by);
 
@@ -385,9 +383,26 @@ int main(int argc, char* argv[])
 						MMSP::vector<double> summary = summarize_fields(grid);
 						double energy = summarize_energy(grid);
 
+						double xPhiHi=0, xPhiLo=0;
+
+						#ifndef MPI_VERSION
+						MMSP::vector<int> x(2, 0);
+
+						x[0] = MMSP::g0(grid, 0);
+						do {
+							++x[0];
+						} while (grid(x)[2] + grid(x)[3] > 0.9);
+
+						xPhiHi = MMSP::dx(grid) * x[0];
+						do {
+							++x[0];
+						} while (grid(x)[2] + grid(x)[3] > 0.1);
+						xPhiLo = MMSP::dx(grid) * x[0];
+						#endif
+
 						if (rank == 0) {
-							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
-							        dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g %12g\n",
+							        dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy, xPhiLo - xPhiHi);
 							fflush(cfile);
 						}
 					}

@@ -173,12 +173,8 @@ void seed_solitaire(GRID2D& grid,
 	const fp_t n_gam = dV / Vatom;
 	const vector<int> x(2, 0);
 
-	#ifdef CONVERGENCE
-	const double penny = 0.;
-	#else
 	std::uniform_real_distribution<double> heads_or_tails(0, 1);
 	const double penny = heads_or_tails(mtrand);
-	#endif
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
@@ -358,13 +354,13 @@ void generate(int dim, const char* filename)
 	mtrand.seed(seed);
 
 	if (dim == 2) {
-		#ifndef CONVERGENCE
+		/*
 		const int Nx = 4000;
 		const int Ny = 2500;
-		#else
+		*/
 		const int Nx = 768;
 		const int Ny =  14; // Nx for particles
-		#endif
+
 		double Ntot = 1.0;
 		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
 		for (int d = 0; d < dim; d++) {
@@ -383,13 +379,11 @@ void generate(int dim, const char* filename)
 			          << ", dtDiffusionLimited=" << dtDiffusionLimited
 			          << '.' << std::endl;
 
-		#ifdef CONVERGENCE
 		init_flat_composition(initGrid, mtrand);
-		#else
+		/*
 		init_gaussian_enrichment(initGrid, mtrand);
-		#endif
+		*/
 
-		#ifdef CONVERGENCE
 		const int w_precip = glength(initGrid, 0) / 6;
 		seed_planar_delta(initGrid, w_precip);
 		/*
@@ -397,7 +391,6 @@ void generate(int dim, const char* filename)
 		               s_delta(), s_laves(),
 		               lattice_const, ifce_width, meshres, dt, mtrand);
 		*/
-		#endif
 
 		// Update fictitious compositions
 		for (int n = 0; n < nodes(initGrid); n++)
@@ -408,11 +401,28 @@ void generate(int dim, const char* filename)
 		vector<double> summary = summarize_fields(initGrid);
 		double energy = summarize_energy(initGrid);
 
+		double xPhiHi=0, xPhiLo=0;
+		#ifndef MPI_VERSION
+		MMSP::vector<int> x(2, 0);
+
+		x[0] = MMSP::g0(initGrid, 0);
+		do {
+			++x[0];
+		} while (initGrid(x)[2] + initGrid(x)[3] > 0.9);
+
+		xPhiHi = MMSP::dx(initGrid, 0) * x[0];
+		do {
+			++x[0];
+		} while (initGrid(x)[2] + initGrid(x)[3] > 0.1);
+		xPhiLo = MMSP::dx(initGrid) * x[0];
+		#endif
+
+
 		if (rank == 0) {
-			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s\n",
-			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
-			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
-			        0., summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s %12s\n",
+			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy", "ifce_width");
+			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g %12g\n",
+			        0., summary[0], summary[1], summary[2], summary[3], summary[4], energy, xPhiLo - xPhiHi);
 
 			printf("%9s %9s %9s %9s %9s\n",
 			       "x_Cr", "x_Nb", " p_g", " p_d", " p_l");

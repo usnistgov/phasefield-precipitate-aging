@@ -166,15 +166,14 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 			c.at(w * j + i) = x;
 			p.at(w * j + i) = z;
 
-			#ifndef CONVERGENCE
+			/*
 			cbar.at(i) += x / h;
 			pbar.at(i) += z / h;
-			#else
+			*/
 			if (j == h/2) {
 				cbar.at(i) = x;
 				pbar.at(i) = z;
 			}
-			#endif
 		}
 	}
 	const int colors = 1;

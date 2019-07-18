@@ -47,9 +47,6 @@ profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
 profile: alloy625
 
-convergence: CXXFLAGS += -DCONVERGENCE
-convergence: alloy625
-
 # CUDA objects
 
 data.o: cuda_data.cu cuda_data.h
