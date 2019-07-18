@@ -52,7 +52,7 @@ profile: alloy625
 data.o: cuda_data.cu cuda_data.h
 	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
-discretization.o: cuda_discretization.cu globals.h cuda_kernels.cuh parabola625.cu parabola625.cuh
+discretization.o: cuda_discretization.cu globals.h cuda_data.h cuda_kernels.cuh parabola625.cu parabola625.cuh
 	$(NVCXX) $(NVCXXFLAGS) -dc $< -o $@
 
 d_nucleation.o: nucleation.cu nucleation.cuh

@@ -10,10 +10,26 @@
 
 #include "numerics.h"
 
+#define dNC 2
+#define dNP 2
+
 /**
  \brief Convolution mask array on the GPU, allocated in protected memory
 */
 __constant__ extern fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
+
+/**
+ \brief Diffusivity arrays on the GPU, allocated in protected memory
+*/
+__constant__ extern fp_t d_DCr[dNC];
+__constant__ extern fp_t d_DNb[dNC];
+
+/**
+ \brief Kinetic parameter arrays on the GPU, allocated in protected memory
+*/
+__constant__ extern fp_t d_Kapp[dNP];
+__constant__ extern fp_t d_Omeg[dNP];
+__constant__ extern fp_t d_Lmob[dNP];
 
 /**
  \brief Boundary condition kernel for execution on the GPU
@@ -55,8 +71,7 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t dgGdxCr,     const fp_t dgGdxNb,
                              const fp_t gam_Cr,      const fp_t gam_Nb,
                              const fp_t gam_nrg,     const fp_t alpha,
-                             const fp_t kappa,       const fp_t omega,
-                             const fp_t M_del,       const fp_t dt);
+                             const fp_t dt);
 
 /**
  \brief Device kernel to update field variables for Laves phase
@@ -69,8 +84,7 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t dgGdxCr,     const fp_t dgGdxNb,
                              const fp_t gam_Cr,      const fp_t gam_Nb,
                              const fp_t gam_nrg,     const fp_t alpha,
-                             const fp_t kappa,       const fp_t omega,
-                             const fp_t M_lav,       const fp_t dt);
+                             const fp_t dt);
 
 /**
  \brief Device kernel to update composition field variables
@@ -80,8 +94,6 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                      fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
                                      const int nx, const int ny, const int nm,
-                                     const fp_t D_CrCr, const fp_t D_CrNb,
-                                     const fp_t D_NbCr, const fp_t D_NbNb,
                                      const fp_t dt);
 
 /**
@@ -94,8 +106,6 @@ __global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                   fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
                                   const int nx, const int ny, const int nm,
                                   const fp_t alpha,
-                                  const fp_t kappa_del, const fp_t omega_del, const fp_t M_del,
-                                  const fp_t kappa_lav, const fp_t omega_lav, const fp_t M_lav,
                                   const fp_t dt);
 
 /**

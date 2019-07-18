@@ -273,14 +273,14 @@ int main(int argc, char* argv[])
 			}
 
 			// initialize GPU
-			init_cuda(&host, nx, ny, nm, &dev);
+			init_cuda(&host, nx, ny, nm, D_Cr, D_Nb, kappa, omega, Lmob, &dev);
 			device_init_prng(&dev, nx, ny, nm, bx, by);
 
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int img_interval = std::min(increment / 4, int(1e-1 / dt));
-			const int nrg_interval = std::min(increment / 4, int(1e-2 / dt));
+			const int img_interval = std::min(increment / 4, int(0.05 / dt));
+			const int nrg_interval = img_interval;
 			// const int nuc_interval = 1e-5 / dt;
 
 			// setup logging
@@ -302,10 +302,7 @@ int main(int argc, char* argv[])
 					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_evolution(&dev, nx, ny, nm, bx, by,
-					                 D_Cr, D_Nb,
-					                 alpha,
-									 kappa, omega, Lmob,
-									 dt);
+					                 alpha, dt);
 
 					/*
 					const bool nuc_step = (j % nuc_interval == 0);

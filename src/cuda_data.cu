@@ -8,7 +8,10 @@
 #include "cuda_kernels.cuh"
 
 void init_cuda(struct HostData* host,
-               const int nx, const int ny, const int nm, struct CudaData* dev)
+               const int nx, const int ny, const int nm,
+			   const fp_t* DCr, const fp_t* DNb,
+			   const fp_t* kappa, const fp_t* omega, const fp_t* Lmob, 
+			   struct CudaData* dev)
 {
 	/* allocate memory on device */
 	cudaMalloc((void**) &(dev->conc_Cr_old), nx * ny * sizeof(fp_t));
@@ -30,8 +33,15 @@ void init_cuda(struct HostData* host,
 
 	cudaMalloc((void**) &(dev->prng), nx * ny * sizeof(curandState));
 
-	/* transfer mask and boundary conditions to protected memory on GPU */
+	/* transfer mask to protected memory on GPU */
 	cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t));
+
+	/* transfer mobility data to protected memory on GPU */
+	cudaMemcpyToSymbol(d_DCr, DCr, dNC * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_DNb, DNb, dNC * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_Kapp, kappa, dNP * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_Omeg, omega, dNP * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_Lmob, Lmob,  dNP * sizeof(fp_t));
 
 	/* transfer data from host in to GPU */
 	cudaMemcpy(dev->conc_Cr_old, host->conc_Cr_old[0], nx * ny * sizeof(fp_t),

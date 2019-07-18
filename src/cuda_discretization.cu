@@ -32,7 +32,17 @@ cudaError_t checkCuda(cudaError_t result)
 	return result;
 }
 
+// Convolution mask array on the GPU, allocated in protected memory
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
+
+// Diffusivity arrays on the GPU, allocated in protected memory
+__constant__ fp_t d_DCr[dNC];
+__constant__ fp_t d_DNb[dNC];
+
+// Kinetic parameter arrays on the GPU, allocated in protected memory
+__constant__ fp_t d_Kapp[dNP];
+__constant__ fp_t d_Omeg[dNP];
+__constant__ fp_t d_Lmob[dNP];
 
 float nTiles(int domain_size, int tile_loc, int mask_size)
 {
@@ -216,15 +226,13 @@ void device_laplacian(struct CudaData* dev,
 __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                                    const fp_t& lap_gam_Cr,  const fp_t& lap_gam_Nb,
                                    fp_t& conc_Cr_new,       fp_t& conc_Nb_new,
-                                   const fp_t D_CrCr,       const fp_t D_CrNb,
-                                   const fp_t D_NbCr,       const fp_t D_NbNb,
                                    const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
-	const fp_t lap_mu_Cr = D_CrCr * lap_gam_Cr
-	                       + D_NbCr * lap_gam_Nb;
-	const fp_t lap_mu_Nb = D_CrNb * lap_gam_Cr
-	                       + D_NbNb * lap_gam_Nb;
+	const fp_t lap_mu_Cr = d_DCr[0] * lap_gam_Cr
+	                     + d_DNb[0] * lap_gam_Nb;
+	const fp_t lap_mu_Nb = d_DCr[1] * lap_gam_Cr
+	                     + d_DNb[1] * lap_gam_Nb;
 
 	conc_Cr_new = conc_Cr_old + dt * lap_mu_Cr;
 	conc_Nb_new = conc_Nb_old + dt * lap_mu_Nb;
@@ -238,8 +246,7 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t dgGdxCr,     const fp_t dgGdxNb,
                              const fp_t gam_Cr,      const fp_t gam_Nb,
                              const fp_t gam_nrg,     const fp_t alpha,
-                             const fp_t kappa,       const fp_t omega,
-                             const fp_t Lmob,        const fp_t dt)
+                             const fp_t dt)
 {
 	const fp_t f_gam = 1. - f_del - f_lav;
 	const fp_t del_Cr = d_fict_del_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
@@ -251,12 +258,12 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 
 	/* variational derivative */
 	const fp_t dFdPhi_del = -d_hprime(phi_del_old) * P_del
-	                        + 2. * omega * phi_del_old * (phi_del_old - 1.) * (2. * phi_del_old - 1.)
+	                        + 2. * d_Omeg[0] * phi_del_old * (phi_del_old - 1.) * (2. * phi_del_old - 1.)
 	                        + 2. * alpha * phi_del_old * (phi_lav_old * phi_lav_old)
-	                        - kappa * phi_del_new;
+	                        - d_Kapp[0] * phi_del_new;
 
 	/* Allen-Cahn equation of motion for delta phase */
-	phi_del_new = phi_del_old - dt * Lmob * dFdPhi_del;
+	phi_del_new = phi_del_old - dt * d_Lmob[0] * dFdPhi_del;
 }
 
 __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
@@ -267,8 +274,7 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t dgGdxCr,     const fp_t dgGdxNb,
                              const fp_t gam_Cr,      const fp_t gam_Nb,
                              const fp_t gam_nrg,     const fp_t alpha,
-                             const fp_t kappa,       const fp_t omega,
-                             const fp_t Lmob,        const fp_t dt)
+                             const fp_t dt)
 {
 	const fp_t f_gam = 1. - f_del - f_lav;
 	const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
@@ -280,12 +286,12 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 
 	/* variational derivative */
 	const fp_t dFdPhi_lav = -d_hprime(phi_lav_old) * P_lav
-	                        + 2. * omega * phi_lav_old * (phi_lav_old - 1.) * (2. * phi_lav_old - 1.)
+	                        + 2. * d_Omeg[1] * phi_lav_old * (phi_lav_old - 1.) * (2. * phi_lav_old - 1.)
 	                        + 2. * alpha * phi_lav_old * (phi_del_old * phi_del_old)
-	                        - kappa * phi_lav_new;
+	                        - d_Kapp[1] * phi_lav_new;
 
 	/* Allen-Cahn equation of motion for Laves phase */
-	phi_lav_new = phi_lav_old - dt * Lmob * dFdPhi_lav;
+	phi_lav_new = phi_lav_old - dt * d_Lmob[1] * dFdPhi_lav;
 }
 
 __global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
@@ -331,8 +337,6 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                      fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
                                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                      const int nx, const int ny, const int nm,
-                                     const fp_t D_CrCr, const fp_t D_CrNb,
-                                     const fp_t D_NbCr, const fp_t D_NbNb,
                                      const fp_t dt)
 {
 	/* determine indices on which to operate */
@@ -346,7 +350,7 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		composition_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx],
 		                   d_lap_gam_Cr[idx],  d_lap_gam_Nb[idx],
 		                   d_conc_Cr_new[idx], d_conc_Nb_new[idx],
-		                   D_CrCr, D_CrNb, D_NbCr, D_NbNb, dt);
+		                   dt);
     }
 }
 
@@ -357,8 +361,6 @@ __global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                   fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
                                   const int nx, const int ny, const int nm,
                                   const fp_t alpha,
-                                  const fp_t kappa_del, const fp_t omega_del, const fp_t mob_del,
-                                  const fp_t kappa_lav, const fp_t omega_lav, const fp_t mob_lav,
                                   const fp_t dt)
 {
 	/* determine indices on which to operate */
@@ -382,23 +384,18 @@ __global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		/* Allen-Cahn equations of motion for phase */
 		delta_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
 		             d_phi_del_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
-		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha,
-                     kappa_del, omega_del, mob_del, dt);
+		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, dt);
 
 		laves_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
 		             d_phi_lav_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
-		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha,
-                     kappa_lav, omega_lav, mob_lav, dt);
+		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, dt);
 	}
 }
 
 void device_evolution(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by,
-                      const fp_t* D_Cr, const fp_t* D_Nb,
                       const fp_t alpha,
-                      const fp_t* kappa, const fp_t* omega,
-                      const fp_t* Lmob,
                       const fp_t dt)
 {
 	/* divide matrices into blocks of bx * by threads */
@@ -411,8 +408,6 @@ void device_evolution(struct CudaData* dev,
 	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    nx, ny, nm,
-	    D_Cr[0], D_Cr[1],
-	    D_Nb[0], D_Nb[1],
 	    dt);
 
 	allen_cahn_kernel <<< num_tiles, tile_size>>> (
@@ -423,8 +418,6 @@ void device_evolution(struct CudaData* dev,
 	    dev->gam_Cr,      dev->gam_Nb,
 	    nx, ny, nm,
 	    alpha,
-        kappa[0], omega[0], Lmob[0],
-        kappa[1], omega[1], Lmob[1],
 	    dt);
 }
 

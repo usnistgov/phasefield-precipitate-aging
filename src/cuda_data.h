@@ -20,6 +20,8 @@ cudaError_t checkCuda(cudaError_t result);
 */
 void init_cuda(struct HostData* host,
                const int nx, const int ny, const int nm,
+               const fp_t* DCr, const fp_t* DNb,
+			   const fp_t* kappa, const fp_t* omega, const fp_t* Lmob,
                struct CudaData* dev);
 /**
  \brief Free CUDA device memory after marching
@@ -58,10 +60,7 @@ void device_laplacian(struct CudaData* dev,
 void device_evolution(struct CudaData* dev,
                       const int nx, const int ny, const int nm,
                       const int bx, const int by,
-                      const fp_t* D_Cr, const fp_t* D_Nb,
                       const fp_t alpha,
-                      const fp_t* kappa, const fp_t* omega,
-                      const fp_t* Lmob,
                       const fp_t dt);
 
 /**
