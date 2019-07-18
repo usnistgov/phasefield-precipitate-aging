@@ -33,7 +33,7 @@ OBJS = data_cu.o discretization_cu.o nucleation_cu.o parabola625_cu.o \
 
 # Executables
 
-alloy625: alloy625.cpp globals.h main.cpp $(OBJS)
+alloy625: alloy625.cpp parameters.h main.cpp $(OBJS)
 	$(NVCXX) $(NVCXXFLAGS) $(OBJS) $< -o $@ $(LINKS)
 
 debug: CXXOPT = -O0 -g

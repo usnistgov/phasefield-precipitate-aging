@@ -20,7 +20,7 @@ sed -e "s/^double /__device__ double d_/g" \
     -e "s/.h\"/.cuh\"/g" \
     -e "s/.0L/.0/g" \
     ../thermo/nucleation.c > nucleation.cu
-sed -e "s/globals.cuh/globals.h/g" \
+sed -e "s/parameters.cuh/parameters.h/g" \
     -i nucleation.cu
 astyle --style=linux --indent-col1-comments --indent=tab \
        --indent-preprocessor --indent-preproc-cond --pad-header \

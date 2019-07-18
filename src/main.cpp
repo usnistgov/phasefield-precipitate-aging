@@ -10,6 +10,7 @@
 int main(int argc, char* argv[])
 {
 	MMSP::Init(argc, argv);
+	const std::string PROGRAM(argv[0]);
 
 	// check argument list
 	if (argc < 2) {
@@ -241,23 +242,23 @@ int main(int argc, char* argv[])
 		}
 
 		if (dim == 2) {
-			// construct grid objects
-			GRID2D grid(argv[1]);                 // multiple fields
-			MMSP::grid<2,double> nickGrid(grid, 1); // single field
+			// construct grid object
+			GRID2D grid(argv[1]);
 
 			// declare host and device data structures
 			struct HostData host;
 			struct CudaData dev;
 
-			// declare default materials and numerical parameters
-			int bx=32, by=32, nm=3, code=53;
-			param_parser(&bx, &by, &code, &nm);
+			// numerical parameters
+			const int bx = 13;
+			const int by = 13;
+			const int nm = 3;
 			const int nx = g1(grid, 0) - g0(grid, 0) + nm - 1;
 			const int ny = g1(grid, 1) - g0(grid, 1) + nm - 1;
 
 			// initialize memory
 			make_arrays(&host, nx, ny, nm);
-			set_mask(dx(grid, 0), dx(grid, 1), code, host.mask_lap, nm);
+			five_point_Laplacian_stencil(dx(grid, 0), dx(grid, 1), host.mask_lap, nm);
 
 			for (int n = 0; n < MMSP::nodes(grid); n++) {
 				MMSP::vector<fp_t>& gridN = grid(n);

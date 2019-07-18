@@ -10,6 +10,9 @@
 
 #include <curand_kernel.h>
 
+#define NP 2 // number of phases
+#define NC 2 // number of components
+
 /**
  \brief Precision of floating-point values
  Specify the basic data type to achieve the desired accuracy in floating-point

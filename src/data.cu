@@ -37,11 +37,11 @@ void init_cuda(struct HostData* host,
 	cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t));
 
 	/* transfer mobility data to protected memory on GPU */
-	cudaMemcpyToSymbol(d_DCr, DCr, dNC * sizeof(fp_t));
-	cudaMemcpyToSymbol(d_DNb, DNb, dNC * sizeof(fp_t));
-	cudaMemcpyToSymbol(d_Kapp, kappa, dNP * sizeof(fp_t));
-	cudaMemcpyToSymbol(d_Omeg, omega, dNP * sizeof(fp_t));
-	cudaMemcpyToSymbol(d_Lmob, Lmob,  dNP * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_DCr, DCr, NC * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_DNb, DNb, NC * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_Kapp, kappa, NP * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_Omeg, omega, NP * sizeof(fp_t));
+	cudaMemcpyToSymbol(d_Lmob, Lmob,  NP * sizeof(fp_t));
 
 	/* transfer data from host in to GPU */
 	cudaMemcpy(dev->conc_Cr_old, host->conc_Cr_old[0], nx * ny * sizeof(fp_t),

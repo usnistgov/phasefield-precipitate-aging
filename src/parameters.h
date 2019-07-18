@@ -1,13 +1,15 @@
-#ifndef __GLOBALS_H_
-#define __GLOBALS_H_
+/**
+ \file  parameters.h
+ \brief Model parameter definitions
+*/
+
+#ifndef __PARAMETERS_H_
+#define __PARAMETERS_H_
 
 #include "type.h"
 #include "parabola625.h"
 
-#define NP 2 // number of phases
-#define NC 2 // number of components
-
-// Numerical parameters
+// === Discretization Parameters ===
 
 const double meshres = 0.0625e-9;   // grid spacing, Δx (m)
 const double ifce_width = 7.5e-10;  // interface thickness, 2λ (m), TKR5p274
@@ -32,6 +34,8 @@ const fp_t precip_stabilizer = 13.; // 1.5 Rc = R0, the root of the curve; fitti
 | 0.0625  |         13 |     |     |  |
 */
 
+// === Kinetic Parameters ===
+
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb
 const fp_t D_Cr[NC] = {2.16e-15, 0.56e-15}; // first column of diffusivity matrix
@@ -41,6 +45,8 @@ const fp_t lattice_const = 0.352e-9;        // lattice spacing of FCC nickel (m)
 // Define st.dev. of bell curves for alloying element segregation
 //                       Cr      Nb
 const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
+
+// === Energetic Parameters ===
 
 // Choose numerical diffusivity to lock chemical and transformational timescales
 //                      delta      Laves

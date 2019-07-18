@@ -33,13 +33,13 @@ cudaError_t checkCuda(cudaError_t result)
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
 // Diffusivity arrays on the GPU, allocated in protected memory
-__constant__ fp_t d_DCr[dNC];
-__constant__ fp_t d_DNb[dNC];
+__constant__ fp_t d_DCr[NC];
+__constant__ fp_t d_DNb[NC];
 
 // Kinetic parameter arrays on the GPU, allocated in protected memory
-__constant__ fp_t d_Kapp[dNP];
-__constant__ fp_t d_Omeg[dNP];
-__constant__ fp_t d_Lmob[dNP];
+__constant__ fp_t d_Kapp[NP];
+__constant__ fp_t d_Omeg[NP];
+__constant__ fp_t d_Lmob[NP];
 
 float nTiles(int domain_size, int tile_loc, int mask_size)
 {

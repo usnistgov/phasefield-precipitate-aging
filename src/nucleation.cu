@@ -2,7 +2,7 @@
 
 #include <math.h>
 #include <cassert>
-#include "globals.h"
+#include "parameters.h"
 #include "nucleation.cuh"
 #include "parabola625.cuh"
 #ifdef DEBUG

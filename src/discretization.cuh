@@ -10,9 +10,6 @@
 
 #include "mesh.h"
 
-#define dNC 2
-#define dNP 2
-
 /**
  \brief Convolution mask array on the GPU, allocated in protected memory
 */
@@ -21,15 +18,15 @@ __constant__ extern fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 /**
  \brief Diffusivity arrays on the GPU, allocated in protected memory
 */
-__constant__ extern fp_t d_DCr[dNC];
-__constant__ extern fp_t d_DNb[dNC];
+__constant__ extern fp_t d_DCr[NC];
+__constant__ extern fp_t d_DNb[NC];
 
 /**
  \brief Kinetic parameter arrays on the GPU, allocated in protected memory
 */
-__constant__ extern fp_t d_Kapp[dNP];
-__constant__ extern fp_t d_Omeg[dNP];
-__constant__ extern fp_t d_Lmob[dNP];
+__constant__ extern fp_t d_Kapp[NP];
+__constant__ extern fp_t d_Omeg[NP];
+__constant__ extern fp_t d_Lmob[NP];
 
 /**
    \brief Compute number of tiles along an axis

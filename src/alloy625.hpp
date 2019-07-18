@@ -20,11 +20,10 @@
 
 #ifndef __CUDA625_HPP__
 #define __CUDA625_HPP__
-#include "globals.h"
+#include "type.h"
 
 // Number of precipitates and components (for array allocation)
 
-std::string PROGRAM = "alloy625";
 std::string MESSAGE = "Isotropic Cr-Nb-Ni alloy phase transformation code";
 
 typedef MMSP::grid<1, MMSP::vector<fp_t> > GRID1D;
