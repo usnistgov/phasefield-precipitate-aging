@@ -3,7 +3,7 @@
 #ifndef __D_NUCLEATION_H_
 #define __D_NUCLEATION_H_
 
-#include "globals.h"
+#include "type.h"
 
 __device__ fp_t d_tanh_interp(const fp_t r, const fp_t w);
 

@@ -3,7 +3,7 @@
 #ifndef __NUCLEATION_H_
 #define __NUCLEATION_H_
 
-#include "globals.h"
+#include "type.h"
 
 fp_t tanh_interp(const fp_t r, const fp_t w);
 

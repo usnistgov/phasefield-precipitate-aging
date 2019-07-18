@@ -86,25 +86,6 @@ void five_point_Laplacian_stencil(const fp_t dx, const fp_t dy, fp_t** mask_lap,
 void nine_point_Laplacian_stencil(const fp_t dx, const fp_t dy, fp_t** mask_lap, const int nm);
 
 /**
- \brief Write 13-point biharmonic stencil into convolution mask
-
- \f$5\times5\f$ mask, 13 values, truncation error \f$\mathcal{O}(\Delta x^2)\f$
-*/
-void biharmonic_stencil(const fp_t dx, const fp_t dy, fp_t** mask_lap, const int nm);
-
-/**
-   \brief Compute interior Laplacian from old composition data
-*/
-void compute_laplacian(fp_t** const conc_old, fp_t** conc_lap, fp_t** const mask_lap,
-                       const fp_t kappa, const int nx, const int ny, const int nm);
-
-/**
- \brief Compute exterior Laplacian (divergence of gradient of Laplacian)
-*/
-void compute_divergence(fp_t** conc_lap, fp_t** conc_div, fp_t** const mask_lap,
-                        const int nx, const int ny, const int nm);
-
-/**
    \brief Compute gradient-squared, truncation error \f$\mathcal{O}(\Delta x^2)\f$
 */
 fp_t grad_sq(fp_t** conc, const int x, const int y,

@@ -127,9 +127,6 @@ void set_mask(const fp_t dx, const fp_t dy, const int code, fp_t** mask_lap, con
 	case 93:
 		nine_point_Laplacian_stencil(dx, dy, mask_lap, nm);
 		break;
-	case 135:
-		biharmonic_stencil(dx, dy, mask_lap, nm);
-		break;
 	default :
 		five_point_Laplacian_stencil(dx, dy, mask_lap, nm);
 	}
@@ -164,29 +161,6 @@ void nine_point_Laplacian_stencil(const fp_t dx, const fp_t dy, fp_t** mask_lap,
 	mask_lap[2][0] =   1. / (6. * dx * dy); /* lower-left */
 	mask_lap[2][1] =   4. / (6. * dy * dy); /* lower-middle */
 	mask_lap[2][2] =   1. / (6. * dx * dy); /* lower-right */
-}
-
-void biharmonic_stencil(const fp_t dx, const fp_t dy, fp_t** mask_lap, const int nm)
-{
-	assert(nm == 5);
-
-	mask_lap[0][2] =  1. / (dy * dy); /* upper-upper-middle */
-
-	mask_lap[1][1] =  2. / (dx * dy); /* upper-left */
-	mask_lap[1][2] = -8. / (dy * dy); /* upper-middle */
-	mask_lap[1][3] =  2. / (dx * dy); /* upper-right */
-
-	mask_lap[2][0] =  1. / (dx * dx); /* middle-left-left */
-	mask_lap[2][1] = -8. / (dx * dx); /* middle-left */
-	mask_lap[2][2] = 10. * (dx*dx + dy*dy) / (dx*dx * dy*dy); /* middle */
-	mask_lap[2][3] = -8. / (dx * dx); /* middle-right */
-	mask_lap[2][4] =  1. / (dx * dx); /* middle-right-right */
-
-	mask_lap[3][1] =  2. / (dx * dy); /* lower-left */
-	mask_lap[3][2] = -8. / (dy * dy); /* lower-middle */
-	mask_lap[3][3] =  2. / (dx * dy); /* lower-right */
-
-	mask_lap[4][2] =  1. / (dy * dy); /* lower-lower-middle */
 }
 
 fp_t grad_sq(fp_t** conc, const int x, const int y,

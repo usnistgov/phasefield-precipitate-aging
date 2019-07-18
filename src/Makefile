@@ -38,12 +38,12 @@ alloy625: alloy625.cpp globals.h main.cpp $(OBJS)
 
 debug: CXXOPT = -O0 -g
 debug: CXXFLAGS += $(CXXOPT)
-debug: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
+debug: NVCXXFLAGS += $(CXXOPT) -lineinfo
 debug: alloy625
 
 profile: CXXOPT = -O1 -pg
 profile: CXXFLAGS += $(CXXOPT)
-profile: NVCXXFLAGS += $(CXXOPT) -lineinfo # -arch=$(CUDARCH)
+profile: NVCXXFLAGS += $(CXXOPT) -lineinfo
 profile: alloy625
 
 # Derived source code
