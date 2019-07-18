@@ -23,13 +23,14 @@ void init_cuda(struct HostData* host,
                const fp_t* DCr, const fp_t* DNb,
 			   const fp_t* kappa, const fp_t* omega, const fp_t* Lmob,
                struct CudaData* dev);
+
 /**
  \brief Free CUDA device memory after marching
 */
 void free_cuda(struct CudaData* dev);
 
 /**
-  \brief Copy fields from device to host
+   \brief Copy fields from device to host
 */
 void read_out_result(struct CudaData* dev, struct HostData* host, const int nx, const int ny);
 

@@ -639,18 +639,3 @@ void device_dataviz(struct CudaData* dev, struct HostData* host,
 	cudaMemcpy(host->phi[0], dev->phi, nx * ny * sizeof(fp_t),
 	                cudaMemcpyDeviceToHost);
 }
-
-void read_out_result(struct CudaData* dev, struct HostData* host,
-                     const int nx, const int ny)
-{
-	cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_old, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_old, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->phi_del_new[0], dev->phi_del_old, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->phi_lav_new[0], dev->phi_lav_old, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->gam_Cr[0], dev->gam_Cr, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->gam_Nb[0], dev->gam_Nb, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
-}
