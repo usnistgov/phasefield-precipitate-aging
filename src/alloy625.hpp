@@ -164,4 +164,12 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim, MMSP::vector<T> > const& G
 template<int dim, typename T>
 double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID);
 
+/**
+   \brief Compute interface width
+   Compute separation between \f$ \phi = 0.1 \f$ to \f$ \phi = 0.9 \f$, <em>viz.</em>,
+   the interface width along \f$ y = 0 \f$.
+*/
+template <int dim, typename T>
+double two_lambda(const MMSP::grid<dim,MMSP::vector<T> > GRID);
+
 #endif

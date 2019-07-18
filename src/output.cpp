@@ -214,7 +214,7 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	plt::xlim(0., 1e6 * deltax * nx);
 	plt::ylim(0., 1.);
 	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
-	plt::ylabel("$\\bar{\\chi}_{\\mathrm{Ni}}$");
+	plt::ylabel("$\\chi_{\\mathrm{Ni}}(y=0)$");
 
 	str_kw.clear();
 	str_kw["label"] = "$x_{\\mathrm{Ni}}$";

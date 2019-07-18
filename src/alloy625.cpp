@@ -399,30 +399,15 @@ void generate(int dim, const char* filename)
 		ghostswap(initGrid);
 
 		vector<double> summary = summarize_fields(initGrid);
-		double energy = summarize_energy(initGrid);
-
-		double xPhiHi=0, xPhiLo=0;
-		#ifndef MPI_VERSION
-		MMSP::vector<int> x(2, 0);
-
-		x[0] = MMSP::g0(initGrid, 0);
-		do {
-			++x[0];
-		} while (initGrid(x)[2] + initGrid(x)[3] > 0.9);
-
-		xPhiHi = MMSP::dx(initGrid, 0) * x[0];
-		do {
-			++x[0];
-		} while (initGrid(x)[2] + initGrid(x)[3] > 0.1);
-		xPhiLo = MMSP::dx(initGrid) * x[0];
-		#endif
+		const double energy = summarize_energy(initGrid);
+		const double twoL = two_lambda(initGrid);
 
 
 		if (rank == 0) {
 			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s %12s\n",
 			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy", "ifce_width");
 			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g %12g\n",
-			        0., summary[0], summary[1], summary[2], summary[3], summary[4], energy, xPhiLo - xPhiHi);
+			        0., summary[0], summary[1], summary[2], summary[3], summary[4], energy, twoL);
 
 			printf("%9s %9s %9s %9s %9s\n",
 			       "x_Cr", "x_Nb", " p_g", " p_d", " p_l");
@@ -660,6 +645,28 @@ double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
 	return energy;
 }
 
+template <int dim, typename T>
+double two_lambda(const MMSP::grid<dim,MMSP::vector<T> > GRID)
+{
+	double xPhiHi=0, xPhiLo=0;
+
+	#ifndef MPI_VERSION
+	MMSP::vector<int> x(2, 0);
+
+	x[0] = MMSP::x0(GRID, 0);
+	do {
+		++x[0];
+	} while (GRID(x)[2] + GRID(x)[3] > 0.9);
+
+	xPhiHi = MMSP::dx(GRID) * x[0];
+	do {
+		++x[0];
+	} while (GRID(x)[2] + GRID(x)[3] > 0.1);
+	xPhiLo = MMSP::dx(GRID) * x[0];
+	#endif
+
+	return std::fabs(xPhiLo - xPhiHi);
+}
 #endif
 
 #include "main.cpp"

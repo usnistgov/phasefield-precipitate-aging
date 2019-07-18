@@ -294,45 +294,6 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 	phi_lav_new = phi_lav_old - dt * d_Lmob[1] * dFdPhi_lav;
 }
 
-__global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
-                                  fp_t* d_phi_del, fp_t* d_phi_lav,
-                                  fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
-                                  const int nx, const int ny)
-{
-	const int x = blockDim.x * blockIdx.x + threadIdx.x;
-	const int y = blockDim.y * blockIdx.y + threadIdx.y;
-	const int idx = nx * y + x;
-
-	if (x < nx && y < ny) {
-		const fp_t f_del = d_h(d_phi_del[idx]);
-		const fp_t f_lav = d_h(d_phi_lav[idx]);
-		const fp_t f_gam = 1. - f_del - f_lav;
-		const fp_t inv_fict_det = d_inv_fict_det(f_del, f_gam, f_lav);
-
-		d_gam_Cr[idx] = d_fict_gam_Cr(inv_fict_det, d_conc_Cr[idx], d_conc_Nb[idx],
-		                              f_del, f_gam, f_lav);
-		d_gam_Nb[idx] = d_fict_gam_Nb(inv_fict_det, d_conc_Cr[idx], d_conc_Nb[idx],
-		                              f_del, f_gam, f_lav);
-	}
-}
-
-void device_fictitious(struct CudaData* dev,
-                       const int nx, const int ny, const int nm,
-                       const int bx, const int by)
-{
-	/* divide matrices into blocks of bx * by threads */
-	dim3 tile_size(bx, by, 1);
-	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
-	               nTiles(ny, tile_size.y, nm),
-	               1);
-
-	fictitious_kernel <<< num_tiles, tile_size>>>(
-	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->gam_Cr,      dev->gam_Nb,
-	    nx, ny);
-}
-
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                      fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
                                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
@@ -419,6 +380,45 @@ void device_evolution(struct CudaData* dev,
 	    nx, ny, nm,
 	    alpha,
 	    dt);
+}
+
+__global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                                  fp_t* d_phi_del, fp_t* d_phi_lav,
+                                  fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
+                                  const int nx, const int ny)
+{
+	const int x = blockDim.x * blockIdx.x + threadIdx.x;
+	const int y = blockDim.y * blockIdx.y + threadIdx.y;
+	const int idx = nx * y + x;
+
+	if (x < nx && y < ny) {
+		const fp_t f_del = d_h(d_phi_del[idx]);
+		const fp_t f_lav = d_h(d_phi_lav[idx]);
+		const fp_t f_gam = 1. - f_del - f_lav;
+		const fp_t inv_fict_det = d_inv_fict_det(f_del, f_gam, f_lav);
+
+		d_gam_Cr[idx] = d_fict_gam_Cr(inv_fict_det, d_conc_Cr[idx], d_conc_Nb[idx],
+		                              f_del, f_gam, f_lav);
+		d_gam_Nb[idx] = d_fict_gam_Nb(inv_fict_det, d_conc_Cr[idx], d_conc_Nb[idx],
+		                              f_del, f_gam, f_lav);
+	}
+}
+
+void device_fictitious(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by)
+{
+	/* divide matrices into blocks of bx * by threads */
+	dim3 tile_size(bx, by, 1);
+	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
+	               nTiles(ny, tile_size.y, nm),
+	               1);
+
+	fictitious_kernel <<< num_tiles, tile_size>>>(
+	    dev->conc_Cr_new, dev->conc_Nb_new,
+	    dev->phi_del_new, dev->phi_lav_new,
+	    dev->gam_Cr,      dev->gam_Nb,
+	    nx, ny);
 }
 
 __global__ void init_prng_kernel(curandState* d_prng, const int nx, const int ny)
