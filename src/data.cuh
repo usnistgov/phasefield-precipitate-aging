@@ -1,5 +1,5 @@
 /**
- \file  cuda_data.h
+ \file  data.cuh
  \brief Declaration of CUDA data container
 */
 

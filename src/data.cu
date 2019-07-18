@@ -1,11 +1,11 @@
 /**
- \file  cuda_data.cu
+ \file  data.cu
  \brief Implementation of functions to create and destroy CudaData struct
 */
 
 #include <curand.h>
-#include "cuda_data.h"
-#include "cuda_kernels.cuh"
+#include "data.cuh"
+#include "discretization.cuh"
 
 void init_cuda(struct HostData* host,
                const int nx, const int ny, const int nm,

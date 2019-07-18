@@ -1,5 +1,5 @@
 /**
- \file  cuda_kernels.cuh
+ \file  discretization.cuh
  \brief Declaration of functions to execute on the GPU (CUDA kernels)
 */
 
@@ -8,7 +8,7 @@
 #define _CUDA_KERNELS_H_
 /** \endcond */
 
-#include "numerics.h"
+#include "mesh.h"
 
 #define dNC 2
 #define dNP 2

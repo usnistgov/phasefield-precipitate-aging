@@ -1,5 +1,5 @@
 /**
- \file  cuda_discretization.cu
+ \file  discretization.cu
  \brief Implementation of discretized equations with CUDA acceleration
  Contains functions for boundary conditions, equations of motion, and nucleation.
 */
@@ -11,11 +11,8 @@
 #include <omp.h>
 #include <stdio.h>
 
-#include "cuda_data.h"
-#include "numerics.h"
-#include "mesh.h"
-
-#include "cuda_kernels.cuh"
+#include "data.cuh"
+#include "discretization.cuh"
 #include "parabola625.cuh"
 #include "nucleation.cuh"
 

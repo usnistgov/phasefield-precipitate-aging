@@ -22,12 +22,12 @@
 
 #include "MMSP.hpp"
 #include "alloy625.hpp"
-#include "cuda_data.h"
+#include "data.cuh"
+#include "discretization.cuh"
 #include "enrichment.h"
 #include "globals.h"
 #include "mesh.h"
 #include "nucleation.h"
-#include "numerics.h"
 #include "output.h"
 #include "parabola625.h"
 
