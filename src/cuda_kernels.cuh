@@ -32,6 +32,74 @@ __constant__ extern fp_t d_Omeg[dNP];
 __constant__ extern fp_t d_Lmob[dNP];
 
 /**
+   \brief Compute number of tiles along an axis
+*/
+float nTiles(int domain_size, int tile_loc, int mask_size);
+
+/**
+ \brief Apply boundary conditions to fields on device
+*/
+void device_boundaries(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by);
+
+/**
+   \brief Apply boundary conditions to Laplacian fields on device
+*/
+void device_laplacian_boundaries(struct CudaData* dev,
+                                 const int nx, const int ny, const int nm,
+                                 const int bx, const int by);
+
+/**
+   \brief Update Laplacian fields on device
+*/
+void device_laplacian(struct CudaData* dev,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by);
+
+/**
+ \brief Step equations of motion to update fields on device
+*/
+void device_evolution(struct CudaData* dev,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by,
+                      const fp_t alpha,
+                      const fp_t dt);
+
+/**
+   \brief Initialize PRNG on device
+*/
+void device_init_prng(struct CudaData* dev,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by);
+
+/**
+ \brief Stochastically seed nuclei on device
+*/
+void device_nucleation(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by,
+                       const fp_t* D_Cr, const fp_t* D_Nb,
+                       const fp_t sigma_del, const fp_t sigma_lav,
+                       const fp_t unit_a, const fp_t ifce_width,
+                       const fp_t dx, const fp_t dy, const fp_t dz,
+                       const fp_t dt);
+
+/**
+ \brief Update fictitious composition fields on device
+*/
+void device_fictitious(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by);
+
+/**
+   \brief Compute Ni composition and order parameter on device
+*/
+void device_dataviz(struct CudaData* dev,struct HostData* host,
+                    const int nx, const int ny, const int nm,
+                    const int bx, const int by);
+
+/**
  \brief Boundary condition kernel for execution on the GPU
 */
 __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
