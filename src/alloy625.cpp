@@ -39,11 +39,17 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
+	// For Debugging Interface Broadening
+	double xCrE = xe_del_Cr();
+	double xNbE = xe_del_Nb();
+
+	/*
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
+	*/
 
 	/* Favor a high delta-phase fraction, with a composition
 	 * chosen from the gamma-delta edge of the three-phase field
@@ -234,31 +240,34 @@ void seed_solitaire(GRID2D& grid,
 
 void seed_planar_delta(GRID2D& grid, const int w_precip)
 {
-	const int mid = nodes(grid) / 2;
+	vector<int> x(2);
 	const fp_t& xCr = grid(mid)[0];
-
 	const fp_t& xNb = grid(mid)[1];
 
+
+	// For debugging interface broadening
+	for (x[1] = g0(grid, 1); x[1] < g1(grid, 1); x[1]++)
+		for (x[0] = g0(grid, 0); x[0] < g0(grid, 0) + w_precip; x[0]++)
+			grid(x)[2] = 1.;
+	/*
+	const int mid = nodes(grid) / 2;
 	const int R_depletion_Cr = w_precip * (1. + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
 	const int R_depletion_Nb = w_precip * (1. + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
-	for (int n = 0; n < nodes(grid); n++) {
-		vector<fp_t>& GridN = grid(n);
-		vector<int> x = position(grid, n);
-		const int r = x[0] - g0(grid, 0);
-		if (r <= w_precip) {
+	for (x[1] = g0(grid, 1); x[1] < g1(grid, 1); x[1]++) {
+		for (x[0] = g0(grid, 0); x[0] < g0(grid, 0) + w_precip; x[0]++) {
+			vector<fp_t>& GridN = grid(x);
 			GridN[0] = xe_del_Cr();
 			GridN[1] = xe_del_Nb();
 			GridN[2] = 1.;
-		} else {
-			if (r <= R_depletion_Cr) {
-				GridN[0] = xe_gam_Cr();
-			}
-			if (r <= R_depletion_Nb) {
-				GridN[1] = xe_gam_Nb();
-			}
+		}
+		for (x[0] = g0(grid, 0) + w_precip; x[0] < g1(grid, 0); x[0]++) {
+			vector<fp_t>& GridN = grid(x);
+			GridN[0] = xe_gam_Cr();
+			GridN[1] = xe_gam_Nb();
 		}
 	}
+	*/
 }
 
 void seed_pair(GRID2D& grid,
@@ -359,7 +368,7 @@ void generate(int dim, const char* filename)
 		const int Ny = 2500;
 		*/
 		const int Nx = 768;
-		const int Ny =  14; // Nx for particles
+		const int Ny =   9; // Nx for particles
 
 		double Ntot = 1.0;
 		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
@@ -400,7 +409,7 @@ void generate(int dim, const char* filename)
 
 		vector<double> summary = summarize_fields(initGrid);
 		const double energy = summarize_energy(initGrid);
-		const double twoL = two_lambda(initGrid);
+		const double twoL = two_lambda(initGrid, 3);
 
 
 		if (rank == 0) {
@@ -646,22 +655,25 @@ double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
 }
 
 template <int dim, typename T>
-double two_lambda(const MMSP::grid<dim,MMSP::vector<T> > GRID)
+double two_lambda(const MMSP::grid<dim,MMSP::vector<T> > GRID, const int nm)
 {
 	double xPhiHi=0, xPhiLo=0;
 
 	#ifndef MPI_VERSION
 	MMSP::vector<int> x(2, 0);
+	x[0] = MMSP::g0(GRID, 0) + nm / 2;
 
-	x[0] = MMSP::x0(GRID, 0);
-	do {
-		++x[0];
-	} while (GRID(x)[2] + GRID(x)[3] > 0.9);
-
+	// find high side of the interface
+	while (h(GRID(x)[2]) + h(GRID(x)[3]) > 0.9 && x[0] < MMSP::g1(GRID, 0)) {
+		x[0]++;
+	}
 	xPhiHi = MMSP::dx(GRID) * x[0];
+
+	// then low side
+	x[0] = MMSP::g1(GRID, 0) - nm / 2;
 	do {
-		++x[0];
-	} while (GRID(x)[2] + GRID(x)[3] > 0.1);
+		x[0]--;
+	} while (h(GRID(x)[2]) + h(GRID(x)[3]) < 0.1 && x[0] >= g0(GRID, 0));
 	xPhiLo = MMSP::dx(GRID) * x[0];
 	#endif
 

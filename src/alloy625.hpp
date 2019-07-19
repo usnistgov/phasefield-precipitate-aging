@@ -169,6 +169,6 @@ double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID);
    the interface width along \f$ y = 0 \f$.
 */
 template <int dim, typename T>
-double two_lambda(const MMSP::grid<dim,MMSP::vector<T> > GRID);
+double two_lambda(const MMSP::grid<dim,MMSP::vector<T> > GRID, const int nm);
 
 #endif

@@ -14,7 +14,7 @@ else:
         timestep = float(sys.argv[2])
 
     delta, lam, f, w = np.genfromtxt(
-        filename, skip_header=1, skip_footer=1, usecols=(4, 5, 6, 7), unpack=True, dtype=float
+        filename, skip_header=1, skip_footer=0, usecols=(4, 5, 6, 7), unpack=True, dtype=float
     )
 
     t = np.arange(0, len(delta))

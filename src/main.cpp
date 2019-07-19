@@ -379,7 +379,7 @@ int main(int argc, char* argv[])
 
 						MMSP::vector<double> summary = summarize_fields(grid);
 						const double energy = summarize_energy(grid);
-						const double twoL = two_lambda(grid);
+						const double twoL = two_lambda(grid, nm);
 
 						if (rank == 0) {
 							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g %12g\n",

@@ -226,6 +226,10 @@ __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_
                                    const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
+    // For debugging interface broadening
+	conc_Cr_new = conc_Cr_old;
+	conc_Nb_new = conc_Nb_old;
+    /*
 	const fp_t lap_mu_Cr = d_DCr[0] * lap_gam_Cr
 	                     + d_DNb[0] * lap_gam_Nb;
 	const fp_t lap_mu_Nb = d_DCr[1] * lap_gam_Cr
@@ -233,6 +237,7 @@ __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_
 
 	conc_Cr_new = conc_Cr_old + dt * lap_mu_Cr;
 	conc_Nb_new = conc_Nb_old + dt * lap_mu_Nb;
+    */
 }
 
 __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
