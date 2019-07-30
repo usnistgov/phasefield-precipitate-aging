@@ -38,8 +38,8 @@ const fp_t precip_stabilizer = 13.; // 1.5 Rc = R0, the root of the curve; fitti
 
 // Diffusion constants in FCC Ni from Xu (m^2/s)
 //                     Cr        Nb
-const fp_t D_Cr[NC] = {2.16e-15, 0.56e-15}; // first column of diffusivity matrix
-const fp_t D_Nb[NC] = {2.97e-15, 4.29e-15}; // second column of diffusivity matrix
+const fp_t D_Cr[NC] = {2.16e-15, 2.97e-15}; // first row of diffusivity matrix
+const fp_t D_Nb[NC] = {0.56e-15, 4.29e-15}; // second row of diffusivity matrix
 const fp_t lattice_const = 0.352e-9;        // lattice spacing of FCC nickel (m)
 
 // Define st.dev. of bell curves for alloying element segregation
@@ -56,6 +56,7 @@ const fp_t sigma[NP] = {s_delta(), s_laves()}; // interfacial energy (J/m^2)
 const fp_t alpha = 1.07e11;                    // three-phase coexistence coefficient (J/m^3)
 
 // Compute well height (J/m^3) from interfacial width (nm) and energy (J/m^2)
+// Derivation: TKR4p006
 const fp_t width_factor = 2.2; // when "interface" is [0.1,0.9]; 2.94 if [0.05,0.95]
 const fp_t omega[NP] = {6. * width_factor * sigma[0] / ifce_width,  // delta
                         6. * width_factor * sigma[1] / ifce_width}; // Laves

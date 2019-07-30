@@ -126,6 +126,16 @@ __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc
                                    const fp_t dt);
 
 /**
+ \brief Device kernel to update composition field variables
+*/
+__global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
+                                     fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
+                                     fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+                                     fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
+                                     const int nx, const int ny, const int nm,
+                                     const fp_t dt);
+
+/**
  \brief Device kernel to update field variables for delta phase
 */
 __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
@@ -150,16 +160,6 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t gam_Cr,      const fp_t gam_Nb,
                              const fp_t gam_nrg,     const fp_t alpha,
                              const fp_t dt);
-
-/**
- \brief Device kernel to update composition field variables
-*/
-__global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                     fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
-                                     fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                                     fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
-                                     const int nx, const int ny, const int nm,
-                                     const fp_t dt);
 
 /**
  \brief Device kernel to update phase field variables

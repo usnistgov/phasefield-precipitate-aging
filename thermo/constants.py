@@ -4,7 +4,7 @@ from numpy import arange, sqrt
 
 # Ni Alloy 625 particulars
 temp = 870 + 273.15  # 1143 Kelvin
-RT = 8.3144598 * temp  # J/mol/K
+RT = 8.31446261815324 * temp  # J/mol/K
 Vm = 1.0e-5  # m³/mol
 inVm = 1.0 / Vm  # mol/m³
 

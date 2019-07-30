@@ -226,74 +226,14 @@ __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_
                                    const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
-    // For debugging interface broadening
-	conc_Cr_new = conc_Cr_old;
-	conc_Nb_new = conc_Nb_old;
-    /*
+
 	const fp_t lap_mu_Cr = d_DCr[0] * lap_gam_Cr
-	                     + d_DNb[0] * lap_gam_Nb;
-	const fp_t lap_mu_Nb = d_DCr[1] * lap_gam_Cr
+	                     + d_DCr[1] * lap_gam_Nb;
+	const fp_t lap_mu_Nb = d_DNb[0] * lap_gam_Cr
 	                     + d_DNb[1] * lap_gam_Nb;
 
 	conc_Cr_new = conc_Cr_old + dt * lap_mu_Cr;
 	conc_Nb_new = conc_Nb_old + dt * lap_mu_Nb;
-    */
-}
-
-__device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
-                             const fp_t& phi_del_old, const fp_t& phi_lav_old,
-                             fp_t& phi_del_new,
-                             const fp_t inv_fict_det,
-                             const fp_t f_del,       const fp_t f_lav,
-                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
-                             const fp_t gam_Cr,      const fp_t gam_Nb,
-                             const fp_t gam_nrg,     const fp_t alpha,
-                             const fp_t dt)
-{
-	const fp_t f_gam = 1. - f_del - f_lav;
-	const fp_t del_Cr = d_fict_del_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
-	const fp_t del_Nb = d_fict_del_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
-	const fp_t del_nrg = d_g_del(del_Cr, del_Nb);
-
-	/* pressure */
-	const fp_t P_del = gam_nrg - del_nrg - dgGdxCr * (gam_Cr - del_Cr) - dgGdxNb * (gam_Nb - del_Nb);
-
-	/* variational derivative */
-	const fp_t dFdPhi_del = -d_hprime(phi_del_old) * P_del
-	                        + 2. * d_Omeg[0] * phi_del_old * (phi_del_old - 1.) * (2. * phi_del_old - 1.)
-	                        + 2. * alpha * phi_del_old * (phi_lav_old * phi_lav_old)
-	                        - d_Kapp[0] * phi_del_new;
-
-	/* Allen-Cahn equation of motion for delta phase */
-	phi_del_new = phi_del_old - dt * d_Lmob[0] * dFdPhi_del;
-}
-
-__device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
-                             const fp_t& phi_del_old, const fp_t& phi_lav_old,
-                             fp_t& phi_lav_new,
-                             const fp_t inv_fict_det,
-                             const fp_t f_del,       const fp_t f_lav,
-                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
-                             const fp_t gam_Cr,      const fp_t gam_Nb,
-                             const fp_t gam_nrg,     const fp_t alpha,
-                             const fp_t dt)
-{
-	const fp_t f_gam = 1. - f_del - f_lav;
-	const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
-	const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
-	const fp_t lav_nrg = d_g_lav(lav_Cr, lav_Nb);
-
-	/* pressure */
-	const fp_t P_lav = gam_nrg - lav_nrg - dgGdxCr * (gam_Cr - lav_Cr) - dgGdxNb * (gam_Nb - lav_Nb);
-
-	/* variational derivative */
-	const fp_t dFdPhi_lav = -d_hprime(phi_lav_old) * P_lav
-	                        + 2. * d_Omeg[1] * phi_lav_old * (phi_lav_old - 1.) * (2. * phi_lav_old - 1.)
-	                        + 2. * alpha * phi_lav_old * (phi_del_old * phi_del_old)
-	                        - d_Kapp[1] * phi_lav_new;
-
-	/* Allen-Cahn equation of motion for Laves phase */
-	phi_lav_new = phi_lav_old - dt * d_Lmob[1] * dFdPhi_lav;
 }
 
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
@@ -315,6 +255,66 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		                   d_conc_Cr_new[idx], d_conc_Nb_new[idx],
 		                   dt);
     }
+}
+
+__device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
+                             const fp_t& phi_del_old, const fp_t& phi_lav_old,
+                             fp_t& phi_del_new,
+                             const fp_t inv_fict_det,
+                             const fp_t f_del,       const fp_t f_lav,
+                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
+                             const fp_t gam_Cr,      const fp_t gam_Nb,
+                             const fp_t gam_nrg,     const fp_t alpha,
+                             const fp_t dt)
+{
+	// Derivation: TKR5p281, Eqn. (14)
+
+	const fp_t f_gam = 1. - f_del - f_lav;
+	const fp_t del_Cr = d_fict_del_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
+	const fp_t del_Nb = d_fict_del_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
+	const fp_t del_nrg = d_g_del(del_Cr, del_Nb);
+
+	/* pressure */
+	const fp_t P_del = gam_nrg - del_nrg - dgGdxCr * (gam_Cr - del_Cr) - dgGdxNb * (gam_Nb - del_Nb);
+
+	/* variational derivative */
+	const fp_t dFdPhi_del = -d_hprime(phi_del_old) * P_del
+                            + 2. * d_Omeg[0] * phi_del_old * (phi_del_old - 1.) * (2. * phi_del_old - 1.)
+	                        + 2. * alpha * phi_del_old * phi_lav_old * phi_lav_old
+	                        - d_Kapp[0] * phi_del_new;
+
+	/* Allen-Cahn equation of motion for delta phase */
+	phi_del_new = phi_del_old - dt * d_Lmob[0] * dFdPhi_del;
+}
+
+__device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
+                             const fp_t& phi_del_old, const fp_t& phi_lav_old,
+                             fp_t& phi_lav_new,
+                             const fp_t inv_fict_det,
+                             const fp_t f_del,       const fp_t f_lav,
+                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
+                             const fp_t gam_Cr,      const fp_t gam_Nb,
+                             const fp_t gam_nrg,     const fp_t alpha,
+                             const fp_t dt)
+{
+	// Derivation: TKR5p281, Eqn. (14)
+
+	const fp_t f_gam = 1. - f_del - f_lav;
+	const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
+	const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
+	const fp_t lav_nrg = d_g_lav(lav_Cr, lav_Nb);
+
+	/* pressure */
+	const fp_t P_lav = gam_nrg - lav_nrg - dgGdxCr * (gam_Cr - lav_Cr) - dgGdxNb * (gam_Nb - lav_Nb);
+
+	/* variational derivative */
+	const fp_t dFdPhi_lav = -d_hprime(phi_lav_old) * P_lav
+	                        + 2. * d_Omeg[1] * phi_lav_old * (phi_lav_old - 1.) * (2. * phi_lav_old - 1.)
+	                        + 2. * alpha * phi_lav_old * phi_del_old * phi_del_old
+	                        - d_Kapp[1] * phi_lav_new;
+
+	/* Allen-Cahn equation of motion for Laves phase */
+	phi_lav_new = phi_lav_old - dt * d_Lmob[1] * dFdPhi_lav;
 }
 
 __global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,

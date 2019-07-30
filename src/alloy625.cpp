@@ -39,17 +39,12 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
-	// For Debugging Interface Broadening
-	double xCrE = xe_del_Cr();
-	double xNbE = xe_del_Nb();
 
-	/*
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
-	*/
 
 	/* Favor a high delta-phase fraction, with a composition
 	 * chosen from the gamma-delta edge of the three-phase field
@@ -241,16 +236,11 @@ void seed_solitaire(GRID2D& grid,
 void seed_planar_delta(GRID2D& grid, const int w_precip)
 {
 	vector<int> x(2);
-	const fp_t& xCr = grid(mid)[0];
-	const fp_t& xNb = grid(mid)[1];
-
-
-	// For debugging interface broadening
-	for (x[1] = g0(grid, 1); x[1] < g1(grid, 1); x[1]++)
-		for (x[0] = g0(grid, 0); x[0] < g0(grid, 0) + w_precip; x[0]++)
-			grid(x)[2] = 1.;
-	/*
 	const int mid = nodes(grid) / 2;
+
+	const fp_t xCr = grid(mid)[0];
+	const fp_t xNb = grid(mid)[1];
+
 	const int R_depletion_Cr = w_precip * (1. + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
 	const int R_depletion_Nb = w_precip * (1. + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
@@ -261,13 +251,13 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 			GridN[1] = xe_del_Nb();
 			GridN[2] = 1.;
 		}
-		for (x[0] = g0(grid, 0) + w_precip; x[0] < g1(grid, 0); x[0]++) {
-			vector<fp_t>& GridN = grid(x);
-			GridN[0] = xe_gam_Cr();
-			GridN[1] = xe_gam_Nb();
-		}
+
+		for (x[0] = g0(grid, 0) + w_precip; x[0] < g0(grid, 0) + R_depletion_Cr; x[0]++)
+			grid(x)[0] = xe_gam_Cr();
+
+		for (x[0] = g0(grid, 0) + w_precip; x[0] < g0(grid, 0) + R_depletion_Nb; x[0]++)
+			grid(x)[1] = xe_gam_Nb();
 	}
-	*/
 }
 
 void seed_pair(GRID2D& grid,
@@ -464,6 +454,8 @@ void generate(int dim, const char* filename)
 
 		free(xNi[0]);
 		free(xNi);
+		free(phi[0]);
+		free(phi);
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
 		Abort(-1);
@@ -495,13 +487,14 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 	const T fgam = 1. - fdel - flav;
 
 	const T inv_det = inv_fict_det(fdel, fgam, flav);
-	GRIDN[NC + NP  ] = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[NC + NP]     = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
 	GRIDN[NC + NP + 1] = fict_gam_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
 }
 
 template <typename T>
 T gibbs(const MMSP::vector<T>& v)
 {
+	// Derivation: TKR5p280, Eq. (4)
 	const T xCr = v[0];
 	const T xNb = v[1];
 	const T f_del = h(v[NC  ]);
@@ -515,22 +508,22 @@ T gibbs(const MMSP::vector<T>& v)
 	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T lav_Nb = fict_lav_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 
-	MMSP::vector<T> vsq(NP);
+	MMSP::vector<T> phiSq(NP);
 
 	for (int i = 0; i < NP; i++)
-		vsq[i] = v[NC + i] * v[NC + i];
+		phiSq[i] = v[NC + i] * v[NC + i];
 
 	T g  = f_gam * g_gam(gam_Cr, gam_Nb);
 	g += f_del * g_del(del_Cr, del_Nb);
 	g += f_lav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
-		g += omega[i] * vsq[i] * pow(1.0 - v[NC + i], 2);
+		g += omega[i] * phiSq[i] * pow(1.0 - v[NC + i], 2);
 
 	// Trijunction penalty
 	for (int i = 0; i < NP - 1; i++)
 		for (int j = i + 1; j < NP; j++)
-			g += 2.0 * alpha * vsq[i] * vsq[j];
+			g += 2.0 * alpha * phiSq[i] * phiSq[j];
 
 	return g;
 }
