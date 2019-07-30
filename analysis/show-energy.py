@@ -8,7 +8,7 @@ if len(sys.argv) < 2:
     print("Usage: {0} filename [timestep]".format(sys.argv[0]))
 else:
     filename = sys.argv[1]
-    timestep = 5e-7
+    timestep = 3.125e-8
 
     if len(sys.argv) > 2:
         timestep = float(sys.argv[2])

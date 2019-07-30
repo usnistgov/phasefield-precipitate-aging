@@ -191,7 +191,8 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	sprintf(timearr, "$t=%7.3f\\ \\mathrm{s}$\n", dt * step);
 	plt::suptitle(std::string(timearr));
 
-	long nrows = 3, ncols = 5;
+	const long nrows = 2;
+	const long ncols = 5;
 	long spanr = nrows - 1, spanc = ncols / 2;
 
 	plt::subplot2grid(nrows, ncols, 0, 0, spanr, spanc);
@@ -199,14 +200,16 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	plt::title("$\\phi$");
 	plt::axis("off");
 
-	plt::subplot2grid(nrows, ncols, 0, spanc, spanr, spanc+1);
+	plt::subplot2grid(nrows, ncols, 0, spanc, spanr, spanc);
 	mat = plt::imshow(&(c[0]), h, w, colors, str_kw, num_kw);
 	plt::title("$c$");
 	plt::axis("off");
 
+	plt::subplot2grid(nrows, ncols, 0, ncols - 1, 1, 1);
 	std::map<std::string, float> bar_opts;
 	bar_opts["shrink"] = 0.75;
 	plt::colorbar(mat, bar_opts);
+	plt::axis("off");
 
 	spanr = 1;
 	spanc = ncols-1;
