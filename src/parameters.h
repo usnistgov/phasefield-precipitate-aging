@@ -50,14 +50,15 @@ const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
 // Choose numerical diffusivity to lock chemical and transformational timescales
 //                      delta      Laves
-const fp_t kappa[NP] = {1.24e-8, 1.24e-8};     // gradient energy coefficient (J/m)
 const fp_t Lmob[NP]  = {2.904e-11, 2.904e-11}; // numerical mobility (m^2/Ns)
 const fp_t sigma[NP] = {s_delta(), s_laves()}; // interfacial energy (J/m^2)
 const fp_t alpha = 1.07e11;                    // three-phase coexistence coefficient (J/m^3)
 
 // Compute well height (J/m^3) from interfacial width (nm) and energy (J/m^2)
-// Derivation: TKR4p006
+// Derivation: TKR5p287 -- after Kim, Kim & Suzuki, *Phys. Rev. E* **60** (1999) 7186--7197.
 const fp_t width_factor = 2.2; // when "interface" is [0.1,0.9]; 2.94 if [0.05,0.95]
-const fp_t omega[NP] = {6. * width_factor * sigma[0] / ifce_width,  // delta
-                        6. * width_factor * sigma[1] / ifce_width}; // Laves
+const fp_t kappa[NP] = {3. * sigma[0] * ifce_width / width_factor,
+                        3. * sigma[1] * ifce_width / width_factor}; // gradient energy coefficient (J/m)
+const fp_t omega[NP] = {18. * omega[0] / kappa[0],  // delta
+                        18. * omega[1] / kappa[1]}; // Laves
 #endif
