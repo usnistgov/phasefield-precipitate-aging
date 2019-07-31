@@ -267,10 +267,10 @@ int main(int argc, char* argv[])
 				const int j = x[1] - MMSP::g0(grid, 1) + nm / 2;
 				host.conc_Cr_old[j][i] = gridN[0];
 				host.conc_Nb_old[j][i] = gridN[1];
-				host.phi_del_old[j][i] = gridN[2];
-				host.phi_lav_old[j][i] = gridN[3];
-				host.gam_Cr[j][i]      = gridN[4];
-				host.gam_Nb[j][i]      = gridN[5];
+				host.phi_del_old[j][i] = gridN[NC];
+				host.phi_lav_old[j][i] = gridN[NC+1];
+				host.gam_Cr[j][i]      = gridN[NC+NP];
+				host.gam_Nb[j][i]      = gridN[NC+NP+1];
 			}
 
 			// initialize GPU
@@ -355,12 +355,12 @@ int main(int argc, char* argv[])
 							MMSP::vector<int> x = MMSP::position(grid, n);
 							const int i = x[0] - MMSP::g0(grid, 0) + nm / 2;
 							const int j = x[1] - MMSP::g0(grid, 1) + nm / 2;
-							gridN[0] = host.conc_Cr_new[j][i];
-							gridN[1] = host.conc_Nb_new[j][i];
-							gridN[2] = host.phi_del_new[j][i];
-							gridN[3] = host.phi_lav_new[j][i];
-							gridN[4] = host.gam_Cr[j][i];
-							gridN[5] = host.gam_Nb[j][i];
+							gridN[0]       = host.conc_Cr_new[j][i];
+							gridN[1]       = host.conc_Nb_new[j][i];
+							gridN[NC]      = host.phi_del_new[j][i];
+							gridN[NC+1]    = host.phi_lav_new[j][i];
+							gridN[NC+NP]   = host.gam_Cr[j][i];
+							gridN[NC+NP+1] = host.gam_Nb[j][i];
 						}
 
 						std::stringstream outstr;

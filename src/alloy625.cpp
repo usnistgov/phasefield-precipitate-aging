@@ -480,8 +480,8 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 	const T& xcr = GRIDN[0];
 	const T& xnb = GRIDN[1];
 
-	const T fdel = h(GRIDN[2]);
-	const T flav = h(GRIDN[3]);
+	const T fdel = h(GRIDN[NC]);
+	const T flav = h(GRIDN[NC+1]);
 	const T fgam = 1. - fdel - flav;
 
 	const T inv_det = inv_fict_det(fdel, fgam, flav);
@@ -655,7 +655,7 @@ double two_lambda(const MMSP::grid<dim,MMSP::vector<T> > GRID, const int nm)
 	x[0] = MMSP::g0(GRID, 0) + nm / 2;
 
 	// find high side of the interface
-	while (h(GRID(x)[2]) + h(GRID(x)[3]) > 0.9 && x[0] < MMSP::g1(GRID, 0)) {
+	while (h(GRID(x)[NC]) + h(GRID(x)[NC+1]) > 0.9 && x[0] < MMSP::g1(GRID, 0)) {
 		x[0]++;
 	}
 	xPhiHi = MMSP::dx(GRID) * x[0];
@@ -664,7 +664,7 @@ double two_lambda(const MMSP::grid<dim,MMSP::vector<T> > GRID, const int nm)
 	x[0] = MMSP::g1(GRID, 0) - nm / 2;
 	do {
 		x[0]--;
-	} while (h(GRID(x)[2]) + h(GRID(x)[3]) < 0.1 && x[0] >= g0(GRID, 0));
+	} while (h(GRID(x)[NC]) + h(GRID(x)[NC+1]) < 0.1 && x[0] >= g0(GRID, 0));
 	xPhiLo = MMSP::dx(GRID) * x[0];
 	#endif
 
