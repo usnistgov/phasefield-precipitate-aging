@@ -444,7 +444,7 @@ void generate(int dim, const char* filename)
 
 		#ifdef MPI_VERSION
 		std::cerr << "Error: cannot write images in parallel." << std::endl;
-		Abort(-1);
+		Abort(EXIT_FAILURE);
 		#endif
 		const int nm = 0, step = 0;
 		const double dt = 1.;
@@ -456,7 +456,7 @@ void generate(int dim, const char* filename)
 		free(phi);
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
-		Abort(-1);
+		Abort(EXIT_FAILURE);
 	}
 
 	if (rank == 0)

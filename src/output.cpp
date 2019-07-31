@@ -103,7 +103,7 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 	output = fopen(name, "w");
 	if (output == NULL) {
 		printf("Error: unable to open %s for output. Check permissions.\n", name);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	/* write csv data */
