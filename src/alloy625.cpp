@@ -249,7 +249,7 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 			vector<fp_t>& GridN = grid(x);
 			GridN[0] = xe_del_Cr();
 			GridN[1] = xe_del_Nb();
-			GridN[2] = 1.;
+			GridN[NC] = 1.;
 		}
 
 		for (x[0] = g0(grid, 0) + w_precip; x[0] < g0(grid, 0) + R_depletion_Cr; x[0]++)
@@ -370,7 +370,6 @@ void generate(int dim, const char* filename)
 			if (x1(initGrid, d) == g1(initGrid, d))
 				b1(initGrid, d) = Neumann;
 		}
-		grid<2, double> nickGrid(initGrid, 1);
 
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
@@ -417,28 +416,27 @@ void generate(int dim, const char* filename)
 		output(initGrid, filename);
 
 		// write initial condition image
+
 		fp_t** xNi = (fp_t**)calloc(Nx, sizeof(fp_t*));
-		xNi[0]     = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
-
 		fp_t** phi = (fp_t**)calloc(Nx, sizeof(fp_t*));
-		phi[0]     = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
+		xNi[0] = (fp_t*)calloc(Nx * (Ny+1), sizeof(fp_t));
+		phi[0] = (fp_t*)calloc(Nx * (Ny+1), sizeof(fp_t));
 
-		for (int i = 1; i < Ny; i++) {
+		for (int i = 1; i < Ny+1; i++) {
 			xNi[i] = &(xNi[0])[Nx * i];
 			phi[i] = &(phi[0])[Nx * i];
 		}
-		const int xoff = x0(initGrid);
-		const int yoff = y0(initGrid);
 
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
-			vector<int> x = position(nickGrid, n);
-			const int i = x[0] - xoff;
-			const int j = x[1] - yoff;
+			vector<int> x = position(initGrid, n);
+			const int i = x[0] - g0(initGrid, 0);
+			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
+			                                          // (mmsp2png of mesh is correct)
 			xNi[j][i] = 1. - initGrid(n)[0] - initGrid(n)[1];
-			phi[j][i] = h(initGrid(n)[2]) + h(initGrid(n)[3]);
+			phi[j][i] = h(initGrid(n)[NC]) + h(initGrid(n)[NC+1]);
 		}
 
 		std::string imgname(filename);
@@ -453,8 +451,8 @@ void generate(int dim, const char* filename)
 		write_matplotlib(xNi, phi, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
 
 		free(xNi[0]);
-		free(xNi);
 		free(phi[0]);
+		free(xNi);
 		free(phi);
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;

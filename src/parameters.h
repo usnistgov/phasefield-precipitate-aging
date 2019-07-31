@@ -11,7 +11,7 @@
 
 // === Discretization Parameters ===
 
-const double meshres = 0.0625e-9;   // grid spacing, Δx (m)
+const double meshres = 0.625e-10;   // grid spacing, Δx (m); max. is 2.5 Å
 const double ifce_width = 7.5e-10;  // interface thickness, 2λ (m), TKR5p274
 const fp_t LinStab = 1. / 7.28438;  // threshold of linear (von Neumann) stability, Co (dimensionless)
 const fp_t precip_stabilizer = 13.; // 1.5 Rc = R0, the root of the curve; fitting parameter
