@@ -20,7 +20,7 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 		printf("Warning: unable to open parameter file 'params.txt'. Marching with default values.\n");
 		fflush(stdout);
 	} else {
-		char buffer[256];
+		char buffer[FILENAME_MAX];
 		char* pch;
 		int ibx=0, iby=0, isc=0;
 
@@ -68,7 +68,7 @@ void print_progress(const int step, const int steps)
 	time_t rawtime;
 
 	if (step==0) {
-		char timestring[256] = {'\0'};
+		char timestring[FILENAME_MAX] = {'\0'};
 		struct tm* timeinfo;
 		tstart = time(NULL);
 		time( &rawtime );
@@ -89,7 +89,7 @@ void print_progress(const int step, const int steps)
 void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const int step)
 {
 	FILE* output;
-	char name[256];
+	char name[FILENAME_MAX];
 	char num[20];
 	int i, j;
 
@@ -182,38 +182,36 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 
 	std::map<std::string, std::string> str_kw;
 	str_kw["cmap"] = "viridis_r";
+	str_kw["interpolation"] = "None";
 
 	std::map<std::string, double> num_kw;
 	num_kw["vmin"] = 0.;
 	num_kw["vmax"] = 1.;
 
-	char timearr[256] = {0};
+	char timearr[FILENAME_MAX] = {0};
 	sprintf(timearr, "$t=%7.3f\\ \\mathrm{s}$\n", dt * step);
 	plt::suptitle(std::string(timearr));
 
-	const long nrows = 2;
+	const long nrows = 3;
 	const long ncols = 5;
-	long spanr = nrows - 1, spanc = ncols / 2;
 
-	plt::subplot2grid(nrows, ncols, 0, 0, spanr, spanc);
+	plt::subplot2grid(nrows, ncols, 0, 0, 1, ncols - 1);
 	mat = plt::imshow(&(p[0]), h, w, colors, str_kw, num_kw);
 	plt::title("$\\phi$");
 	plt::axis("off");
 
-	plt::subplot2grid(nrows, ncols, 0, spanc, spanr, spanc);
+	plt::subplot2grid(nrows, ncols, 1, 0, 1, ncols - 1);
 	mat = plt::imshow(&(c[0]), h, w, colors, str_kw, num_kw);
 	plt::title("$c$");
 	plt::axis("off");
 
-	plt::subplot2grid(nrows, ncols, 0, ncols - 1, 1, 1);
+	plt::subplot2grid(nrows, ncols, 0, ncols - 1, 2, 1);
 	std::map<std::string, float> bar_opts;
 	bar_opts["shrink"] = 0.75;
 	plt::colorbar(mat, bar_opts);
 	plt::axis("off");
 
-	spanr = 1;
-	spanc = ncols-1;
-	plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
+	plt::subplot2grid(nrows, ncols, nrows-1, 0, 1, ncols - 1);
 	plt::xlim(0., 1e6 * deltax * nx);
 	plt::ylim(0., 1.);
 	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
