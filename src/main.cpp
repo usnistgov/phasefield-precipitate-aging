@@ -282,7 +282,7 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int img_interval = std::min(increment / 4, int(0.05 / dt));
+			const int img_interval = std::min(increment / 4, int(0.2 / dt));
 			const int nrg_interval = img_interval;
 			// const int nuc_interval = 1e-5 / dt;
 
@@ -381,11 +381,10 @@ int main(int argc, char* argv[])
 
 						MMSP::vector<double> summary = summarize_fields(grid);
 						const double energy = summarize_energy(grid);
-						const double twoL = two_lambda(grid, nm);
 
 						if (rank == 0) {
-							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g %12g\n",
-							        dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy, twoL);
+							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
+							        dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 							fflush(cfile);
 						}
 					}

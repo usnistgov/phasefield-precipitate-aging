@@ -182,7 +182,7 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 
 	std::map<std::string, std::string> str_kw;
 	str_kw["cmap"] = "viridis_r";
-	str_kw["interpolation"] = "None";
+	str_kw["interpolation"] = "nearest";
 
 	std::map<std::string, double> num_kw;
 	num_kw["vmin"] = 0.;

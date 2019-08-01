@@ -398,14 +398,12 @@ void generate(int dim, const char* filename)
 
 		vector<double> summary = summarize_fields(initGrid);
 		const double energy = summarize_energy(initGrid);
-		const double twoL = two_lambda(initGrid, 3);
-
 
 		if (rank == 0) {
-			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s %12s\n",
-			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy", "ifce_width");
-			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g %12g\n",
-			        0., summary[0], summary[1], summary[2], summary[3], summary[4], energy, twoL);
+			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s\n",
+			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
+			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
+			        0., summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 
 			printf("%9s %9s %9s %9s %9s\n",
 			       "x_Cr", "x_Nb", " p_g", " p_d", " p_l");
@@ -417,14 +415,14 @@ void generate(int dim, const char* filename)
 
 		// write initial condition image
 
-		fp_t** xNi = (fp_t**)calloc(Nx, sizeof(fp_t*));
-		fp_t** phi = (fp_t**)calloc(Nx, sizeof(fp_t*));
-		xNi[0] = (fp_t*)calloc(Nx * (Ny+1), sizeof(fp_t));
-		phi[0] = (fp_t*)calloc(Nx * (Ny+1), sizeof(fp_t));
+		fp_t** xNi = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** phi = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		xNi[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		phi[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
 
-		for (int i = 1; i < Ny+1; i++) {
-			xNi[i] = &(xNi[0])[Nx * i];
-			phi[i] = &(phi[0])[Nx * i];
+		for (int i = 1; i < Ny + 2; i++) {
+			xNi[i] = &(xNi[0])[(Nx + 2) * i];
+			phi[i] = &(phi[0])[(Nx + 2) * i];
 		}
 
 		#ifdef _OPENMP
@@ -432,7 +430,7 @@ void generate(int dim, const char* filename)
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<int> x = position(initGrid, n);
-			const int i = x[0] - g0(initGrid, 0);
+			const int i = x[0] - g0(initGrid, 0) + 1;
 			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
 			                                          // (mmsp2png of mesh is correct)
 			xNi[j][i] = 1. - initGrid(n)[0] - initGrid(n)[1];
@@ -446,7 +444,7 @@ void generate(int dim, const char* filename)
 		std::cerr << "Error: cannot write images in parallel." << std::endl;
 		Abort(EXIT_FAILURE);
 		#endif
-		const int nm = 0, step = 0;
+		const int nm = 3, step = 0;
 		const double dt = 1.;
 		write_matplotlib(xNi, phi, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
 
@@ -497,10 +495,11 @@ T gibbs(const MMSP::vector<T>& v)
 	const T xNb = v[1];
 	const T f_del = h(v[NC  ]);
 	const T f_lav = h(v[NC + 1]);
+	const T gam_Cr = v[NC + NP];
+	const T gam_Nb = v[NC + NP + 1];
+
 	const T f_gam = 1.0 - f_del - f_lav;
 	const T inv_det = inv_fict_det(f_del, f_gam, f_lav);
-	const T gam_Cr = v[NC + NP];
-	const T gam_Nb = v[NC + NP];
 	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
@@ -643,32 +642,6 @@ double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
 	#endif
 
 	return energy;
-}
-
-template <int dim, typename T>
-double two_lambda(const MMSP::grid<dim,MMSP::vector<T> > GRID, const int nm)
-{
-	double xPhiHi=0, xPhiLo=0;
-
-	#ifndef MPI_VERSION
-	MMSP::vector<int> x(2, 0);
-	x[0] = MMSP::g0(GRID, 0) + nm / 2;
-
-	// find high side of the interface
-	while (h(GRID(x)[NC]) + h(GRID(x)[NC+1]) > 0.9 && x[0] < MMSP::g1(GRID, 0)) {
-		x[0]++;
-	}
-	xPhiHi = MMSP::dx(GRID) * x[0];
-
-	// then low side
-	x[0] = MMSP::g1(GRID, 0) - nm / 2;
-	do {
-		x[0]--;
-	} while (h(GRID(x)[NC]) + h(GRID(x)[NC+1]) < 0.1 && x[0] >= g0(GRID, 0));
-	xPhiLo = MMSP::dx(GRID) * x[0];
-	#endif
-
-	return std::fabs(xPhiLo - xPhiHi);
 }
 #endif
 
