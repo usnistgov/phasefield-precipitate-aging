@@ -14,7 +14,7 @@ profile: $(OBJS)
 
 # === Executables ===
 
-check-nucleation: check-nucleation.cpp ../src/globals.h nucleation.c $(OBJS)
+check-nucleation: check-nucleation.cpp ../src/parameters.h nucleation.c $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $(OBJS) $< -o $@ -lm
 
 ternary-diagram.png: phase-diagram.py parabola625.c parabola625.so enrichment.so

@@ -1,5 +1,5 @@
 /**
- \file  cuda_discretization.cu
+ \file  discretization.cu
  \brief Implementation of discretized equations with CUDA acceleration
  Contains functions for boundary conditions, equations of motion, and nucleation.
 */
@@ -11,11 +11,8 @@
 #include <omp.h>
 #include <stdio.h>
 
-#include "cuda_data.h"
-#include "numerics.h"
-#include "mesh.h"
-
-#include "cuda_kernels.cuh"
+#include "data.cuh"
+#include "discretization.cuh"
 #include "parabola625.cuh"
 #include "nucleation.cuh"
 
@@ -32,7 +29,17 @@ cudaError_t checkCuda(cudaError_t result)
 	return result;
 }
 
+// Convolution mask array on the GPU, allocated in protected memory
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
+
+// Diffusivity arrays on the GPU, allocated in protected memory
+__constant__ fp_t d_DCr[NC];
+__constant__ fp_t d_DNb[NC];
+
+// Kinetic parameter arrays on the GPU, allocated in protected memory
+__constant__ fp_t d_Kapp[NP];
+__constant__ fp_t d_Omeg[NP];
+__constant__ fp_t d_Lmob[NP];
 
 float nTiles(int domain_size, int tile_loc, int mask_size)
 {
@@ -47,11 +54,8 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                 const int nm)
 {
 	/* determine indices on which to operate */
-	const int tx = threadIdx.x;
-	const int ty = threadIdx.y;
-
-	const int row = blockDim.y * blockIdx.y + ty;
-	const int col = blockDim.x * blockIdx.x + tx;
+	const int row = blockDim.y * blockIdx.y + threadIdx.y;
+	const int col = blockDim.x * blockIdx.x + threadIdx.x;
 
 	/* apply no-flux boundary conditions: inside to out, sequence matters */
 
@@ -219,30 +223,52 @@ void device_laplacian(struct CudaData* dev,
 __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                                    const fp_t& lap_gam_Cr,  const fp_t& lap_gam_Nb,
                                    fp_t& conc_Cr_new,       fp_t& conc_Nb_new,
-                                   const fp_t& D_CrCr,      const fp_t& D_CrNb,
-                                   const fp_t& D_NbCr,      const fp_t& D_NbNb,
-                                   const fp_t& dt)
+                                   const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
-	const fp_t lap_mu_Cr = D_CrCr * lap_gam_Cr
-	                       + D_NbCr * lap_gam_Nb;
-	const fp_t lap_mu_Nb = D_CrNb * lap_gam_Cr
-	                       + D_NbNb * lap_gam_Nb;
+
+	const fp_t lap_mu_Cr = d_DCr[0] * lap_gam_Cr
+	                     + d_DCr[1] * lap_gam_Nb;
+	const fp_t lap_mu_Nb = d_DNb[0] * lap_gam_Cr
+	                     + d_DNb[1] * lap_gam_Nb;
 
 	conc_Cr_new = conc_Cr_old + dt * lap_mu_Cr;
 	conc_Nb_new = conc_Nb_old + dt * lap_mu_Nb;
 }
 
+__global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
+                                     fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
+                                     fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
+                                     const int nx, const int ny, const int nm,
+                                     const fp_t dt)
+{
+	/* determine indices on which to operate */
+	const int x = blockDim.x * blockIdx.x + threadIdx.x;
+	const int y = blockDim.y * blockIdx.y + threadIdx.y;
+	const int idx = nx * y + x;
+
+	/* explicit Euler solution to the equation of motion */
+	if (x < nx && y < ny) {
+		/* Cahn-Hilliard equations of motion for composition */
+		composition_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx],
+		                   d_lap_gam_Cr[idx],  d_lap_gam_Nb[idx],
+		                   d_conc_Cr_new[idx], d_conc_Nb_new[idx],
+		                   dt);
+    }
+}
+
 __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
-                             fp_t& phi_del_new, const fp_t& inv_fict_det,
-                             const fp_t& f_del,       const fp_t& f_lav,
-                             const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
-                             const fp_t& gam_Cr,      const fp_t& gam_Nb,
-                             const fp_t& gam_nrg,     const fp_t& alpha,
-                             const fp_t& kappa,       const fp_t& omega,
-                             const fp_t& M_del,       const fp_t& dt)
+                             fp_t& phi_del_new,
+                             const fp_t inv_fict_det,
+                             const fp_t f_del,       const fp_t f_lav,
+                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
+                             const fp_t gam_Cr,      const fp_t gam_Nb,
+                             const fp_t gam_nrg,     const fp_t alpha,
+                             const fp_t dt)
 {
+	// Derivation: TKR5p281, Eqn. (14)
+
 	const fp_t f_gam = 1. - f_del - f_lav;
 	const fp_t del_Cr = d_fict_del_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
 	const fp_t del_Nb = d_fict_del_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
@@ -253,24 +279,26 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 
 	/* variational derivative */
 	const fp_t dFdPhi_del = -d_hprime(phi_del_old) * P_del
-	                        + 2. * omega * phi_del_old * (phi_del_old - 1.) * (2. * phi_del_old - 1.)
-	                        + 2. * alpha * phi_del_old * (phi_lav_old * phi_lav_old)
-	                        - kappa * phi_del_new;
+                            + 2. * d_Omeg[0] * phi_del_old * (phi_del_old - 1.) * (2. * phi_del_old - 1.)
+	                        + 2. * alpha * phi_del_old * phi_lav_old * phi_lav_old
+	                        - d_Kapp[0] * phi_del_new;
 
 	/* Allen-Cahn equation of motion for delta phase */
-	phi_del_new = phi_del_old - dt * M_del * dFdPhi_del;
+	phi_del_new = phi_del_old - dt * d_Lmob[0] * dFdPhi_del;
 }
 
 __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
-                             fp_t& phi_lav_new, const fp_t& inv_fict_det,
-                             const fp_t& f_del,       const fp_t& f_lav,
-                             const fp_t& dgGdxCr,     const fp_t& dgGdxNb,
-                             const fp_t& gam_Cr,      const fp_t& gam_Nb,
-                             const fp_t& gam_nrg,     const fp_t& alpha,
-                             const fp_t& kappa,       const fp_t& omega,
-                             const fp_t& M_lav,       const fp_t& dt)
+                             fp_t& phi_lav_new,
+                             const fp_t inv_fict_det,
+                             const fp_t f_del,       const fp_t f_lav,
+                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
+                             const fp_t gam_Cr,      const fp_t gam_Nb,
+                             const fp_t gam_nrg,     const fp_t alpha,
+                             const fp_t dt)
 {
+	// Derivation: TKR5p281, Eqn. (14)
+
 	const fp_t f_gam = 1. - f_del - f_lav;
 	const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
 	const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
@@ -281,12 +309,79 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 
 	/* variational derivative */
 	const fp_t dFdPhi_lav = -d_hprime(phi_lav_old) * P_lav
-	                        + 2. * omega * phi_lav_old * (phi_lav_old - 1.) * (2. * phi_lav_old - 1.)
-	                        + 2. * alpha * phi_lav_old * (phi_del_old * phi_del_old)
-	                        - kappa * phi_lav_new;
+	                        + 2. * d_Omeg[1] * phi_lav_old * (phi_lav_old - 1.) * (2. * phi_lav_old - 1.)
+	                        + 2. * alpha * phi_lav_old * phi_del_old * phi_del_old
+	                        - d_Kapp[1] * phi_lav_new;
 
 	/* Allen-Cahn equation of motion for Laves phase */
-	phi_lav_new = phi_lav_old - dt * M_lav * dFdPhi_lav;
+	phi_lav_new = phi_lav_old - dt * d_Lmob[1] * dFdPhi_lav;
+}
+
+__global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
+                                  fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
+                                  fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
+                                  fp_t* d_phi_del_new, fp_t* d_phi_lav_new,
+                                  fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
+                                  const int nx, const int ny, const int nm,
+                                  const fp_t alpha,
+                                  const fp_t dt)
+{
+	/* determine indices on which to operate */
+	const int x = blockDim.x * blockIdx.x + threadIdx.x;
+	const int y = blockDim.y * blockIdx.y + threadIdx.y;
+	const int idx = nx * y + x;
+
+	/* explicit Euler solution to the equation of motion */
+	if (x < nx && y < ny) {
+		const fp_t f_del = d_h(d_phi_del_old[idx]);
+		const fp_t f_lav = d_h(d_phi_lav_old[idx]);
+		const fp_t inv_fict_det = d_inv_fict_det(f_del, 1. - f_del - f_lav, f_lav);
+
+		/* pure phase energy */
+		const fp_t gam_nrg = d_g_gam(d_gam_Cr[idx], d_gam_Nb[idx]);
+
+		/* effective chemical potential */
+		const fp_t dgGdxCr = d_dg_gam_dxCr(d_gam_Cr[idx], d_gam_Nb[idx]);
+		const fp_t dgGdxNb = d_dg_gam_dxNb(d_gam_Cr[idx], d_gam_Nb[idx]);
+
+		/* Allen-Cahn equations of motion for phase */
+		delta_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
+		             d_phi_del_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
+		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, dt);
+
+		laves_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
+		             d_phi_lav_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
+		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, dt);
+	}
+}
+
+void device_evolution(struct CudaData* dev,
+                      const int nx, const int ny, const int nm,
+                      const int bx, const int by,
+                      const fp_t alpha,
+                      const fp_t dt)
+{
+	/* divide matrices into blocks of bx * by threads */
+	dim3 tile_size(bx, by, 1);
+	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
+	               nTiles(ny, tile_size.y, nm),
+	               1);
+	cahn_hilliard_kernel <<< num_tiles, tile_size>>> (
+	    dev->conc_Cr_old, dev->conc_Nb_old,
+	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
+	    dev->conc_Cr_new, dev->conc_Nb_new,
+	    nx, ny, nm,
+	    dt);
+
+	allen_cahn_kernel <<< num_tiles, tile_size>>> (
+	    dev->conc_Cr_old, dev->conc_Nb_old,
+	    dev->phi_del_old, dev->phi_lav_old,
+	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
+	    dev->phi_del_new, dev->phi_lav_new,
+	    dev->gam_Cr,      dev->gam_Nb,
+	    nx, ny, nm,
+	    alpha,
+	    dt);
 }
 
 __global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
@@ -294,10 +389,8 @@ __global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
                                   const int nx, const int ny)
 {
-	const int thr_x = threadIdx.x;
-	const int thr_y = threadIdx.y;
-	const int x = blockDim.x * blockIdx.x + thr_x;
-	const int y = blockDim.y * blockIdx.y + thr_y;
+	const int x = blockDim.x * blockIdx.x + threadIdx.x;
+	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 	const int idx = nx * y + x;
 
 	if (x < nx && y < ny) {
@@ -330,92 +423,11 @@ void device_fictitious(struct CudaData* dev,
 	    nx, ny);
 }
 
-__global__ void evolution_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                 fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
-                                 fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
-                                 fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                                 fp_t* d_phi_del_new, fp_t* d_phi_lav_new,
-                                 fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
-                                 const int nx, const int ny, const int nm,
-                                 const fp_t D_CrCr, const fp_t D_CrNb,
-                                 const fp_t D_NbCr, const fp_t D_NbNb,
-                                 const fp_t alpha, const fp_t kappa, const fp_t omega,
-                                 const fp_t M_del, const fp_t M_lav,
-                                 const fp_t dt)
-{
-	/* determine indices on which to operate */
-	const int thr_x = threadIdx.x;
-	const int thr_y = threadIdx.y;
-	const int x = blockDim.x * blockIdx.x + thr_x;
-	const int y = blockDim.y * blockIdx.y + thr_y;
-	const int idx = nx * y + x;
-
-	/* explicit Euler solution to the equation of motion */
-	if (x < nx && y < ny) {
-		const fp_t f_del = d_h(d_phi_del_old[idx]);
-		const fp_t f_lav = d_h(d_phi_lav_old[idx]);
-		const fp_t inv_fict_det = d_inv_fict_det(f_del, 1. - f_del - f_lav, f_lav);
-
-		/* pure phase energy */
-		const fp_t gam_nrg = d_g_gam(d_gam_Cr[idx], d_gam_Nb[idx]);
-
-		/* effective chemical potential */
-		const fp_t dgGdxCr = d_dg_gam_dxCr(d_gam_Cr[idx], d_gam_Nb[idx]);
-		const fp_t dgGdxNb = d_dg_gam_dxNb(d_gam_Cr[idx], d_gam_Nb[idx]);
-
-		/* Cahn-Hilliard equations of motion for composition */
-		composition_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx],
-		                   d_lap_gam_Cr[idx],  d_lap_gam_Nb[idx],
-		                   d_conc_Cr_new[idx], d_conc_Nb_new[idx],
-		                   D_CrCr, D_CrNb, D_NbCr, D_NbNb, dt);
-
-		/* Allen-Cahn equations of motion for phase */
-		delta_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
-		             d_phi_del_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
-		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, kappa, omega,
-		             M_del, dt);
-		laves_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
-		             d_phi_lav_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
-		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, kappa, omega,
-		             M_lav, dt);
-	}
-}
-
-void device_evolution(struct CudaData* dev,
-                      const int nx, const int ny, const int nm,
-                      const int bx, const int by,
-                      const fp_t* D_Cr, const fp_t* D_Nb,
-                      const fp_t alpha, const fp_t kappa, const fp_t omega,
-                      const fp_t M_del, const fp_t M_lav,
-                      const fp_t dt)
-{
-	/* divide matrices into blocks of bx * by threads */
-	dim3 tile_size(bx, by, 1);
-	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
-	               nTiles(ny, tile_size.y, nm),
-	               1);
-	evolution_kernel <<< num_tiles, tile_size>>> (
-	    dev->conc_Cr_old, dev->conc_Nb_old,
-	    dev->phi_del_old, dev->phi_lav_old,
-	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
-	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->gam_Cr,      dev->gam_Nb,
-	    nx, ny, nm,
-	    D_Cr[0], D_Cr[1],
-	    D_Nb[0], D_Nb[1],
-	    alpha, kappa, omega,
-	    M_del, M_lav,
-	    dt);
-}
-
 __global__ void init_prng_kernel(curandState* d_prng, const int nx, const int ny)
 {
 	/* determine indices on which to operate */
-	const int thr_x = threadIdx.x;
-	const int thr_y = threadIdx.y;
-	const int x = blockDim.x * blockIdx.x + thr_x;
-	const int y = blockDim.y * blockIdx.y + thr_y;
+	const int x = blockDim.x * blockIdx.x + threadIdx.x;
+	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 	const int idx = nx * y + x;
 
 	if (x < nx && y < ny)
@@ -439,11 +451,11 @@ __device__ void embed_OPC_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                  fp_t* d_phi_del, fp_t* d_phi_lav,
                                  const int nx, const int ny,
                                  const int x, const int y, const int idx,
-                                 const fp_t& xCr,
-                                 const fp_t& xNb,
-                                 const fp_t& par_xe_Cr,
-                                 const fp_t& par_xe_Nb,
-                                 const fp_t& R_precip)
+                                 const fp_t xCr,
+                                 const fp_t xNb,
+                                 const fp_t par_xe_Cr,
+                                 const fp_t par_xe_Nb,
+                                 const fp_t R_precip)
 {
 	const fp_t R_depletion_Cr = fp_t(R_precip) * sqrt((par_xe_Cr - xCr) / (xCr - d_xe_gam_Cr()));
 	const fp_t R_depletion_Nb = fp_t(R_precip) * sqrt((par_xe_Nb - xNb) / (xNb - d_xe_gam_Nb()));
@@ -480,10 +492,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   const fp_t dt)
 {
 	/* determine indices on which to operate */
-	const int thr_x = threadIdx.x;
-	const int thr_y = threadIdx.y;
-	const int x = blockDim.x * blockIdx.x + thr_x;
-	const int y = blockDim.y * blockIdx.y + thr_y;
+	const int x = blockDim.x * blockIdx.x + threadIdx.x;
+	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
 	const fp_t dV = dx * dy * dz;
 	const fp_t Vatom = 0.25 * lattice_const * lattice_const * lattice_const; // m³/atom, assuming FCC
@@ -630,19 +640,4 @@ void device_dataviz(struct CudaData* dev, struct HostData* host,
 	                cudaMemcpyDeviceToHost);
 	cudaMemcpy(host->phi[0], dev->phi, nx * ny * sizeof(fp_t),
 	                cudaMemcpyDeviceToHost);
-}
-
-void read_out_result(struct CudaData* dev, struct HostData* host,
-                     const int nx, const int ny)
-{
-	cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_old, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_old, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->phi_del_new[0], dev->phi_del_old, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->phi_lav_new[0], dev->phi_lav_old, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->gam_Cr[0], dev->gam_Cr, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->gam_Nb[0], dev->gam_Nb, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 }

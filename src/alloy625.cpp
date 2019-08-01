@@ -22,14 +22,14 @@
 
 #include "MMSP.hpp"
 #include "alloy625.hpp"
-#include "cuda_data.h"
+#include "data.cuh"
+#include "discretization.cuh"
 #include "enrichment.h"
-#include "globals.h"
 #include "mesh.h"
 #include "nucleation.h"
-#include "numerics.h"
 #include "output.h"
 #include "parabola625.h"
+#include "parameters.h"
 
 namespace MMSP
 {
@@ -39,6 +39,7 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
+
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
@@ -173,12 +174,8 @@ void seed_solitaire(GRID2D& grid,
 	const fp_t n_gam = dV / Vatom;
 	const vector<int> x(2, 0);
 
-	#ifdef CONVERGENCE
-	const double penny = 0.;
-	#else
 	std::uniform_real_distribution<double> heads_or_tails(0, 1);
 	const double penny = heads_or_tails(mtrand);
-	#endif
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
@@ -238,30 +235,28 @@ void seed_solitaire(GRID2D& grid,
 
 void seed_planar_delta(GRID2D& grid, const int w_precip)
 {
+	vector<int> x(2);
 	const int mid = nodes(grid) / 2;
-	const fp_t& xCr = grid(mid)[0];
 
-	const fp_t& xNb = grid(mid)[1];
+	const fp_t xCr = grid(mid)[0];
+	const fp_t xNb = grid(mid)[1];
 
 	const int R_depletion_Cr = w_precip * (1. + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
 	const int R_depletion_Nb = w_precip * (1. + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
-	for (int n = 0; n < nodes(grid); n++) {
-		vector<fp_t>& GridN = grid(n);
-		vector<int> x = position(grid, n);
-		const int r = x[0] - g0(grid, 0);
-		if (r <= w_precip) {
+	for (x[1] = g0(grid, 1); x[1] < g1(grid, 1); x[1]++) {
+		for (x[0] = g0(grid, 0); x[0] < g0(grid, 0) + w_precip; x[0]++) {
+			vector<fp_t>& GridN = grid(x);
 			GridN[0] = xe_del_Cr();
 			GridN[1] = xe_del_Nb();
-			GridN[2] = 1.;
-		} else {
-			if (r <= R_depletion_Cr) {
-				GridN[0] = xe_gam_Cr();
-			}
-			if (r <= R_depletion_Nb) {
-				GridN[1] = xe_gam_Nb();
-			}
+			GridN[NC] = 1.;
 		}
+
+		for (x[0] = g0(grid, 0) + w_precip; x[0] < g0(grid, 0) + R_depletion_Cr; x[0]++)
+			grid(x)[0] = xe_gam_Cr();
+
+		for (x[0] = g0(grid, 0) + w_precip; x[0] < g0(grid, 0) + R_depletion_Nb; x[0]++)
+			grid(x)[1] = xe_gam_Nb();
 	}
 }
 
@@ -358,13 +353,13 @@ void generate(int dim, const char* filename)
 	mtrand.seed(seed);
 
 	if (dim == 2) {
-		#ifndef CONVERGENCE
+		/*
 		const int Nx = 4000;
 		const int Ny = 2500;
-		#else
+		*/
 		const int Nx = 768;
-		const int Ny = 768;
-		#endif
+		const int Ny =   9; // Nx for particles
+
 		double Ntot = 1.0;
 		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
 		for (int d = 0; d < dim; d++) {
@@ -375,7 +370,6 @@ void generate(int dim, const char* filename)
 			if (x1(initGrid, d) == g1(initGrid, d))
 				b1(initGrid, d) = Neumann;
 		}
-		grid<2, double> nickGrid(initGrid, 1);
 
 		if (rank == 0)
 			std::cout << "Timestep dt=" << dt
@@ -383,22 +377,18 @@ void generate(int dim, const char* filename)
 			          << ", dtDiffusionLimited=" << dtDiffusionLimited
 			          << '.' << std::endl;
 
-		#ifdef CONVERGENCE
 		init_flat_composition(initGrid, mtrand);
-		#else
-		init_gaussian_enrichment(initGrid, mtrand);
-		#endif
-
-		#ifdef CONVERGENCE
-		// Embed a particle
 		/*
+		init_gaussian_enrichment(initGrid, mtrand);
+		*/
+
 		const int w_precip = glength(initGrid, 0) / 6;
 		seed_planar_delta(initGrid, w_precip);
-		*/
+		/*
 		seed_solitaire(initGrid, D_Cr[0], D_Nb[1],
 		               s_delta(), s_laves(),
 		               lattice_const, ifce_width, meshres, dt, mtrand);
-		#endif
+		*/
 
 		// Update fictitious compositions
 		for (int n = 0; n < nodes(initGrid); n++)
@@ -407,7 +397,7 @@ void generate(int dim, const char* filename)
 		ghostswap(initGrid);
 
 		vector<double> summary = summarize_fields(initGrid);
-		double energy = summarize_energy(initGrid);
+		const double energy = summarize_energy(initGrid);
 
 		if (rank == 0) {
 			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s\n",
@@ -424,28 +414,27 @@ void generate(int dim, const char* filename)
 		output(initGrid, filename);
 
 		// write initial condition image
-		fp_t** xNi = (fp_t**)calloc(Nx, sizeof(fp_t*));
-		xNi[0]     = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
 
-		fp_t** phi = (fp_t**)calloc(Nx, sizeof(fp_t*));
-		phi[0]     = (fp_t*)calloc(Nx * Ny, sizeof(fp_t));
+		fp_t** xNi = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** phi = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		xNi[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		phi[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
 
-		for (int i = 1; i < Ny; i++) {
-			xNi[i] = &(xNi[0])[Nx * i];
-			phi[i] = &(phi[0])[Nx * i];
+		for (int i = 1; i < Ny + 2; i++) {
+			xNi[i] = &(xNi[0])[(Nx + 2) * i];
+			phi[i] = &(phi[0])[(Nx + 2) * i];
 		}
-		const int xoff = x0(initGrid);
-		const int yoff = y0(initGrid);
 
 		#ifdef _OPENMP
 		#pragma omp parallel for
 		#endif
 		for (int n = 0; n < nodes(initGrid); n++) {
-			vector<int> x = position(nickGrid, n);
-			const int i = x[0] - xoff;
-			const int j = x[1] - yoff;
+			vector<int> x = position(initGrid, n);
+			const int i = x[0] - g0(initGrid, 0) + 1;
+			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
+			                                          // (mmsp2png of mesh is correct)
 			xNi[j][i] = 1. - initGrid(n)[0] - initGrid(n)[1];
-			phi[j][i] = h(initGrid(n)[2]) + h(initGrid(n)[3]);
+			phi[j][i] = h(initGrid(n)[NC]) + h(initGrid(n)[NC+1]);
 		}
 
 		std::string imgname(filename);
@@ -453,17 +442,19 @@ void generate(int dim, const char* filename)
 
 		#ifdef MPI_VERSION
 		std::cerr << "Error: cannot write images in parallel." << std::endl;
-		Abort(-1);
+		Abort(EXIT_FAILURE);
 		#endif
-		const int nm = 0, step = 0;
+		const int nm = 3, step = 0;
 		const double dt = 1.;
 		write_matplotlib(xNi, phi, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
 
 		free(xNi[0]);
+		free(phi[0]);
 		free(xNi);
+		free(phi);
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
-		Abort(-1);
+		Abort(EXIT_FAILURE);
 	}
 
 	if (rank == 0)
@@ -487,47 +478,49 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 	const T& xcr = GRIDN[0];
 	const T& xnb = GRIDN[1];
 
-	const T fdel = h(GRIDN[2]);
-	const T flav = h(GRIDN[3]);
+	const T fdel = h(GRIDN[NC]);
+	const T flav = h(GRIDN[NC+1]);
 	const T fgam = 1. - fdel - flav;
 
 	const T inv_det = inv_fict_det(fdel, fgam, flav);
-	GRIDN[NC + NP  ] = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[NC + NP]     = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
 	GRIDN[NC + NP + 1] = fict_gam_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
 }
 
 template <typename T>
 T gibbs(const MMSP::vector<T>& v)
 {
+	// Derivation: TKR5p280, Eq. (4)
 	const T xCr = v[0];
 	const T xNb = v[1];
 	const T f_del = h(v[NC  ]);
 	const T f_lav = h(v[NC + 1]);
+	const T gam_Cr = v[NC + NP];
+	const T gam_Nb = v[NC + NP + 1];
+
 	const T f_gam = 1.0 - f_del - f_lav;
 	const T inv_det = inv_fict_det(f_del, f_gam, f_lav);
-	const T gam_Cr = v[NC + NP];
-	const T gam_Nb = v[NC + NP];
 	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T lav_Nb = fict_lav_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 
-	MMSP::vector<T> vsq(NP);
+	MMSP::vector<T> phiSq(NP);
 
 	for (int i = 0; i < NP; i++)
-		vsq[i] = v[NC + i] * v[NC + i];
+		phiSq[i] = v[NC + i] * v[NC + i];
 
 	T g  = f_gam * g_gam(gam_Cr, gam_Nb);
 	g += f_del * g_del(del_Cr, del_Nb);
 	g += f_lav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
-		g += omega[i] * vsq[i] * pow(1.0 - v[NC + i], 2);
+		g += omega[i] * phiSq[i] * pow(1.0 - v[NC + i], 2);
 
 	// Trijunction penalty
 	for (int i = 0; i < NP - 1; i++)
 		for (int j = i + 1; j < NP; j++)
-			g += 2.0 * alpha * vsq[i] * vsq[j];
+			g += 2.0 * alpha * phiSq[i] * phiSq[j];
 
 	return g;
 }
@@ -650,7 +643,6 @@ double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
 
 	return energy;
 }
-
 #endif
 
 #include "main.cpp"

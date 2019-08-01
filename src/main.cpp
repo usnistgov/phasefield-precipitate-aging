@@ -10,13 +10,14 @@
 int main(int argc, char* argv[])
 {
 	MMSP::Init(argc, argv);
+	const std::string PROGRAM(argv[0]);
 
 	// check argument list
 	if (argc < 2) {
 		std::cout << PROGRAM << ": bad argument list.  Use\n\n";
 		std::cout << "    " << PROGRAM << " --help\n\n";
 		std::cout << "to generate help message.\n\n";
-		MMSP::Abort(-1);
+		MMSP::Abort(EXIT_FAILURE);
 	}
 
 	// srand() must be called exactly once to seed rand().
@@ -28,36 +29,38 @@ int main(int argc, char* argv[])
 
 	// print help message and exit
 	if (std::string(argv[1]) == std::string("--help")) {
-		std::cout << PROGRAM << ": " << MESSAGE << "\n\n";
-		std::cout << "Valid command lines have the form:\n\n";
-		std::cout << "    " << PROGRAM << " ";
-		std::cout << "[--help] [--example dimension [outfile]] [infile [outfile] steps [increment]]\n\n";
-		std::cout << "A few examples of using the command line follow.\n\n";
-		std::cout << "The command\n\n";
-		std::cout << "    " << PROGRAM << " --help\n\n";
-		std::cout << "generates this help message and exits.  ";
-		std::cout << "The \"--example\" option can be used to gen-\nerate a relevant test grid, e.g.\n\n";
-		std::cout << "    " << PROGRAM << " --example 3\n\n";
-		std::cout << "generates an example test problem on a grid of dimension 3 and writes this to the \n";
-		std::cout << "file named \"example\", while\n\n";
-		std::cout << "    " << PROGRAM << " --example 2 start\n\n";
-		std::cout << "generates an example test problem on a grid of dimension 2 and writes this to the \n";
-		std::cout << "file named \"start\".\n\n";
-		std::cout << "    " << PROGRAM << " start 1000\n\n";
-		std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
-		std::cout << "The final grid is written to a file named \"start.1000\".\n\n";
-		std::cout << "    " << PROGRAM << " start final 1000\n\n";
-		std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
-		std::cout << "The final grid is written to a file named \"final.1000\".\n\n";
-		std::cout << "    " << PROGRAM << " start 1000 100\n\n";
-		std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
-		std::cout << "The grid is then written to a file every 100 time steps.  ";
-		std::cout << "The resulting files are \nnamed \"start.0100\", \"start.0200\", ... \"start.1000\".\n\n";
-		std::cout << "    " << PROGRAM << " start final 1000 100\n\n";
-		std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
-		std::cout << "The grid is then written to a file every 100 time steps.  ";
-		std::cout << "The resulting files are \nnamed \"final.0100\", \"final.0200\", ... \"final.1000\".\n\n";
-		exit(0);
+		if (rank == 0) {
+			std::cout << PROGRAM << ": " << MESSAGE << "\n\n";
+			std::cout << "Valid command lines have the form:\n\n";
+			std::cout << "    " << PROGRAM << " ";
+			std::cout << "[--help] [--example dimension [outfile]] [infile [outfile] steps [increment]]\n\n";
+			std::cout << "A few examples of using the command line follow.\n\n";
+			std::cout << "The command\n\n";
+			std::cout << "    " << PROGRAM << " --help\n\n";
+			std::cout << "generates this help message and exits.  ";
+			std::cout << "The \"--example\" option can be used to gen-\nerate a relevant test grid, e.g.\n\n";
+			std::cout << "    " << PROGRAM << " --example 3\n\n";
+			std::cout << "generates an example test problem on a grid of dimension 3 and writes this to the \n";
+			std::cout << "file named \"example\", while\n\n";
+			std::cout << "    " << PROGRAM << " --example 2 start\n\n";
+			std::cout << "generates an example test problem on a grid of dimension 2 and writes this to the \n";
+			std::cout << "file named \"start\".\n\n";
+			std::cout << "    " << PROGRAM << " start 1000\n\n";
+			std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
+			std::cout << "The final grid is written to a file named \"start.1000\".\n\n";
+			std::cout << "    " << PROGRAM << " start final 1000\n\n";
+			std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
+			std::cout << "The final grid is written to a file named \"final.1000\".\n\n";
+			std::cout << "    " << PROGRAM << " start 1000 100\n\n";
+			std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
+			std::cout << "The grid is then written to a file every 100 time steps.  ";
+			std::cout << "The resulting files are \nnamed \"start.0100\", \"start.0200\", ... \"start.1000\".\n\n";
+			std::cout << "    " << PROGRAM << " start final 1000 100\n\n";
+			std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
+			std::cout << "The grid is then written to a file every 100 time steps.  ";
+			std::cout << "The resulting files are \nnamed \"final.0100\", \"final.0200\", ... \"final.1000\".\n\n";
+		}
+		MMSP::Abort(EXIT_SUCCESS);
 	}
 
 	// generate example grid
@@ -67,7 +70,7 @@ int main(int argc, char* argv[])
 			std::cout << PROGRAM << ": bad argument list.  Use\n\n";
 			std::cout << "    " << PROGRAM << " --help\n\n";
 			std::cout << "to generate help message.\n\n";
-			MMSP::Abort(-1);
+			MMSP::Abort(EXIT_FAILURE);
 		}
 
 		// check problem dimension
@@ -75,7 +78,7 @@ int main(int argc, char* argv[])
 			std::cout << PROGRAM << ": example grid must have integral dimension.  Use\n\n";
 			std::cout << "    " << PROGRAM << " --help\n\n";
 			std::cout << "to generate help message.\n\n";
-			MMSP::Abort(-1);
+			MMSP::Abort(EXIT_FAILURE);
 		}
 
 		int dim = atoi(argv[2]);
@@ -103,7 +106,7 @@ int main(int argc, char* argv[])
 			std::cout << PROGRAM << ": bad argument list.  Use\n\n";
 			std::cout << "    " << PROGRAM << " --help\n\n";
 			std::cout << "to generate help message.\n\n";
-			MMSP::Abort(-1);
+			MMSP::Abort(EXIT_FAILURE);
 		}
 
 		int steps;
@@ -119,7 +122,7 @@ int main(int argc, char* argv[])
 				std::cout << PROGRAM << ": number of time steps must have integral value.  Use\n\n";
 				std::cout << "    " << PROGRAM << " --help\n\n";
 				std::cout << "to generate help message.\n\n";
-				MMSP::Abort(-1);
+				MMSP::Abort(EXIT_FAILURE);
 			}
 
 			steps = atoi(argv[2]);
@@ -131,7 +134,7 @@ int main(int argc, char* argv[])
 					std::cout << PROGRAM << ": output increment must have integral value.  Use\n\n";
 					std::cout << "    " << PROGRAM << " --help\n\n";
 					std::cout << "to generate help message.\n\n";
-					MMSP::Abort(-1);
+					MMSP::Abort(EXIT_FAILURE);
 				}
 
 				increment = atoi(argv[3]);
@@ -141,7 +144,7 @@ int main(int argc, char* argv[])
 					std::cout << PROGRAM << ": output increment must be smaller than number of time steps.  Use\n\n";
 					std::cout << "    " << PROGRAM << " --help\n\n";
 					std::cout << "to generate help message.\n\n";
-					MMSP::Abort(-1);
+					MMSP::Abort(EXIT_FAILURE);
 				}
 			}
 		}
@@ -156,7 +159,7 @@ int main(int argc, char* argv[])
 				std::cout << PROGRAM << ": number of time steps must have integral value.  Use\n\n";
 				std::cout << "    " << PROGRAM << " --help\n\n";
 				std::cout << "to generate help message.\n\n";
-				MMSP::Abort(-1);
+				MMSP::Abort(EXIT_FAILURE);
 			}
 
 			steps = atoi(argv[3]);
@@ -168,7 +171,7 @@ int main(int argc, char* argv[])
 					std::cout << PROGRAM << ": output increment must have integral value.  Use\n\n";
 					std::cout << "    " << PROGRAM << " --help\n\n";
 					std::cout << "to generate help message.\n\n";
-					MMSP::Abort(-1);
+					MMSP::Abort(EXIT_FAILURE);
 				}
 
 				increment = atoi(argv[4]);
@@ -178,7 +181,7 @@ int main(int argc, char* argv[])
 					std::cout << PROGRAM << ": output increment must be smaller than number of time steps.  Use\n\n";
 					std::cout << "    " << PROGRAM << " --help\n\n";
 					std::cout << "to generate help message.\n\n";
-					MMSP::Abort(-1);
+					MMSP::Abort(EXIT_FAILURE);
 				}
 			}
 		}
@@ -187,7 +190,7 @@ int main(int argc, char* argv[])
 		std::ifstream input(argv[1]);
 		if (!input) {
 			std::cerr << "File input error: could not open " << argv[1] << ".\n\n";
-			MMSP::Abort(-1);
+			MMSP::Abort(EXIT_FAILURE);
 		}
 
 		// read data type
@@ -197,7 +200,7 @@ int main(int argc, char* argv[])
 		// grid type error check
 		if (type.substr(0, 4) != "grid") {
 			std::cerr << "File input error: file does not contain grid data." << std::endl;
-			MMSP::Abort(-1);
+			MMSP::Abort(EXIT_FAILURE);
 		}
 
 		// read grid dimension
@@ -241,23 +244,23 @@ int main(int argc, char* argv[])
 		}
 
 		if (dim == 2) {
-			// construct grid objects
-			GRID2D grid(argv[1]);                 // multiple fields
-			MMSP::grid<2,double> nickGrid(grid, 1); // single field
+			// construct grid object
+			GRID2D grid(argv[1]);
 
 			// declare host and device data structures
 			struct HostData host;
 			struct CudaData dev;
 
-			// declare default materials and numerical parameters
-			int bx=32, by=32, nm=3, code=53;
-			param_parser(&bx, &by, &code, &nm);
+			// numerical parameters
+			const int bx = 13;
+			const int by = 13;
+			const int nm = 3;
 			const int nx = g1(grid, 0) - g0(grid, 0) + nm - 1;
 			const int ny = g1(grid, 1) - g0(grid, 1) + nm - 1;
 
 			// initialize memory
 			make_arrays(&host, nx, ny, nm);
-			set_mask(dx(grid, 0), dx(grid, 1), code, host.mask_lap, nm);
+			five_point_Laplacian_stencil(dx(grid, 0), dx(grid, 1), host.mask_lap, nm);
 
 			for (int n = 0; n < MMSP::nodes(grid); n++) {
 				MMSP::vector<fp_t>& gridN = grid(n);
@@ -266,24 +269,22 @@ int main(int argc, char* argv[])
 				const int j = x[1] - MMSP::g0(grid, 1) + nm / 2;
 				host.conc_Cr_old[j][i] = gridN[0];
 				host.conc_Nb_old[j][i] = gridN[1];
-				host.phi_del_old[j][i] = gridN[2];
-				host.phi_lav_old[j][i] = gridN[3];
-				host.gam_Cr[j][i]      = gridN[4];
-				host.gam_Nb[j][i]      = gridN[5];
+				host.phi_del_old[j][i] = gridN[NC];
+				host.phi_lav_old[j][i] = gridN[NC+1];
+				host.gam_Cr[j][i]      = gridN[NC+NP];
+				host.gam_Nb[j][i]      = gridN[NC+NP+1];
 			}
 
 			// initialize GPU
-			init_cuda(&host, nx, ny, nm, &dev);
+			init_cuda(&host, nx, ny, nm, D_Cr, D_Nb, kappa, omega, Lmob, &dev);
 			device_init_prng(&dev, nx, ny, nm, bx, by);
 
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int img_interval = std::min(increment / 4, int(1e-3 / dt));
-			const int nrg_interval = std::min(increment / 4, int(1e-2 / dt));
-			#ifndef CONVERGENCE
-			const int nuc_interval = 1e-5 / dt;
-			#endif
+			const int img_interval = std::min(increment / 4, int(0.2 / dt));
+			const int nrg_interval = img_interval;
+			// const int nuc_interval = 1e-5 / dt;
 
 			// setup logging
 			FILE* cfile = NULL;
@@ -303,12 +304,9 @@ int main(int argc, char* argv[])
 
 					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 
-					device_evolution(&dev, nx, ny, nm, bx, by,
-					                 D_Cr, D_Nb,
-					                 alpha, kappa[0], omega[0],
-					                 Lmob[0], Lmob[1], dt);
+					device_evolution(&dev, nx, ny, nm, bx, by, alpha, dt);
 
-					#ifndef CONVERGENCE
+					/*
 					const bool nuc_step = (j % nuc_interval == 0);
 					if (nuc_step) {
 						device_nucleation(&dev, nx, ny, nm, bx, by,
@@ -318,7 +316,7 @@ int main(int argc, char* argv[])
 						                  meshres, meshres, meshres,
 						                  nuc_interval * dt);
 					}
-					#endif
+					*/
 
 					device_fictitious(&dev, nx, ny, nm, bx, by);
 
@@ -343,7 +341,7 @@ int main(int argc, char* argv[])
 
 						#ifdef MPI_VERSION
 						std::cerr << "Error: cannot write images in parallel." <<std::endl;
-						MMSP::Abort(-1);
+						MMSP::Abort(EXIT_FAILURE);
 						#endif
 						write_matplotlib(host.conc_Ni, host.phi,
 										 nx, ny, nm, MMSP::dx(grid),
@@ -359,12 +357,12 @@ int main(int argc, char* argv[])
 							MMSP::vector<int> x = MMSP::position(grid, n);
 							const int i = x[0] - MMSP::g0(grid, 0) + nm / 2;
 							const int j = x[1] - MMSP::g0(grid, 1) + nm / 2;
-							gridN[0] = host.conc_Cr_new[j][i];
-							gridN[1] = host.conc_Nb_new[j][i];
-							gridN[2] = host.phi_del_new[j][i];
-							gridN[3] = host.phi_lav_new[j][i];
-							gridN[4] = host.gam_Cr[j][i];
-							gridN[5] = host.gam_Nb[j][i];
+							gridN[0]       = host.conc_Cr_new[j][i];
+							gridN[1]       = host.conc_Nb_new[j][i];
+							gridN[NC]      = host.phi_del_new[j][i];
+							gridN[NC+1]    = host.phi_lav_new[j][i];
+							gridN[NC+NP]   = host.gam_Cr[j][i];
+							gridN[NC+NP+1] = host.gam_Nb[j][i];
 						}
 
 						std::stringstream outstr;
@@ -382,7 +380,7 @@ int main(int argc, char* argv[])
 						ghostswap(grid);
 
 						MMSP::vector<double> summary = summarize_fields(grid);
-						double energy = summarize_energy(grid);
+						const double energy = summarize_energy(grid);
 
 						if (rank == 0) {
 							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
@@ -418,13 +416,13 @@ int main(int argc, char* argv[])
 				fclose(cfile);
 		} else {
 			std::cerr << dim << "-dimensional grids are unsupported in the CUDA version." << std::endl;
-			MMSP::Abort(-1);
+			MMSP::Abort(EXIT_FAILURE);
 		}
 
 	}
 
 	MMSP::Finalize();
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 #endif

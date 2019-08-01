@@ -221,6 +221,7 @@ p_d2Glav_dxNbCr = diff(p_laves, XNB, XCR)
 p_d2Glav_dxNbNb = diff(p_laves, XNB, XNB)
 
 # ========= FICTITIOUS COMPOSITIONS ==========
+# Derivation: TKR4p181
 gamCr, gamNb = symbols("gamCr, gamNb")
 delCr, delNb = symbols("delCr, delNb")
 lavCr, lavNb = symbols("lavCr, lavNb")

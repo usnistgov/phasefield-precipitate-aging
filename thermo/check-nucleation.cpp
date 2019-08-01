@@ -8,8 +8,8 @@
 #include <vector>
 #include <math.h>
 
-#include "globals.h"
 #include "nucleation.h"
+#include "parameters.h"
 
 // Constants
 const fp_t dtDiffusionLimited = (meshres* meshres) / (4. * std::max(D_Cr[0], D_Nb[1]));

@@ -1,6 +1,6 @@
 /**
  \file  type.h
- \brief Definition of scalar data type and Doxygen diffusion group
+ \brief Definition of scalar data type and container structures
 */
 
 /** \cond SuppressGuard */
@@ -10,7 +10,11 @@
 
 #include <curand_kernel.h>
 
+#define NP 2 // number of phases
+#define NC 2 // number of components
+
 /**
+ \brief Precision of floating-point values
  Specify the basic data type to achieve the desired accuracy in floating-point
  arithmetic: float for single-precision, double for double-precision. This
  choice propagates throughout the code, and may significantly affect runtime
