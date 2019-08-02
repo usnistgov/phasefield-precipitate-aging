@@ -109,8 +109,8 @@ int main(int argc, char* argv[])
 			MMSP::Abort(EXIT_FAILURE);
 		}
 
-		int steps;
-		int increment;
+		uint64_t steps;
+		uint64_t increment;
 		std::string outfile;
 
 		if (std::string(argv[2]).find_first_not_of("0123456789") == std::string::npos) {
@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
 				MMSP::Abort(EXIT_FAILURE);
 			}
 
-			steps = atoi(argv[2]);
+			steps = atol(argv[2]);
 			increment = steps;
 
 			if (argc > 3) {
@@ -137,7 +137,7 @@ int main(int argc, char* argv[])
 					MMSP::Abort(EXIT_FAILURE);
 				}
 
-				increment = atoi(argv[3]);
+				increment = atol(argv[3]);
 
 				// output increment must be smaller than number of steps
 				if (increment > steps) {
@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
 				MMSP::Abort(EXIT_FAILURE);
 			}
 
-			steps = atoi(argv[3]);
+			steps = atol(argv[3]);
 			increment = steps;
 
 			if (argc > 4) {
@@ -174,7 +174,7 @@ int main(int argc, char* argv[])
 					MMSP::Abort(EXIT_FAILURE);
 				}
 
-				increment = atoi(argv[4]);
+				increment = atol(argv[4]);
 
 				// output increment must be smaller than number of steps
 				if (increment > steps) {
@@ -209,7 +209,7 @@ int main(int argc, char* argv[])
 		input.close();
 
 		// set output file basename
-		int iterations_start(0);
+		uint64_t iterations_start(0);
 		if (outfile.find_first_of(".") != outfile.find_last_of(".")) {
 			std::string number = outfile.substr(outfile.find_first_of(".") + 1, outfile.find_last_of(".") - 1);
 			iterations_start = atoi(number.c_str());
@@ -282,9 +282,9 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-			const int img_interval = std::min(increment / 4, int(0.2 / dt));
-			const int nrg_interval = img_interval;
-			// const int nuc_interval = 1e-5 / dt;
+			const uint64_t img_interval = std::min(increment / 4, (uint64_t)(0.2 / dt));
+			const uint64_t nrg_interval = img_interval;
+			// const uint64_t nuc_interval = 1e-5 / dt;
 
 			// setup logging
 			FILE* cfile = NULL;
@@ -293,9 +293,9 @@ int main(int argc, char* argv[])
 				cfile = fopen("c.log", "a"); // existing log will be appended
 
 			// perform computation
-			for (int i = iterations_start; i < steps; i += increment) {
+			for (uint64_t i = iterations_start; i < steps; i += increment) {
 				/* start update() */
-				for (int j = i; j < i + increment; j++) {
+				for (uint64_t j = i; j < i + increment; j++) {
 					print_progress(j - i, increment);
 					// === Start Architecture-Specific Kernel ===
 					device_boundaries(&dev, nx, ny, nm, bx, by);
