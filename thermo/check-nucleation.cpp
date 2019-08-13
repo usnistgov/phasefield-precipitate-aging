@@ -12,8 +12,6 @@
 #include "parameters.h"
 
 // Constants
-const fp_t dtDiffusionLimited = (meshres* meshres) / (4. * std::max(D_Cr[0], D_Nb[1]));
-const fp_t dt = LinStab * dtDiffusionLimited;
 const fp_t dV = meshres * meshres * meshres;
 const fp_t vFccNi = lattice_const * lattice_const * lattice_const / 4.;
 const fp_t n_gam = M_PI / (3. * sqrt(2.) * vFccNi);
@@ -28,6 +26,7 @@ struct Properties {
 	fp_t Plav;
 	fp_t Rdel;
 	fp_t Rlav;
+	fp_t dt;
 };
 
 void zero_out(struct Properties* p)
@@ -52,26 +51,37 @@ Properties describe(const std::vector<fp_t>& xCr, const std::vector<fp_t>& xNb)
 	std::vector<fp_t> Rdel(N, 0.);
 	std::vector<fp_t> Rlav(N, 0.);
 
-	for (size_t i=0; i<xCr.size(); i++) {
-		nucleation_driving_force_delta(xCr[i], xNb[i], &(dGdel[i]));
-		nucleation_probability_sphere(xCr[i], xNb[i],
-		                              dGdel[i], D_Cr[0], D_Nb[1],
-		                              s_delta(),
-		                              vFccNi, n_gam, dV, dt,
-		                              &(Rdel[i]), &(Pdel[i]));
-		nucleation_driving_force_laves(xCr[i], xNb[i], &(dGlav[i]));
-		nucleation_probability_sphere(xCr[i], xNb[i],
-		                              dGlav[i], D_Cr[0], D_Nb[1],
-		                              s_laves(),
-		                              vFccNi, n_gam, dV, dt,
-		                              &(Rlav[i]), &(Plav[i]));
-	}
-
 	Properties Mean;
 	zero_out(&Mean);
 	for (size_t i=0; i<N; i++) {
 		Mean.xCr   += xCr[i]   / N;
 		Mean.xNb   += xNb[i]   / N;
+	}
+
+	const fp_t dtDiffusionLimited = (meshres* meshres) / (4. * std::max(D_CrCr(Mean.xCr, Mean.xNb, 1., 0.),
+																		D_NbNb(Mean.xCr, Mean.xNb, 1., 0.)));
+	Mean.dt = LinStab * dtDiffusionLimited;
+
+	for (size_t i=0; i<xCr.size(); i++) {
+		nucleation_driving_force_delta(xCr[i], xNb[i], &(dGdel[i]));
+		nucleation_probability_sphere(xCr[i], xNb[i],
+		                              dGdel[i],
+									  D_CrCr(xCr[i], xNb[i], 1., 0.),
+									  D_NbNb(xCr[i], xNb[i], 1., 0.),
+		                              s_delta(),
+		                              vFccNi, n_gam, dV, Mean.dt,
+		                              &(Rdel[i]), &(Pdel[i]));
+		nucleation_driving_force_laves(xCr[i], xNb[i], &(dGlav[i]));
+		nucleation_probability_sphere(xCr[i], xNb[i],
+		                              dGlav[i],
+									  D_CrCr(xCr[i], xNb[i], 1., 0.),
+									  D_NbNb(xCr[i], xNb[i], 1., 0.),
+		                              s_laves(),
+		                              vFccNi, n_gam, dV, Mean.dt,
+		                              &(Rlav[i]), &(Plav[i]));
+	}
+
+	for (size_t i=0; i<N; i++) {
 		Mean.dGdel += dGdel[i] / N;
 		Mean.dGlav += dGlav[i] / N;
 		Mean.Pdel  += Pdel[i]  / N;
@@ -173,17 +183,21 @@ int main()
 		fprintf(csv, "%.3f,", s);
 		nucleation_driving_force_delta(Mean.xCr, Mean.xNb, &Mean.dGdel);
 		nucleation_probability_sphere(Mean.xCr, Mean.xNb,
-		                              Mean.dGdel, D_Cr[0], D_Nb[1],
+		                              Mean.dGdel,
+									  D_CrCr(Mean.xCr, Mean.xNb, 1., 0.),
+									  D_NbNb(Mean.xCr, Mean.xNb, 1., 0.),
 		                              s,
-		                              vFccNi, n_gam, dV, dt,
+		                              vFccNi, n_gam, dV, Mean.dt,
 		                              &Mean.Rdel, &Mean.Pdel);
 		fprintf(csv, "%12.4e,", Mean.Pdel);
 
 		nucleation_driving_force_laves(Mean.xCr, Mean.xNb, &Mean.dGlav);
 		nucleation_probability_sphere(Mean.xCr, Mean.xNb,
-		                              Mean.dGlav, D_Cr[0], D_Nb[1],
+		                              Mean.dGlav,
+									  D_CrCr(Mean.xCr, Mean.xNb, 0., 1.),
+									  D_NbNb(Mean.xCr, Mean.xNb, 0., 1.),
 		                              s,
-		                              vFccNi, n_gam, dV, dt,
+		                              vFccNi, n_gam, dV, Mean.dt,
 		                              &Mean.Rlav, &Mean.Plav);
 		fprintf(csv, "%12.4e\n", Mean.Plav);
 	}
@@ -200,9 +214,11 @@ int main()
 	    fprintf(csv, "%12.4e,", adGdelE);
 	    nucleation_probability_sphere(xCr, xNb,
 	                                  xe_del_Cr(), xe_del_Nb(),
-	                                  adGdelE, D_Cr[0], D_Nb[1],
+	                                  adGdelE,
+									  D_CrCr(xCr[i], xNb[i], 1., 0.),
+									  D_NbNb(xCr[i], xNb[i], 1., 0.),
 	                                  s_delta(),
-	                                  vFccNi, n_gam, dV, dt,
+	                                  vFccNi, n_gam, dV, Mean.dt,
 	                                  &aRdelE, &aPdelE);
 	    fprintf(csv, "%12.4e,", aPdelE);
 
@@ -210,9 +226,11 @@ int main()
 	    fprintf(csv, "%12.4e,", adGlavE);
 	    nucleation_probability_sphere(xCr, xNb,
 	                                  xe_lav_Cr(), xe_lav_Nb(),
-	                                  adGlavE, D_Cr[0], D_Nb[1],
+	                                  adGlavE,
+									  D_CrCr(xCr[i], xNb[i], 0., 1.),
+									  D_NbNb(xCr[i], xNb[i], 0., 1.),
 	                                  s_laves(),
-	                                  vFccNi, n_gam, dV, dt,
+	                                  vFccNi, n_gam, dV, Mean.dt,
 	                                  &aRlavE, &aPlavE);
 	    fprintf(csv, "%12.4e\n", aPlavE);
 	}

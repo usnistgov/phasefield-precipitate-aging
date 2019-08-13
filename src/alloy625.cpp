@@ -160,7 +160,6 @@ void embed_OPC(GRID2D& grid,
 }
 
 void seed_solitaire(GRID2D& grid,
-                    const fp_t D_CrCr, const fp_t D_NbNb,
                     const fp_t sigma_del, const fp_t sigma_lav,
                     const fp_t lattice_const, const fp_t ifce_width,
                     const fp_t dx, const fp_t dt, std::mt19937& mtrand)
@@ -186,11 +185,14 @@ void seed_solitaire(GRID2D& grid,
 		// Embed a delta particle
 		xCr = grid(x)[0];
 		xNb = grid(x)[1];
+		const fp_t phi_del = grid(x)[NC];
+		const fp_t phi_lav = grid(x)[NC+1];
 
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr, D_NbNb,
+		                              D_CrCr(xCr, xNb, phi_del, phi_lav),
+									  D_NbNb(xCr, xNb, phi_del, phi_lav),
 		                              sigma_del,
 		                              Vatom,
 		                              n_gam,
@@ -210,11 +212,14 @@ void seed_solitaire(GRID2D& grid,
 		// Embed a Laves particle
 		xCr = grid(x)[0];
 		xNb = grid(x)[1];
+		const fp_t phi_del = grid(x)[NC];
+		const fp_t phi_lav = grid(x)[NC+1];
 
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr, D_NbNb,
+		                              D_CrCr(xCr, xNb, phi_del, phi_lav),
+									  D_NbNb(xCr, xNb, phi_del, phi_lav),
 		                              sigma_lav,
 		                              Vatom,
 		                              n_gam,
@@ -343,10 +348,6 @@ void generate(int dim, const char* filename)
 	if (rank == 0)
 		cfile = fopen("c.log", "w"); // existing log will be overwritten
 
-	const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
-	const double dtDiffusionLimited = (meshres * meshres) / (std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1]));
-	const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-
 	// Initialize pseudo-random number generator
 	std::mt19937 mtrand; // Mersenne Twister PRNG
 	const unsigned int seed = (std::chrono::high_resolution_clock::now() - beginning).count();
@@ -371,12 +372,6 @@ void generate(int dim, const char* filename)
 				b1(initGrid, d) = Neumann;
 		}
 
-		if (rank == 0)
-			std::cout << "Timestep dt=" << dt
-			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
-			          << ", dtDiffusionLimited=" << dtDiffusionLimited
-			          << '.' << std::endl;
-
 		init_flat_composition(initGrid, mtrand);
 		/*
 		init_gaussian_enrichment(initGrid, mtrand);
@@ -385,9 +380,8 @@ void generate(int dim, const char* filename)
 		const int w_precip = glength(initGrid, 0) / 6;
 		seed_planar_delta(initGrid, w_precip);
 		/*
-		seed_solitaire(initGrid, D_Cr[0], D_Nb[1],
-		               s_delta(), s_laves(),
-		               lattice_const, ifce_width, meshres, dt, mtrand);
+		seed_solitaire(initGrid, s_delta(), s_laves(), lattice_const,
+					   ifce_width, meshres, dt, mtrand);
 		*/
 
 		// Update fictitious compositions
@@ -399,7 +393,29 @@ void generate(int dim, const char* filename)
 		vector<double> summary = summarize_fields(initGrid);
 		const double energy = summarize_energy(initGrid);
 
+		const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
+		fp_t dtDiffusionLimited = 1.0;
+		#ifdef _OPENMP
+		#pragma omp parallel for reduction(min: dtDiffusionLimited)
+		#endif
+		for (int n = 0; n < nodes(initGrid); n++) {
+			vector<fp_t>& GridN = initGrid(n);
+			const fp_t xCr = GridN[0];
+			const fp_t xNb = GridN[1];
+			const fp_t phi_del = GridN[NC];
+			const fp_t phi_lav = GridN[NC+1];
+			const fp_t local_dt = (meshres*meshres) /
+				(2.0 * dim * std::max(D_CrCr(xCr, xNb, phi_del, phi_lav), D_NbNb(xCr, xNb, phi_del, phi_lav)));
+
+			dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
+		}
+		const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+
 		if (rank == 0) {
+			std::cout << "Timestep dt=" << dt
+			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
+			          << ", dtDiffusionLimited=" << dtDiffusionLimited
+			          << '.' << std::endl;
 			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s\n",
 			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
 			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
@@ -445,7 +461,6 @@ void generate(int dim, const char* filename)
 		Abort(EXIT_FAILURE);
 		#endif
 		const int nm = 3, step = 0;
-		const double dt = 1.;
 		write_matplotlib(xNi, phi, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
 
 		free(xNi[0]);

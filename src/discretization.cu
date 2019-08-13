@@ -32,10 +32,6 @@ cudaError_t checkCuda(cudaError_t result)
 // Convolution mask array on the GPU, allocated in protected memory
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
-// Diffusivity arrays on the GPU, allocated in protected memory
-__constant__ fp_t d_DCr[NC];
-__constant__ fp_t d_DNb[NC];
-
 // Kinetic parameter arrays on the GPU, allocated in protected memory
 __constant__ fp_t d_Kapp[NP];
 __constant__ fp_t d_Omeg[NP];
@@ -487,7 +483,6 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   fp_t* d_phi_del, fp_t* d_phi_lav,
                                   curandState* d_prng,
                                   const int nx, const int ny, const int nm,
-                                  const fp_t D_CrCr, const fp_t D_NbNb,
                                   const fp_t sigma_del, const fp_t sigma_lav,
                                   const fp_t lattice_const,
                                   const fp_t ifce_width,
@@ -530,12 +525,15 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		const int idx = nx * y + x;
 		const fp_t xCr = d_conc_Cr[idx];
 		const fp_t xNb = d_conc_Nb[idx];
+		const fp_t pDel = d_phi_del[idx];
+		const fp_t pLav = d_phi_lav[idx];
 
 		// Test a delta particle
 		d_nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		d_nucleation_probability_sphere(xCr, xNb,
 		                                dG_chem,
-		                                D_CrCr, D_NbNb,
+                                        d_D_CrCr(xCr, xNb, pDel, pLav),
+                                        d_D_NbNb(xCr, xNb, pDel, pLav),
 		                                sigma_del,
 		                                Vatom,
 		                                n_gam,
@@ -560,7 +558,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		d_nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		d_nucleation_probability_sphere(xCr, xNb,
 		                                dG_chem,
-		                                D_CrCr, D_NbNb,
+                                        d_D_CrCr(xCr, xNb, pDel, pLav),
+                                        d_D_NbNb(xCr, xNb, pDel, pLav),
 		                                sigma_lav,
 		                                Vatom,
 		                                n_gam,
@@ -586,7 +585,6 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 void device_nucleation(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by,
-                       const fp_t* D_Cr, const fp_t* D_Nb,
                        const fp_t sigma_del, const fp_t sigma_lav,
                        const fp_t lattice_const, const fp_t ifce_width,
                        const fp_t dx, const fp_t dy, const fp_t dz,
@@ -602,7 +600,6 @@ void device_nucleation(struct CudaData* dev,
 	    dev->phi_del_new, dev->phi_lav_new,
 	    dev->prng,
 	    nx, ny, nm,
-	    D_Cr[0], D_Nb[1],
 	    sigma_del, sigma_lav,
 	    lattice_const, ifce_width,
 	    dx, dy, dz, dt);

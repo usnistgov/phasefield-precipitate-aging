@@ -276,15 +276,29 @@ int main(int argc, char* argv[])
 			}
 
 			// initialize GPU
-			init_cuda(&host, nx, ny, nm, D_Cr, D_Nb, kappa, omega, Lmob, &dev);
+			init_cuda(&host, nx, ny, nm, kappa, omega, Lmob, &dev);
 			device_init_prng(&dev, nx, ny, nm, bx, by);
 
+			// determine timestep
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
-			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
+			fp_t dtDiffusionLimited = 1.0;
+			#ifdef _OPENMP
+            #pragma omp parallel for reduction(min: dtDiffusionLimited)
+			#endif
+			for (int n = 0; n < MMSP::nodes(grid); n++) {
+				MMSP::vector<fp_t>& GridN = grid(n);
+				const fp_t xCr = GridN[0];
+				const fp_t xNb = GridN[1];
+				const fp_t phi_del = GridN[NC];
+				const fp_t phi_lav = GridN[NC+1];
+				const fp_t local_dt = (meshres*meshres) /
+					(2.0 * dim * std::max(D_CrCr(xCr, xNb, phi_del, phi_lav), D_NbNb(xCr, xNb, phi_del, phi_lav)));
+
+				dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
+			}
 			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
 			const uint64_t img_interval = std::min(increment / 4, (uint64_t)(0.2 / dt));
 			const uint64_t nrg_interval = img_interval;
-			// const uint64_t nuc_interval = 1e-5 / dt;
 
 			// setup logging
 			FILE* cfile = NULL;
@@ -310,7 +324,6 @@ int main(int argc, char* argv[])
 					const bool nuc_step = (j % nuc_interval == 0);
 					if (nuc_step) {
 						device_nucleation(&dev, nx, ny, nm, bx, by,
-						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
 						                  lattice_const, ifce_width,
 						                  meshres, meshres, meshres,
