@@ -66,7 +66,7 @@ double xe_gam_Cr()
 {
 
 	double xe_gam_Cr_result;
-	xe_gam_Cr_result = 0.52500000000000002;
+	xe_gam_Cr_result = 0.55855269488699388;
 	return xe_gam_Cr_result;
 
 }
@@ -75,7 +75,7 @@ double xe_gam_Nb()
 {
 
 	double xe_gam_Nb_result;
-	xe_gam_Nb_result = 0.017999999999999999;
+	xe_gam_Nb_result = 0.010717747618334031;
 	return xe_gam_Nb_result;
 
 }
@@ -84,7 +84,7 @@ double xe_del_Cr()
 {
 
 	double xe_del_Cr_result;
-	xe_del_Cr_result = 0.0258;
+	xe_del_Cr_result = 0.031881757028651196;
 	return xe_del_Cr_result;
 
 }
@@ -93,7 +93,7 @@ double xe_del_Nb()
 {
 
 	double xe_del_Nb_result;
-	xe_del_Nb_result = 0.24399999999999999;
+	xe_del_Nb_result = 0.16874796371854489;
 	return xe_del_Nb_result;
 
 }
@@ -102,7 +102,7 @@ double xe_lav_Cr()
 {
 
 	double xe_lav_Cr_result;
-	xe_lav_Cr_result = 0.375;
+	xe_lav_Cr_result = 0.44421217837672827;
 	return xe_lav_Cr_result;
 
 }
@@ -111,7 +111,7 @@ double xe_lav_Nb()
 {
 
 	double xe_lav_Nb_result;
-	xe_lav_Nb_result = 0.25900000000000001;
+	xe_lav_Nb_result = 0.17170586512707406;
 	return xe_lav_Nb_result;
 
 }
@@ -192,7 +192,7 @@ double xr_gam_Cr(double P_del, double P_lav)
 {
 
 	double xr_gam_Cr_result;
-	xr_gam_Cr_result = -1.2678788831172791e-9*P_del + 8.3903379061418654e-10*P_lav + 0.52500000000000002;
+	xr_gam_Cr_result = -9.6984079989082258e-10*P_del + 6.3118903213767551e-10*P_lav + 0.55855269488699388;
 	return xr_gam_Cr_result;
 
 }
@@ -201,7 +201,7 @@ double xr_gam_Nb(double P_del, double P_lav)
 {
 
 	double xr_gam_Nb_result;
-	xr_gam_Nb_result = 1.914953946717973e-10*P_del - 7.5073446491249387e-11*P_lav + 0.017999999999999999;
+	xr_gam_Nb_result = 1.0048047396144418e-10*P_del - 1.1106547204101917e-11*P_lav + 0.010717747618334031;
 	return xr_gam_Nb_result;
 
 }
@@ -210,7 +210,7 @@ double xr_del_Cr(double P_del, double P_lav)
 {
 
 	double xr_del_Cr_result;
-	xr_del_Cr_result = -7.1764784309488426e-11*P_del + 5.6053532605840619e-11*P_lav + 0.0258;
+	xr_del_Cr_result = -6.6194274436412276e-11*P_del - 1.5374687132506466e-10*P_lav + 0.031881757028651196;
 	return xr_del_Cr_result;
 
 }
@@ -219,7 +219,7 @@ double xr_del_Nb(double P_del, double P_lav)
 {
 
 	double xr_del_Nb_result;
-	xr_del_Nb_result = -3.0098560476695523e-12*P_del + 2.8083066899508087e-11*P_lav + 0.24399999999999999;
+	xr_del_Nb_result = -1.9581600075232547e-11*P_del + 3.9815435461767849e-10*P_lav + 0.16874796371854489;
 	return xr_del_Nb_result;
 
 }
@@ -228,7 +228,7 @@ double xr_lav_Cr(double P_del, double P_lav)
 {
 
 	double xr_lav_Cr_result;
-	xr_lav_Cr_result = -1.7383901583177733e-10*P_del + 1.2866636929017012e-10*P_lav + 0.375;
+	xr_lav_Cr_result = -1.2953044143338369e-9*P_del + 4.3416027339639082e-10*P_lav + 0.44421217837672827;
 	return xr_lav_Cr_result;
 
 }
@@ -237,7 +237,7 @@ double xr_lav_Nb(double P_del, double P_lav)
 {
 
 	double xr_lav_Nb_result;
-	xr_lav_Nb_result = 1.2446553532108367e-11*P_del + 1.3771353705435363e-11*P_lav + 0.25900000000000001;
+	xr_lav_Nb_result = 2.6966712244807525e-10*P_del - 6.3173100035954083e-11*P_lav + 0.17170586512707406;
 	return xr_lav_Nb_result;
 
 }
@@ -246,7 +246,7 @@ double inv_fict_det(double f_del, double f_gam, double f_lav)
 {
 
 	double inv_fict_det_result;
-	inv_fict_det_result = 1.1017502786047317/(0.028198882496280081*pow(f_del, 2) + 0.58678637752223428*f_del*f_gam + 0.094379501815769914*f_del*f_lav + 1.0*pow(f_gam, 2) + 0.60304745699564377*f_gam*f_lav + 0.061011302923507621*pow(f_lav, 2));
+	inv_fict_det_result = 10.511929918754895/(0.063619913592430452*pow(f_del, 2) + 0.77472418933378007*f_del*f_gam + 1.0*f_del*f_lav + 0.11406419308318602*pow(f_gam, 2) + 0.29936120577567832*f_gam*f_lav + 0.076367679948657952*pow(f_lav, 2));
 	return inv_fict_det_result;
 
 }
@@ -255,7 +255,7 @@ double fict_gam_Cr(double INV_DET, double XCR, double XNB, double f_del, double 
 {
 
 	double fict_gam_Cr_result;
-	fict_gam_Cr_result = 0.90764669582512891*INV_DET*(0.50514638806645196*XCR*f_del + 1.0*XCR*f_gam + 0.42609155984759101*XCR*f_lav - 0.16577335655420122*XNB*f_del - 0.26381641966842839*XNB*f_lav + 0.04222033549765767*pow(f_del, 2) + 0.020044914882261487*f_del*f_gam - 0.043567313569073896*f_del*f_lav - 0.27734945844324121*f_gam*f_lav - 0.059424948213882431*pow(f_lav, 2));
+	fict_gam_Cr_result = 0.081719161132759205*INV_DET*(0.94267830414080844*XCR*f_del + 0.13278315265091145*XCR*f_gam + 0.27475106182917869*XCR*f_lav + 0.48142139214471374*XNB*f_del + 1.0*XNB*f_lav - 0.069926420929843164*pow(f_del, 2) - 0.03219039130480722*f_del*f_gam - 0.028703356204519043*f_del*f_lav - 0.028515077359655715*f_gam*f_lav - 0.24409812910594283*pow(f_lav, 2));
 	return fict_gam_Cr_result;
 
 }
@@ -264,7 +264,7 @@ double fict_gam_Nb(double INV_DET, double XCR, double XNB, double f_del, double 
 {
 
 	double fict_gam_Nb_result;
-	fict_gam_Nb_result = -0.90764669582512891*INV_DET*(0.07866923593857271*XCR*f_del + 0.05453834653134719*XCR*f_lav - 0.081639989455782366*XNB*f_del - 1.0*XNB*f_gam - 0.17695589714805279*XNB*f_lav + 0.017382911255062642*pow(f_del, 2) + 0.19360601614705264*f_del*f_gam + 0.031715112323014986*f_del*f_lav + 0.22269771999378604*f_gam*f_lav + 0.024281493959467298*pow(f_lav, 2));
+	fict_gam_Nb_result = -0.010850927847195595*INV_DET*(0.75572285002798056*XCR*f_del - 0.063676254673428662*XCR*f_lav + 0.30738018673156009*XNB*f_del - 1.0*XNB*f_gam - 0.55532654346045196*XNB*f_lav - 0.081941433925801291*pow(f_del, 2) - 0.32945245368491854*f_del*f_gam - 0.38670236006564801*f_del*f_lav + 0.18509555516266776*f_gam*f_lav + 0.11646290035390382*pow(f_lav, 2));
 	return fict_gam_Nb_result;
 
 }
@@ -273,7 +273,7 @@ double fict_del_Cr(double INV_DET, double XCR, double XNB, double f_del, double 
 {
 
 	double fict_del_Cr_result;
-	fict_del_Cr_result = 0.15046363933226173*INV_DET*(0.17010503426140242*XCR*f_del + 0.49247955855372533*XCR*f_gam + 0.15530303676586266*XCR*f_lav + 1.0*XNB*f_gam + 0.047031703250520807*XNB*f_lav - 0.25468710035954006*f_del*f_gam - 0.064583265651030716*f_del*f_lav - 0.12091759073302955*pow(f_gam, 2) - 0.43220570445062184*f_gam*f_lav - 0.060924405979911687*pow(f_lav, 2));
+	fict_del_Cr_result = 0.046966148206032843*INV_DET*(0.12886223924609808*XCR*f_del - 0.07101626075977073*XCR*f_gam - 0.20028342359736442*XCR*f_lav - 0.83765336993033834*XNB*f_gam - 1.0*XNB*f_lav + 0.12166908885811056*f_del*f_gam + 0.18246772627205363*f_del*f_lav + 0.056009953433358468*pow(f_gam, 2) + 0.31729459226818346*f_gam*f_lav + 0.26560576240348166*pow(f_lav, 2));
 	return fict_del_Cr_result;
 
 }
@@ -282,7 +282,7 @@ double fict_del_Nb(double INV_DET, double XCR, double XNB, double f_del, double 
 {
 
 	double fict_del_Nb_result;
-	fict_del_Nb_result = 0.45849445003651351*INV_DET*(0.15573552102331131*XCR*f_gam + 0.01181924454515282*XCR*f_lav + 0.055823189401030648*XNB*f_del + 1.0*XNB*f_gam + 0.13587030957648552*XNB*f_lav + 0.034411631292859853*f_del*f_gam - 0.0023275279854494272*f_del*f_lav + 0.3832671493269863*pow(f_gam, 2) - 0.03476260265836869*f_gam*f_lav - 0.010152441083121579*pow(f_lav, 2));
+	fict_del_Nb_result = 0.10453655111851477*INV_DET*(0.078444276479274974*XCR*f_gam + 0.20923881653433052*XCR*f_lav + 0.057895185577072183*XNB*f_del + 0.73691813445330934*XNB*f_gam + 1.0*XNB*f_lav - 0.0085055473679878923*f_del*f_gam - 0.031796338023487768*f_del*f_lav - 0.034197271344486177*pow(f_gam, 2) - 0.24299677574697207*f_gam*f_lav - 0.25292500971253778*pow(f_lav, 2));
 	return fict_del_Nb_result;
 
 }
@@ -291,7 +291,7 @@ double fict_lav_Cr(double INV_DET, double XCR, double XNB, double f_del, double 
 {
 
 	double fict_lav_Cr_result;
-	fict_lav_Cr_result = 0.25173531954489675*INV_DET*(0.24746540524461916*XCR*f_del + 0.63802503217891204*XCR*f_gam + 0.2199798884265477*XCR*f_lav - 0.028111117851328069*XNB*f_del + 0.95120582224759476*XNB*f_gam + 0.038601787017348746*pow(f_del, 2) + 0.4154163652037744*f_del*f_gam + 0.036414865679024487*f_del*f_lav + 1.0*pow(f_gam, 2) + 0.21426019198823704*f_gam*f_lav);
+	fict_lav_Cr_result = 0.10453655111851476*INV_DET*(1.0*XCR*f_del + 0.057643074984273575*XCR*f_gam + 0.0694958662006743*XCR*f_lav + 0.44927967972452598*XNB*f_del - 0.78172811574884349*XNB*f_gam - 0.081979041619570731*pow(f_del, 2) - 0.12011579223114696*f_del*f_gam - 0.11933127186562477*f_del*f_lav + 0.022291037694796172*pow(f_gam, 2) + 0.19081837052380662*f_gam*f_lav);
 	return fict_lav_Cr_result;
 
 }
@@ -300,7 +300,7 @@ double fict_lav_Nb(double INV_DET, double XCR, double XNB, double f_del, double 
 {
 
 	double fict_lav_Nb_result;
-	fict_lav_Nb_result = -0.38674059641464115*INV_DET*(0.01401212615850367*XCR*f_del - 0.12799677738478332*XCR*f_gam - 0.060421534040585929*XNB*f_del - 1.0*XNB*f_gam - 0.14318824560930238*XNB*f_lav - 0.0027593655114734393*pow(f_del, 2) - 0.11564489921674229*f_del*f_gam - 0.01203607258738176*f_del*f_lav - 0.52265226768031503*pow(f_gam, 2) - 0.056986564033684621*f_gam*f_lav);
+	fict_lav_Nb_result = -0.02643990820696555*INV_DET*(0.82727610358556924*XCR*f_del + 0.026132709676314116*XCR*f_gam + 0.35577056025509707*XNB*f_del - 0.84918699858043711*XNB*f_gam - 0.27476866079657325*XNB*f_lav - 0.12571448770378987*pow(f_del, 2) - 0.80204383828035919*f_del*f_gam - 1.0*f_del*f_lav - 0.075963142465736502*pow(f_gam, 2) - 0.047796328138628434*f_gam*f_lav);
 	return fict_lav_Nb_result;
 
 }
@@ -327,7 +327,7 @@ double g_gam(double XCR, double XNB)
 {
 
 	double g_gam_result;
-	g_gam_result = 2225414588.9007587*pow(XCR - 0.52500000000000002, 2) + (14903715603.987373*XCR - 7824450692.0933714)*(XNB - 0.017999999999999999) + 44805620198.983856*pow(XNB - 0.017999999999999999, 2);
+	g_gam_result = 2005672715.5837781*pow(XCR - 0.55855269488699388, 2) + (14703563128.545319*XCR - 8212714809.8900261)*(XNB - 0.010717747618334031) + 62431733279.319511*pow(XNB - 0.010717747618334031, 2);
 	return g_gam_result;
 
 }
@@ -336,7 +336,7 @@ double g_del(double XCR, double XNB)
 {
 
 	double g_del_result;
-	g_del_result = 19076223392.853703*pow(XCR - 0.0258, 2) + (16983307497.06665*XCR - 438169333.42431957)*(XNB - 0.24399999999999999) + 85911591727.909775*pow(XNB - 0.24399999999999999, 2);
+	g_del_result = 15567985511.489613*pow(XCR - 0.031881757028651196, 2) + (17972099186.595295*XCR - 572982099.56185102)*(XNB - 0.16874796371854489) + 13383100915.719385*pow(XNB - 0.16874796371854489, 2);
 	return g_del_result;
 
 }
@@ -345,7 +345,7 @@ double g_lav(double XCR, double XNB)
 {
 
 	double g_lav_result;
-	g_lav_result = 8880622842.3634224*pow(XCR - 0.375, 2) + (23980778596.615067*XCR - 8992791973.7306499)*(XNB - 0.25900000000000001) + 97731010299.215485*pow(XNB - 0.25900000000000001, 2);
+	g_lav_result = 6897850581.6836567*pow(XCR - 0.44421217837672827, 2) + (57317655210.986305*XCR - 25461200480.718456)*(XNB - 0.17170586512707406) + 134480681274.87074*pow(XNB - 0.17170586512707406, 2);
 	return g_lav_result;
 
 }
@@ -354,7 +354,7 @@ double dg_gam_dxCr(double XCR, double XNB)
 {
 
 	double dg_gam_dxCr_result;
-	dg_gam_dxCr_result = 4450829177.8015175*XCR + 14903715603.987373*XNB - 2604952199.2175694;
+	dg_gam_dxCr_result = 4011345431.1675563*XCR + 14703563128.545319*XNB - 2398136879.4032598;
 	return dg_gam_dxCr_result;
 
 }
@@ -363,7 +363,7 @@ double dg_gam_dxNb(double XCR, double XNB)
 {
 
 	double dg_gam_dxNb_result;
-	dg_gam_dxNb_result = 14903715603.987373*XCR + 89611240397.967712*XNB - 9437453019.2567902;
+	dg_gam_dxNb_result = 14703563128.545319*XCR + 124863466558.63902*XNB - 9550969931.2158108;
 	return dg_gam_dxNb_result;
 
 }
@@ -372,7 +372,7 @@ double dg_del_dxCr(double XCR, double XNB)
 {
 
 	double dg_del_dxCr_result;
-	dg_del_dxCr_result = 38152446785.707405*XCR + 16983307497.06665*XNB - 5128260156.3555136;
+	dg_del_dxCr_result = 31135971022.979225*XCR + 17972099186.595295*XNB - 4025424604.4914207;
 	return dg_del_dxCr_result;
 
 }
@@ -381,7 +381,7 @@ double dg_del_dxNb(double XCR, double XNB)
 {
 
 	double dg_del_dxNb_result;
-	dg_del_dxNb_result = 16983307497.06665*XCR + 171823183455.81955*XNB - 42363026096.644287;
+	dg_del_dxNb_result = 17972099186.595295*XCR + 26766201831.43877*XNB - 5089724155.0967312;
 	return dg_del_dxNb_result;
 
 }
@@ -390,7 +390,7 @@ double dg_lav_dxCr(double XCR, double XNB)
 {
 
 	double dg_lav_dxCr_result;
-	dg_lav_dxCr_result = 17761245684.726845*XCR + 23980778596.615067*XNB - 12871488788.295868;
+	dg_lav_dxCr_result = 13795701163.367313*XCR + 57317655210.986305*XNB - 15969996041.071507;
 	return dg_lav_dxCr_result;
 
 }
@@ -399,7 +399,7 @@ double dg_lav_dxNb(double XCR, double XNB)
 {
 
 	double dg_lav_dxNb_result;
-	dg_lav_dxNb_result = 23980778596.615067*XCR + 195462020598.43097*XNB - 59617455308.724274;
+	dg_lav_dxNb_result = 57317655210.986305*XCR + 268961362549.74149*XNB - 71643443923.07843;
 	return dg_lav_dxNb_result;
 
 }
@@ -408,7 +408,7 @@ double d2g_gam_dxCrCr()
 {
 
 	double d2g_gam_dxCrCr_result;
-	d2g_gam_dxCrCr_result = 4450829177.8015175;
+	d2g_gam_dxCrCr_result = 4011345431.1675563;
 	return d2g_gam_dxCrCr_result;
 
 }
@@ -417,7 +417,7 @@ double d2g_gam_dxCrNb()
 {
 
 	double d2g_gam_dxCrNb_result;
-	d2g_gam_dxCrNb_result = 14903715603.987373;
+	d2g_gam_dxCrNb_result = 14703563128.545319;
 	return d2g_gam_dxCrNb_result;
 
 }
@@ -426,7 +426,7 @@ double d2g_gam_dxNbCr()
 {
 
 	double d2g_gam_dxNbCr_result;
-	d2g_gam_dxNbCr_result = 14903715603.987373;
+	d2g_gam_dxNbCr_result = 14703563128.545319;
 	return d2g_gam_dxNbCr_result;
 
 }
@@ -435,7 +435,7 @@ double d2g_gam_dxNbNb()
 {
 
 	double d2g_gam_dxNbNb_result;
-	d2g_gam_dxNbNb_result = 89611240397.967712;
+	d2g_gam_dxNbNb_result = 124863466558.63902;
 	return d2g_gam_dxNbNb_result;
 
 }
@@ -444,7 +444,7 @@ double d2g_del_dxCrCr()
 {
 
 	double d2g_del_dxCrCr_result;
-	d2g_del_dxCrCr_result = 38152446785.707405;
+	d2g_del_dxCrCr_result = 31135971022.979225;
 	return d2g_del_dxCrCr_result;
 
 }
@@ -453,7 +453,7 @@ double d2g_del_dxCrNb()
 {
 
 	double d2g_del_dxCrNb_result;
-	d2g_del_dxCrNb_result = 16983307497.06665;
+	d2g_del_dxCrNb_result = 17972099186.595295;
 	return d2g_del_dxCrNb_result;
 
 }
@@ -462,7 +462,7 @@ double d2g_del_dxNbCr()
 {
 
 	double d2g_del_dxNbCr_result;
-	d2g_del_dxNbCr_result = 16983307497.06665;
+	d2g_del_dxNbCr_result = 17972099186.595295;
 	return d2g_del_dxNbCr_result;
 
 }
@@ -471,7 +471,7 @@ double d2g_del_dxNbNb()
 {
 
 	double d2g_del_dxNbNb_result;
-	d2g_del_dxNbNb_result = 171823183455.81955;
+	d2g_del_dxNbNb_result = 26766201831.43877;
 	return d2g_del_dxNbNb_result;
 
 }
@@ -480,7 +480,7 @@ double d2g_lav_dxCrCr()
 {
 
 	double d2g_lav_dxCrCr_result;
-	d2g_lav_dxCrCr_result = 17761245684.726845;
+	d2g_lav_dxCrCr_result = 13795701163.367313;
 	return d2g_lav_dxCrCr_result;
 
 }
@@ -489,7 +489,7 @@ double d2g_lav_dxCrNb()
 {
 
 	double d2g_lav_dxCrNb_result;
-	d2g_lav_dxCrNb_result = 23980778596.615067;
+	d2g_lav_dxCrNb_result = 57317655210.986305;
 	return d2g_lav_dxCrNb_result;
 
 }
@@ -498,7 +498,7 @@ double d2g_lav_dxNbCr()
 {
 
 	double d2g_lav_dxNbCr_result;
-	d2g_lav_dxNbCr_result = 23980778596.615067;
+	d2g_lav_dxNbCr_result = 57317655210.986305;
 	return d2g_lav_dxNbCr_result;
 
 }
@@ -507,7 +507,7 @@ double d2g_lav_dxNbNb()
 {
 
 	double d2g_lav_dxNbNb_result;
-	d2g_lav_dxNbNb_result = 195462020598.43097;
+	d2g_lav_dxNbNb_result = 268961362549.74149;
 	return d2g_lav_dxNbNb_result;
 
 }

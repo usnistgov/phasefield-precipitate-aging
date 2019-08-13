@@ -2,8 +2,15 @@
 
 from numpy import arange, sqrt
 
+def molfrac(wCr, wNb, wNi):
+    nCr = wCr / 51.996
+    nNb = wNb / 92.906
+    nNi = wNi / 58.693
+    N = nCr + nNb + nNi
+    return (nCr/N, nNb/N, nNi/N)
+
 # Ni Alloy 625 particulars
-temp = 870 + 273.15  # 1143 Kelvin
+temp = 870 + 273.15  # 1143 K
 RT = 8.31446261815324 * temp  # J/mol/K
 Vm = 1.0e-5  # m³/mol
 inVm = 1.0 / Vm  # mol/m³
@@ -15,22 +22,26 @@ s_laves = s_delta  # J/m²
 # Specify gamma-delta-Laves corners (from phase diagram)
 # with compositions as mass fractions
 
-xe_gam_Cr = 0.5250
-xe_gam_Nb = 0.0180
+we_gam_Cr = 0.5250
+we_gam_Nb = 0.0180
 
-xe_del_Cr = 0.0258
-xe_del_Nb = 0.2440
+we_del_Cr = 0.0258
+we_del_Nb = 0.2440
 
-xe_lav_Cr = 0.3750
-xe_lav_Nb = 0.2590
+we_lav_Cr = 0.3750
+we_lav_Nb = 0.2590
 
-# allowable matrix compositions from ASTM F3056
+xe_gam_Cr, xe_gam_Nb, xe_gam_Ni = molfrac(we_gam_Cr, we_gam_Nb, 1 - we_gam_Cr - we_gam_Nb)
+xe_del_Cr, xe_del_Nb, xe_del_Ni = molfrac(we_del_Cr, we_del_Nb, 1 - we_del_Cr - we_del_Nb)
+xe_lav_Cr, xe_lav_Nb, xe_lav_Ni = molfrac(we_lav_Cr, we_lav_Nb, 1 - we_lav_Cr - we_lav_Nb)
+
+# allowable matrix compositions (mole fractions), converted from ASTM F3056 (TKR5p238)
 matrixMinNb = 0.0215
 matrixMaxNb = 0.0269
 matrixMinCr = 0.2794
 matrixMaxCr = 0.3288
 
-# allowable enriched compositions centered on DICTRA
+# allowable enriched compositions (mole fractions) centered on DICTRA
 # (with same span as matrix)
 enrichMinNb = 0.1659
 enrichMaxNb = 0.1726
