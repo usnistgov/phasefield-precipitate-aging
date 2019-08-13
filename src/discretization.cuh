@@ -110,7 +110,8 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 /**
  \brief Tiled convolution algorithm for execution on the GPU
 */
-__global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
+__global__ void convolution_kernel(fp_t* d_conc_old,
+                                   fp_t* d_conc_new,
                                    const int nx,
                                    const int ny,
                                    const int nm);
@@ -119,19 +120,16 @@ __global__ void convolution_kernel(fp_t* d_conc_old, fp_t* d_conc_new,
  \brief Device kernel to update field variables for composition
 */
 __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc_Nb_old,
-                                   const fp_t& d_lap_gam_Cr,  const fp_t& d_lap_gam_Nb,
+                                   const fp_t& d_phi_del_old, const fp_t& d_phi_lav_old,
                                    fp_t& d_conc_Cr_new,       fp_t& d_conc_Nb_new,
-                                   const fp_t D_CrCr,        const fp_t D_CrNb,
-                                   const fp_t D_NbCr,        const fp_t D_NbNb,
                                    const fp_t dt);
 
 /**
  \brief Device kernel to update composition field variables
 */
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                     fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
+                                     fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
                                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
-                                     fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
                                      const int nx, const int ny, const int nm,
                                      const fp_t dt);
 

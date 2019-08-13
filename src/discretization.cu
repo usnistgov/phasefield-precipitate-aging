@@ -221,23 +221,26 @@ void device_laplacian(struct CudaData* dev,
 }
 
 __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
-                                   const fp_t& lap_gam_Cr,  const fp_t& lap_gam_Nb,
-                                   fp_t& conc_Cr_new,       fp_t& conc_Nb_new,
+                                   const fp_t& phi_del_old, const fp_t& phi_lav_old,
+                                   fp_t& conc_Cr_new,
+                                   fp_t& conc_Nb_new,
                                    const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
+    const fp_t conc_Cr_lap = conc_Cr_new;
+    const fp_t conc_Nb_lap = conc_Nb_new;
 
-	const fp_t lap_mu_Cr = d_DCr[0] * lap_gam_Cr
-	                     + d_DCr[1] * lap_gam_Nb;
-	const fp_t lap_mu_Nb = d_DNb[0] * lap_gam_Cr
-	                     + d_DNb[1] * lap_gam_Nb;
+    const fp_t DlapC_Cr = d_D_CrCr(conc_Cr_old, conc_Nb_old, phi_del_old, phi_lav_old) * conc_Cr_lap
+                        + d_D_CrNb(conc_Cr_old, conc_Nb_old, phi_del_old, phi_lav_old) * conc_Nb_lap;
+    const fp_t DlapC_Nb = d_D_NbCr(conc_Cr_old, conc_Nb_old, phi_del_old, phi_lav_old) * conc_Cr_lap
+                        + d_D_NbNb(conc_Cr_old, conc_Nb_old, phi_del_old, phi_lav_old) * conc_Nb_lap;
 
-	conc_Cr_new = conc_Cr_old + dt * lap_mu_Cr;
-	conc_Nb_new = conc_Nb_old + dt * lap_mu_Nb;
+	conc_Cr_new = conc_Cr_old + dt * DlapC_Cr;
+	conc_Nb_new = conc_Nb_old + dt * DlapC_Nb;
 }
 
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                     fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
+                                     fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
                                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                      const int nx, const int ny, const int nm,
                                      const fp_t dt)
@@ -251,7 +254,7 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	if (x < nx && y < ny) {
 		/* Cahn-Hilliard equations of motion for composition */
 		composition_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx],
-		                   d_lap_gam_Cr[idx],  d_lap_gam_Nb[idx],
+		                   d_phi_del_old[idx], d_phi_lav_old[idx],
 		                   d_conc_Cr_new[idx], d_conc_Nb_new[idx],
 		                   dt);
     }
