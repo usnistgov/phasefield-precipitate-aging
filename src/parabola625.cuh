@@ -66,6 +66,10 @@ __device__ double d_d2g_lav_dxCrCr();
 __device__ double d_d2g_lav_dxCrNb();
 __device__ double d_d2g_lav_dxNbCr();
 __device__ double d_d2g_lav_dxNbNb();
+__device__ double d_D_CrCr(double XCR, double XNB, double phi_del, double phi_lav);
+__device__ double d_D_CrNb(double XCR, double XNB, double phi_del, double phi_lav);
+__device__ double d_D_NbCr(double XCR, double XNB, double phi_del, double phi_lav);
+__device__ double d_D_NbNb(double XCR, double XNB, double phi_del, double phi_lav);
 
 #endif
 

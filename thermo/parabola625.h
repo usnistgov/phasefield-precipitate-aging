@@ -66,6 +66,10 @@ double d2g_lav_dxCrCr();
 double d2g_lav_dxCrNb();
 double d2g_lav_dxNbCr();
 double d2g_lav_dxNbNb();
+double D_CrCr(double XCR, double XNB, double phi_del, double phi_lav);
+double D_CrNb(double XCR, double XNB, double phi_del, double phi_lav);
+double D_NbCr(double XCR, double XNB, double phi_del, double phi_lav);
+double D_NbNb(double XCR, double XNB, double phi_del, double phi_lav);
 
 #endif
 

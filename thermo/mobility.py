@@ -26,7 +26,9 @@ dmu_CrNb = Vm * d2g_gam_dxCrNb()
 dmu_NbCr = Vm * d2g_gam_dxNbCr()
 dmu_NbNb = Vm * d2g_gam_dxNbNb()
 
+# === Atomic Mobilities in FCC Ni ===
 # Mobility of (1) in pure (2), from `NIST-nifcc-mob.TDB`
+## Derivation: TKR5p286
 
 M_Cr_Cr   = exp((-235000 - 82.0 * temp) / RT)
 M_Cr_Nb   = exp((-287000 - 64.4 * temp) / RT)
@@ -41,9 +43,6 @@ M_Ni_Cr   = exp((-235000 - 82.0 * temp)      / RT)
 M_Ni_Nb   = exp((-287000 + RT * log(1.0E-4)) / RT)
 M_Ni_Ni   = exp((-287000 - 69.8 * temp)      / RT)
 M_Ni_CrNi = exp((-81000)                     / RT)
-
-# === Atomic Mobilities in FCC Ni ===
-## TKR5p286
 
 M_Cr = xCr * M_Cr_Cr + xNb * M_Cr_Nb + xNi * M_Cr_Ni + xCr * xNi * M_Cr_CrNi
 M_Nb = xCr * M_Nb_Cr + xNb * M_Nb_Nb + xNi * M_Nb_Ni
