@@ -210,6 +210,7 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	bar_opts["shrink"] = 0.75;
 	plt::colorbar(mat, bar_opts);
 	plt::axis("off");
+	Py_DECREF(mat);
 
 	plt::subplot2grid(nrows, ncols, nrows-1, 0, 1, ncols - 1);
 	plt::xlim(0., 1e6 * deltax * nx);
