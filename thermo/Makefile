@@ -6,7 +6,7 @@ OBJS = enrichment.o nucleation.o parabola625.o
 all: check-nucleation
 .PHONY: all
 
-debug: CXXFLAGS += -O0 -g
+debug: CXXFLAGS += -O0 -g -DDEBUG
 debug: check-nucleation $(OBJS)
 
 profile: CXXFLAGS += -O1 -pg
@@ -14,10 +14,10 @@ profile: $(OBJS)
 
 # === Executables ===
 
-check-nucleation: check-nucleation.cpp ../src/globals.h nucleation.c $(OBJS)
+check-nucleation: check-nucleation.cpp ../src/parameters.h nucleation.c $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $(OBJS) $< -o $@ -lm
 
-ternary-diagram.png: phase-diagram.py parabola625.c parabola625.so
+ternary-diagram.png: phase-diagram.py parabola625.c parabola625.so enrichment.so
 	python $<
 
 # === Generated Sources ===
@@ -26,21 +26,24 @@ enrichment.c: enrichment.py
 	python $<
 
 parabola625.c: CALPHAD_energies.py constants.py
-	python $<
+	python $< && astyle --style=linux --indent-col1-comments --indent=tab --indent-preprocessor --indent-preproc-cond --pad-header --align-pointer=type --align-reference=type --keep-one-line-blocks --suffix=none parabola625.c
 
 # === Objects ===
 
-enrichment.o: enrichment.c
-	$(CXX) -c $< -o $@
+enrichment.o: enrichment.c enrichment.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+enrichment.so: enrichment.c enrichment.c
+	gcc $(CXXFLAGS) -shared -fPIC $< -o $@
 
 nucleation.o: nucleation.c nucleation.h parabola625.c
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 parabola625.o: parabola625.c
-	$(CXX) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 parabola625.so: parabola625.c
-	$(CXX) -shared $< -o $@
+	gcc $(CXXFLAGS) -shared -fPIC $< -o $@
 
 # === Extras ===
 
@@ -52,4 +55,4 @@ tie-lines.npz: phase-diagram.py
 
 .PHONY: clean
 clean:
-	rm -vf check-nucleation enrichment.c enrichment.o nucleation.o parabola625.* sigma.csv sigma.png
+	rm -vf check-nucleation enrichment.c enrichment.o enrichment.so nucleation.o parabola625.* sigma.csv sigma.png

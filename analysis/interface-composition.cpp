@@ -162,7 +162,8 @@ void vectorComp(const MMSP::grid<dim,MMSP::vector<T> >& GRID)
 	std::cout << ',' << res << '\n';
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
 	// command line error check
 	if (argc < 2) {
 		std::cout << "Usage: " << argv[0] << " [--help] infile\n\n";

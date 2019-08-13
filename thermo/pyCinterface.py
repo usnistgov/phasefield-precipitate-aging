@@ -1,6 +1,8 @@
 # -*- coding:utf-8 -*-
 
 from ctypes import CDLL, c_double
+
+bell = CDLL("./enrichment.so")
 p625 = CDLL("./parabola625.so")
 
 # Control points
@@ -103,3 +105,9 @@ d2g_lav_dxCrCr.restype = c_double
 d2g_lav_dxCrNb.restype = c_double
 d2g_lav_dxNbCr.restype = c_double
 d2g_lav_dxNbNb.restype = c_double
+
+## Gaussian Enrichment
+
+bellCurve = bell.bell_curve
+bellCurve.argtypes = [c_double, c_double, c_double, c_double, c_double, c_double]
+bellCurve.restype = c_double

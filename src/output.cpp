@@ -20,7 +20,7 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 		printf("Warning: unable to open parameter file 'params.txt'. Marching with default values.\n");
 		fflush(stdout);
 	} else {
-		char buffer[256];
+		char buffer[FILENAME_MAX];
 		char* pch;
 		int ibx=0, iby=0, isc=0;
 
@@ -68,7 +68,7 @@ void print_progress(const int step, const int steps)
 	time_t rawtime;
 
 	if (step==0) {
-		char timestring[256] = {'\0'};
+		char timestring[FILENAME_MAX] = {'\0'};
 		struct tm* timeinfo;
 		tstart = time(NULL);
 		time( &rawtime );
@@ -89,7 +89,7 @@ void print_progress(const int step, const int steps)
 void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const int step)
 {
 	FILE* output;
-	char name[256];
+	char name[FILENAME_MAX];
 	char num[20];
 	int i, j;
 
@@ -103,7 +103,7 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 	output = fopen(name, "w");
 	if (output == NULL) {
 		printf("Error: unable to open %s for output. Check permissions.\n", name);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	/* write csv data */
@@ -121,83 +121,111 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 
 void figure(int w, int h, size_t dpi)
 {
-    PyObject* size = PyTuple_New(2);
-    PyTuple_SetItem(size, 0, PyFloat_FromDouble(static_cast<double>(w)/dpi));
-    PyTuple_SetItem(size, 1, PyFloat_FromDouble(static_cast<double>(h)/dpi));
+	PyObject* size = PyTuple_New(2);
+	PyTuple_SetItem(size, 0, PyFloat_FromDouble(static_cast<double>(w)/dpi));
+	PyTuple_SetItem(size, 1, PyFloat_FromDouble(static_cast<double>(h)/dpi));
 
-    PyObject* kwargs = PyDict_New();
-    PyDict_SetItemString(kwargs, "figsize", size);
-    PyDict_SetItemString(kwargs, "dpi", PyLong_FromSize_t(dpi));
-    Py_DECREF(size);
+	PyObject* kwargs = PyDict_New();
+	PyDict_SetItemString(kwargs, "figsize", size);
+	PyDict_SetItemString(kwargs, "dpi", PyLong_FromSize_t(dpi));
+	Py_DECREF(size);
 
-    PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_figure,
-								  plt::detail::_interpreter::get().s_python_empty_tuple,
-                                  kwargs);
-    Py_DECREF(kwargs);
+	PyObject* res = PyObject_Call(plt::detail::_interpreter::get().s_python_function_figure,
+	                              plt::detail::_interpreter::get().s_python_empty_tuple,
+	                              kwargs);
+	Py_DECREF(kwargs);
 
-    if(!res) throw std::runtime_error("Call to figure() failed.");
-    Py_DECREF(res);
+	if (!res) throw std::runtime_error("Call to figure() failed.");
+	Py_DECREF(res);
 }
 
-void write_matplotlib(fp_t** conc, const int nx, const int ny, const int nm,
-					  const fp_t deltax,
-					  const int step, const fp_t dt, const char* filename)
+void write_matplotlib(fp_t** conc, fp_t** phi,
+					  const int nx, const int ny, const int nm,
+                      const fp_t deltax,
+                      const int step, const fp_t dt, const char* filename)
 {
 	plt::backend("Agg");
 
 	int w = nx - nm/2;
 	int h = ny - nm/2;
 
-    std::vector<float> c(w * h);
+	std::vector<float> c(w * h);
+	std::vector<float> p(w * h);
+
 	std::vector<float> d(w);
-    std::vector<float> cbar(w);
-    for(int j = 0; j < h; ++j) {
-        for(int i = 0; i < w; ++i) {
+	std::vector<float> cbar(w);
+	std::vector<float> pbar(w);
+
+	PyObject* mat;
+
+	for (int i = 0; i < w; ++i) {
+		d.at(i) = 1e6 * deltax * i;
+		for (int j = 0; j < h; ++j) {
 			const float x = conc[j+nm/2][i+nm/2];
-            c.at(w * j + i) = x;
+			const float z = phi[j+nm/2][i+nm/2];
+			c.at(w * j + i) = x;
+			p.at(w * j + i) = z;
+
+			/*
 			cbar.at(i) += x / h;
-			d.at(i) = deltax * i / 1e-6;
-        }
+			pbar.at(i) += z / h;
+			*/
+			if (j == h/2) {
+				cbar.at(i) = x;
+				pbar.at(i) = z;
+			}
+		}
 	}
-    const float* z = &(c[0]);
-    const int colors = 1;
+	const int colors = 1;
 
 	figure(3000, 2400, 200);
 
 	std::map<std::string, std::string> str_kw;
 	str_kw["cmap"] = "viridis_r";
+	str_kw["interpolation"] = "nearest";
 
-    std::map<std::string, double> num_kw;
-    num_kw["vmin"] = 0.;
-    num_kw["vmax"] = 1.;
+	std::map<std::string, double> num_kw;
+	num_kw["vmin"] = 0.;
+	num_kw["vmax"] = 1.;
 
-	char timearr[256] = {0};
-	sprintf(timearr, "$t=%07f$ s\n", dt * step);
+	char timearr[FILENAME_MAX] = {0};
+	sprintf(timearr, "$t=%7.3f\\ \\mathrm{s}$\n", dt * step);
 	plt::suptitle(std::string(timearr));
 
-    long nrows = 3, ncols = 5;
-    long spanr = nrows, spanc = ncols;
+	const long nrows = 3;
+	const long ncols = 5;
 
-    spanr -= 1;
-    plt::subplot2grid(nrows, ncols, 0, 0, spanr, spanc);
-	PyObject* mat = plt::imshow(z, h, w, colors, str_kw, num_kw);
+	plt::subplot2grid(nrows, ncols, 0, 0, 1, ncols - 1);
+	mat = plt::imshow(&(p[0]), h, w, colors, str_kw, num_kw);
+	plt::title("$\\phi$");
 	plt::axis("off");
 
-    std::map<std::string, float> bar_opts;
-    bar_opts["shrink"] = 0.75;
-    plt::colorbar(mat, bar_opts);
+	plt::subplot2grid(nrows, ncols, 1, 0, 1, ncols - 1);
+	mat = plt::imshow(&(c[0]), h, w, colors, str_kw, num_kw);
+	plt::title("$c$");
+	plt::axis("off");
 
-    spanr = 1;
-    spanc = ncols-1;
-    plt::subplot2grid(nrows, ncols, nrows-1, 0, spanr, spanc);
-    plt::plot(d, cbar);
-    #ifndef CONVERGENCE
-    plt::xlim(0., 1.);
-    #endif
-    plt::ylim(0.4, 0.8);
-    plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
-    plt::ylabel("$\\chi_{\\mathrm{Ni}}$");
+	plt::subplot2grid(nrows, ncols, 0, ncols - 1, 2, 1);
+	std::map<std::string, float> bar_opts;
+	bar_opts["shrink"] = 0.75;
+	plt::colorbar(mat, bar_opts);
+	plt::axis("off");
+	Py_DECREF(mat);
 
-    plt::save(filename);
-    plt::close();
+	plt::subplot2grid(nrows, ncols, nrows-1, 0, 1, ncols - 1);
+	plt::xlim(0., 1e6 * deltax * nx);
+	plt::ylim(0., 1.);
+	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
+	plt::ylabel("$\\chi_{\\mathrm{Ni}}(y=0)$");
+
+	str_kw.clear();
+	str_kw["label"] = "$x_{\\mathrm{Ni}}$";
+	plt::plot(d, cbar, str_kw);
+	str_kw["label"] = "$\\phi_{\\mathrm{precip}}$";
+	plt::plot(d, pbar, str_kw);
+
+	plt::legend();
+
+	plt::save(filename);
+	plt::close();
 }
