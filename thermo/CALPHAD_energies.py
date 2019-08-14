@@ -62,7 +62,6 @@ from pycalphad import Database, calculate, Model
 from sympy import diff, Eq, expand, factor, fraction, Matrix, symbols
 from sympy.abc import x, r, y, z, L
 from sympy.core.numbers import pi
-from sympy.functions.elementary.complexes import Abs
 from sympy.functions.elementary.exponential import exp, log
 from sympy.functions.elementary.trigonometric import tanh
 from sympy.parsing.sympy_parser import parse_expr
@@ -324,19 +323,19 @@ dx_r_lav_Nb = xr[5]
 # Mobility of (1) in pure (2), from `NIST-nifcc-mob.TDB`
 ## TKR5p286
 
-M_Cr_Cr   = exp((-235000 - 82.0 * temp) / RT)
-M_Cr_Nb   = exp((-287000 - 64.4 * temp) / RT)
-M_Cr_Ni   = exp((-287000 - 64.4 * temp) / RT)
-M_Cr_CrNi = exp((-68000)                / RT)
+M_Cr_Cr   = exp((-235000 - 82.0 * temp) / RT) / RT
+M_Cr_Nb   = exp((-287000 - 64.4 * temp) / RT) / RT
+M_Cr_Ni   = exp((-287000 - 64.4 * temp) / RT) / RT
+M_Cr_CrNi = exp((-68000)                / RT) / RT
 
-M_Nb_Cr   = exp((-255333 + RT * log(7.6071E-5)) / RT)
-M_Nb_Nb   = exp((-274328 + RT * log(8.6440E-5)) / RT)
-M_Nb_Ni   = exp((-255333 + RT * log(7.6071e-5)) / RT)
+M_Nb_Cr   = exp((-255333 + RT * log(7.6071E-5)) / RT) / RT
+M_Nb_Nb   = exp((-274328 + RT * log(8.6440E-5)) / RT) / RT
+M_Nb_Ni   = exp((-255333 + RT * log(7.6071e-5)) / RT) / RT
 
-M_Ni_Cr   = exp((-235000 - 82.0 * temp)      / RT)
-M_Ni_Nb   = exp((-287000 + RT * log(1.0E-4)) / RT)
-M_Ni_Ni   = exp((-287000 - 69.8 * temp)      / RT)
-M_Ni_CrNi = exp((-81000)                     / RT)
+M_Ni_Cr   = exp((-235000 - 82.0 * temp)      / RT) / RT
+M_Ni_Nb   = exp((-287000 + RT * log(1.0E-4)) / RT) / RT
+M_Ni_Ni   = exp((-287000 - 69.8 * temp)      / RT) / RT
+M_Ni_CrNi = exp((-81000)                     / RT) / RT
 
 M_Cr = XCR * M_Cr_Cr + XNB * M_Cr_Nb + (1 - XCR - XNB) * M_Cr_Ni + XCR * (1 - XCR - XNB) * M_Cr_CrNi
 M_Nb = XCR * M_Nb_Cr + XNB * M_Nb_Nb + (1 - XCR - XNB) * M_Nb_Ni
@@ -352,23 +351,23 @@ M_CrNb = -M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB
 M_NbCr = -M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB
 M_NbNb =  M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2
 
-dmu_CrCr = (1 - interpolator.subs(x, phi_del) - interpolator.subs(x, phi_lav)) * p_d2Ggam_dxCrCr \
-           + interpolator.subs(x, phi_del) * p_d2Gdel_dxCrCr \
-           + interpolator.subs(x, phi_lav) * p_d2Gdel_dxCrCr
-dmu_CrNb = (1 - interpolator.subs(x, phi_del) - interpolator.subs(x, phi_lav)) * p_d2Ggam_dxCrNb \
-           + interpolator.subs(x, phi_del) * p_d2Gdel_dxCrNb \
-           + interpolator.subs(x, phi_lav) * p_d2Gdel_dxCrNb
-dmu_NbCr = (1 - interpolator.subs(x, phi_del) - interpolator.subs(x, phi_lav)) * p_d2Ggam_dxNbCr \
-           + interpolator.subs(x, phi_del) * p_d2Gdel_dxNbCr \
-           + interpolator.subs(x, phi_lav) * p_d2Gdel_dxNbCr
-dmu_NbNb = (1 - interpolator.subs(x, phi_del) - interpolator.subs(x, phi_lav)) * p_d2Ggam_dxNbNb \
-           + interpolator.subs(x, phi_del) * p_d2Gdel_dxNbNb \
-           + interpolator.subs(x, phi_lav) * p_d2Gdel_dxNbNb
+dmu_CrCr = (1 - phi_del - phi_lav) * p_d2Ggam_dxCrCr \
+           + phi_del * p_d2Gdel_dxCrCr \
+           + phi_lav * p_d2Gdel_dxCrCr
+dmu_CrNb = (1 - phi_del - phi_lav) * p_d2Ggam_dxCrNb \
+           + phi_del * p_d2Gdel_dxCrNb \
+           + phi_lav * p_d2Gdel_dxCrNb
+dmu_NbCr = (1 - phi_del - phi_lav) * p_d2Ggam_dxNbCr \
+           + phi_del * p_d2Gdel_dxNbCr \
+           + phi_lav * p_d2Gdel_dxNbCr
+dmu_NbNb = (1 - phi_del - phi_lav) * p_d2Ggam_dxNbNb \
+           + phi_del * p_d2Gdel_dxNbNb \
+           + phi_lav * p_d2Gdel_dxNbNb
 
-D_CrCr = Vm * (M_CrCr * dmu_CrCr + M_CrNb * dmu_NbCr)
-D_CrNb = Vm * (M_CrCr * dmu_CrNb + M_CrNb * dmu_NbNb)
-D_NbCr = Vm * (M_NbCr * dmu_CrCr + M_NbNb * dmu_NbCr)
-D_NbNb = Vm * (M_NbCr * dmu_NbCr + M_NbNb * dmu_NbNb)
+D_CrCr = Vm**3 * (M_CrCr * dmu_CrCr + M_CrNb * dmu_NbCr)
+D_CrNb = Vm**3 * (M_CrCr * dmu_CrNb + M_CrNb * dmu_NbNb)
+D_NbCr = Vm**3 * (M_NbCr * dmu_CrCr + M_NbNb * dmu_NbCr)
+D_NbNb = Vm**3 * (M_NbCr * dmu_NbCr + M_NbNb * dmu_NbNb)
 
 # Generate numerically efficient C-code
 
@@ -378,8 +377,8 @@ codegen(
         ("hprime", dinterpdx),
         ("interface_profile", interfaceProfile),
         # temperature
-        ("kT", 1.38064852e-23 * temp),
-        ("RT", 8.314472 * temp),
+        ("kT", 1.380649e-23 * temp),
+        ("RT", 8.314468 * temp),
         ("Vm", Vm),
         # Equilibrium Compositions
         ("xe_gam_Cr", xe_gam_Cr),

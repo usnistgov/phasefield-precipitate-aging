@@ -21,28 +21,28 @@ print("xCr:", xCr, " xNb:", xNb, " xNi:", xNi)
 
 # Second-derivatives of Gamma-phase free energy
 
-dmu_CrCr = Vm * d2g_gam_dxCrCr()
-dmu_CrNb = Vm * d2g_gam_dxCrNb()
-dmu_NbCr = Vm * d2g_gam_dxNbCr()
-dmu_NbNb = Vm * d2g_gam_dxNbNb()
+dmu_CrCr = d2g_gam_dxCrCr()
+dmu_CrNb = d2g_gam_dxCrNb()
+dmu_NbCr = d2g_gam_dxNbCr()
+dmu_NbNb = d2g_gam_dxNbNb()
 
 # === Atomic Mobilities in FCC Ni ===
 # Mobility of (1) in pure (2), from `NIST-nifcc-mob.TDB`
-## Derivation: TKR5p286
+## TKR5p286
 
-M_Cr_Cr   = exp((-235000 - 82.0 * temp) / RT)
-M_Cr_Nb   = exp((-287000 - 64.4 * temp) / RT)
-M_Cr_Ni   = exp((-287000 - 64.4 * temp) / RT)
-M_Cr_CrNi = exp((-68000)                / RT)
+M_Cr_Cr   = exp((-235000 - 82.0 * temp) / RT) / RT
+M_Cr_Nb   = exp((-287000 - 64.4 * temp) / RT) / RT
+M_Cr_Ni   = exp((-287000 - 64.4 * temp) / RT) / RT
+M_Cr_CrNi = exp((-68000)                / RT) / RT
 
-M_Nb_Cr   = exp((-255333 + RT * log(7.6071E-5)) / RT)
-M_Nb_Nb   = exp((-274328 + RT * log(8.6440E-5)) / RT)
-M_Nb_Ni   = exp((-255333 + RT * log(7.6071e-5)) / RT)
+M_Nb_Cr   = exp((-255333 + RT * log(7.6071E-5)) / RT) / RT
+M_Nb_Nb   = exp((-274328 + RT * log(8.6440E-5)) / RT) / RT
+M_Nb_Ni   = exp((-255333 + RT * log(7.6071e-5)) / RT) / RT
 
-M_Ni_Cr   = exp((-235000 - 82.0 * temp)      / RT)
-M_Ni_Nb   = exp((-287000 + RT * log(1.0E-4)) / RT)
-M_Ni_Ni   = exp((-287000 - 69.8 * temp)      / RT)
-M_Ni_CrNi = exp((-81000)                     / RT)
+M_Ni_Cr   = exp((-235000 - 82.0 * temp)      / RT) / RT
+M_Ni_Nb   = exp((-287000 + RT * log(1.0E-4)) / RT) / RT
+M_Ni_Ni   = exp((-287000 - 69.8 * temp)      / RT) / RT
+M_Ni_CrNi = exp((-81000)                     / RT) / RT
 
 M_Cr = xCr * M_Cr_Cr + xNb * M_Cr_Nb + xNi * M_Cr_Ni + xCr * xNi * M_Cr_CrNi
 M_Nb = xCr * M_Nb_Cr + xNb * M_Nb_Nb + xNi * M_Nb_Ni
@@ -63,7 +63,7 @@ D12 = Z11 * dmu_CrNb + Z12 * dmu_NbNb
 D21 = Z21 * dmu_CrCr + Z22 * dmu_NbCr
 D22 = Z21 * dmu_NbCr + Z22 * dmu_NbNb
 
-D = Vm * np.matrix([[D11, D12],[D21, D22]])
+D = Vm**3 * np.matrix([[D11, D12],[D21, D22]])
 
 print(D)
 print("λ =",np.linalg.eig(D)[0])
