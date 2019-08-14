@@ -41,9 +41,6 @@ struct HostData {
 
 	fp_t** phi_lav_old;
 	fp_t** phi_lav_new;
-
-	fp_t** gam_Cr;
-	fp_t** gam_Nb;
 };
 
 /**
@@ -64,12 +61,6 @@ struct CudaData {
 
 	fp_t* phi_lav_old;
 	fp_t* phi_lav_new;
-
-	fp_t* gam_Cr;
-	fp_t* gam_Nb;
-
-	fp_t* lap_gam_Cr;
-	fp_t* lap_gam_Nb;
 
 	curandState* prng;
 };

@@ -44,7 +44,6 @@ float nTiles(int domain_size, int tile_loc, int mask_size)
 
 __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                 fp_t* d_phi_del, fp_t* d_phi_lav,
-                                fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
                                 const int nx,
                                 const int ny,
                                 const int nm)
@@ -67,8 +66,6 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			d_conc_Nb[row * nx + ilo - 1] = d_conc_Nb[row * nx + ilo];
 			d_phi_del[row * nx + ilo - 1] = d_phi_del[row * nx + ilo];
 			d_phi_lav[row * nx + ilo - 1] = d_phi_lav[row * nx + ilo];
-			d_gam_Cr[ row * nx + ilo - 1] = d_gam_Cr[ row * nx + ilo];
-			d_gam_Nb[ row * nx + ilo - 1] = d_gam_Nb[ row * nx + ilo];
 		}
 		if (ihi + 1 == col && row < ny) {
 			/* right condition */
@@ -76,8 +73,6 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			d_conc_Nb[row * nx + ihi + 1] = d_conc_Nb[row * nx + ihi];
 			d_phi_del[row * nx + ihi + 1] = d_phi_del[row * nx + ihi];
 			d_phi_lav[row * nx + ihi + 1] = d_phi_lav[row * nx + ihi];
-			d_gam_Cr[ row * nx + ihi + 1] = d_gam_Cr[ row * nx + ihi];
-			d_gam_Nb[ row * nx + ihi + 1] = d_gam_Nb[ row * nx + ihi];
 		}
 		if (jlo - 1 == row && col < nx) {
 			/* bottom condition */
@@ -85,8 +80,6 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			d_conc_Nb[(jlo - 1) * nx + col] = d_conc_Nb[jlo * nx + col];
 			d_phi_del[(jlo - 1) * nx + col] = d_phi_del[jlo * nx + col];
 			d_phi_lav[(jlo - 1) * nx + col] = d_phi_lav[jlo * nx + col];
-			d_gam_Cr[ (jlo - 1) * nx + col] = d_gam_Cr[ jlo * nx + col];
-			d_gam_Nb[ (jlo - 1) * nx + col] = d_gam_Nb[ jlo * nx + col];
 		}
 		if (jhi + 1 == row && col < nx) {
 			/* top condition */
@@ -94,8 +87,6 @@ __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 			d_conc_Nb[(jhi + 1) * nx + col] = d_conc_Nb[jhi * nx + col];
 			d_phi_del[(jhi + 1) * nx + col] = d_phi_del[jhi * nx + col];
 			d_phi_lav[(jhi + 1) * nx + col] = d_phi_lav[jhi * nx + col];
-			d_gam_Cr[ (jhi + 1) * nx + col] = d_gam_Cr[ jhi * nx + col];
-			d_gam_Nb[ (jhi + 1) * nx + col] = d_gam_Nb[ jhi * nx + col];
 		}
 
 		__syncthreads();
@@ -115,7 +106,6 @@ void device_boundaries(struct CudaData* dev,
 	boundary_kernel <<< num_tiles, tile_size>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
-	    dev->gam_Cr,      dev->gam_Nb,
 	    nx, ny, nm
 	);
 }
@@ -133,7 +123,6 @@ void device_laplacian_boundaries(struct CudaData* dev,
 	boundary_kernel <<< num_tiles, tile_size>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
 	    nx, ny, nm
 	);
 }
@@ -210,10 +199,6 @@ void device_laplacian(struct CudaData* dev,
 	convolution_kernel <<< num_tiles, tile_size, buf_size>>> (
 	    dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
 
-	convolution_kernel <<< num_tiles, tile_size, buf_size>>> (
-	    dev->gam_Cr, dev->lap_gam_Cr, nx, ny, nm);
-	convolution_kernel <<< num_tiles, tile_size, buf_size>>> (
-	    dev->gam_Nb, dev->lap_gam_Nb, nx, ny, nm);
 }
 
 __device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
@@ -259,21 +244,14 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
                              fp_t& phi_del_new,
-                             const fp_t inv_fict_det,
-                             const fp_t f_del,       const fp_t f_lav,
-                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
-                             const fp_t gam_Cr,      const fp_t gam_Nb,
-                             const fp_t gam_nrg,     const fp_t alpha,
+                             const fp_t dgGdxCr,      const fp_t dgGdxNb,
+                             const fp_t gam_Cr,       const fp_t gam_Nb,
+                             const fp_t del_Cr,       const fp_t del_Nb,
+                             const fp_t gam_nrg,      const fp_t alpha,
                              const fp_t dt)
 {
-	// Derivation: TKR5p281, Eqn. (14)
-
-	const fp_t f_gam = 1. - f_del - f_lav;
-	const fp_t del_Cr = d_fict_del_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
-	const fp_t del_Nb = d_fict_del_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
-	const fp_t del_nrg = d_g_del(del_Cr, del_Nb);
-
 	/* pressure */
+	const fp_t del_nrg = d_g_del(del_Cr, del_Nb);
 	const fp_t P_del = gam_nrg - del_nrg - dgGdxCr * (gam_Cr - del_Cr) - dgGdxNb * (gam_Nb - del_Nb);
 
 	/* variational derivative */
@@ -289,21 +267,14 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
                              fp_t& phi_lav_new,
-                             const fp_t inv_fict_det,
-                             const fp_t f_del,       const fp_t f_lav,
-                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
-                             const fp_t gam_Cr,      const fp_t gam_Nb,
-                             const fp_t gam_nrg,     const fp_t alpha,
+                             const fp_t dgGdxCr,      const fp_t dgGdxNb,
+                             const fp_t gam_Cr,       const fp_t gam_Nb,
+                             const fp_t lav_Cr,       const fp_t lav_Nb,
+                             const fp_t gam_nrg,      const fp_t alpha,
                              const fp_t dt)
 {
-	// Derivation: TKR5p281, Eqn. (14)
-
-	const fp_t f_gam = 1. - f_del - f_lav;
-	const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
-	const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, f_del, f_gam, f_lav);
-	const fp_t lav_nrg = d_g_lav(lav_Cr, lav_Nb);
-
 	/* pressure */
+	const fp_t lav_nrg = d_g_lav(lav_Cr, lav_Nb);
 	const fp_t P_lav = gam_nrg - lav_nrg - dgGdxCr * (gam_Cr - lav_Cr) - dgGdxNb * (gam_Nb - lav_Nb);
 
 	/* variational derivative */
@@ -318,9 +289,7 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 
 __global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                   fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
-                                  fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
                                   fp_t* d_phi_del_new, fp_t* d_phi_lav_new,
-                                  fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
                                   const int nx, const int ny, const int nm,
                                   const fp_t alpha,
                                   const fp_t dt)
@@ -334,23 +303,41 @@ __global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	if (x < nx && y < ny) {
 		const fp_t f_del = d_h(d_phi_del_old[idx]);
 		const fp_t f_lav = d_h(d_phi_lav_old[idx]);
-		const fp_t inv_fict_det = d_inv_fict_det(f_del, 1. - f_del - f_lav, f_lav);
+        const fp_t f_gam = 1. - f_del - f_lav;
+
+        /* fictitious compositions */
+        // Derivation: TKR5p281, Eqn. (14)
+		const fp_t inv_fict_det = d_inv_fict_det(f_del, f_gam, f_lav);
+		const fp_t gam_Cr = d_fict_gam_Cr(inv_fict_det, d_conc_Cr_old[idx], d_conc_Nb_old[idx], f_del, f_gam, f_lav);
+		const fp_t gam_Nb = d_fict_gam_Nb(inv_fict_det, d_conc_Cr_old[idx], d_conc_Nb_old[idx], f_del, f_gam, f_lav);
+		const fp_t del_Cr = d_fict_del_Cr(inv_fict_det, d_conc_Cr_old[idx], d_conc_Nb_old[idx], f_del, f_gam, f_lav);
+		const fp_t del_Nb = d_fict_del_Nb(inv_fict_det, d_conc_Cr_old[idx], d_conc_Nb_old[idx], f_del, f_gam, f_lav);
+		const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, d_conc_Cr_old[idx], d_conc_Nb_old[idx], f_del, f_gam, f_lav);
+		const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, d_conc_Cr_old[idx], d_conc_Nb_old[idx], f_del, f_gam, f_lav);
 
 		/* pure phase energy */
-		const fp_t gam_nrg = d_g_gam(d_gam_Cr[idx], d_gam_Nb[idx]);
+		const fp_t gam_nrg = d_g_gam(gam_Cr, gam_Nb);
 
 		/* effective chemical potential */
-		const fp_t dgGdxCr = d_dg_gam_dxCr(d_gam_Cr[idx], d_gam_Nb[idx]);
-		const fp_t dgGdxNb = d_dg_gam_dxNb(d_gam_Cr[idx], d_gam_Nb[idx]);
+		const fp_t dgGdxCr = d_dg_gam_dxCr(gam_Cr, gam_Nb);
+		const fp_t dgGdxNb = d_dg_gam_dxNb(gam_Cr, gam_Nb);
 
 		/* Allen-Cahn equations of motion for phase */
-		delta_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
-		             d_phi_del_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
-		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, dt);
+		delta_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx],
+                     d_phi_del_old[idx], d_phi_lav_old[idx],
+		             d_phi_del_new[idx],
+                     dgGdxCr, dgGdxNb,
+                     gam_Cr, gam_Nb,
+                     del_Cr, del_Nb,
+                     gam_nrg, alpha, dt);
 
-		laves_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
-		             d_phi_lav_new[idx], inv_fict_det, f_del, f_lav, dgGdxCr, dgGdxNb,
-		             d_gam_Cr[idx], d_gam_Nb[idx], gam_nrg, alpha, dt);
+		laves_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx],
+                     d_phi_del_old[idx], d_phi_lav_old[idx],
+		             d_phi_lav_new[idx],
+                     dgGdxCr, dgGdxNb,
+                     gam_Cr, gam_Nb,
+                     lav_Cr, lav_Nb,
+                     gam_nrg, alpha, dt);
 	}
 }
 
@@ -367,7 +354,7 @@ void device_evolution(struct CudaData* dev,
 	               1);
 	cahn_hilliard_kernel <<< num_tiles, tile_size>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
-	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
+	    dev->phi_del_old, dev->phi_lav_old,
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    nx, ny, nm,
 	    dt);
@@ -375,51 +362,10 @@ void device_evolution(struct CudaData* dev,
 	allen_cahn_kernel <<< num_tiles, tile_size>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
-	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
 	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->gam_Cr,      dev->gam_Nb,
 	    nx, ny, nm,
 	    alpha,
 	    dt);
-}
-
-__global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
-                                  fp_t* d_phi_del, fp_t* d_phi_lav,
-                                  fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
-                                  const int nx, const int ny)
-{
-	const int x = blockDim.x * blockIdx.x + threadIdx.x;
-	const int y = blockDim.y * blockIdx.y + threadIdx.y;
-	const int idx = nx * y + x;
-
-	if (x < nx && y < ny) {
-		const fp_t f_del = d_h(d_phi_del[idx]);
-		const fp_t f_lav = d_h(d_phi_lav[idx]);
-		const fp_t f_gam = 1. - f_del - f_lav;
-		const fp_t inv_fict_det = d_inv_fict_det(f_del, f_gam, f_lav);
-
-		d_gam_Cr[idx] = d_fict_gam_Cr(inv_fict_det, d_conc_Cr[idx], d_conc_Nb[idx],
-		                              f_del, f_gam, f_lav);
-		d_gam_Nb[idx] = d_fict_gam_Nb(inv_fict_det, d_conc_Cr[idx], d_conc_Nb[idx],
-		                              f_del, f_gam, f_lav);
-	}
-}
-
-void device_fictitious(struct CudaData* dev,
-                       const int nx, const int ny, const int nm,
-                       const int bx, const int by)
-{
-	/* divide matrices into blocks of bx * by threads */
-	dim3 tile_size(bx, by, 1);
-	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
-	               nTiles(ny, tile_size.y, nm),
-	               1);
-
-	fictitious_kernel <<< num_tiles, tile_size>>>(
-	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->gam_Cr,      dev->gam_Nb,
-	    nx, ny);
 }
 
 __global__ void init_prng_kernel(curandState* d_prng, const int nx, const int ny)

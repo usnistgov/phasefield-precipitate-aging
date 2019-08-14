@@ -83,7 +83,6 @@ void molfrac(const fp_t& wCr, const fp_t& wNb, fp_t& xCr, fp_t& xNb) {
 
 	xCr = nCr / N;
 	xNb = nNb / N;
-
 }
 
 /**
@@ -145,12 +144,6 @@ void seed_pair(GRID2D& grid,
  \brief Compute distance between MMSP coordinates
 */
 double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const double& dx);
-
-/**
- \brief Compute fictitious compositions using analytical expressions
-*/
-template<typename T>
-void update_compositions(MMSP::vector<T>& GRIDN);
 
 /**
  \brief Compute Gibbs free energy density
