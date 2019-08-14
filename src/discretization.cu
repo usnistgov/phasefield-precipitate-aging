@@ -201,23 +201,22 @@ void device_laplacian(struct CudaData* dev,
 
 }
 
-__device__ void composition_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
-                                   const fp_t& phi_del_old, const fp_t& phi_lav_old,
-                                   fp_t& conc_Cr_new,
-                                   fp_t& conc_Nb_new,
+__device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc_Nb_old,
+                                   const fp_t& d_frac_del,    const fp_t& d_frac_lav,
+                                   fp_t& d_conc_Cr_new,       fp_t& d_conc_Nb_new,
                                    const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
-    const fp_t conc_Cr_lap = conc_Cr_new;
-    const fp_t conc_Nb_lap = conc_Nb_new;
+    const fp_t conc_Cr_lap = d_conc_Cr_new;
+    const fp_t conc_Nb_lap = d_conc_Nb_new;
 
-    const fp_t DlapC_Cr = d_D_CrCr(conc_Cr_old, conc_Nb_old, phi_del_old, phi_lav_old) * conc_Cr_lap
-                        + d_D_CrNb(conc_Cr_old, conc_Nb_old, phi_del_old, phi_lav_old) * conc_Nb_lap;
-    const fp_t DlapC_Nb = d_D_NbCr(conc_Cr_old, conc_Nb_old, phi_del_old, phi_lav_old) * conc_Cr_lap
-                        + d_D_NbNb(conc_Cr_old, conc_Nb_old, phi_del_old, phi_lav_old) * conc_Nb_lap;
+    const fp_t DlapC_Cr = d_D_CrCr(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * conc_Cr_lap
+                        + d_D_CrNb(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * conc_Nb_lap;
+    const fp_t DlapC_Nb = d_D_NbCr(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * conc_Cr_lap
+                        + d_D_NbNb(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * conc_Nb_lap;
 
-	conc_Cr_new = conc_Cr_old + dt * DlapC_Cr;
-	conc_Nb_new = conc_Nb_old + dt * DlapC_Nb;
+	d_conc_Cr_new = d_conc_Cr_old + dt * DlapC_Cr;
+	d_conc_Nb_new = d_conc_Nb_old + dt * DlapC_Nb;
 }
 
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
@@ -235,7 +234,7 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	if (x < nx && y < ny) {
 		/* Cahn-Hilliard equations of motion for composition */
 		composition_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx],
-		                   d_phi_del_old[idx], d_phi_lav_old[idx],
+		                   d_h(d_phi_del_old[idx]), d_h(d_phi_lav_old[idx]),
 		                   d_conc_Cr_new[idx], d_conc_Nb_new[idx],
 		                   dt);
     }
@@ -471,8 +470,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		const int idx = nx * y + x;
 		const fp_t xCr = d_conc_Cr[idx];
 		const fp_t xNb = d_conc_Nb[idx];
-		const fp_t pDel = d_phi_del[idx];
-		const fp_t pLav = d_phi_lav[idx];
+		const fp_t pDel = d_h(d_phi_del[idx]);
+		const fp_t pLav = d_h(d_phi_lav[idx]);
 
 		// Test a delta particle
 		d_nucleation_driving_force_delta(xCr, xNb, &dG_chem);

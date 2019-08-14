@@ -287,10 +287,11 @@ int main(int argc, char* argv[])
 				MMSP::vector<fp_t>& GridN = grid(n);
 				const fp_t xCr = GridN[0];
 				const fp_t xNb = GridN[1];
-				const fp_t phi_del = GridN[NC];
-				const fp_t phi_lav = GridN[NC+1];
-				const fp_t local_dt = (meshres*meshres) /
-					(2.0 * dim * std::max(D_CrCr(xCr, xNb, phi_del, phi_lav), D_NbNb(xCr, xNb, phi_del, phi_lav)));
+				const fp_t phi_del = h(GridN[NC]);
+				const fp_t phi_lav = h(GridN[NC+1]);
+				const fp_t local_dt = (meshres * meshres) /
+					(2.0 * dim * std::max(std::fabs(D_CrCr(xCr, xNb, phi_del, phi_lav)),
+										  std::fabs(D_NbNb(xCr, xNb, phi_del, phi_lav))));
 
 				dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
 			}

@@ -391,21 +391,29 @@ void generate(int dim, const char* filename)
 
 		const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
 		fp_t dtDiffusionLimited = 1.0;
+		/*
 		#ifdef _OPENMP
 		#pragma omp parallel for reduction(min: dtDiffusionLimited)
 		#endif
+		*/
+		std::ofstream dfile("diffusivity.tsv");
 		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<fp_t>& GridN = initGrid(n);
 			const fp_t xCr = GridN[0];
 			const fp_t xNb = GridN[1];
-			const fp_t phi_del = GridN[NC];
-			const fp_t phi_lav = GridN[NC+1];
-			const fp_t local_dt = (meshres*meshres) /
-				(2.0 * dim * std::max(D_CrCr(xCr, xNb, phi_del, phi_lav), D_NbNb(xCr, xNb, phi_del, phi_lav)));
+			const fp_t phi_del = h(GridN[NC]);
+			const fp_t phi_lav = h(GridN[NC+1]);
+
+			const fp_t D11 = D_CrCr(xCr, xNb, phi_del, phi_lav);
+			const fp_t D22 = D_NbNb(xCr, xNb, phi_del, phi_lav);
+			const fp_t local_dt = (meshres * meshres) /
+				(2.0 * dim * std::max(std::fabs(D11), std::fabs(D22)));
+			dfile << D11 << '\t' << D22 << '\n';
 
 			dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
 		}
 		const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+		dfile.close();
 
 		if (rank == 0) {
 			std::cout << "Timestep dt=" << dt

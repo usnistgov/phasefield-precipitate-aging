@@ -112,8 +112,8 @@ __global__ void convolution_kernel(fp_t* d_conc_old,
 */
 __device__ void composition_kernel(const fp_t& d_conc_Cr_old,
                                    const fp_t& d_conc_Nb_old,
-                                   const fp_t& d_phi_del_old,
-                                   const fp_t& d_phi_lav_old,
+                                   const fp_t& d_frac_del,
+                                   const fp_t& d_frac_lav,
                                    fp_t& d_conc_Cr_new,
                                    fp_t& d_conc_Nb_new,
                                    const fp_t dt);
