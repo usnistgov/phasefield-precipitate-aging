@@ -1,0 +1,89 @@
+$ Mobility Database for Ni-Cr-Nb
+$ A subset extracted from the Mobility Database for
+$ Ni-Al-Cr-Co-Hf-Mo-Nb-Re-Ta-Ti-W, (C. Campbell, NIST)
+$ https://materialsdata.nist.gov/handle/11256/942
+
+ ELEMENT VA   VACUUM            0.0000E+00  0.0000E+00  0.0000E+00!
+ ELEMENT NI   FCC_A1            5.8690E+01  4.7870E+03  2.9796E+01!
+ ELEMENT CR   BCC_A2			5.1996E+01  4.0400E+03  2.3560E+01!
+ ELEMENT NB   BCC_A2			9.2906E+01  5.2200E+03  3.6270E+01 !
+
+ TYPE_DEFINITION % SEQ *!
+ DEFINE_SYSTEM_DEFAULT SPECIE 2 !
+ DEFAULT_COMMAND DEF_SYS_ELEMENT VA !
+
+ PHASE LIQUID:L %  1  1.0  !
+    CONSTITUENT LIQUID:L :NI,CR,NB :  !
+
+ZEROVOLUME_SPECIES VA !
+
+PARA VS(liquid) 0 1.0e-5; 3.00E+3 N !
+PARA VS(FCC_A1) 0 1.0e-5; 3.00E+3 N !
+
+$$$$$ Mobility of Cr $$$$$$$$$$$$
+
+ PARAMETER MQ(FCC_A1&CR,Al:VA;0) 298.15 -261700+R*T*LN(0.64); 6.00E+3 N 
+    REF200 ! 
+
+ PARAMETER MQ(FCC_A1&CR,CR:VA;0) 298.15 -235000-82*T; 6.00E+3 N  REF220 ! 
+ PARAMETER MQ(FCC_A1&CR,NB:VA;0) 298.15 -287000-64.4*T; 6.000E+3 N !
+ PARAMETER MQ(FCC_A1&CR,NI:VA;0) 298.15 -287000-64.4*T; 6.00E+3 N REF220 !
+
+ PARAMETER MQ(FCC_A1&CR,CR:B;0) 298.15 -235000-82.0*T; 6.00E+3 N !
+ PARAMETER MQ(FCC_A1&CR,NI:B;0) 298.15 -287000-64.4*T; 6.00E+3 N !
+
+$$ Cr-Ni $$
+
+ PARAMETER MQ(FCC_A1&CR,CR,NI:VA;0) 298.15 -68000; 6.00E+3 N REF220!
+
+
+$$$$$  Mobility of Nb $$$$$$$$$$$$$
+
+
+ PARAMETER MQ(FCC_A1&NB,CR:VA;0) 298.15 -255333+R*T*LN(7.6071E-5);
+         6.000E+3 N ! 
+ PARAMETER MQ(FCC_A1&NB,NB:VA;0) 298.15  -274328+R*T*LN(8.644E-5);
+	6.000E+3 N !
+ PARAMETER MQ(FCC_A1&NB,NI:VA;0) 298.15 -255333+R*T*LN(7.6071E-5);
+         6.000E+3 N !
+
+
+$$$$$  Mobility of Ni $$$$$$$$$$$
+
+ PARAMETER MQ(FCC_A1&NI,CR:VA;0) 298.15 -235000-82*T; 6.00E+3 N REF220 ! 
+ PARAMETER MQ(FCC_A1&NI,NB:VA;0) 298.15 -287000+R*T*LN(1.0E-4); 6.00E+3 N !
+ PARAMETER MQ(FCC_A1&NI,Ni:VA;0) 298.15 -287000-69.8*T; 6.00E+3 N REF220!
+
+$$ Cr-Ni $$
+
+ PARAMETER MQ(FCC_A1&NI,CR,NI:VA;0) 298.15 -81000; 6.00E+3 N REF220 !
+
+   
+$$$$ DIFFUSIVITY in the LIQUID $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+ PARAMETER DQ(LIQUID&CR,CR;0) 298.15 +R*T*LN(1.0E-9); 6.00E+3 N !
+ PARAMETER DQ(LIQUID&CR,NB;0) 298.15 +R*T*LN(1.0E-9); 6.00E+3 N !
+ PARAMETER DQ(LIQUID&CR,NI;0) 298.15 +R*T*LN(1.0E-9); 6.00E+3 N !
+
+ PARAMETER DQ(LIQUID&NB,CR;0) 298.15 +R*T*LN(1.0E-9); 6.00E+3 N !
+ PARAMETER DQ(LIQUID&NB,NB;0) 298.15 +R*T*LN(1.0E-9); 6.00E+3 N !
+ PARAMETER DQ(LIQUID&NB,NI;0) 298.15 +R*T*LN(1.0E-9); 6.00E+3 N !
+
+ PARAMETER DQ(LIQUID&NI,CR;0) 298.15 +R*T*LN(1.0E-9); 6.00E+3 N !
+ PARAMETER DQ(LIQUID&NI,NB;0) 298.15 +R*T*LN(1.0E-9); 6.00E+3 N !
+ PARAMETER DQ(LIQUID&NI,NI;0) 298.15 +R*T*LN(1.0E-9); 6.00E+3 N !
+
+
+LIST_OF_REFERENCES
+  NUMBER  SOURCE
+
+  REF200  'Engstrom and Agren, Z. Metallkd., vol87 (1996) p92; Ni-Cr-Al'
+  REF210  'Matan, Winand, Carter, Karunaratne, Bognanoff, Reed, Acta Mat. 
+	    Vol46 (1998) p4587; Ni-Al-Ti'
+  REF220  'Jonsson, Internal Report, Trita-Mac 562 (1994)  
+	     Royal Institute of Techn., Stockholm, Sweden; Fe,Cr,Ni-FCC' 
+  REF250 'Campbell, Boettinger, Kattner, Acta Mat. Vol50 (2002) p775;
+	    Ni-Co,Ni-Hf,Ni-Mo,Ni-Ta,Ni-W,Ni-Re (fcc)'
+
+  !
+
