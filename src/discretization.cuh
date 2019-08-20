@@ -82,6 +82,13 @@ void device_nucleation(struct CudaData* dev,
                        const fp_t dt);
 
 /**
+ \brief Update fictitious composition fields on device
+*/
+void device_fictitious(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by);
+
+/**
    \brief Compute Ni composition and order parameter on device
 */
 void device_dataviz(struct CudaData* dev,struct HostData* host,
@@ -94,6 +101,7 @@ void device_dataviz(struct CudaData* dev,struct HostData* host,
 __global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                 fp_t* d_phi_del,
                                 fp_t* d_phi_lav,
+                                fp_t* d_gam_Cr, fp_t* d_gam_Nb,
                                 const int nx,
                                 const int ny,
                                 const int nm);
@@ -133,10 +141,11 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
                              fp_t& phi_del_new,
-                             const fp_t dgGdxCr,      const fp_t dgGdxNb,
-                             const fp_t gam_Cr,       const fp_t gam_Nb,
-                             const fp_t del_Cr,       const fp_t del_Nb,
-                             const fp_t gam_nrg,      const fp_t alpha,
+                             const fp_t inv_fict_det,
+                             const fp_t f_del,       const fp_t f_lav,
+                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
+                             const fp_t gam_Cr,      const fp_t gam_Nb,
+                             const fp_t gam_nrg,     const fp_t alpha,
                              const fp_t dt);
 
 /**
@@ -145,10 +154,11 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
                              fp_t& phi_lav_new,
-                             const fp_t dgGdxCr,      const fp_t dgGdxNb,
-                             const fp_t gam_Cr,       const fp_t gam_Nb,
-                             const fp_t lav_Cr,       const fp_t lav_Nb,
-                             const fp_t gam_nrg,      const fp_t alpha,
+                             const fp_t inv_fict_det,
+                             const fp_t f_del,       const fp_t f_lav,
+                             const fp_t dgGdxCr,     const fp_t dgGdxNb,
+                             const fp_t gam_Cr,      const fp_t gam_Nb,
+                             const fp_t gam_nrg,     const fp_t alpha,
                              const fp_t dt);
 
 /**
@@ -158,6 +168,7 @@ __global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                   fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
                                   fp_t* d_lap_gam_Cr,  fp_t* d_lap_gam_Nb,
                                   fp_t* d_phi_del_new, fp_t* d_phi_lav_new,
+                                  fp_t* d_gam_Cr,      fp_t* d_gam_Nb,
                                   const int nx, const int ny, const int nm,
                                   const fp_t alpha,
                                   const fp_t dt);
@@ -190,6 +201,13 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                   const fp_t sigma_del, const fp_t sigma_lav,
                                   const fp_t unit_a, const fp_t ifce_width,
                                   const fp_t dx, const fp_t dy, const fp_t dt);
+/**
+ \brief Device kernel to update fictitious compositions in matrix phase
+*/
+__global__ void fictitious_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
+                                  fp_t* d_phi_del, fp_t* d_phi_lav,
+                                  fp_t* d_gam_Cr,  fp_t* d_gam_Nb,
+                                  const int nx,    const int ny);
 
 __global__ void dataviz_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb, fp_t* d_conc_Ni,
                                fp_t* d_ph_del, fp_t* d_phi_lav, fp_t* d_phi,

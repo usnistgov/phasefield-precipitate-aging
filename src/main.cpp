@@ -271,6 +271,8 @@ int main(int argc, char* argv[])
 				host.conc_Nb_old[j][i] = gridN[1];
 				host.phi_del_old[j][i] = gridN[NC];
 				host.phi_lav_old[j][i] = gridN[NC+1];
+				host.gam_Cr[j][i]      = gridN[NC+NP];
+				host.gam_Nb[j][i]      = gridN[NC+NP+1];
 			}
 
 			// initialize GPU
@@ -330,6 +332,8 @@ int main(int argc, char* argv[])
 					}
 					*/
 
+					device_fictitious(&dev, nx, ny, nm, bx, by);
+
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
@@ -371,6 +375,8 @@ int main(int argc, char* argv[])
 							gridN[1]       = host.conc_Nb_new[j][i];
 							gridN[NC]      = host.phi_del_new[j][i];
 							gridN[NC+1]    = host.phi_lav_new[j][i];
+							gridN[NC+NP]   = host.gam_Cr[j][i];
+							gridN[NC+NP+1] = host.gam_Nb[j][i];
 						}
 
 						std::stringstream outstr;

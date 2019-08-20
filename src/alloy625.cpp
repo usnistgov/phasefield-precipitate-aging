@@ -362,7 +362,7 @@ void generate(int dim, const char* filename)
 		const int Ny =   9; // Nx for particles
 
 		double Ntot = 1.0;
-		GRID2D initGrid(NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
+		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid, d) = meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
@@ -383,6 +383,10 @@ void generate(int dim, const char* filename)
 		seed_solitaire(initGrid, s_delta(), s_laves(), lattice_const,
 					   ifce_width, meshres, dt, mtrand);
 		*/
+
+		// Update fictitious compositions
+		for (int n = 0; n < nodes(initGrid); n++)
+			update_compositions(initGrid(n));
 
 		ghostswap(initGrid);
 
@@ -491,6 +495,21 @@ double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const doub
 	return dx * std::sqrt(r);
 }
 
+template<typename T>
+void update_compositions(MMSP::vector<T>& GRIDN)
+{
+	const T& xcr = GRIDN[0];
+	const T& xnb = GRIDN[1];
+
+	const T fdel = h(GRIDN[NC]);
+	const T flav = h(GRIDN[NC+1]);
+	const T fgam = 1. - fdel - flav;
+
+	const T inv_det = inv_fict_det(fdel, fgam, flav);
+	GRIDN[NC + NP]     = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
+	GRIDN[NC + NP + 1] = fict_gam_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
+}
+
 template <typename T>
 T gibbs(const MMSP::vector<T>& v)
 {
@@ -499,11 +518,11 @@ T gibbs(const MMSP::vector<T>& v)
 	const T xNb = v[1];
 	const T f_del = h(v[NC  ]);
 	const T f_lav = h(v[NC + 1]);
-	const T f_gam = 1.0 - f_del - f_lav;
+	const T gam_Cr = v[NC + NP];
+	const T gam_Nb = v[NC + NP + 1];
 
+	const T f_gam = 1.0 - f_del - f_lav;
 	const T inv_det = inv_fict_det(f_del, f_gam, f_lav);
-	const T gam_Cr = fict_gam_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
-	const T gam_Nb = fict_gam_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
 	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
