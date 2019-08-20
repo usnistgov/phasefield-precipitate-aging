@@ -218,17 +218,15 @@ void device_laplacian(struct CudaData* dev,
 
 __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc_Nb_old,
                                    const fp_t& d_frac_del,    const fp_t& d_frac_lav,
+                                   const fp_t& d_gam_Cr_lap, const fp_t& d_gam_Nb_lap,
                                    fp_t& d_conc_Cr_new,       fp_t& d_conc_Nb_new,
                                    const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
-    const fp_t conc_Cr_lap = d_conc_Cr_new;
-    const fp_t conc_Nb_lap = d_conc_Nb_new;
-
-    const fp_t DlapC_Cr = d_D_CrCr(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * conc_Cr_lap
-                        + d_D_CrNb(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * conc_Nb_lap;
-    const fp_t DlapC_Nb = d_D_NbCr(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * conc_Cr_lap
-                        + d_D_NbNb(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * conc_Nb_lap;
+    const fp_t DlapC_Cr = d_D_CrCr(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * d_gam_Cr_lap
+                        + d_D_CrNb(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * d_gam_Nb_lap;
+    const fp_t DlapC_Nb = d_D_NbCr(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * d_gam_Cr_lap
+                        + d_D_NbNb(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * d_gam_Nb_lap;
 
 	d_conc_Cr_new = d_conc_Cr_old + dt * DlapC_Cr;
 	d_conc_Nb_new = d_conc_Nb_old + dt * DlapC_Nb;
@@ -236,6 +234,7 @@ __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc
 
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                      fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
+                                     fp_t* d_gam_Cr_lap,  fp_t* d_gam_Nb_lap,
                                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                      const int nx, const int ny, const int nm,
                                      const fp_t dt)
@@ -248,9 +247,10 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	/* explicit Euler solution to the equation of motion */
 	if (x < nx && y < ny) {
 		/* Cahn-Hilliard equations of motion for composition */
-		composition_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx],
+		composition_kernel(d_conc_Cr_old[idx],      d_conc_Nb_old[idx],
 		                   d_h(d_phi_del_old[idx]), d_h(d_phi_lav_old[idx]),
-		                   d_conc_Cr_new[idx], d_conc_Nb_new[idx],
+                           d_gam_Cr_lap[idx],       d_gam_Nb_lap[idx],
+		                   d_conc_Cr_new[idx],      d_conc_Nb_new[idx],
 		                   dt);
     }
 }
@@ -366,6 +366,7 @@ void device_evolution(struct CudaData* dev,
 	               1);
 	cahn_hilliard_kernel <<< num_tiles, tile_size>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
+	    dev->phi_del_old, dev->phi_lav_old,
 	    dev->lap_gam_Cr,  dev->lap_gam_Nb,
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    nx, ny, nm,

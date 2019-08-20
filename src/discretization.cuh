@@ -122,6 +122,8 @@ __device__ void composition_kernel(const fp_t& d_conc_Cr_old,
                                    const fp_t& d_conc_Nb_old,
                                    const fp_t& d_frac_del,
                                    const fp_t& d_frac_lav,
+                                   const fp_t& d_gam_Cr_lap,
+                                   const fp_t& d_gam_Nb_lap,
                                    fp_t& d_conc_Cr_new,
                                    fp_t& d_conc_Nb_new,
                                    const fp_t dt);
@@ -131,6 +133,7 @@ __device__ void composition_kernel(const fp_t& d_conc_Cr_old,
 */
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
                                      fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
+                                     fp_t* d_gam_Cr_lap,  fp_t* d_gam_Nb_lap,
                                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                      const int nx, const int ny, const int nm,
                                      const fp_t dt);
