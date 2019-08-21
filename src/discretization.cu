@@ -223,10 +223,16 @@ __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc
                                    const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
+    const fp_t DlapC_Cr = d_D_CrCr(0.28805, 0.096725, 0.01, 0.01) * d_gam_Cr_lap
+                        + d_D_CrNb(0.28805, 0.096725, 0.01, 0.01) * d_gam_Nb_lap;
+    const fp_t DlapC_Nb = d_D_NbCr(0.28805, 0.096725, 0.01, 0.01) * d_gam_Cr_lap
+                        + d_D_NbNb(0.28805, 0.096725, 0.01, 0.01) * d_gam_Nb_lap;
+    /* Improper discretization for variable D
     const fp_t DlapC_Cr = d_D_CrCr(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * d_gam_Cr_lap
                         + d_D_CrNb(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * d_gam_Nb_lap;
     const fp_t DlapC_Nb = d_D_NbCr(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * d_gam_Cr_lap
                         + d_D_NbNb(d_conc_Cr_old, d_conc_Nb_old, d_frac_del, d_frac_lav) * d_gam_Nb_lap;
+    */
 
 	d_conc_Cr_new = d_conc_Cr_old + dt * DlapC_Cr;
 	d_conc_Nb_new = d_conc_Nb_old + dt * DlapC_Nb;

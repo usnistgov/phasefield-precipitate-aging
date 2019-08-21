@@ -191,8 +191,8 @@ void seed_solitaire(GRID2D& grid,
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr(xCr, xNb, phi_del, phi_lav),
-									  D_NbNb(xCr, xNb, phi_del, phi_lav),
+		                              D_CrCr(0.28805, 0.096725, 0.01, 0.01),
+									  D_NbNb(0.28805, 0.096725, 0.01, 0.01),
 		                              sigma_del,
 		                              Vatom,
 		                              n_gam,
@@ -218,8 +218,8 @@ void seed_solitaire(GRID2D& grid,
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr(xCr, xNb, phi_del, phi_lav),
-									  D_NbNb(xCr, xNb, phi_del, phi_lav),
+		                              D_CrCr(0.28805, 0.096725, 0.01, 0.01),
+									  D_NbNb(0.28805, 0.096725, 0.01, 0.01),
 		                              sigma_lav,
 		                              Vatom,
 		                              n_gam,
@@ -408,8 +408,8 @@ void generate(int dim, const char* filename)
 			const fp_t phi_del = h(GridN[NC]);
 			const fp_t phi_lav = h(GridN[NC+1]);
 
-			const fp_t D11 = D_CrCr(xCr, xNb, phi_del, phi_lav);
-			const fp_t D22 = D_NbNb(xCr, xNb, phi_del, phi_lav);
+			const fp_t D11 = D_CrCr(0.28805, 0.096725, 0.01, 0.01);
+			const fp_t D22 = D_NbNb(0.28805, 0.096725, 0.01, 0.01);
 			const fp_t local_dt = (meshres * meshres) /
 				(2.0 * dim * std::max(std::fabs(D11), std::fabs(D22)));
 			dfile << D11 << '\t' << D22 << '\n';

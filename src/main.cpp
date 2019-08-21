@@ -292,8 +292,8 @@ int main(int argc, char* argv[])
 				const fp_t phi_del = h(GridN[NC]);
 				const fp_t phi_lav = h(GridN[NC+1]);
 				const fp_t local_dt = (meshres * meshres) /
-					(2.0 * dim * std::max(std::fabs(D_CrCr(xCr, xNb, phi_del, phi_lav)),
-										  std::fabs(D_NbNb(xCr, xNb, phi_del, phi_lav))));
+					(2.0 * dim * std::max(std::fabs(D_CrCr(0.28805, 0.096725, 0.01, 0.01)),
+										  std::fabs(D_NbNb(0.28805, 0.096725, 0.01, 0.01))));
 
 				dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
 			}
