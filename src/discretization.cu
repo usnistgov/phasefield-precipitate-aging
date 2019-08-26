@@ -232,18 +232,25 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 	__syncthreads();
 
 	/* compute the 5-point Laplacian with variable coefficients */
-	if (til_x < dst_nx &&
-        til_y < dst_ny) {
-		fp_t inv_det, f_gam;
-		fp_t divDgradU_Cr = 0.0;
-		fp_t divDgradU_Nb = 0.0;
+	if (til_x < dst_nx && til_y < dst_ny) {
+		const fp_t xWeight = 1.0 / (2.0 * dx2);
+		const fp_t yWeight = 1.0 / (2.0 * dy2);
 
 		/* Note: tile is centered on [til_nx*(til_y+nm/2) + (til_x+nm/2)] */
-		const double4* mid = &(d_tile[til_nx * (til_y + 1) + (til_x + 1)]);
-		const double4* lft = &(d_tile[til_nx * (til_y + 1) + (til_x + 0)]);
-		const double4* rgt = &(d_tile[til_nx * (til_y + 1) + (til_x + 2)]);
-		const double4* bot = &(d_tile[til_nx * (til_y + 0) + (til_x + 1)]);
-		const double4* top = &(d_tile[til_nx * (til_y + 2) + (til_x + 1)]);
+		const size_t til_mdx = til_x + 1;
+		const size_t til_mdy = til_y + 1;
+        const size_t til_lft = til_x;
+        const size_t til_rgt = til_x + 2;
+        const size_t til_bot = til_y;
+        const size_t til_top = til_y + 2;
+
+		const double4* mid = &(d_tile[til_nx * til_mdy + til_mdx]);
+		const double4* lft = &(d_tile[til_nx * til_mdy + til_lft]);
+		const double4* rgt = &(d_tile[til_nx * til_mdy + til_rgt]);
+		const double4* bot = &(d_tile[til_nx * til_bot + til_mdx]);
+		const double4* top = &(d_tile[til_nx * til_top + til_mdx]);
+
+		fp_t inv_det, f_gam;
 
 		f_gam = 1.0 - lft->z - lft->w;
 		inv_det = d_inv_fict_det(lft->z, f_gam, lft->w);
@@ -270,35 +277,41 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 		const fp_t top_Cr = d_fict_gam_Cr(inv_det, top->x, top->y, top->z, f_gam, top->w);
 		const fp_t top_Nb = d_fict_gam_Nb(inv_det, top->x, top->y, top->z, f_gam, top->w);
 
+        // Finite Differences
+        // Derivation: TKR5p298--299
+
+		fp_t divDgradU_Cr = 0.0;
+		fp_t divDgradU_Nb = 0.0;
+
 		// x-axis
 		divDgradU_Cr += ((d_D_CrCr(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_CrCr(mid->x, mid->y, mid->z, mid->w)) * (rgt_Cr - mid_Cr)
                      -   (d_D_CrCr(mid->x, mid->y, mid->z, mid->w) + d_D_CrCr(lft->x, lft->y, lft->z, lft->w)) * (mid_Cr - lft_Cr)
-		             ) / (2.0 * dx2);
-		divDgradU_Cr += ((d_D_CrNb(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_CrNb(mid->x, mid->y, mid->z, mid->w)) * (rgt_Cr - mid_Cr)
-		             -   (d_D_CrNb(mid->x, mid->y, mid->z, mid->w) + d_D_CrNb(lft->x, lft->y, lft->z, lft->w)) * (mid_Cr - lft_Cr)
-		             ) / (2.0 * dx2);
+		             ) * xWeight;
+		divDgradU_Cr += ((d_D_CrNb(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_CrNb(mid->x, mid->y, mid->z, mid->w)) * (rgt_Nb - mid_Nb)
+		             -   (d_D_CrNb(mid->x, mid->y, mid->z, mid->w) + d_D_CrNb(lft->x, lft->y, lft->z, lft->w)) * (mid_Nb - lft_Nb)
+		             ) * xWeight;
 
-		divDgradU_Nb += ((d_D_NbCr(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_NbCr(mid->x, mid->y, mid->z, mid->w)) * (rgt_Nb - mid_Nb)
-		             -   (d_D_NbCr(mid->x, mid->y, mid->z, mid->w) + d_D_NbCr(lft->x, lft->y, lft->z, lft->w)) * (mid_Nb - lft_Nb)
-		             ) / (2.0 * dx2);
+		divDgradU_Nb += ((d_D_NbCr(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_NbCr(mid->x, mid->y, mid->z, mid->w)) * (rgt_Cr - mid_Cr)
+		             -   (d_D_NbCr(mid->x, mid->y, mid->z, mid->w) + d_D_NbCr(lft->x, lft->y, lft->z, lft->w)) * (mid_Cr - lft_Cr)
+		             ) * xWeight;
 		divDgradU_Nb += ((d_D_NbNb(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_NbNb(mid->x, mid->y, mid->z, mid->w)) * (rgt_Nb - mid_Nb)
 		             -   (d_D_NbNb(mid->x, mid->y, mid->z, mid->w) + d_D_NbNb(lft->x, lft->y, lft->z, lft->w)) * (mid_Nb - lft_Nb)
-		             ) / (2.0 * dx2);
+		             ) * xWeight;
 
 		// y-axis
 		divDgradU_Cr += ((d_D_CrCr(top->x, top->y, top->z, top->w) + d_D_CrCr(mid->x, mid->y, mid->z, mid->w)) * (top_Cr - mid_Cr)
 		             -   (d_D_CrCr(mid->x, mid->y, mid->z, mid->w) + d_D_CrCr(bot->x, bot->y, bot->z, bot->w)) * (mid_Cr - bot_Cr)
-		             ) / (2.0 * dy2);
-		divDgradU_Cr += ((d_D_CrNb(top->x, top->y, top->z, top->w) + d_D_CrNb(mid->x, mid->y, mid->z, mid->w)) * (top_Cr - mid_Cr)
-		             -   (d_D_CrNb(mid->x, mid->y, mid->z, mid->w) + d_D_CrNb(bot->x, bot->y, bot->z, bot->w)) * (mid_Cr - bot_Cr)
-		             ) / (2.0 * dy2);
+		             ) * yWeight;
+		divDgradU_Cr += ((d_D_CrNb(top->x, top->y, top->z, top->w) + d_D_CrNb(mid->x, mid->y, mid->z, mid->w)) * (top_Nb - mid_Nb)
+		             -   (d_D_CrNb(mid->x, mid->y, mid->z, mid->w) + d_D_CrNb(bot->x, bot->y, bot->z, bot->w)) * (mid_Nb - bot_Nb)
+		             ) * yWeight;
 
-		divDgradU_Nb += ((d_D_NbCr(top->x, top->y, top->z, top->w) + d_D_NbCr(mid->x, mid->y, mid->z, mid->w)) * (top_Nb - mid_Nb)
-		             -   (d_D_NbCr(mid->x, mid->y, mid->z, mid->w) + d_D_NbCr(bot->x, bot->y, bot->z, bot->w)) * (mid_Nb - bot_Nb)
-		             ) / (2.0 * dy2);
+		divDgradU_Nb += ((d_D_NbCr(top->x, top->y, top->z, top->w) + d_D_NbCr(mid->x, mid->y, mid->z, mid->w)) * (top_Cr - mid_Cr)
+		             -   (d_D_NbCr(mid->x, mid->y, mid->z, mid->w) + d_D_NbCr(bot->x, bot->y, bot->z, bot->w)) * (mid_Cr - bot_Cr)
+		             ) * yWeight;
 		divDgradU_Nb += ((d_D_NbNb(top->x, top->y, top->z, top->w) + d_D_NbNb(mid->x, mid->y, mid->z, mid->w)) * (top_Nb - mid_Nb)
 		             -   (d_D_NbNb(mid->x, mid->y, mid->z, mid->w) + d_D_NbNb(bot->x, bot->y, bot->z, bot->w)) * (mid_Nb - bot_Nb)
-		             ) / (2.0 * dy2);
+		             ) * yWeight;
 
 		/* record value */
 		if (dst_y < ny && dst_x < nx) {
@@ -756,8 +769,11 @@ void device_dataviz(struct CudaData* dev, struct HostData* host,
 	    dev->phi_del_old, dev->phi_lav_old, dev->phi,
 	    nx, ny);
 
-	cudaMemcpy(host->conc_Ni[0], dev->conc_Ni, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->phi[0], dev->phi, nx * ny * sizeof(fp_t),
-	           cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->conc_Ni[0], dev->conc_Ni, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+
+	cudaMemcpy(host->phi_del_new[0], dev->phi_del_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->phi_lav_new[0], dev->phi_lav_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->phi[0], dev->phi, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 }

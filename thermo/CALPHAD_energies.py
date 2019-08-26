@@ -364,10 +364,10 @@ dmu_NbNb = (1 - phi_del - phi_lav) * p_d2Ggam_dxNbNb \
            + phi_del * p_d2Gdel_dxNbNb \
            + phi_lav * p_d2Gdel_dxNbNb
 
-D_CrCr = Vm**3 * (M_CrCr * dmu_CrCr + M_CrNb * dmu_NbCr)
-D_CrNb = Vm**3 * (M_CrCr * dmu_CrNb + M_CrNb * dmu_NbNb)
-D_NbCr = Vm**3 * (M_NbCr * dmu_CrCr + M_NbNb * dmu_NbCr)
-D_NbNb = Vm**3 * (M_NbCr * dmu_NbCr + M_NbNb * dmu_NbNb)
+D_CrCr = Vm**3 * factor(expand(M_CrCr * dmu_CrCr + M_CrNb * dmu_NbCr))
+D_CrNb = Vm**3 * factor(expand(M_CrCr * dmu_CrNb + M_CrNb * dmu_NbNb))
+D_NbCr = Vm**3 * factor(expand(M_NbCr * dmu_CrCr + M_NbNb * dmu_NbCr))
+D_NbNb = Vm**3 * factor(expand(M_NbCr * dmu_NbCr + M_NbNb * dmu_NbNb))
 
 # Generate numerically efficient C-code
 
