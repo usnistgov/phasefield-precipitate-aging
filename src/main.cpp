@@ -315,7 +315,7 @@ int main(int argc, char* argv[])
 					// === Start Architecture-Specific Kernel ===
 					device_boundaries(&dev, nx, ny, nm, bx, by);
 
-					device_laplacian(&dev, nx, ny, nm, bx, by);
+					device_laplacian(&dev, nx, ny, nm, bx, by, dx(grid, 0), dx(grid, 1));
 
 					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 

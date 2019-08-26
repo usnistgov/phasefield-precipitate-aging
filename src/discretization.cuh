@@ -51,8 +51,9 @@ void device_laplacian_boundaries(struct CudaData* dev,
    \brief Update Laplacian fields on device
 */
 void device_laplacian(struct CudaData* dev,
-                      const int nx, const int ny, const int nm,
-                      const int bx, const int by);
+                      const int nx,  const int ny, const int nm,
+                      const int bx,  const int by,
+                      const fp_t dx, const fp_t dy);
 
 /**
  \brief Step equations of motion to update fields on device
@@ -114,6 +115,15 @@ __global__ void convolution_kernel(fp_t* d_conc_old,
                                    const int nx,
                                    const int ny,
                                    const int nm);
+
+/**
+ \brief Tiled Laplacian with variable diffusivity for execution on the GPU
+*/
+__global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
+                                            fp_t* d_conc_Cr_old, fp_t* d_conc_Cr_new,
+                                            fp_t* d_conc_Nb_old, fp_t* d_conc_Nb_new,
+                                            const int nx, const int ny, const int nm,
+                                            const fp_t dx2, const fp_t dy2);
 
 /**
  \brief Device kernel to update field variables for composition
