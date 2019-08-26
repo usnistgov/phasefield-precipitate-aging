@@ -292,8 +292,8 @@ int main(int argc, char* argv[])
 				const fp_t phi_del = h(GridN[NC]);
 				const fp_t phi_lav = h(GridN[NC+1]);
 				const fp_t local_dt = (meshres * meshres) /
-					(2.0 * dim * std::max(std::fabs(D_CrCr(0.28805, 0.096725, 0.01, 0.01)),
-										  std::fabs(D_NbNb(0.28805, 0.096725, 0.01, 0.01))));
+					(2.0 * dim * std::max(std::fabs(D_CrCr(xCr, xNb, phi_del, phi_lav)),
+										  std::fabs(D_NbNb(xCr, xNb, phi_del, phi_lav))));
 
 				dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
 			}
@@ -312,6 +312,7 @@ int main(int argc, char* argv[])
 				/* start update() */
 				for (uint64_t j = i; j < i + increment; j++) {
 					print_progress(j - i, increment);
+
 					// === Start Architecture-Specific Kernel ===
 					device_boundaries(&dev, nx, ny, nm, bx, by);
 
@@ -357,7 +358,8 @@ int main(int argc, char* argv[])
 						std::cerr << "Error: cannot write images in parallel." <<std::endl;
 						MMSP::Abort(EXIT_FAILURE);
 						#endif
-						write_matplotlib(host.conc_Ni, host.phi,
+						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
+										 host.phi_del_new, host.phi_lav_new,
 										 nx, ny, nm, MMSP::dx(grid),
 										 j+1, dt, imgname.str().c_str());
 					}
@@ -377,6 +379,26 @@ int main(int argc, char* argv[])
 							gridN[NC+1]    = host.phi_lav_new[j][i];
 							gridN[NC+NP]   = host.gam_Cr[j][i];
 							gridN[NC+NP+1] = host.gam_Nb[j][i];
+						}
+
+						#ifdef _OPENMP
+						#pragma omp parallel for reduction(min: dtDiffusionLimited)
+						#endif
+						for (int n = 0; n < MMSP::nodes(grid); n++) {
+							MMSP::vector<fp_t>& GridN = grid(n);
+							const fp_t xCr = GridN[0];
+							const fp_t xNb = GridN[1];
+							const fp_t phi_del = h(GridN[NC]);
+							const fp_t phi_lav = h(GridN[NC+1]);
+							const fp_t local_dt = (meshres * meshres) /
+								(2.0 * dim * std::max(std::fabs(D_CrCr(xCr, xNb, phi_del, phi_lav)),
+													  std::fabs(D_NbNb(xCr, xNb, phi_del, phi_lav))));
+
+							dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
+						}
+						if (LinStab * dtDiffusionLimited < dt) {
+							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least " << dt / (LinStab * dtDiffusionLimited) << std::endl;
+							std::exit(EXIT_FAILURE);
 						}
 
 						std::stringstream outstr;

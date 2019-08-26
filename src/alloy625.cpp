@@ -185,14 +185,14 @@ void seed_solitaire(GRID2D& grid,
 		// Embed a delta particle
 		xCr = grid(x)[0];
 		xNb = grid(x)[1];
-		const fp_t phi_del = grid(x)[NC];
-		const fp_t phi_lav = grid(x)[NC+1];
+		const fp_t phi_del = h(grid(x)[NC]);
+		const fp_t phi_lav = h(grid(x)[NC+1]);
 
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr(0.28805, 0.096725, 0.01, 0.01),
-									  D_NbNb(0.28805, 0.096725, 0.01, 0.01),
+		                              D_CrCr(xCr, xNb, phi_del, phi_lav),
+									  D_NbNb(xCr, xNb, phi_del, phi_lav),
 		                              sigma_del,
 		                              Vatom,
 		                              n_gam,
@@ -212,14 +212,14 @@ void seed_solitaire(GRID2D& grid,
 		// Embed a Laves particle
 		xCr = grid(x)[0];
 		xNb = grid(x)[1];
-		const fp_t phi_del = grid(x)[NC];
-		const fp_t phi_lav = grid(x)[NC+1];
+		const fp_t phi_del = h(grid(x)[NC]);
+		const fp_t phi_lav = h(grid(x)[NC+1]);
 
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr(0.28805, 0.096725, 0.01, 0.01),
-									  D_NbNb(0.28805, 0.096725, 0.01, 0.01),
+		                              D_CrCr(xCr, xNb, phi_del, phi_lav),
+									  D_NbNb(xCr, xNb, phi_del, phi_lav),
 		                              sigma_lav,
 		                              Vatom,
 		                              n_gam,
@@ -246,22 +246,21 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 	const fp_t xCr = grid(mid)[0];
 	const fp_t xNb = grid(mid)[1];
 
-	const int R_depletion_Cr = w_precip * (1. + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
-	const int R_depletion_Nb = w_precip * (1. + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t R_precip = meshres * w_precip + 3.0 * ifce_width;
+	const fp_t R_depletion_Cr = R_precip * (1. + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = R_precip * (1. + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	for (x[1] = g0(grid, 1); x[1] < g1(grid, 1); x[1]++) {
 		for (x[0] = g0(grid, 0); x[0] < g0(grid, 0) + w_precip; x[0]++) {
+			// Smoothly interpolate through the interface , TKR5p276
 			vector<fp_t>& GridN = grid(x);
-			GridN[0] = xe_del_Cr();
-			GridN[1] = xe_del_Nb();
-			GridN[NC] = 1.;
+			const fp_t r = meshres * (x[0] - g0(grid, 0));
+			GridN[0] = xe_gam_Cr() + (xe_del_Cr() - xe_gam_Cr()) * tanh_interp(r - R_precip / 3, ifce_width)
+			                       + (xCr - xe_gam_Cr()) * tanh_interp(-r + R_depletion_Cr / 3, ifce_width);
+			GridN[1] = xe_gam_Nb() + (xe_del_Nb() - xe_gam_Nb()) * tanh_interp(r - R_precip / 3, ifce_width)
+			                       + (xNb - xe_gam_Nb()) * tanh_interp(-r + R_depletion_Nb / 3, ifce_width);
+			GridN[NC] = tanh_interp(r - R_precip / 3, ifce_width);
 		}
-
-		for (x[0] = g0(grid, 0) + w_precip; x[0] < g0(grid, 0) + R_depletion_Cr; x[0]++)
-			grid(x)[0] = xe_gam_Cr();
-
-		for (x[0] = g0(grid, 0) + w_precip; x[0] < g0(grid, 0) + R_depletion_Nb; x[0]++)
-			grid(x)[1] = xe_gam_Nb();
 	}
 }
 
@@ -400,7 +399,6 @@ void generate(int dim, const char* filename)
 		#pragma omp parallel for reduction(min: dtDiffusionLimited)
 		#endif
 		*/
-		std::ofstream dfile("diffusivity.tsv");
 		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<fp_t>& GridN = initGrid(n);
 			const fp_t xCr = GridN[0];
@@ -408,16 +406,14 @@ void generate(int dim, const char* filename)
 			const fp_t phi_del = h(GridN[NC]);
 			const fp_t phi_lav = h(GridN[NC+1]);
 
-			const fp_t D11 = D_CrCr(0.28805, 0.096725, 0.01, 0.01);
-			const fp_t D22 = D_NbNb(0.28805, 0.096725, 0.01, 0.01);
+			const fp_t D11 = D_CrCr(xCr, xNb, phi_del, phi_lav);
+			const fp_t D22 = D_NbNb(xCr, xNb, phi_del, phi_lav);
 			const fp_t local_dt = (meshres * meshres) /
 				(2.0 * dim * std::max(std::fabs(D11), std::fabs(D22)));
-			dfile << D11 << '\t' << D22 << '\n';
 
 			dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
 		}
 		const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-		dfile.close();
 
 		if (rank == 0) {
 			std::cout << "Timestep dt=" << dt
@@ -439,14 +435,20 @@ void generate(int dim, const char* filename)
 
 		// write initial condition image
 
-		fp_t** xNi = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
-		fp_t** phi = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
-		xNi[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
-		phi[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		fp_t** xCr = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** xNb = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** pDel = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** pLav = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		xCr[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		xNb[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		pDel[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		pLav[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
 
 		for (int i = 1; i < Ny + 2; i++) {
-			xNi[i] = &(xNi[0])[(Nx + 2) * i];
-			phi[i] = &(phi[0])[(Nx + 2) * i];
+			xCr[i] = &(xCr[0])[(Nx + 2) * i];
+			xNb[i] = &(xNb[0])[(Nx + 2) * i];
+			pDel[i] = &(pDel[0])[(Nx + 2) * i];
+			pLav[i] = &(pLav[0])[(Nx + 2) * i];
 		}
 
 		#ifdef _OPENMP
@@ -457,8 +459,10 @@ void generate(int dim, const char* filename)
 			const int i = x[0] - g0(initGrid, 0) + 1;
 			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
 			                                          // (mmsp2png of mesh is correct)
-			xNi[j][i] = 1. - initGrid(n)[0] - initGrid(n)[1];
-			phi[j][i] = h(initGrid(n)[NC]) + h(initGrid(n)[NC+1]);
+			xCr[j][i] = initGrid(n)[0];
+			xNb[j][i] = initGrid(n)[1];
+			pDel[j][i] = initGrid(n)[NC];
+			pLav[j][i] = initGrid(n)[NC+1];
 		}
 
 		std::string imgname(filename);
@@ -469,12 +473,17 @@ void generate(int dim, const char* filename)
 		Abort(EXIT_FAILURE);
 		#endif
 		const int nm = 3, step = 0;
-		write_matplotlib(xNi, phi, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
+		write_matplotlib(xCr, xNb, pDel, pLav, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
 
-		free(xNi[0]);
-		free(phi[0]);
-		free(xNi);
-		free(phi);
+		free(xCr[0]);
+		free(xNb[0]);
+		free(pDel[0]);
+		free(pLav[0]);
+		free(xCr);
+		free(xNb);
+		free(pDel);
+		free(pLav);
+
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
 		Abort(EXIT_FAILURE);
