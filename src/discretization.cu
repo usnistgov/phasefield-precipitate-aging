@@ -192,10 +192,10 @@ __global__ void convolution_kernel(fp_t* d_old,
 }
 
 __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
-                                            fp_t* d_conc_Cr_old, fp_t* d_conc_Cr_new,
-                                            fp_t* d_conc_Nb_old, fp_t* d_conc_Nb_new,
-                                            const int nx, const int ny, const int nm,
-                                            const fp_t dx2, const fp_t dy2)
+        fp_t* d_conc_Cr_old, fp_t* d_conc_Cr_new,
+        fp_t* d_conc_Nb_old, fp_t* d_conc_Nb_new,
+        const int nx, const int ny, const int nm,
+        const fp_t dx, const fp_t dy)
 {
 	/* source and tile width include the halo cells */
 	const int src_nx = blockDim.x;
@@ -224,8 +224,8 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 		/* if src_y==0, then dst_y==nm/2: this is a halo row */
 		(d_tile[til_nx * til_y + til_x]).x = d_conc_Cr_old[nx * src_y + src_x];
 		(d_tile[til_nx * til_y + til_x]).y = d_conc_Nb_old[nx * src_y + src_x];
-		(d_tile[til_nx * til_y + til_x]).z = d_h(d_phi_del_old[nx * src_y + src_x]);
-		(d_tile[til_nx * til_y + til_x]).w = d_h(d_phi_lav_old[nx * src_y + src_x]);
+		(d_tile[til_nx * til_y + til_x]).z = d_phi_del_old[nx * src_y + src_x];
+		(d_tile[til_nx * til_y + til_x]).w = d_phi_lav_old[nx * src_y + src_x];
 	}
 
 	/* tile data is shared: wait for all threads to finish copying */
@@ -233,16 +233,18 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 
 	/* compute the 5-point Laplacian with variable coefficients */
 	if (til_x < dst_nx && til_y < dst_ny) {
-		const fp_t xWeight = 1.0 / (2.0 * dx2);
-		const fp_t yWeight = 1.0 / (2.0 * dy2);
+		const fp_t xGradWeight = 1.0 / (4.0 * dx);
+		const fp_t xLapWeight = 1.0 / (2.0 * dx * dx);
+		const fp_t yGradWeight = 1.0 / (4.0 * dy);
+		const fp_t yLapWeight = 1.0 / (2.0 * dy * dy);
 
 		/* Note: tile is centered on [til_nx*(til_y+nm/2) + (til_x+nm/2)] */
 		const size_t til_mdx = til_x + 1;
 		const size_t til_mdy = til_y + 1;
-        const size_t til_lft = til_x;
-        const size_t til_rgt = til_x + 2;
-        const size_t til_bot = til_y;
-        const size_t til_top = til_y + 2;
+		const size_t til_lft = til_x;
+		const size_t til_rgt = til_x + 2;
+		const size_t til_bot = til_y;
+		const size_t til_top = til_y + 2;
 
 		const double4* mid = &(d_tile[til_nx * til_mdy + til_mdx]);
 		const double4* lft = &(d_tile[til_nx * til_mdy + til_lft]);
@@ -250,68 +252,268 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 		const double4* bot = &(d_tile[til_nx * til_bot + til_mdx]);
 		const double4* top = &(d_tile[til_nx * til_top + til_mdx]);
 
-		fp_t inv_det, f_gam;
+		const fp_t mid_f_del = d_h(mid->z);
+        const fp_t mid_f_lav = d_h(mid->w);
+		const fp_t lft_f_del = d_h(lft->z);
+        const fp_t lft_f_lav = d_h(lft->w);
+		const fp_t rgt_f_del = d_h(rgt->z);
+        const fp_t rgt_f_lav = d_h(rgt->w);
+		const fp_t bot_f_del = d_h(bot->z);
+        const fp_t bot_f_lav = d_h(bot->w);
+		const fp_t top_f_del = d_h(top->z);
+        const fp_t top_f_lav = d_h(top->w);
 
-		f_gam = 1.0 - lft->z - lft->w;
-		inv_det = d_inv_fict_det(lft->z, f_gam, lft->w);
-		const fp_t lft_Cr = d_fict_gam_Cr(inv_det, lft->x, lft->y, lft->z, f_gam, lft->w);
-		const fp_t lft_Nb = d_fict_gam_Nb(inv_det, lft->x, lft->y, lft->z, f_gam, lft->w);
+		const fp_t mid_f_gam = 1.0 - mid_f_del - mid_f_lav;
+		const fp_t lft_f_gam = 1.0 - d_h(lft->z) - d_h(lft->w);
+		const fp_t rgt_f_gam = 1.0 - d_h(rgt->z) - d_h(rgt->w);
+		const fp_t bot_f_gam = 1.0 - d_h(bot->z) - d_h(bot->w);
+		const fp_t top_f_gam = 1.0 - d_h(top->z) - d_h(top->w);
 
-		f_gam = 1.0 - rgt->z - rgt->w;
-		inv_det = d_inv_fict_det(rgt->z, f_gam, rgt->w);
-		const fp_t rgt_Cr = d_fict_gam_Cr(inv_det, rgt->x, rgt->y, rgt->z, f_gam, rgt->w);
-		const fp_t rgt_Nb = d_fict_gam_Nb(inv_det, rgt->x, rgt->y, rgt->z, f_gam, rgt->w);
+		fp_t inv_det = d_inv_fict_det(mid->z, mid_f_gam, mid->w);
+		const fp_t mid_gam_Cr = d_fict_gam_Cr(inv_det, mid->x, mid->y, mid_f_del, mid_f_gam, mid_f_lav);
+		const fp_t mid_del_Cr = d_fict_del_Cr(inv_det, mid->x, mid->y, mid_f_del, mid_f_gam, mid_f_lav);
+		const fp_t mid_lav_Cr = d_fict_lav_Cr(inv_det, mid->x, mid->y, mid_f_del, mid_f_gam, mid_f_lav);
+		const fp_t mid_gam_Nb = d_fict_gam_Nb(inv_det, mid->x, mid->y, mid_f_del, mid_f_gam, mid_f_lav);
+		const fp_t mid_del_Nb = d_fict_del_Nb(inv_det, mid->x, mid->y, mid_f_del, mid_f_gam, mid_f_lav);
+		const fp_t mid_lav_Nb = d_fict_lav_Nb(inv_det, mid->x, mid->y, mid_f_del, mid_f_gam, mid_f_lav);
 
-		f_gam = 1.0 - mid->z - mid->w;
-		inv_det = d_inv_fict_det(mid->z, f_gam, mid->w);
-		const fp_t mid_Cr = d_fict_gam_Cr(inv_det, mid->x, mid->y, mid->z, f_gam, mid->w);
-		const fp_t mid_Nb = d_fict_gam_Nb(inv_det, mid->x, mid->y, mid->z, f_gam, mid->w);
+		inv_det = d_inv_fict_det(lft_f_del, lft_f_gam, lft_f_lav);
+		const fp_t lft_gam_Cr = d_fict_gam_Cr(inv_det, lft->x, lft->y, lft_f_del, lft_f_gam, lft_f_lav);
+		const fp_t lft_del_Cr = d_fict_del_Cr(inv_det, lft->x, lft->y, lft_f_del, lft_f_gam, lft_f_lav);
+		const fp_t lft_lav_Cr = d_fict_lav_Cr(inv_det, lft->x, lft->y, lft_f_del, lft_f_gam, lft_f_lav);
 
-		f_gam = 1.0 - bot->z - bot->w;
-		inv_det = d_inv_fict_det(bot->z, f_gam, bot->w);
-		const fp_t bot_Cr = d_fict_gam_Cr(inv_det, bot->x, bot->y, bot->z, f_gam, bot->w);
-		const fp_t bot_Nb = d_fict_gam_Nb(inv_det, bot->x, bot->y, bot->z, f_gam, bot->w);
+		inv_det = d_inv_fict_det(rgt_f_del, rgt_f_gam, rgt->w);
+		const fp_t rgt_gam_Cr = d_fict_gam_Cr(inv_det, rgt->x, rgt->y, rgt_f_del, rgt_f_gam, rgt_f_lav);
+		const fp_t rgt_del_Cr = d_fict_del_Cr(inv_det, rgt->x, rgt->y, rgt_f_del, rgt_f_gam, rgt_f_lav);
+		const fp_t rgt_lav_Cr = d_fict_lav_Cr(inv_det, rgt->x, rgt->y, rgt_f_del, rgt_f_gam, rgt_f_lav);
 
-		f_gam = 1.0 - top->z - top->w;
-		inv_det = d_inv_fict_det(top->z, f_gam, top->w);
-		const fp_t top_Cr = d_fict_gam_Cr(inv_det, top->x, top->y, top->z, f_gam, top->w);
-		const fp_t top_Nb = d_fict_gam_Nb(inv_det, top->x, top->y, top->z, f_gam, top->w);
+		inv_det = d_inv_fict_det(bot_f_del, bot_f_gam, bot_f_lav);
+		const fp_t bot_gam_Cr = d_fict_gam_Cr(inv_det, bot->x, bot->y, bot_f_del, bot_f_gam, bot_f_lav);
+		const fp_t bot_del_Cr = d_fict_del_Cr(inv_det, bot->x, bot->y, bot_f_del, bot_f_gam, bot_f_lav);
+		const fp_t bot_lav_Cr = d_fict_lav_Cr(inv_det, bot->x, bot->y, bot_f_del, bot_f_gam, bot_f_lav);
 
-        // Finite Differences
-        // Derivation: TKR5p298--299
+		inv_det = d_inv_fict_det(top_f_del, top_f_gam, top_f_lav);
+		const fp_t top_gam_Cr = d_fict_gam_Cr(inv_det, top->x, top->y, top_f_del, top_f_gam, top_f_lav);
+		const fp_t top_del_Cr = d_fict_del_Cr(inv_det, top->x, top->y, top_f_del, top_f_gam, top_f_lav);
+		const fp_t top_lav_Cr = d_fict_lav_Cr(inv_det, top->x, top->y, top_f_del, top_f_gam, top_f_lav);
+
+		inv_det = d_inv_fict_det(lft_f_del, lft_f_gam, lft_f_lav);
+		const fp_t lft_gam_Nb = d_fict_gam_Nb(inv_det, lft->x, lft->y, lft_f_del, lft_f_gam, lft_f_lav);
+		const fp_t lft_del_Nb = d_fict_del_Nb(inv_det, lft->x, lft->y, lft_f_del, lft_f_gam, lft_f_lav);
+		const fp_t lft_lav_Nb = d_fict_lav_Nb(inv_det, lft->x, lft->y, lft_f_del, lft_f_gam, lft_f_lav);
+
+		inv_det = d_inv_fict_det(rgt_f_del, rgt_f_gam, rgt_f_lav);
+		const fp_t rgt_gam_Nb = d_fict_gam_Nb(inv_det, rgt->x, rgt->y, rgt_f_del, rgt_f_gam, rgt_f_lav);
+		const fp_t rgt_del_Nb = d_fict_del_Nb(inv_det, rgt->x, rgt->y, rgt_f_del, rgt_f_gam, rgt_f_lav);
+		const fp_t rgt_lav_Nb = d_fict_lav_Nb(inv_det, rgt->x, rgt->y, rgt_f_del, rgt_f_gam, rgt_f_lav);
+
+		inv_det = d_inv_fict_det(bot_f_del, bot_f_gam, bot_f_lav);
+		const fp_t bot_gam_Nb = d_fict_gam_Nb(inv_det, bot->x, bot->y, bot_f_del, bot_f_gam, bot_f_lav);
+		const fp_t bot_del_Nb = d_fict_del_Nb(inv_det, bot->x, bot->y, bot_f_del, bot_f_gam, bot_f_lav);
+		const fp_t bot_lav_Nb = d_fict_lav_Nb(inv_det, bot->x, bot->y, bot_f_del, bot_f_gam, bot_f_lav);
+
+		inv_det = d_inv_fict_det(top_f_del, top_f_gam, top_f_lav);
+		const fp_t top_gam_Nb = d_fict_gam_Nb(inv_det, top->x, top->y, top_f_del, top_f_gam, top_f_lav);
+		const fp_t top_del_Nb = d_fict_del_Nb(inv_det, top->x, top->y, top_f_del, top_f_gam, top_f_lav);
+		const fp_t top_lav_Nb = d_fict_lav_Nb(inv_det, top->x, top->y, top_f_del, top_f_gam, top_f_lav);
+
+		// Finite Differences
+		// Derivation: TKR5p298--299
 
 		fp_t divDgradU_Cr = 0.0;
 		fp_t divDgradU_Nb = 0.0;
 
-		// x-axis
-		divDgradU_Cr += ((d_D_CrCr(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_CrCr(mid->x, mid->y, mid->z, mid->w)) * (rgt_Cr - mid_Cr)
-                     -   (d_D_CrCr(mid->x, mid->y, mid->z, mid->w) + d_D_CrCr(lft->x, lft->y, lft->z, lft->w)) * (mid_Cr - lft_Cr)
-		             ) * xWeight;
-		divDgradU_Cr += ((d_D_CrNb(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_CrNb(mid->x, mid->y, mid->z, mid->w)) * (rgt_Nb - mid_Nb)
-		             -   (d_D_CrNb(mid->x, mid->y, mid->z, mid->w) + d_D_CrNb(lft->x, lft->y, lft->z, lft->w)) * (mid_Nb - lft_Nb)
-		             ) * xWeight;
+		{ // Linear terms
+			{ // x-axis
+				divDgradU_Cr += ((d_hprime(rgt->z) * (d_dg_del_dxCr(rgt_del_Cr, rgt_del_Nb) - d_dg_gam_dxCr(rgt_gam_Cr, rgt_gam_Nb))
+				                + d_hprime(mid->z) * (d_dg_del_dxCr(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
+				             ) * (rgt->z - mid->z)
+				             -   (d_hprime(mid->z) * (d_dg_del_dxCr(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
+				                + d_hprime(lft->z) * (d_dg_del_dxCr(lft_del_Cr, lft_del_Nb) - d_dg_gam_dxCr(lft_gam_Cr, lft_gam_Nb))
+				             ) * (mid->z - lft->z)) * xGradWeight;
+				divDgradU_Cr += ((d_hprime(rgt->w) * (d_dg_lav_dxCr(rgt_lav_Cr, rgt_lav_Nb) - d_dg_gam_dxCr(rgt_gam_Cr, rgt_gam_Nb))
+				                + d_hprime(mid->w) * (d_dg_lav_dxCr(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
+				             ) * (rgt->w - mid->w)
+				             -   (d_hprime(mid->w) * (d_dg_lav_dxCr(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
+				                + d_hprime(lft->w) * (d_dg_lav_dxCr(lft_lav_Cr, lft_lav_Nb) - d_dg_gam_dxCr(lft_gam_Cr, lft_gam_Nb))
+				             ) * (mid->w - lft->w)) * xGradWeight;
 
-		divDgradU_Nb += ((d_D_NbCr(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_NbCr(mid->x, mid->y, mid->z, mid->w)) * (rgt_Cr - mid_Cr)
-		             -   (d_D_NbCr(mid->x, mid->y, mid->z, mid->w) + d_D_NbCr(lft->x, lft->y, lft->z, lft->w)) * (mid_Cr - lft_Cr)
-		             ) * xWeight;
-		divDgradU_Nb += ((d_D_NbNb(rgt->x, rgt->y, rgt->z, rgt->w) + d_D_NbNb(mid->x, mid->y, mid->z, mid->w)) * (rgt_Nb - mid_Nb)
-		             -   (d_D_NbNb(mid->x, mid->y, mid->z, mid->w) + d_D_NbNb(lft->x, lft->y, lft->z, lft->w)) * (mid_Nb - lft_Nb)
-		             ) * xWeight;
+				divDgradU_Nb += ((d_hprime(rgt->z) * (d_dg_del_dxNb(rgt_del_Cr, rgt_del_Nb) - d_dg_gam_dxNb(rgt_gam_Cr, rgt_gam_Nb))
+				                + d_hprime(mid->z) * (d_dg_del_dxNb(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb))
+				             ) * (rgt->z - mid->z)
+				              -  (d_hprime(mid->z) * (d_dg_del_dxNb(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb))
+				                + d_hprime(lft->z) * (d_dg_del_dxNb(lft_del_Cr, lft_del_Nb) - d_dg_gam_dxNb(lft_gam_Cr, lft_gam_Nb))
+				             ) * (mid->z - lft->z)) * xGradWeight;
+				divDgradU_Nb += ((d_hprime(rgt->w) * (d_dg_lav_dxNb(rgt_lav_Cr, rgt_lav_Nb) - d_dg_gam_dxNb(rgt_gam_Cr, rgt_gam_Nb))
+				                + d_hprime(mid->w) * (d_dg_lav_dxNb(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb))
+				             ) * (rgt->w - mid->w)
+				              -  (d_hprime(mid->w) * (d_dg_lav_dxNb(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb))
+				                + d_hprime(lft->w) * (d_dg_lav_dxNb(lft_lav_Cr, lft_lav_Nb) - d_dg_gam_dxNb(lft_gam_Cr, lft_gam_Nb))
+				             ) * (mid->w - lft->w)) * xGradWeight;
+            }
+			{ // y-axis
+				divDgradU_Cr += ((d_hprime(top->z) * (d_dg_del_dxCr(top_del_Cr, top_del_Nb) - d_dg_gam_dxCr(top_gam_Cr, top_gam_Nb))
+				                + d_hprime(mid->z) * (d_dg_del_dxCr(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
+				             ) * (top->z - mid->z)
+				             -   (d_hprime(mid->z) * (d_dg_del_dxCr(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
+				                + d_hprime(bot->z) * (d_dg_del_dxCr(bot_del_Cr, bot_del_Nb) - d_dg_gam_dxCr(bot_gam_Cr, bot_gam_Nb))
+				             ) * (mid->z - bot->z)) * yGradWeight;
+				divDgradU_Cr += ((d_hprime(top->w) * (d_dg_lav_dxCr(top_lav_Cr, top_lav_Nb) - d_dg_gam_dxCr(top_gam_Cr, top_gam_Nb))
+				                + d_hprime(mid->w) * (d_dg_lav_dxCr(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
+				             ) * (top->w - mid->w)
+				             -   (d_hprime(mid->w) * (d_dg_lav_dxCr(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
+				                + d_hprime(bot->w) * (d_dg_lav_dxCr(bot_lav_Cr, bot_lav_Nb) - d_dg_gam_dxCr(bot_gam_Cr, bot_gam_Nb))
+				             ) * (mid->w - bot->w)) * yGradWeight;
 
-		// y-axis
-		divDgradU_Cr += ((d_D_CrCr(top->x, top->y, top->z, top->w) + d_D_CrCr(mid->x, mid->y, mid->z, mid->w)) * (top_Cr - mid_Cr)
-		             -   (d_D_CrCr(mid->x, mid->y, mid->z, mid->w) + d_D_CrCr(bot->x, bot->y, bot->z, bot->w)) * (mid_Cr - bot_Cr)
-		             ) * yWeight;
-		divDgradU_Cr += ((d_D_CrNb(top->x, top->y, top->z, top->w) + d_D_CrNb(mid->x, mid->y, mid->z, mid->w)) * (top_Nb - mid_Nb)
-		             -   (d_D_CrNb(mid->x, mid->y, mid->z, mid->w) + d_D_CrNb(bot->x, bot->y, bot->z, bot->w)) * (mid_Nb - bot_Nb)
-		             ) * yWeight;
+				divDgradU_Nb += ((d_hprime(top->z) * (d_dg_del_dxNb(top_del_Cr, top_del_Nb) - d_dg_gam_dxNb(top_gam_Cr, top_gam_Nb))
+				                + d_hprime(mid->z) * (d_dg_del_dxNb(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb))
+				             ) * (top->z - mid->z)
+				              -  (d_hprime(mid->z) * (d_dg_del_dxNb(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb))
+				                + d_hprime(bot->z) * (d_dg_del_dxNb(bot_del_Cr, bot_del_Nb) - d_dg_gam_dxNb(bot_gam_Cr, bot_gam_Nb))
+				             ) * (mid->z - bot->z)) * yGradWeight;
+				divDgradU_Nb += ((d_hprime(top->w) * (d_dg_lav_dxNb(top_lav_Cr, top_lav_Nb) - d_dg_gam_dxNb(top_gam_Cr, top_gam_Nb))
+				                + d_hprime(mid->w) * (d_dg_lav_dxNb(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb))
+				             ) * (top->w - mid->w)
+				              -  (d_hprime(mid->w) * (d_dg_lav_dxNb(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb))
+				                + d_hprime(bot->w) * (d_dg_lav_dxNb(bot_lav_Cr, bot_lav_Nb) - d_dg_gam_dxNb(bot_gam_Cr, bot_gam_Nb))
+				             ) * (mid->w - bot->w)) * yGradWeight;
+			}
+		}
+		
+		{ // Cr-dependent terms
+			{ // x-axis
+				divDgradU_Cr += ((rgt_f_gam * d_D_CrCr(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_gam * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_gam_Cr - mid_gam_Cr)
+				             -   (mid_f_gam * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_gam * d_D_CrCr(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_gam_Cr - lft_gam_Cr)
+				             ) * xLapWeight;
+				divDgradU_Cr += ((rgt_f_del * d_D_CrCr(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_del * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_del_Cr - mid_del_Cr)
+				             -   (mid_f_del * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_del * d_D_CrCr(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_del_Cr - lft_del_Cr)
+				             ) * xLapWeight;
+				divDgradU_Cr += ((rgt_f_lav * d_D_CrCr(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_lav * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_lav_Cr - mid_lav_Cr)
+				             -   (mid_f_lav * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_lav * d_D_CrCr(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_lav_Cr - lft_lav_Cr)
+				             ) * xLapWeight;
 
-		divDgradU_Nb += ((d_D_NbCr(top->x, top->y, top->z, top->w) + d_D_NbCr(mid->x, mid->y, mid->z, mid->w)) * (top_Cr - mid_Cr)
-		             -   (d_D_NbCr(mid->x, mid->y, mid->z, mid->w) + d_D_NbCr(bot->x, bot->y, bot->z, bot->w)) * (mid_Cr - bot_Cr)
-		             ) * yWeight;
-		divDgradU_Nb += ((d_D_NbNb(top->x, top->y, top->z, top->w) + d_D_NbNb(mid->x, mid->y, mid->z, mid->w)) * (top_Nb - mid_Nb)
-		             -   (d_D_NbNb(mid->x, mid->y, mid->z, mid->w) + d_D_NbNb(bot->x, bot->y, bot->z, bot->w)) * (mid_Nb - bot_Nb)
-		             ) * yWeight;
+				divDgradU_Nb += ((rgt_f_gam * d_D_NbCr(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_gam * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_gam_Cr - mid_gam_Cr)
+				             -   (mid_f_gam * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_gam * d_D_NbCr(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_gam_Cr - lft_gam_Cr)
+				             ) * xLapWeight;
+				divDgradU_Nb += ((rgt_f_del * d_D_NbCr(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_del * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_del_Cr - mid_del_Cr)
+				             -   (mid_f_del * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_del * d_D_NbCr(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_del_Cr - lft_del_Cr)
+				             ) * xLapWeight;
+				divDgradU_Nb += ((rgt_f_lav * d_D_NbCr(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_lav * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_lav_Cr - mid_lav_Cr)
+				             -   (mid_f_lav * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_lav * d_D_NbCr(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_lav_Cr - lft_lav_Cr)
+				             ) * xLapWeight;
+			}
+			{ // y-axis
+				divDgradU_Cr += ((top_f_gam * d_D_CrCr(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_gam * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_gam_Cr - mid_gam_Cr)
+				             -   (mid_f_gam * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_gam * d_D_CrCr(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_gam_Cr - bot_gam_Cr)
+				             ) * yLapWeight;
+				divDgradU_Cr += ((top_f_del * d_D_CrCr(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_del * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_del_Cr - mid_del_Cr)
+				             -   (mid_f_del * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_del * d_D_CrCr(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_del_Cr - bot_del_Cr)
+				             ) * yLapWeight;
+				divDgradU_Cr += ((top_f_lav * d_D_CrCr(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_lav * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_lav_Cr - mid_lav_Cr)
+				             -   (mid_f_lav * d_D_CrCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_lav * d_D_CrCr(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_lav_Cr - bot_lav_Cr)
+				             ) * yLapWeight;
+				divDgradU_Nb += ((top_f_gam * d_D_NbCr(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_gam * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_gam_Cr - mid_gam_Cr)
+				             -   (mid_f_gam * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_gam * d_D_NbCr(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_gam_Cr - bot_gam_Cr)
+				             ) * yLapWeight;
+				divDgradU_Nb += ((top_f_del * d_D_NbCr(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_del * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_del_Cr - mid_del_Cr)
+				             -   (mid_f_del * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_del * d_D_NbCr(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_del_Cr - bot_del_Cr)
+				             ) * yLapWeight;
+				divDgradU_Nb += ((top_f_lav * d_D_NbCr(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_lav * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_lav_Cr - mid_lav_Cr)
+				             -   (mid_f_lav * d_D_NbCr(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_lav * d_D_NbCr(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_lav_Cr - bot_lav_Cr)
+				             ) * yLapWeight;
+			}
+		}
+		{ // Nb-dependent terms
+			{ // x-axis
+				divDgradU_Cr += ((rgt_f_gam * d_D_CrNb(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_gam * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_gam_Nb - mid_gam_Nb)
+				             -   (mid_f_gam * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_gam * d_D_CrNb(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_gam_Nb - lft_gam_Nb)
+				             ) * xLapWeight;
+				divDgradU_Cr += ((rgt_f_del * d_D_CrNb(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_del * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_del_Nb - mid_del_Nb)
+				             -   (mid_f_del * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_del * d_D_CrNb(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_del_Nb - lft_del_Nb)
+				             ) * xLapWeight;
+				divDgradU_Cr += ((rgt_f_lav * d_D_CrNb(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_lav * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_lav_Nb - mid_lav_Nb)
+				             -   (mid_f_lav * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_lav * d_D_CrNb(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_lav_Nb - lft_lav_Nb)
+				             ) * xLapWeight;
+
+				divDgradU_Nb += ((rgt_f_gam * d_D_NbNb(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_gam * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_gam_Nb - mid_gam_Nb)
+				             -   (mid_f_gam * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_gam * d_D_NbNb(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_gam_Nb - lft_gam_Nb)
+				             ) * xLapWeight;
+				divDgradU_Nb += ((rgt_f_del * d_D_NbNb(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_del * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_del_Nb - mid_del_Nb)
+				             -   (mid_f_del * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_del * d_D_NbNb(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_del_Nb - lft_del_Nb)
+				             ) * xLapWeight;
+				divDgradU_Nb += ((rgt_f_lav * d_D_NbNb(rgt->x, rgt->y, rgt_f_del, rgt_f_lav)
+				                + mid_f_lav * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (rgt_lav_Nb - mid_lav_Nb)
+				             -   (mid_f_lav * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + lft_f_lav * d_D_NbNb(lft->x, lft->y, lft_f_del, lft_f_lav)) * (mid_lav_Nb - lft_lav_Nb)
+				             ) * xLapWeight;
+			}
+			{ // y-axis
+				divDgradU_Cr += ((top_f_gam * d_D_CrNb(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_gam * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_gam_Nb - mid_gam_Nb)
+				             -   (mid_f_gam * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_gam * d_D_CrNb(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_gam_Nb - bot_gam_Nb)
+				             ) * yLapWeight;
+				divDgradU_Cr += ((top_f_del * d_D_CrNb(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_del * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_del_Nb - mid_del_Nb)
+				             -   (mid_f_del * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_del * d_D_CrNb(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_del_Nb - bot_del_Nb)
+				             ) * yLapWeight;
+				divDgradU_Cr += ((top_f_lav * d_D_CrNb(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_lav * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_lav_Nb - mid_lav_Nb)
+				             -   (mid_f_lav * d_D_CrNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_lav * d_D_CrNb(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_lav_Nb - bot_lav_Nb)
+				             ) * yLapWeight;
+				divDgradU_Nb += ((top_f_gam * d_D_NbNb(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_gam * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_gam_Nb - mid_gam_Nb)
+				             -   (mid_f_gam * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_gam * d_D_NbNb(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_gam_Nb - bot_gam_Nb)
+				             ) * yLapWeight;
+				divDgradU_Nb += ((top_f_del * d_D_NbNb(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_del * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_del_Nb - mid_del_Nb)
+				             -   (mid_f_del * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_del * d_D_NbNb(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_del_Nb - bot_del_Nb)
+				             ) * yLapWeight;
+				divDgradU_Nb += ((top_f_lav * d_D_NbNb(top->x, top->y, top_f_del, top_f_lav)
+				                + mid_f_lav * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)) * (top_lav_Nb - mid_lav_Nb)
+				             -   (mid_f_lav * d_D_NbNb(mid->x, mid->y, mid_f_del, mid_f_lav)
+				                + bot_f_lav * d_D_NbNb(bot->x, bot->y, bot_f_del, bot_f_lav)) * (mid_lav_Nb - bot_lav_Nb)
+				             ) * yLapWeight;
+			}
+		}
 
 		/* record value */
 		if (dst_y < ny && dst_x < nx) {
@@ -348,7 +550,7 @@ void device_laplacian(struct CudaData* dev,
 	    dev->conc_Cr_old, dev->conc_Cr_new,
 	    dev->conc_Nb_old, dev->conc_Nb_new,
 	    nx, ny, nm,
-	    dx*dx, dy*dy);
+	    dx, dy);
 }
 
 __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc_Nb_old,
@@ -647,8 +849,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 				if (idn >= 0 &&
 				    idn < nx * ny &&
 				    i * i + j * j < R * R)
-					phi_pre = max(phi_pre, d_h(d_phi_del[idn])
-					              + d_h(d_phi_lav[idn]));
+					phi_pre = max(phi_pre, d_h(d_phi_del[idn]) + d_h(d_phi_lav[idn]));
 			}
 		}
 	}

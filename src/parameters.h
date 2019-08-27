@@ -13,7 +13,7 @@
 
 const double meshres = 1.25e-10;     // grid spacing, Δx (m); max. is 2.5 Å
 const double ifce_width = 7.5e-10;   // interface thickness, 2λ (m), TKR5p274
-const fp_t LinStab = 1. / 50;  // threshold of linear (von Neumann) stability, Co (dimensionless)
+const fp_t LinStab = 1. / 10;        // threshold of linear (von Neumann) stability, Co (dimensionless)
 const fp_t precip_stabilizer = 13.;  // 1.5 Rc = R0, the root of the curve; fitting parameter
 const fp_t lattice_const = 0.352e-9; // lattice spacing of FCC nickel (m)
 
