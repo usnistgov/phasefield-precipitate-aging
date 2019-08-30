@@ -396,10 +396,12 @@ int main(int argc, char* argv[])
 
 							dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
 						}
-						if (LinStab * dtDiffusionLimited < dt) {
+						/*
+						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
 							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least " << dt / (LinStab * dtDiffusionLimited) << std::endl;
 							std::exit(EXIT_FAILURE);
 						}
+						*/
 
 						std::stringstream outstr;
 						int n = outstr.str().length();

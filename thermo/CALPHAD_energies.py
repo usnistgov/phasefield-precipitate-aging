@@ -439,6 +439,9 @@ codegen(
         ("d2g_lav_dxCrNb", p_d2Glav_dxCrNb),
         ("d2g_lav_dxNbCr", p_d2Glav_dxNbCr),
         ("d2g_lav_dxNbNb", p_d2Glav_dxNbNb),
+        # Mobilities
+        ("M_CrCr", M_CrCr), ("M_CrNb", M_CrNb),
+        ("M_NbCr", M_NbCr), ("M_NbNb", M_NbNb),
         # Diffusion Matrix
         ("D_CrCr", D_CrCr), ("D_CrNb", D_CrNb),
         ("D_NbCr", D_NbCr), ("D_NbNb", D_NbNb),

@@ -512,6 +512,42 @@ __device__ double d_d2g_lav_dxNbNb()
 
 }
 
+__device__ double d_M_CrCr(double XCR, double XNB)
+{
+
+	double M_CrCr_result;
+	M_CrCr_result = pow(XCR, 2)*(1.7235555733323437e-20 - 1.4581024012583029e-20*XNB) + pow(XCR, 2)*(2.0938866959006431e-8*XCR*(-XCR - XNB + 1) + 9.8428461923389931e-20*XCR - 1.0199962450633582e-21*XNB + 1.8295676400933012e-21) + (1 - XCR)*(1 - XCR)*(8.2216387898155807e-8*XCR*(-XCR - XNB + 1) + 9.6755272489124536e-20*XCR + 3.5027570743586952e-21);
+	return M_CrCr_result;
+
+}
+
+__device__ double d_M_CrNb(double XCR, double XNB)
+{
+
+	double M_CrNb_result;
+	M_CrNb_result = XCR*XNB*(2.0938866959006431e-8*XCR*(-XCR - XNB + 1) + 9.8428461923389931e-20*XCR - 1.0199962450633582e-21*XNB + 1.8295676400933012e-21) - XCR*(1.7235555733323437e-20 - 1.4581024012583029e-20*XNB)*(1 - XNB) + XNB*(1 - XCR)*(-8.2216387898155807e-8*XCR*(-XCR - XNB + 1) - 9.6755272489124536e-20*XCR - 3.5027570743586952e-21);
+	return M_CrNb_result;
+
+}
+
+__device__ double d_M_NbCr(double XCR, double XNB)
+{
+
+	double M_NbCr_result;
+	M_NbCr_result = XCR*XNB*(2.0938866959006431e-8*XCR*(-XCR - XNB + 1) + 9.8428461923389931e-20*XCR - 1.0199962450633582e-21*XNB + 1.8295676400933012e-21) - XCR*(1.7235555733323437e-20 - 1.4581024012583029e-20*XNB)*(1 - XNB) + XNB*(1 - XCR)*(-8.2216387898155807e-8*XCR*(-XCR - XNB + 1) - 9.6755272489124536e-20*XCR - 3.5027570743586952e-21);
+	return M_NbCr_result;
+
+}
+
+__device__ double d_M_NbNb(double XCR, double XNB)
+{
+
+	double M_NbNb_result;
+	M_NbNb_result = pow(XNB, 2)*(8.2216387898155807e-8*XCR*(-XCR - XNB + 1) + 9.6755272489124536e-20*XCR + 3.5027570743586952e-21) + pow(XNB, 2)*(2.0938866959006431e-8*XCR*(-XCR - XNB + 1) + 9.8428461923389931e-20*XCR - 1.0199962450633582e-21*XNB + 1.8295676400933012e-21) + (1.7235555733323437e-20 - 1.4581024012583029e-20*XNB)*(1 - XNB)*(1 - XNB);
+	return M_NbNb_result;
+
+}
+
 __device__ double d_D_CrCr(double XCR, double XNB, double phi_del, double phi_lav)
 {
 
