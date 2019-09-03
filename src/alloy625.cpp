@@ -131,8 +131,8 @@ void embed_OPC(GRID2D& grid,
                const fp_t& R_precip,
                const int pid)
 {
-	const fp_t R_depletion_Cr = R_precip * sqrt(1. + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
-	const fp_t R_depletion_Nb = R_precip * sqrt(1. + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t R_depletion_Cr = R_precip * sqrt(1.0 + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = R_precip * sqrt(1.0 + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
 	const fp_t R = std::max(std::max(R_depletion_Cr, R_depletion_Nb),
 							R_precip + 4 * ifce_width / meshres);
 
@@ -247,18 +247,18 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 	const fp_t xNb = grid(mid)[1];
 
 	const fp_t R_precip = meshres * w_precip + 3.0 * ifce_width;
-	const fp_t R_depletion_Cr = R_precip * (1. + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
-	const fp_t R_depletion_Nb = R_precip * (1. + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t R_depletion_Cr = R_precip * (1.0 + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	for (x[1] = g0(grid, 1); x[1] < g1(grid, 1); x[1]++) {
 		for (x[0] = g0(grid, 0); x[0] < g0(grid, 0) + w_precip; x[0]++) {
 			// Smoothly interpolate through the interface , TKR5p276
 			vector<fp_t>& GridN = grid(x);
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
-			GridN[0] = xe_gam_Cr() + (xe_del_Cr() - xe_gam_Cr()) * tanh_interp(r - R_precip / 3, ifce_width)
-			                       + (xCr - xe_gam_Cr()) * tanh_interp(-r + R_depletion_Cr / 3, ifce_width);
-			GridN[1] = xe_gam_Nb() + (xe_del_Nb() - xe_gam_Nb()) * tanh_interp(r - R_precip / 3, ifce_width)
-			                       + (xNb - xe_gam_Nb()) * tanh_interp(-r + R_depletion_Nb / 3, ifce_width);
+			GridN[0] = xe_gam_Cr() + (xe_del_Cr() - xe_gam_Cr()) * tanh_interp( r - R_precip / 3, ifce_width)
+			                       + (xCr         - xe_gam_Cr()) * tanh_interp(-r + R_depletion_Cr / 3, ifce_width);
+			GridN[1] = xe_gam_Nb() + (xe_del_Nb() - xe_gam_Nb()) * tanh_interp( r - R_precip / 3, ifce_width)
+			                       + (xNb         - xe_gam_Nb()) * tanh_interp(-r + R_depletion_Nb / 3, ifce_width);
 			GridN[NC] = tanh_interp(r - R_precip / 3, ifce_width);
 		}
 	}
@@ -512,7 +512,7 @@ void update_compositions(MMSP::vector<T>& GRIDN)
 
 	const T fdel = h(GRIDN[NC]);
 	const T flav = h(GRIDN[NC+1]);
-	const T fgam = 1. - fdel - flav;
+	const T fgam = 1.0 - fdel - flav;
 
 	const T inv_det = inv_fict_det(fdel, fgam, flav);
 	GRIDN[NC + NP]     = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
