@@ -117,6 +117,17 @@ __global__ void convolution_kernel(fp_t* d_conc_old,
                                    const int nm);
 
 /**
+ \brief Discrete Laplacian operator with variable mobilities
+*/
+__device__ fp_t discrete_laplacian(const fp_t& D_middle,
+								   const fp_t& D_left, const fp_t& D_right,
+								   const fp_t& D_bottom, const fp_t& D_top,
+								   const fp_t& c_middle,
+								   const fp_t& c_left, const fp_t& c_right,
+								   const fp_t& c_bottom, const fp_t& c_top,
+								   const fp_t& dx, const fp_t& dy);
+
+/**
  \brief Tiled Laplacian with variable diffusivity for execution on the GPU
 */
 __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav_old,

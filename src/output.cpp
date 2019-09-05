@@ -204,12 +204,12 @@ void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 
 	plt::subplot2grid(nrows, ncols, 0, 0, 1, ncols - 1);
 	mat = plt::imshow(&(p_del[0]), h, w, colors, str_kw, num_kw);
-	plt::title("$\\phi_{\\delta}$");
+	plt::title("$\\phi^{\\delta}$");
 	plt::axis("off");
 
 	plt::subplot2grid(nrows, ncols, 1, 0, 1, ncols - 1);
 	mat = plt::imshow(&(c_Nb[0]), h, w, colors, str_kw, num_kw);
-	plt::title("$c_{\\mathrm{Nb}}$");
+	plt::title("$x_{\\mathrm{Nb}}$");
 	plt::axis("off");
 
 	plt::subplot2grid(nrows, ncols, 0, ncols - 1, 2, 1);
@@ -222,17 +222,17 @@ void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	plt::subplot2grid(nrows, ncols, nrows-1, 0, 1, ncols - 1);
 	plt::xlim(0., 1e6 * deltax * nx);
 	plt::ylim(0., 1.);
-	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
-	plt::ylabel("$\\chi_{\\mathrm{Ni}}(y=0)$");
+	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
+	plt::ylabel("$x_{\\mathrm{Ni}}(Y=0)$");
 
 	str_kw.clear();
 	str_kw["label"] = "$x_{\\mathrm{Nb}}$";
 	plt::plot(d, c_Nb_bar, str_kw);
 	str_kw["label"] = "$x_{\\mathrm{Cr}}$";
 	plt::plot(d, c_Cr_bar, str_kw);
-	str_kw["label"] = "$\\phi_{\\mathrm{\\delta}}$";
+	str_kw["label"] = "$\\phi^{\\mathrm{\\delta}}$";
 	plt::plot(d, p_del_bar, str_kw);
-	str_kw["label"] = "$\\phi_{\\mathrm{\\lambda}}$";
+	str_kw["label"] = "$\\phi^{\\mathrm{\\lambda}}$";
 	plt::plot(d, p_lav_bar, str_kw);
 
 	plt::legend();
