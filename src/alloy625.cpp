@@ -40,19 +40,19 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
 
+	/*
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
+	*/
 
 	/* Favor a high delta-phase fraction, with a composition
 	 * chosen from the gamma-delta edge of the three-phase field
 	 */
-	/*
 	double xCrE = 0.415625;
 	double xNbE = 0.0625;
-	*/
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
@@ -240,26 +240,33 @@ void seed_solitaire(GRID2D& grid,
 
 void seed_planar_delta(GRID2D& grid, const int w_precip)
 {
-	vector<int> x(2);
-	const int mid = nodes(grid) / 2;
+	fp_t xCr = 0.0, xNb = 0.0;
+	for (int n=0; n<nodes(grid); n++) {
+		xCr += grid(n)[0];
+		xNb += grid(n)[1];
+	}
+	xCr /= nodes(grid);
+	xNb /= nodes(grid);
 
-	const fp_t xCr = grid(mid)[0];
-	const fp_t xNb = grid(mid)[1];
-
-	const fp_t R_precip = meshres * w_precip + 3.0 * ifce_width;
+	const fp_t R_precip = meshres * w_precip;
 	const fp_t R_depletion_Cr = R_precip * (1.0 + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
 	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
-	for (x[1] = g0(grid, 1); x[1] < g1(grid, 1); x[1]++) {
-		for (x[0] = g0(grid, 0); x[0] < g0(grid, 0) + w_precip; x[0]++) {
-			// Smoothly interpolate through the interface , TKR5p276
+	vector<int> x(2, 0);
+	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
+		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
+			// Smoothly interpolate through the interface, TKR5p276
 			vector<fp_t>& GridN = grid(x);
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
-			GridN[0] = xe_gam_Cr() + (xe_del_Cr() - xe_gam_Cr()) * tanh_interp( r - R_precip / 3, ifce_width)
-			                       + (xCr         - xe_gam_Cr()) * tanh_interp(-r + R_depletion_Cr / 3, ifce_width);
-			GridN[1] = xe_gam_Nb() + (xe_del_Nb() - xe_gam_Nb()) * tanh_interp( r - R_precip / 3, ifce_width)
-			                       + (xNb         - xe_gam_Nb()) * tanh_interp(-r + R_depletion_Nb / 3, ifce_width);
-			GridN[NC] = tanh_interp(r - R_precip / 3, ifce_width);
+			GridN[NC] = tanh_interp(r - R_precip, ifce_width);
+			GridN[0] = xe_del_Cr() * tanh_interp(r - R_precip, ifce_width)
+			         + xe_gam_Cr() * tanh_interp(R_precip - r, ifce_width)
+			         - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, ifce_width)
+			         + xCr * tanh_interp(R_depletion_Cr - r, ifce_width);
+			GridN[1] = xe_del_Nb() * tanh_interp(r - R_precip, ifce_width)
+			         + xe_gam_Nb() * tanh_interp(R_precip - r, ifce_width)
+			         - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, ifce_width)
+			         + xNb * tanh_interp(R_depletion_Nb - r, ifce_width);
 		}
 	}
 }
@@ -394,11 +401,10 @@ void generate(int dim, const char* filename)
 
 		const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
 		fp_t dtDiffusionLimited = 1.0;
-		/*
+
 		#ifdef _OPENMP
-		#pragma omp parallel for reduction(min: dtDiffusionLimited)
+		#pragma omp parallel for reduction(min:dtDiffusionLimited)
 		#endif
-		*/
 		for (int n = 0; n < nodes(initGrid); n++) {
 			vector<fp_t>& GridN = initGrid(n);
 			const fp_t xCr = GridN[0];
@@ -413,7 +419,7 @@ void generate(int dim, const char* filename)
 
 			dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
 		}
-		const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+		const double dt = std::floor(4e11 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e11;
 
 		if (rank == 0) {
 			std::cout << "Timestep dt=" << dt
