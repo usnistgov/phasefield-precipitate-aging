@@ -297,7 +297,7 @@ int main(int argc, char* argv[])
 
 				dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
 			}
-			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+			const double dt = std::floor(4e11 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e11;
 			const uint64_t img_interval = std::min(increment / 4, (uint64_t)(0.2 / dt));
 			const uint64_t nrg_interval = img_interval;
 
@@ -396,12 +396,10 @@ int main(int argc, char* argv[])
 
 							dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
 						}
-						/*
 						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
 							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least " << dt / (LinStab * dtDiffusionLimited) << std::endl;
 							std::exit(EXIT_FAILURE);
 						}
-						*/
 
 						std::stringstream outstr;
 						int n = outstr.str().length();
