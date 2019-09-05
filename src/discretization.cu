@@ -265,21 +265,25 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 		const fp_t mid_f_del = d_h(mid->z);
 		const fp_t mid_f_lav = d_h(mid->w);
 		const fp_t mid_f_gam = 1.0 - mid_f_del - mid_f_lav;
+
 		const fp_t lft_f_del = d_h(lft->z);
 		const fp_t lft_f_lav = d_h(lft->w);
 		const fp_t lft_f_gam = 1.0 - lft_f_del - lft_f_lav;
+
 		const fp_t rgt_f_del = d_h(rgt->z);
 		const fp_t rgt_f_lav = d_h(rgt->w);
 		const fp_t rgt_f_gam = 1.0 - rgt_f_del - rgt_f_lav;
+
 		const fp_t bot_f_del = d_h(bot->z);
 		const fp_t bot_f_lav = d_h(bot->w);
 		const fp_t bot_f_gam = 1.0 - bot_f_del - bot_f_lav;
+
 		const fp_t top_f_del = d_h(top->z);
 		const fp_t top_f_lav = d_h(top->w);
 		const fp_t top_f_gam = 1.0 - top_f_del - top_f_lav;
 
 		// Fictitious compositions
-		fp_t inv_det = d_inv_fict_det(mid->z, mid_f_gam, mid->w);
+		fp_t inv_det = d_inv_fict_det(mid_f_del, mid_f_gam, mid_f_lav);
 		const fp_t mid_gam_Cr = d_fict_gam_Cr(inv_det, mid->x, mid->y, mid_f_del, mid_f_gam, mid_f_lav);
 		const fp_t mid_del_Cr = d_fict_del_Cr(inv_det, mid->x, mid->y, mid_f_del, mid_f_gam, mid_f_lav);
 		const fp_t mid_lav_Cr = d_fict_lav_Cr(inv_det, mid->x, mid->y, mid_f_del, mid_f_gam, mid_f_lav);
@@ -295,7 +299,7 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 		const fp_t lft_del_Nb = d_fict_del_Nb(inv_det, lft->x, lft->y, lft_f_del, lft_f_gam, lft_f_lav);
 		const fp_t lft_lav_Nb = d_fict_lav_Nb(inv_det, lft->x, lft->y, lft_f_del, lft_f_gam, lft_f_lav);
 
-		inv_det = d_inv_fict_det(rgt_f_del, rgt_f_gam, rgt->w);
+		inv_det = d_inv_fict_det(rgt_f_del, rgt_f_gam, rgt_f_lav);
 		const fp_t rgt_gam_Cr = d_fict_gam_Cr(inv_det, rgt->x, rgt->y, rgt_f_del, rgt_f_gam, rgt_f_lav);
 		const fp_t rgt_del_Cr = d_fict_del_Cr(inv_det, rgt->x, rgt->y, rgt_f_del, rgt_f_gam, rgt_f_lav);
 		const fp_t rgt_lav_Cr = d_fict_lav_Cr(inv_det, rgt->x, rgt->y, rgt_f_del, rgt_f_gam, rgt_f_lav);
@@ -320,7 +324,7 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 		const fp_t top_lav_Nb = d_fict_lav_Nb(inv_det, top->x, top->y, top_f_del, top_f_gam, top_f_lav);
 
 		// Finite Differences
-		// Derivation: TKR5 pp. 301--303
+		// Derivation: TKR5 pp. 301--305
 
 		fp_t divDgradU_Cr = 0.0;
 		fp_t divDgradU_Nb = 0.0;
