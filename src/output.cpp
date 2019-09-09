@@ -25,9 +25,9 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 		char* pch;
 		int ibx=0, iby=0, isc=0;
 
-		/* read parameters */
+		// read parameters
 		while ( !feof(input)) {
-			/* process key-value pairs line-by-line */
+			// process key-value pairs line-by-line
 			if (fgets(buffer, 256, input) != NULL) {
 				pch = strtok(buffer, " ");
 
@@ -51,7 +51,7 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 			}
 		}
 
-		/* make sure we got everyone */
+		// make sure we got everyone
 		if (! ibx)
 			printf("Warning: parameter %s undefined. Using default value, %i.\n", "bx", *bx);
 		else if (! iby)
@@ -94,20 +94,20 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 	char num[20];
 	int i, j;
 
-	/* generate the filename */
+	// generate the filename
 	sprintf(num, "%07i", step);
 	strcpy(name, "spinodal.");
 	strcat(name, num);
 	strcat(name, ".csv");
 
-	/* open the file */
+	// open the file
 	output = fopen(name, "w");
 	if (output == NULL) {
 		printf("Error: unable to open %s for output. Check permissions.\n", name);
 		exit(EXIT_FAILURE);
 	}
 
-	/* write csv data */
+	// write csv data
 	fprintf(output, "x,y,c\n");
 	for (j = 1; j < ny-1; j++) {
 		fp_t y = dy * (j - 1);
@@ -159,10 +159,6 @@ void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	std::vector<float> d(w);
 	std::vector<float> c_Cr_bar(w);
 	std::vector<float> c_Nb_bar(w);
-	std::vector<float> c_Cr_gam(w);
-	std::vector<float> c_Nb_gam(w);
-	std::vector<float> c_Cr_del(w);
-	std::vector<float> c_Nb_del(w);
 	std::vector<float> p_del_bar(w);
 	std::vector<float> p_lav_bar(w);
 
@@ -176,17 +172,9 @@ void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 			p_del.at(w * j + i) = phi_del[j+nm/2][i+nm/2];
 			p_lav.at(w * j + i) = phi_lav[j+nm/2][i+nm/2];
 
-			/*
-			cbar.at(i) += x / h;
-			pbar.at(i) += z / h;
-			*/
 			if (j == h/2) {
 				c_Cr_bar.at(i) = conc_Cr[j+nm/2][i+nm/2];
 				c_Nb_bar.at(i) = conc_Nb[j+nm/2][i+nm/2];
-				c_Cr_gam.at(i) = xe_gam_Cr();
-				c_Nb_gam.at(i) = xe_gam_Nb();
-				c_Cr_del.at(i) = xe_del_Cr();
-				c_Nb_del.at(i) = xe_del_Nb();
 				p_del_bar.at(i) = phi_del[j+nm/2][i+nm/2];
 				p_lav_bar.at(i) = phi_lav[j+nm/2][i+nm/2];
 			}
@@ -243,17 +231,6 @@ void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	plt::plot(d, p_del_bar, str_kw);
 	str_kw["label"] = "$\\phi^{\\mathrm{\\lambda}}$";
 	plt::plot(d, p_lav_bar, str_kw);
-
-	str_kw["linestyle"] = "dashed";
-	str_kw["label"] = "$x_{\\mathrm{Nb}}^{\\delta}$";
-	plt::plot(d, c_Nb_del, str_kw);
-	str_kw["label"] = "$x_{\\mathrm{Cr}}^{\\delta}$";
-	plt::plot(d, c_Cr_del, str_kw);
-	str_kw["color"] = "black";
-	str_kw["label"] = "$x_{\\mathrm{Nb}}^{\\gamma}$";
-	plt::plot(d, c_Nb_gam, str_kw);
-	str_kw["label"] = "$x_{\\mathrm{Cr}}^{\\gamma}$";
-	plt::plot(d, c_Cr_gam, str_kw);
 
 	plt::legend();
 
