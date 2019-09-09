@@ -25,11 +25,6 @@ void init_cuda(struct HostData* host,
 	cudaMalloc((void**) &(dev->phi_lav_new), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->phi),         nx * ny * sizeof(fp_t));
 
-	cudaMalloc((void**) &(dev->gam_Cr), nx * ny * sizeof(fp_t));
-	cudaMalloc((void**) &(dev->gam_Nb), nx * ny * sizeof(fp_t));
-	cudaMalloc((void**) &(dev->lap_gam_Cr), nx * ny * sizeof(fp_t));
-	cudaMalloc((void**) &(dev->lap_gam_Nb), nx * ny * sizeof(fp_t));
-
 	cudaMalloc((void**) &(dev->prng), nx * ny * sizeof(curandState));
 
 	/* transfer mask to protected memory on GPU */
@@ -50,11 +45,6 @@ void init_cuda(struct HostData* host,
 	           cudaMemcpyHostToDevice);
 	cudaMemcpy(dev->phi_lav_old, host->phi_lav_old[0], nx * ny * sizeof(fp_t),
 	           cudaMemcpyHostToDevice);
-
-	cudaMemcpy(dev->gam_Cr, host->gam_Cr[0], nx * ny * sizeof(fp_t),
-	           cudaMemcpyHostToDevice);
-	cudaMemcpy(dev->gam_Nb, host->gam_Nb[0], nx * ny * sizeof(fp_t),
-	           cudaMemcpyHostToDevice);
 }
 
 void free_cuda(struct CudaData* dev)
@@ -72,11 +62,6 @@ void free_cuda(struct CudaData* dev)
 	cudaFree(dev->phi_lav_new);
 	cudaFree(dev->phi);
 
-	cudaFree(dev->gam_Cr);
-	cudaFree(dev->gam_Nb);
-	cudaFree(dev->lap_gam_Cr);
-	cudaFree(dev->lap_gam_Nb);
-
 	cudaFree(dev->prng);
 }
 
@@ -91,6 +76,4 @@ void read_out_result(struct CudaData* dev, struct HostData* host,
 	           cudaMemcpyDeviceToHost);
 	cudaMemcpy(host->phi_lav_new[0], dev->phi_lav_old, nx * ny * sizeof(fp_t),
 	           cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->gam_Cr[0], dev->gam_Cr, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->gam_Nb[0], dev->gam_Nb, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 }
