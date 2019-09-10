@@ -5,18 +5,10 @@ import numpy as np
 from constants import *
 from pyCinterface import *
 
-def molfrac(wCr, wNb, wNi):
-    nCr = wCr / 51.996
-    nNb = wNb / 92.906
-    nNi = wNi / 58.693
-    N = nCr + nNb + nNi
-    return (nCr/N, nNb/N, nNi/N)
+xCr = xe2A()
+xNb = xe1A()
+xNi = 1 - xCr - xNb
 
-wCr = xe2A()
-wNb = xe1A()
-wNi = 1 - wCr - wNb
-
-xCr, xNb, xNi = molfrac(wCr, wNb, wNi)
 print("xCr:", xCr, " xNb:", xNb, " xNi:", xNi)
 
 # Second-derivatives of Gamma-phase free energy

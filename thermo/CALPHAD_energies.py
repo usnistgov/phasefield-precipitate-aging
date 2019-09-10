@@ -353,16 +353,16 @@ M_NbNb = Vm**3 * ( M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB*
 
 dmu_CrCr = (1 - phi_del - phi_lav) * p_d2Ggam_dxCrCr \
            + phi_del * p_d2Gdel_dxCrCr \
-           + phi_lav * p_d2Gdel_dxCrCr
+           + phi_lav * p_d2Glav_dxCrCr
 dmu_CrNb = (1 - phi_del - phi_lav) * p_d2Ggam_dxCrNb \
            + phi_del * p_d2Gdel_dxCrNb \
-           + phi_lav * p_d2Gdel_dxCrNb
+           + phi_lav * p_d2Glav_dxCrNb
 dmu_NbCr = (1 - phi_del - phi_lav) * p_d2Ggam_dxNbCr \
            + phi_del * p_d2Gdel_dxNbCr \
-           + phi_lav * p_d2Gdel_dxNbCr
+           + phi_lav * p_d2Glav_dxNbCr
 dmu_NbNb = (1 - phi_del - phi_lav) * p_d2Ggam_dxNbNb \
            + phi_del * p_d2Gdel_dxNbNb \
-           + phi_lav * p_d2Gdel_dxNbNb
+           + phi_lav * p_d2Glav_dxNbNb
 
 D_CrCr = factor(expand(M_CrCr * dmu_CrCr + M_CrNb * dmu_NbCr))
 D_CrNb = factor(expand(M_CrCr * dmu_CrNb + M_CrNb * dmu_NbNb))
