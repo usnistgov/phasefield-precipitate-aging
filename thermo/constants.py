@@ -3,18 +3,20 @@
 from numpy import arange, sqrt
 
 def molfrac(wCr, wNb, wNi):
-    nCr = wCr / 51.996
+    # Assume 1 g of material
+    nCr = wCr / 51.996 # g / (g/mol) = mol
     nNb = wNb / 92.906
     nNi = wNi / 58.693
-    N = nCr + nNb + nNi
-    return (nCr / N, nNb / N, nNi / N)
+    nTot = nCr + nNb + nNi
+    return (nCr / nTot, nNb / nTot, nNi / nTot)
 
 def wt_frac(xCr, xNb, xNi):
-    mCr = xCr * 51.996
+    # Assume 1 mol of material
+    mCr = xCr * 51.996 # mol * (g/mol) = g
     mNb = xNb * 92.906
     mNi = xNi * 58.693
-    W = mCr + mNb + mNi
-    return (mCr / W, mNb / W, mNi / W)
+    mTot = mCr + mNb + mNi
+    return (mCr / mTot, mNb / mTot, mNi / mTot)
 
 # Ni Alloy 625 particulars
 temp = 870 + 273.15  # 1143 K

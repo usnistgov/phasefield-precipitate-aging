@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-# Generate phase diagrams
+# Generate phase diagrams, with compositions in mole fractions
+# Ref: TKR5p234
 # Usage: python phasediagram.py
 
 from math import ceil, fabs, sqrt
@@ -13,7 +14,7 @@ import warnings
 from pyCinterface import *
 from constants import *
 
-density = 256
+density = 201
 
 colors = ["red", "green", "blue", "gray"]
 salmon = "#fa8072"
@@ -21,26 +22,20 @@ rust = "#b7410e"
 
 alignment = {"horizontalalignment": "center", "verticalalignment": "center"}
 warnings.filterwarnings("ignore", "The iteration is not making good progress")
-warnings.filterwarnings(
-    "ignore", "The number of calls to function has reached maxfev = 500."
-)
+warnings.filterwarnings("ignore", "The number of calls to function has reached maxfev = 500.")
 
 # Helper functions to convert compositions into (x,y) coordinates
 def simX(x1, x2):
     return x1 + 0.5 * x2
 
-
 def simY(x2):
     return 0.5 * sqrt(3.0) * x2
-
 
 def euclideanNorm(dxNb, dxCr):
     return sqrt(dxNb ** 2 + dxCr ** 2)
 
-
 def boundBy(x, a, b):
     return (a <= x) and (x <= b)
-
 
 def labelAxes(xlabel, ylabel, n):
     plt.axis("off")
@@ -131,34 +126,27 @@ xNbEnr = (enrichMinNb, enrichMaxNb)
 xEnrLbl = xNbEnr[0] - 0.009
 yEnrLbl = 0.5 * (xCrEnr[0] + xCrEnr[1]) + 0.0025
 
-XM = (
-    simX(xNbMat[0], xCrMat[0]),
-    simX(xNbMat[0], xCrMat[1]),
-    simX(xNbMat[1], xCrMat[1]),
-    simX(xNbMat[1], xCrMat[0]),
-    simX(xNbMat[0], xCrMat[0]),
-)
-YM = (
-    simY(xCrMat[0]),
-    simY(xCrMat[1]),
-    simY(xCrMat[1]),
-    simY(xCrMat[0]),
-    simY(xCrMat[0]),
-)
-XE = (
-    simX(xNbEnr[0], xCrEnr[0]),
-    simX(xNbEnr[0], xCrEnr[1]),
-    simX(xNbEnr[1], xCrEnr[1]),
-    simX(xNbEnr[1], xCrEnr[0]),
-    simX(xNbEnr[0], xCrEnr[0]),
-)
-YE = (
-    simY(xCrEnr[0]),
-    simY(xCrEnr[1]),
-    simY(xCrEnr[1]),
-    simY(xCrEnr[0]),
-    simY(xCrEnr[0]),
-)
+XM = (simX(xNbMat[0], xCrMat[0]),
+      simX(xNbMat[0], xCrMat[1]),
+      simX(xNbMat[1], xCrMat[1]),
+      simX(xNbMat[1], xCrMat[0]),
+      simX(xNbMat[0], xCrMat[0]))
+YM = (simY(xCrMat[0]),
+      simY(xCrMat[1]),
+      simY(xCrMat[1]),
+      simY(xCrMat[0]),
+      simY(xCrMat[0]))
+
+XE = (simX(xNbEnr[0], xCrEnr[0]),
+      simX(xNbEnr[0], xCrEnr[1]),
+      simX(xNbEnr[1], xCrEnr[1]),
+      simX(xNbEnr[1], xCrEnr[0]),
+      simX(xNbEnr[0], xCrEnr[0]))
+YE = (simY(xCrEnr[0]),
+      simY(xCrEnr[1]),
+      simY(xCrEnr[1]),
+      simY(xCrEnr[0]),
+      simY(xCrEnr[0]))
 
 plt.fill(XM, YM, color=salmon, lw=1)
 plt.text(
@@ -180,7 +168,7 @@ plt.text(
 )
 
 # === Define Systems of Equations ===
-
+# Ref: TKR5p234
 
 def ABSolver(x1, x2):
     def system(X):
@@ -196,11 +184,12 @@ def ABSolver(x1, x2):
         return [
             dfAdx1 - dfBdx1,
             dfAdx2 - dfBdx2,
-            fA + dfAdx1 * dx1 + dfAdx2 * dx2 - fB,
+            fA - dfAdx1 * dx1 - dfAdx2 * dx2 - fB,
             (x1 - x1B) * dx2 - dx1 * (x2 - x2B),
         ]
 
     def jacobian(X):
+        # Ref: TKR5p309
         x1A, x2A, x1B, x2B = X
         dfAdx1 = dg_gam_dxNb(x2A, x1A)
         dfAdx2 = dg_gam_dxCr(x2A, x1A)
@@ -218,12 +207,12 @@ def ABSolver(x1, x2):
             [d2fAdx11, d2fAdx12, -d2fBdx11, -d2fBdx12],
             [d2fAdx12, d2fAdx22, -d2fBdx12, -d2fBdx22],
             [
-                d2fAdx11 * dx1 + 2 * dfAdx1 + d2fAdx12 * dx2,
-                d2fAdx12 * dx1 + 2 * dfAdx2 + d2fAdx22 * dx2,
-                -dfBdx1 - dfAdx1,
-                -dfBdx2 - dfAdx2,
+                -d2fAdx11 * dx1 - d2fAdx12 * dx2,
+                -d2fAdx12 * dx1 - d2fAdx22 * dx2,
+                dfAdx1 - dfBdx1,
+                dfAdx2 - dfBdx2,
             ],
-            [-x2 + x2B, x1 - x1B, -x2A + x2, -x1 + x1A],
+            [x2B - x2, x1 - x1B, x2 - x2A, x1A - x1]
         ]
 
     # returns the tuple [x1A, x2A, x1B, x2B]
@@ -244,11 +233,12 @@ def ACSolver(x1, x2):
         return [
             dfAdx1 - dfCdx1,
             dfAdx2 - dfCdx2,
-            fA + dfAdx1 * dx1 + dfAdx2 * dx2 - fC,
+            fA - dfAdx1 * dx1 - dfAdx2 * dx2 - fC,
             (x1 - x1C) * dx2 - dx1 * (x2 - x2C),
         ]
 
     def jacobian(X):
+        # Ref: TKR5p309
         x1A, x2A, x1C, x2C = X
         dfAdx1 = dg_gam_dxNb(x2A, x1A)
         dfAdx2 = dg_gam_dxCr(x2A, x1A)
@@ -266,12 +256,12 @@ def ACSolver(x1, x2):
             [d2fAdx11, d2fAdx12, -d2fCdx11, -d2fCdx12],
             [d2fAdx12, d2fAdx22, -d2fCdx12, -d2fCdx22],
             [
-                d2fAdx11 * dx1 + 2 * dfAdx1 + d2fAdx12 * dx2,
-                d2fAdx12 * dx1 + 2 * dfAdx2 + d2fAdx22 * dx2,
-                -dfCdx1 - dfAdx1,
-                -dfCdx2 - dfAdx2,
+                -d2fAdx11 * dx1 - d2fAdx12 * dx2,
+                -d2fAdx12 * dx1 - d2fAdx22 * dx2,
+                dfAdx1 - dfCdx1,
+                dfAdx2 - dfCdx2,
             ],
-            [-x2 + x2C, x1 - x1C, -x2A + x2, -x1 + x1A],
+            [x2C - x2, x1 - x1C, x2 - x2A, x1A - x1]
         ]
 
     # returns the tuple [x1A, x2A, x1C, x2C]
@@ -292,11 +282,12 @@ def BCSolver(x1, x2):
         return [
             dfBdx1 - dfCdx1,
             dfBdx2 - dfCdx2,
-            fB + dfBdx1 * dx1 + dfBdx2 * dx2 - fC,
+            fB - dfBdx1 * dx1 - dfBdx2 * dx2 - fC,
             (x1 - x1C) * dx2 - dx1 * (x2 - x2C),
         ]
 
     def jacobian(X):
+        # Ref: TKR5p309
         x1B, x2B, x1C, x2C = X
         dfBdx1 = dg_del_dxNb(x2B, x1B)
         dfBdx2 = dg_del_dxCr(x2B, x1B)
@@ -314,12 +305,12 @@ def BCSolver(x1, x2):
             [d2fBdx11, d2fBdx12, -d2fCdx11, -d2fCdx12],
             [d2fBdx12, d2fBdx22, -d2fCdx12, -d2fCdx22],
             [
-                d2fBdx11 * dx1 + 2 * dfBdx1 + d2fBdx12 * dx2,
-                d2fBdx12 * dx1 + 2 * dfBdx2 + d2fBdx22 * dx2,
-                -dfCdx1 - dfBdx1,
-                -dfCdx2 - dfBdx2,
+                -d2fBdx11 * dx1 - d2fBdx12 * dx2,
+                -d2fBdx12 * dx1 - d2fBdx22 * dx2,
+                dfBdx1 - dfCdx1,
+                dfBdx2 - dfCdx2,
             ],
-            [-x2 + x2C, x1 - x1C, -x2B + x2, -x1 + x1B],
+            [x2C - x2, x1 - x1C, x2 - x2B, x1B - x1]
         ]
 
     # returns the tuple [x1B, x2B, x1C, x2C]
@@ -347,8 +338,8 @@ def ABCSolver(x1, x2):
             dfAdx1 - dfCdx1,
             dfAdx2 - dfBdx2,
             dfAdx2 - dfCdx2,
-            fA + dfAdx1 * dx1B + dfAdx2 * dx2B - fB,
-            fA + dfAdx1 * dx1C + dfAdx2 * dx2C - fC,
+            fA - dfAdx1 * dx1B - dfAdx2 * dx2B - fB,
+            fA - dfAdx1 * dx1C - dfAdx2 * dx2C - fC,
         ]
 
     def jacobian(X):
@@ -378,21 +369,21 @@ def ABCSolver(x1, x2):
             [d2fAdx12, d2fAdx22, 0, 0, -d2fBdx12, -d2fBdx22],
             [d2fAdx12, d2fAdx22, 0, 0, -d2fCdx12, -d2fCdx22],
             [
-                d2fAdx11 * dx1B + 2 * dfAdx1 + d2fAdx12 * dx2B,
-                d2fAdx12 * dx1B + 2 * dfAdx2 + d2fAdx22 * dx2B,
-                -dfBdx1 - dfAdx1,
-                -dfBdx2 - dfAdx2,
+                -d2fAdx11 * dx1B - d2fAdx12 * dx2B,
+                -d2fAdx12 * dx1B - d2fAdx22 * dx2B,
+                dfAdx1 - dfBdx1,
+                dfAdx2 - dfBdx2,
                 0,
-                0,
+                0
             ],
             [
-                d2fAdx11 * dx1C + 2 * dfAdx1 + d2fAdx12 * dx2C,
-                d2fAdx12 * dx1C + 2 * dfAdx2 + d2fAdx22 * dx2C,
+                -d2fAdx11 * dx1C - d2fAdx12 * dx2C,
+                -d2fAdx12 * dx1C - d2fAdx22 * dx2C,
                 0,
                 0,
-                -dfCdx1 - dfAdx1,
-                -dfCdx2 - dfAdx2,
-            ],
+                dfAdx1 - dfCdx1,
+                dfAdx2 - dfCdx2
+            ]
         ]
 
     # returns the tuple [x1A, x2A, x1B, x2B]
@@ -693,27 +684,6 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
                 )
                 mBC.append(b)
                 mCB.append(c)
-
-# === Overlay composition pathway ===
-
-
-def plotEnrichment(xCrM, xNbM, xCrE, xNbE):
-    xlo, xhi = (-0.5e-6, 0.5e-6)
-    wCr, wNb = (150e-9, 50e-9)
-    pos = np.linspace(xlo, xhi, 256, dtype=float)
-    bCr = np.empty_like(pos)
-    bNb = np.empty_like(pos)
-    for i in range(len(pos)):
-        bCr[i] = bellCurve(xlo, xhi, wCr, pos[i], xCrM, xCrE)
-        bNb[i] = bellCurve(xlo, xhi, wNb, pos[i], xNbM, xNbE)
-    x = simX(bNb, bCr)
-    y = simY(bCr)
-    plt.plot(x, y, "-r", linewidth=1, zorder=0)
-
-
-plotEnrichment(matrixMinCr, matrixMinNb, enrichMinCr, enrichMaxNb)
-
-plotEnrichment(matrixMaxCr, matrixMinNb, enrichMaxCr, enrichMaxNb)
 
 # === Save Image ===
 
