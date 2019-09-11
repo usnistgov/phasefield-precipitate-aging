@@ -561,7 +561,7 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
             and boundBy(x2AB, 0, 1)
             and boundBy(x3AB, 0, 1)
             and boundBy(x1BA, 0, 0.51)
-            and boundBy(x2BA, 0, 1)
+            and boundBy(x2BA,-0.02, 1)
             and boundBy(x3BA, 0, 1)
             and boundBy(x1test, min(x1AB, x1BA), max(x1AB, x1BA))
             and boundBy(x2test, min(x2AB, x2BA), max(x2AB, x2BA))
@@ -578,7 +578,7 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
         )
         BCisPhysical = (
             boundBy(x1BC, 0, 0.51)
-            and boundBy(x2BC, 0, 1)
+            and boundBy(x2BC,-0.1, 1)
             and boundBy(x3BC, 0, 1)
             and boundBy(x1CB, 0, 0.51)
             and boundBy(x2CB, 0, 1)
@@ -626,7 +626,7 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
             wa = (simX(w1AB, w2AB), simY(w2AB))
             wb = (simX(w1BA, w2BA), simY(w2BA))
             if (boundBy(xa[1], 0, simY(xe_gam_Cr))
-            and boundBy(xb[1], 0, simY(xe_del_Cr))):
+            and boundBy(xb[1],-0.02, simY(xe_del_Cr))):
                 sAB.append(xa)
                 sBA.append(xb)
                 plt.figure(1)
@@ -646,17 +646,18 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
             else:
                 mAB.append(xa)
                 mBA.append(xb)
+                """
                 plt.figure(1)
                 plt.scatter(xa[0], xa[1], marker="h", c=colors[3],
-                            edgecolor=colors[1], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
                 plt.scatter(xb[0], xb[1], marker="h", c=colors[3],
-                            edgecolor=colors[0], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
                 plt.figure(2)
                 plt.scatter(wa[0], wa[1], marker="h", c=colors[3],
-                            edgecolor=colors[1], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
                 plt.scatter(wb[0], wb[1], marker="h", c=colors[3],
-                            edgecolor=colors[0], s=1.5, zorder=0)
-
+                            edgecolor=colors[3], s=1.0, zorder=0)
+                """
         elif minIdx == 1:
             w2AC, w1AC, w3AC = wt_frac(x2AC, x1AC, x3AC)
             w2CA, w1CA, w3CA = wt_frac(x2CA, x1CA, x3CA)
@@ -685,17 +686,18 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
             else:
                 mAC.append(xa)
                 mCA.append(xc)
+                """
                 plt.figure(1)
                 plt.scatter(xa[0], xa[1], marker="h", c=colors[3],
-                            edgecolor=colors[2], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
                 plt.scatter(xc[0], xc[1], marker="h", c=colors[3],
-                            edgecolor=colors[0], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
                 plt.figure(2)
                 plt.scatter(wa[0], wa[1], marker="h", c=colors[3],
-                            edgecolor=colors[2], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
                 plt.scatter(wc[0], wc[1], marker="h", c=colors[3],
-                            edgecolor=colors[0], s=1.5, zorder=0)
-
+                            edgecolor=colors[3], s=1.0, zorder=0)
+                """
         elif minIdx == 2:
             w2BC, w1BC, w3BC = wt_frac(x2BC, x1BC, x3BC)
             w2CB, w1CB, w3CB = wt_frac(x2CB, x1CB, x3CB)
@@ -704,6 +706,8 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
             wb = (simX(w1BC, w2BC), simY(w2BC))
             wc = (simX(w1CB, w2CB), simY(w2CB))
             if (boundBy(xb[0], 0, simX(xe_del_Nb, xe_del_Cr))
+            and boundBy(xb[1],-0.1, simY(xe_del_Cr))
+            and boundBy(x1CB, xe_del_Nb, 1)
             and boundBy(xc[1], 0, simY(xe_lav_Cr))):
                 sBC.append(xb)
                 sCB.append(xc)
@@ -724,16 +728,18 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
             else:
                 mBC.append(xb)
                 mCB.append(xc)
+                """
                 plt.figure(1)
                 plt.scatter(xb[0], xb[1], marker="h", c=colors[3],
-                            edgecolor=colors[2], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
                 plt.scatter(xc[0], xc[1], marker="h", c=colors[3],
-                            edgecolor=colors[1], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
                 plt.figure(2)
                 plt.scatter(wb[0], wb[1], marker="h", c=colors[3],
-                            edgecolor=colors[2], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
                 plt.scatter(wc[0], wc[1], marker="h", c=colors[3],
-                            edgecolor=colors[1], s=1.5, zorder=0)
+                            edgecolor=colors[3], s=1.0, zorder=0)
+                """
 
 # === Save Image ===
 
