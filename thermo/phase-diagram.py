@@ -92,30 +92,48 @@ def labelAxes(xlabel, ylabel, n):
 # === Prepare Axes ===
 
 pltsize = 10
-plt.figure(figsize=(pltsize, 0.5 * sqrt(3.0) * pltsize))
+fig1 = plt.figure(figsize=(pltsize, 0.5 * sqrt(3.0) * pltsize))
+fig2 = plt.figure(figsize=(pltsize, 0.5 * sqrt(3.0) * pltsize))
+
+plt.figure(1)
 plt.title("Cr-Nb-Ni at {0} K".format(int(temp)), fontsize=18)
 labelAxes(r"$x_{\mathrm{Nb}}$", r"$x_{\mathrm{Cr}}$", 10)
 
-plt.text(
-    simX(0.05, 0.10),
-    simY(0.10),
-    "$\gamma$",
-    color=colors[0],
-    fontsize=16,
-    zorder=2,
-    **alignment
-)
-plt.text(0.265, -0.006, "$\delta$", color=colors[1], fontsize=16, zorder=2, **alignment)
-plt.text(
-    simX(0.29, 0.35),
-    simY(0.35),
-    "$\lambda$",
-    color=colors[2],
-    fontsize=16,
-    zorder=2,
-    **alignment
-)
+plt.figure(2)
+plt.title("Cr-Nb-Ni at {0} K".format(int(temp)), fontsize=18)
+labelAxes(r"$w_{\mathrm{Nb}}$", r"$w_{\mathrm{Cr}}$", 10)
 
+## === Label Corners of Coexistence Triangle ===
+
+plt.figure(1)
+xlGCr = 0.53
+xlGNb = 0
+xlGNi = 1 - xlGCr - xlGNb
+plt.text(simX(xlGNb, xlGCr), simY(xlGCr), "$\gamma$",
+    color=colors[0], fontsize=16, zorder=2, **alignment)
+xlDCr =-0.006
+xlDNb = 0.265
+xlDNi = 1 - xlDCr - xlDNb
+plt.text(xlDNb, xlDCr, "$\delta$",
+         color=colors[1], fontsize=16, zorder=2, **alignment)
+xlLCr = 0.35
+xlLNb = 0.29
+xlLNi = 1 - xlLCr - xlLNb
+plt.text(simX(xlLNb, xlLCr), simY(xlLCr), "$\lambda$",
+    color=colors[2], fontsize=16, zorder=2, **alignment)
+
+plt.figure(2)
+wlGCr, wlGNb, wlGNi = wt_frac(xlGCr, xlGNb, xlGNi)
+plt.text(simX(wlGNb, wlGCr), simY(wlGCr), "$\gamma$",
+    color=colors[0], fontsize=16, zorder=2, **alignment)
+wlDCr, wlDNb, wlDNi = wt_frac(xlDCr, xlDNb, xlDNi)
+plt.text(wlDNb, wlDCr, "$\delta$",
+         color=colors[1], fontsize=16, zorder=2, **alignment)
+wlLCr, wlLNb, wlLNi = wt_frac(xlLCr, xlLNb, xlLNi)
+plt.text(simX(wlLNb, wlLCr), simY(wlLCr), "$\lambda$",
+    color=colors[2], fontsize=16, zorder=2, **alignment)
+
+plt.figure(1)
 xCrMat = (matrixMinCr, matrixMaxCr)
 xNbMat = (matrixMinNb, matrixMaxNb)
 xMatLbl = xNbMat[0] - 0.009
@@ -147,6 +165,58 @@ YE = (simY(xCrEnr[0]),
       simY(xCrEnr[1]),
       simY(xCrEnr[0]),
       simY(xCrEnr[0]))
+
+plt.fill(XM, YM, color=salmon, lw=1)
+plt.text(
+    simX(xMatLbl, yMatLbl),
+    simY(yMatLbl),
+    "matrix",
+    rotation=60,
+    fontsize=8,
+    **alignment
+)
+plt.fill(XE, YE, color=rust, lw=1)
+plt.text(
+    simX(xEnrLbl, yEnrLbl),
+    simY(yEnrLbl),
+    "enrich",
+    rotation=60,
+    fontsize=8,
+    **alignment
+)
+
+plt.figure(2)
+wCrMat = (matrixMinCr_w, matrixMaxCr_w)
+wNbMat = (matrixMinNb_w, matrixMaxNb_w)
+xMatLbl = wNbMat[0] - 0.009
+yMatLbl = 0.5 * (wCrMat[0] + wCrMat[1]) + 0.005
+
+wCrEnr = (enrichMinCr_w, enrichMaxCr_w)
+wNbEnr = (enrichMinNb_w, enrichMaxNb_w)
+xEnrLbl = wNbEnr[0] - 0.009
+yEnrLbl = 0.5 * (wCrEnr[0] + wCrEnr[1]) + 0.0025
+
+XM = (simX(wNbMat[0], wCrMat[0]),
+      simX(wNbMat[0], wCrMat[1]),
+      simX(wNbMat[1], wCrMat[1]),
+      simX(wNbMat[1], wCrMat[0]),
+      simX(wNbMat[0], wCrMat[0]))
+YM = (simY(wCrMat[0]),
+      simY(wCrMat[1]),
+      simY(wCrMat[1]),
+      simY(wCrMat[0]),
+      simY(wCrMat[0]))
+
+XE = (simX(wNbEnr[0], wCrEnr[0]),
+      simX(wNbEnr[0], wCrEnr[1]),
+      simX(wNbEnr[1], wCrEnr[1]),
+      simX(wNbEnr[1], wCrEnr[0]),
+      simX(wNbEnr[0], wCrEnr[0]))
+YE = (simY(wCrEnr[0]),
+      simY(wCrEnr[1]),
+      simY(wCrEnr[1]),
+      simY(wCrEnr[0]),
+      simY(wCrEnr[0]))
 
 plt.fill(XM, YM, color=salmon, lw=1)
 plt.text(
@@ -393,6 +463,7 @@ def ABCSolver(x1, x2):
 # === Plot 3-phase coexistence ===
 
 coexist = []
+w_coexist = []
 
 for x1test in np.linspace(0.5 / density, 1 - 0.5 / density, density):
     for x2test in np.linspace(
@@ -438,8 +509,23 @@ for x1test in np.linspace(0.5 / density, 1 - 0.5 / density, density):
                 )
                 triY = (simY(x2ABC), simY(x2BAC), simY(x2CAB), simY(x2ABC))
                 coexist.append((triX, triY))
+                w2ABC, w1ABC, w3ABC = wt_frac(x2ABC, x1ABC, x3ABC)
+                w2BAC, w1BAC, w3BAC = wt_frac(x2BAC, x1BAC, x3BAC)
+                w2CAB, w1CAB, w3CAB = wt_frac(x2CAB, x1CAB, x3CAB)
+                triX = (
+                    simX(w1ABC, w2ABC),
+                    simX(w1BAC, w2BAC),
+                    simX(w1CAB, w2CAB),
+                    simX(w1ABC, w2ABC),
+                )
+                triY = (simY(w2ABC), simY(w2BAC), simY(w2CAB), simY(w2ABC))
+                w_coexist.append((triX, triY))
 
+plt.figure(1)
 for x, y in coexist:
+    plt.plot(x, y, color="black", zorder=2)
+plt.figure(2)
+for x, y in w_coexist:
     plt.plot(x, y, color="black", zorder=2)
 
 sAB = []
@@ -471,30 +557,30 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
         x3CB = 1 - x1CB - x2CB
 
         ABisPhysical = (
-            boundBy(x1AB, 0, 1)
+            boundBy(x1AB, 0, 0.51)
             and boundBy(x2AB, 0, 1)
             and boundBy(x3AB, 0, 1)
-            and boundBy(x1BA, 0, 1)
+            and boundBy(x1BA, 0, 0.51)
             and boundBy(x2BA, 0, 1)
             and boundBy(x3BA, 0, 1)
             and boundBy(x1test, min(x1AB, x1BA), max(x1AB, x1BA))
             and boundBy(x2test, min(x2AB, x2BA), max(x2AB, x2BA))
         )
         ACisPhysical = (
-            boundBy(x1AC, 0, 1)
+            boundBy(x1AC, 0, 0.51)
             and boundBy(x2AC, 0, 1)
             and boundBy(x3AC, 0, 1)
-            and boundBy(x1CA, 0, 1)
+            and boundBy(x1CA, 0, 0.51)
             and boundBy(x2CA, 0, 1)
             and boundBy(x3CA, 0, 1)
             and boundBy(x1test, min(x1AC, x1CA), max(x1AC, x1CA))
             and boundBy(x2test, min(x2AC, x2CA), max(x2AC, x2CA))
         )
         BCisPhysical = (
-            boundBy(x1BC, 0, 1)
+            boundBy(x1BC, 0, 0.51)
             and boundBy(x2BC, 0, 1)
             and boundBy(x3BC, 0, 1)
-            and boundBy(x1CB, 0, 1)
+            and boundBy(x1CB, 0, 0.51)
             and boundBy(x2CB, 0, 1)
             and boundBy(x3CB, 0, 1)
             and boundBy(x1test, min(x1BC, x1CB), max(x1BC, x1CB))
@@ -533,161 +619,132 @@ for x1test in tqdm(np.linspace(0.5 / density, 1 - 0.5 / density, density)):
         minIdx = np.argmin(energies)
 
         if minIdx == 0:
-            a = (simX(x1AB, x2AB), simY(x2AB))
-            b = (simX(x1BA, x2BA), simY(x2BA))
-            if boundBy(a[1], 0, coexist[0][1][0]) and boundBy(
-                b[1], 0, coexist[0][1][1]
-            ):
-                plt.scatter(
-                    a[0],
-                    a[1],
-                    c=colors[0],
-                    marker="h",
-                    edgecolor=colors[0],
-                    s=1.5,
-                    zorder=1,
-                )
-                plt.scatter(
-                    b[0],
-                    b[1],
-                    c=colors[1],
-                    marker="h",
-                    edgecolor=colors[1],
-                    s=1.5,
-                    zorder=1,
-                )
-                plt.plot(
-                    [a[0], b[0]], [a[1], b[1]], color="gray", linewidth=0.1, zorder=0
-                )
-                sAB.append(a)
-                sBA.append(b)
+            w2AB, w1AB, w3AB = wt_frac(x2AB, x1AB, x3AB)
+            w2BA, w1BA, w3BA = wt_frac(x2BA, x1BA, x3BA)
+            xa = (simX(x1AB, x2AB), simY(x2AB))
+            xb = (simX(x1BA, x2BA), simY(x2BA))
+            wa = (simX(w1AB, w2AB), simY(w2AB))
+            wb = (simX(w1BA, w2BA), simY(w2BA))
+            if (boundBy(xa[1], 0, simY(xe_gam_Cr))
+            and boundBy(xb[1], 0, simY(xe_del_Cr))):
+                sAB.append(xa)
+                sBA.append(xb)
+                plt.figure(1)
+                plt.scatter(xa[0], xa[1], c=colors[0],
+                    marker="h", edgecolor=colors[0], s=1.5, zorder=1)
+                plt.scatter(xb[0], xb[1], c=colors[1],
+                    marker="h", edgecolor=colors[1], s=1.5, zorder=1)
+                plt.plot([xa[0], xb[0]], [xa[1], xb[1]],
+                         color="gray", linewidth=0.1, zorder=0)
+                plt.figure(2)
+                plt.scatter(wa[0], wa[1], c=colors[0],
+                    marker="h", edgecolor=colors[0], s=1.5, zorder=1)
+                plt.scatter(wb[0], wb[1], c=colors[1],
+                    marker="h", edgecolor=colors[1], s=1.5, zorder=1)
+                plt.plot([wa[0], wb[0]], [wa[1], wb[1]],
+                         color="gray", linewidth=0.1, zorder=0)
             else:
-                plt.scatter(
-                    a[0],
-                    a[1],
-                    marker="h",
-                    c=colors[3],
-                    edgecolor=colors[3],
-                    s=1.5,
-                    zorder=0,
-                )
-                plt.scatter(
-                    b[0],
-                    b[1],
-                    marker="h",
-                    c=colors[3],
-                    edgecolor=colors[3],
-                    s=1.5,
-                    zorder=0,
-                )
-                mAB.append(a)
-                mBA.append(b)
+                mAB.append(xa)
+                mBA.append(xb)
+                plt.figure(1)
+                plt.scatter(xa[0], xa[1], marker="h", c=colors[3],
+                            edgecolor=colors[1], s=1.5, zorder=0)
+                plt.scatter(xb[0], xb[1], marker="h", c=colors[3],
+                            edgecolor=colors[0], s=1.5, zorder=0)
+                plt.figure(2)
+                plt.scatter(wa[0], wa[1], marker="h", c=colors[3],
+                            edgecolor=colors[1], s=1.5, zorder=0)
+                plt.scatter(wb[0], wb[1], marker="h", c=colors[3],
+                            edgecolor=colors[0], s=1.5, zorder=0)
 
         elif minIdx == 1:
-            a = (simX(x1AC, x2AC), simY(x2AC))
-            c = (simX(x1CA, x2CA), simY(x2CA))
-            if boundBy(a[1], coexist[0][1][0], 1) and boundBy(
-                c[1], coexist[0][1][2], 1
-            ):
-                plt.scatter(
-                    a[0],
-                    a[1],
-                    c=colors[0],
-                    marker="h",
-                    edgecolor=colors[0],
-                    s=1.5,
-                    zorder=1,
-                )
-                plt.scatter(
-                    c[0],
-                    c[1],
-                    c=colors[2],
-                    marker="h",
-                    edgecolor=colors[2],
-                    s=1.5,
-                    zorder=1,
-                )
-                plt.plot(
-                    [a[0], c[0]], [a[1], c[1]], color="gray", linewidth=0.1, zorder=0
-                )
-                sAC.append(a)
-                sCA.append(c)
+            w2AC, w1AC, w3AC = wt_frac(x2AC, x1AC, x3AC)
+            w2CA, w1CA, w3CA = wt_frac(x2CA, x1CA, x3CA)
+            xa = (simX(x1AC, x2AC), simY(x2AC))
+            xc = (simX(x1CA, x2CA), simY(x2CA))
+            wa = (simX(w1AC, w2AC), simY(w2AC))
+            wc = (simX(w1CA, w2CA), simY(w2CA))
+            if (boundBy(xa[1], simY(xe_gam_Cr), 1)
+            and boundBy(xc[1], simY(xe_lav_Cr), 1)):
+                sAC.append(xa)
+                sCA.append(xc)
+                plt.figure(1)
+                plt.scatter(xa[0], xa[1], c=colors[0],
+                    marker="h", edgecolor=colors[0], s=1.5, zorder=1)
+                plt.scatter(xc[0], xc[1], c=colors[2],
+                    marker="h", edgecolor=colors[2], s=1.5, zorder=1)
+                plt.plot([xa[0], xc[0]], [xa[1], xc[1]],
+                         color="gray", linewidth=0.1, zorder=0)
+                plt.figure(2)
+                plt.scatter(wa[0], wa[1], c=colors[0],
+                    marker="h", edgecolor=colors[0], s=1.5, zorder=1)
+                plt.scatter(wc[0], wc[1], c=colors[2],
+                    marker="h", edgecolor=colors[2], s=1.5, zorder=1)
+                plt.plot([wa[0], wc[0]], [wa[1], wc[1]],
+                         color="gray", linewidth=0.1, zorder=0)
             else:
-                plt.scatter(
-                    a[0],
-                    a[1],
-                    marker="h",
-                    c=colors[3],
-                    edgecolor=colors[3],
-                    s=1.5,
-                    zorder=0,
-                )
-                plt.scatter(
-                    c[0],
-                    c[1],
-                    marker="h",
-                    c=colors[3],
-                    edgecolor=colors[3],
-                    s=1.5,
-                    zorder=0,
-                )
-                mAC.append(a)
-                mCA.append(c)
+                mAC.append(xa)
+                mCA.append(xc)
+                plt.figure(1)
+                plt.scatter(xa[0], xa[1], marker="h", c=colors[3],
+                            edgecolor=colors[2], s=1.5, zorder=0)
+                plt.scatter(xc[0], xc[1], marker="h", c=colors[3],
+                            edgecolor=colors[0], s=1.5, zorder=0)
+                plt.figure(2)
+                plt.scatter(wa[0], wa[1], marker="h", c=colors[3],
+                            edgecolor=colors[2], s=1.5, zorder=0)
+                plt.scatter(wc[0], wc[1], marker="h", c=colors[3],
+                            edgecolor=colors[0], s=1.5, zorder=0)
 
         elif minIdx == 2:
-            b = (simX(x1BC, x2BC), simY(x2BC))
-            c = (simX(x1CB, x2CB), simY(x2CB))
-            if boundBy(b[0], coexist[0][0][1], 0.5) and boundBy(
-                c[0], coexist[0][0][2], 0.5
-            ):
-                plt.scatter(
-                    b[0],
-                    b[1],
-                    c=colors[1],
-                    marker="h",
-                    edgecolor=colors[1],
-                    s=1.5,
-                    zorder=1,
-                )
-                plt.scatter(
-                    c[0],
-                    c[1],
-                    c=colors[2],
-                    marker="h",
-                    edgecolor=colors[2],
-                    s=1.5,
-                    zorder=1,
-                )
-                plt.plot(
-                    [b[0], c[0]], [b[1], c[1]], color="gray", linewidth=0.1, zorder=0
-                )
-                sBC.append(b)
-                sCB.append(c)
+            w2BC, w1BC, w3BC = wt_frac(x2BC, x1BC, x3BC)
+            w2CB, w1CB, w3CB = wt_frac(x2CB, x1CB, x3CB)
+            xb = (simX(x1BC, x2BC), simY(x2BC))
+            xc = (simX(x1CB, x2CB), simY(x2CB))
+            wb = (simX(w1BC, w2BC), simY(w2BC))
+            wc = (simX(w1CB, w2CB), simY(w2CB))
+            if (boundBy(xb[0], 0, simX(xe_del_Nb, xe_del_Cr))
+            and boundBy(xc[1], 0, simY(xe_lav_Cr))):
+                sBC.append(xb)
+                sCB.append(xc)
+                plt.figure(1)
+                plt.scatter(xb[0], xb[1], c=colors[1],
+                    marker="h", edgecolor=colors[1], s=1.5, zorder=1)
+                plt.scatter(xc[0], xc[1], c=colors[2],
+                    marker="h", edgecolor=colors[2], s=1.5, zorder=1)
+                plt.plot([xb[0], xc[0]], [xb[1], xc[1]],
+                         color="gray", linewidth=0.1, zorder=0)
+                plt.figure(2)
+                plt.scatter(wb[0], wb[1], c=colors[1],
+                    marker="h", edgecolor=colors[1], s=1.5, zorder=1)
+                plt.scatter(wc[0], wc[1], c=colors[2],
+                    marker="h", edgecolor=colors[2], s=1.5, zorder=1)
+                plt.plot([wb[0], wc[0]], [wb[1], wc[1]],
+                         color="gray", linewidth=0.1, zorder=0)
             else:
-                plt.scatter(
-                    b[0],
-                    b[1],
-                    marker="h",
-                    c=colors[3],
-                    edgecolor=colors[3],
-                    s=1.5,
-                    zorder=0,
-                )
-                plt.scatter(
-                    c[0],
-                    c[1],
-                    marker="h",
-                    c=colors[3],
-                    edgecolor=colors[3],
-                    s=1.5,
-                    zorder=0,
-                )
-                mBC.append(b)
-                mCB.append(c)
+                mBC.append(xb)
+                mCB.append(xc)
+                plt.figure(1)
+                plt.scatter(xb[0], xb[1], marker="h", c=colors[3],
+                            edgecolor=colors[2], s=1.5, zorder=0)
+                plt.scatter(xc[0], xc[1], marker="h", c=colors[3],
+                            edgecolor=colors[1], s=1.5, zorder=0)
+                plt.figure(2)
+                plt.scatter(wb[0], wb[1], marker="h", c=colors[3],
+                            edgecolor=colors[2], s=1.5, zorder=0)
+                plt.scatter(wc[0], wc[1], marker="h", c=colors[3],
+                            edgecolor=colors[1], s=1.5, zorder=0)
 
 # === Save Image ===
 
+plt.figure(1)
 plt.savefig("ternary-diagram.png", dpi=400, bbox_inches="tight")
+plt.figure(2)
+plt.savefig("weight-diagram.png", dpi=400, bbox_inches="tight")
+plt.figure(1)
+plt.close()
+plt.figure(2)
+plt.close()
 
 np.savez_compressed(
     "tie-lines.npz",
@@ -708,5 +765,3 @@ np.savez_compressed(
     np.asarray(mCA),
     np.asarray(mCB),
 )
-
-plt.close()
