@@ -30,45 +30,50 @@ s_laves = s_delta  # J/m²
 
 # Specify gamma-delta-Laves corners (from phase diagram)
 # with compositions as mass fractions
+# Ref: TKR5p310
 
-we_gam_Cr = 0.5250
-we_gam_Nb = 0.0180
+we_gam_Cr = 0.490
+we_gam_Nb = 0.0217
 we_gam_Ni = 1 - we_gam_Cr - we_gam_Nb
 
-we_del_Cr = 0.0258
-we_del_Nb = 0.2440
+we_del_Cr = 0.0178
+we_del_Nb = 0.346
 we_del_Ni = 1 - we_del_Cr - we_del_Nb
 
-we_lav_Cr = 0.3750
-we_lav_Nb = 0.2590
+we_lav_Cr = 0.299
+we_lav_Nb = 0.369
 we_lav_Ni = 1 - we_lav_Cr - we_lav_Nb
 
-xe_gam_Cr, xe_gam_Nb, xe_gam_Ni = molfrac(we_gam_Cr, we_gam_Nb, 1 - we_gam_Cr - we_gam_Nb)
-xe_del_Cr, xe_del_Nb, xe_del_Ni = molfrac(we_del_Cr, we_del_Nb, 1 - we_del_Cr - we_del_Nb)
-xe_lav_Cr, xe_lav_Nb, xe_lav_Ni = molfrac(we_lav_Cr, we_lav_Nb, 1 - we_lav_Cr - we_lav_Nb)
+xe_gam_Cr, xe_gam_Nb, xe_gam_Ni = molfrac(we_gam_Cr, we_gam_Nb, we_gam_Ni)
+xe_del_Cr, xe_del_Nb, xe_del_Ni = molfrac(we_del_Cr, we_del_Nb, we_del_Ni)
+xe_lav_Cr, xe_lav_Nb, xe_lav_Ni = molfrac(we_lav_Cr, we_lav_Nb, we_lav_Ni)
 
 # allowable matrix compositions (mass fractions), from ASTM F3056 (TKR5p238)
-matrixMinNb_w = 0.0315
-matrixMaxNb_w = 0.0415
 matrixMinCr_w = 0.2800
+matrixMinNb_w = 0.0315
+matrixMinNi_w = 1 - matrixMinCr_w - matrixMinNb_w
 matrixMaxCr_w = 0.3300
+matrixMaxNb_w = 0.0415
+matrixMaxNi_w = 1 - matrixMaxCr_w - matrixMaxNb_w
 
 # allowable matrix compositions (mole fractions)
 
-matrixMinCr, matrixMinNb, matrixMinNi = molfrac(matrixMinCr_w, matrixMinNb_w, 1 - matrixMinCr_w - matrixMinNb_w)
-matrixMaxCr, matrixMaxNb, matrixMaxNi = molfrac(matrixMaxCr_w, matrixMaxNb_w, 1 - matrixMaxCr_w - matrixMaxNb_w)
+matrixMinCr, matrixMinNb, matrixMinNi = molfrac(matrixMinCr_w, matrixMinNb_w, matrixMinNi_w)
+matrixMaxCr, matrixMaxNb, matrixMaxNi = molfrac(matrixMaxCr_w, matrixMaxNb_w, matrixMaxNi_w)
 
 # allowable enriched compositions (mass fractions) centered on DICTRA
 # (with same span as matrix)
-enrichMinNb_w = 0.235 - (matrixMaxNb_w - matrixMinNb_w) / 2
-enrichMaxNb_w = 0.235 + (matrixMaxNb_w - matrixMinNb_w) / 2
 enrichMinCr_w = 0.275 - (matrixMaxCr_w - matrixMinCr_w) / 2
+enrichMinNb_w = 0.235 - (matrixMaxNb_w - matrixMinNb_w) / 2
+enrichMinNi_w = 1 - enrichMinCr_w - enrichMinNb_w
 enrichMaxCr_w = 0.275 + (matrixMaxCr_w - matrixMinCr_w) / 2
+enrichMaxNb_w = 0.235 + (matrixMaxNb_w - matrixMinNb_w) / 2
+enrichMaxNi_w = 1 - enrichMaxCr_w - enrichMaxNb_w
 
 # allowable enriched compositions (mole fractions)
 
-enrichMinCr, enrichMinNb, enrichMinNi = molfrac(enrichMinCr_w, enrichMinNb_w, 1 - enrichMinCr_w - enrichMinNb_w)
-enrichMaxCr, enrichMaxNb, enrichMaxNi = molfrac(enrichMaxCr_w, enrichMaxNb_w, 1 - enrichMaxCr_w - enrichMaxNb_w)
+enrichMinCr, enrichMinNb, enrichMinNi = molfrac(enrichMinCr_w, enrichMinNb_w, enrichMinNi_w)
+enrichMaxCr, enrichMaxNb, enrichMaxNi = molfrac(enrichMaxCr_w, enrichMaxNb_w, enrichMaxNi_w)
 
 # Let's avoid integer arithmetic in fractions.
 fr3by4 = 0.75
