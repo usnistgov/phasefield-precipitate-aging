@@ -375,21 +375,7 @@ int main(int argc, char* argv[])
 							gridN[NC+1]    = host.phi_lav_new[j][i];
 						}
 
-						#ifdef _OPENMP
-						#pragma omp parallel for reduction(min: dtDiffusionLimited)
-						#endif
-						for (int n = 0; n < MMSP::nodes(grid); n++) {
-							MMSP::vector<fp_t>& GridN = grid(n);
-							const fp_t xCr = GridN[0];
-							const fp_t xNb = GridN[1];
-							const fp_t phi_del = h(GridN[NC]);
-							const fp_t phi_lav = h(GridN[NC+1]);
-							const fp_t local_dt = (meshres * meshres) /
-								(2.0 * dim * std::max(std::fabs(D_CrCr(xCr, xNb, phi_del, phi_lav)),
-													  std::fabs(D_NbNb(xCr, xNb, phi_del, phi_lav))));
-
-							dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
-						}
+						dtDiffusionLimited = MMSP::timestep(grid);
 						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
 							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least "
 									  << dt / (LinStab * dtDiffusionLimited) << std::endl;

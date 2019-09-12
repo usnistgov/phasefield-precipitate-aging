@@ -34,6 +34,32 @@
 namespace MMSP
 {
 
+fp_t timestep(const GRID2D& grid)
+{
+	fp_t dt = 1.0;
+
+	#ifdef _OPENMP
+	#pragma omp parallel for reduction(min:dt)
+	#endif
+	for (int n = 0; n < nodes(grid); n++) {
+		vector<fp_t>& GridN = grid(n);
+		const fp_t xCr = GridN[0];
+		const fp_t xNb = GridN[1];
+		const fp_t f_del = h(GridN[NC]);
+		const fp_t f_lav = h(GridN[NC+1]);
+
+		const fp_t D11 = D_CrCr(xCr, xNb, f_del, f_lav);
+		const fp_t D22 = D_NbNb(xCr, xNb, f_del, f_lav);
+		const fp_t local_dt = (meshres * meshres) /
+			(4.0 * std::max(std::fabs(D11), std::fabs(D22)));
+
+		dt = std::min(local_dt, dt);
+	}
+
+	return dt;
+}
+
+
 void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 {
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
@@ -396,25 +422,7 @@ void generate(int dim, const char* filename)
 		const double energy = summarize_energy(initGrid);
 
 		const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
-		fp_t dtDiffusionLimited = 1.0;
-
-		#ifdef _OPENMP
-		#pragma omp parallel for reduction(min:dtDiffusionLimited)
-		#endif
-		for (int n = 0; n < nodes(initGrid); n++) {
-			vector<fp_t>& GridN = initGrid(n);
-			const fp_t xCr = GridN[0];
-			const fp_t xNb = GridN[1];
-			const fp_t phi_del = h(GridN[NC]);
-			const fp_t phi_lav = h(GridN[NC+1]);
-
-			const fp_t D11 = D_CrCr(xCr, xNb, phi_del, phi_lav);
-			const fp_t D22 = D_NbNb(xCr, xNb, phi_del, phi_lav);
-			const fp_t local_dt = (meshres * meshres) /
-				(2.0 * dim * std::max(std::fabs(D11), std::fabs(D22)));
-
-			dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
-		}
+		fp_t dtDiffusionLimited = MMSP::timestep(initGrid);
 		const double dt = std::floor(4e11 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e11;
 
 		if (rank == 0) {
