@@ -8,21 +8,21 @@
 #include "parabola625.cuh"
 #include <math.h>
 
-__device__ double d_h(double x)
+__device__ double d_p(double x)
 {
 
-	double h_result;
-	h_result = x*x*x*(6.0*x*x - 15.0*x + 10.0);
-	return h_result;
+	double p_result;
+	p_result = x*x*x*(6.0*x*x - 15.0*x + 10.0);
+	return p_result;
 
 }
 
-__device__ double d_hprime(double x)
+__device__ double d_pPrime(double x)
 {
 
-	double hprime_result;
-	hprime_result = 30.0*x*x*(1.0 - x)*(1.0 - x);
-	return hprime_result;
+	double pPrime_result;
+	pPrime_result = 30.0*x*x*(1.0 - x)*(1.0 - x);
+	return pPrime_result;
 
 }
 

@@ -85,26 +85,26 @@ Properties describe(const std::vector<fp_t>& xCr, const std::vector<fp_t>& xNb)
 		Mean.xNb   += xNb[i]   / N;
 	}
 
-	const fp_t f_del = h(0.3);
-	const fp_t f_lav = h(0.3);
-	const fp_t f_gam = 1.0 - f_del - f_lav;
+	const fp_t pDel = p(0.3);
+	const fp_t pLav = p(0.3);
+	const fp_t pGam = 1.0 - pDel - pLav;
 
-	Mean.dt = timestep(Mean.xCr, Mean.xNb, f_del, f_gam, f_lav);
+	Mean.dt = timestep(Mean.xCr, Mean.xNb, pDel, pGam, pLav);
 
 	for (size_t i=0; i<xCr.size(); i++) {
 		nucleation_driving_force_delta(xCr[i], xNb[i], &(dGdel[i]));
 		nucleation_probability_sphere(xCr[i], xNb[i],
 		                              dGdel[i],
-									  f_gam * (M_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + M_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb()),
-									  f_gam * (M_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + M_NbNb(xCr[i], xNb[i]) * d2g_gam_dxNbNb()),
+									  pGam * (M_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + M_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb()),
+									  pGam * (M_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + M_NbNb(xCr[i], xNb[i]) * d2g_gam_dxNbNb()),
 		                              s_delta(),
 		                              vFccNi, n_gam, dV, Mean.dt,
 		                              &(Rdel[i]), &(Pdel[i]));
 		nucleation_driving_force_laves(xCr[i], xNb[i], &(dGlav[i]));
 		nucleation_probability_sphere(xCr[i], xNb[i],
 		                              dGlav[i],
-									  f_gam * (M_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + M_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb()),
-									  f_gam * (M_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + M_NbNb(xCr[i], xNb[i]) * d2g_gam_dxNbNb()),
+									  pGam * (M_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + M_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb()),
+									  pGam * (M_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + M_NbNb(xCr[i], xNb[i]) * d2g_gam_dxNbNb()),
 		                              s_laves(),
 		                              vFccNi, n_gam, dV, Mean.dt,
 		                              &(Rlav[i]), &(Plav[i]));

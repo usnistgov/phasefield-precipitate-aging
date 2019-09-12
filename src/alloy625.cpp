@@ -46,26 +46,26 @@ fp_t timestep(const GRID2D& grid)
 		vector<fp_t>& GridN = grid(n);
 		const fp_t xCr = GridN[0];
 		const fp_t xNb = GridN[1];
-		const fp_t f_del = h(GridN[NC]);
-		const fp_t f_lav = h(GridN[NC+1]);
-		const fp_t f_gam = 1.0 - f_del - f_lav;
+		const fp_t pDel = p(GridN[NC]);
+		const fp_t pLav = p(GridN[NC+1]);
+		const fp_t pGam = 1.0 - pDel - pLav;
 
 		const fp_t D[12] = {
 			// D_gam
-			std::fabs(f_gam * ( M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb())), // D11
-			std::fabs(f_gam * ( M_CrCr(xCr, xNb) * d2g_gam_dxNbCr() + M_CrNb(xCr, xNb) * d2g_gam_dxNbNb())), // D12
-			std::fabs(f_gam * ( M_NbCr(xCr, xNb) * d2g_gam_dxCrCr() + M_NbNb(xCr, xNb) * d2g_gam_dxCrNb())), // D21
-			std::fabs(f_gam * ( M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb())), // D22
+			std::fabs(pGam * ( M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb())), // D11
+			std::fabs(pGam * ( M_CrCr(xCr, xNb) * d2g_gam_dxNbCr() + M_CrNb(xCr, xNb) * d2g_gam_dxNbNb())), // D12
+			std::fabs(pGam * ( M_NbCr(xCr, xNb) * d2g_gam_dxCrCr() + M_NbNb(xCr, xNb) * d2g_gam_dxCrNb())), // D21
+			std::fabs(pGam * ( M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb())), // D22
 			// D_del
-			std::fabs(f_del * ( M_CrCr(xCr, xNb) * d2g_del_dxCrCr() + M_CrNb(xCr, xNb) * d2g_del_dxCrNb())), // D11
-			std::fabs(f_del * ( M_CrCr(xCr, xNb) * d2g_del_dxNbCr() + M_CrNb(xCr, xNb) * d2g_del_dxNbNb())), // D12
-			std::fabs(f_del * ( M_NbCr(xCr, xNb) * d2g_del_dxCrCr() + M_NbNb(xCr, xNb) * d2g_del_dxCrNb())), // D21
-			std::fabs(f_del * ( M_NbCr(xCr, xNb) * d2g_del_dxNbCr() + M_NbNb(xCr, xNb) * d2g_del_dxNbNb())), // D22
+			std::fabs(pDel * ( M_CrCr(xCr, xNb) * d2g_del_dxCrCr() + M_CrNb(xCr, xNb) * d2g_del_dxCrNb())), // D11
+			std::fabs(pDel * ( M_CrCr(xCr, xNb) * d2g_del_dxNbCr() + M_CrNb(xCr, xNb) * d2g_del_dxNbNb())), // D12
+			std::fabs(pDel * ( M_NbCr(xCr, xNb) * d2g_del_dxCrCr() + M_NbNb(xCr, xNb) * d2g_del_dxCrNb())), // D21
+			std::fabs(pDel * ( M_NbCr(xCr, xNb) * d2g_del_dxNbCr() + M_NbNb(xCr, xNb) * d2g_del_dxNbNb())), // D22
 			// D_lav
-			std::fabs(f_lav * ( M_CrCr(xCr, xNb) * d2g_lav_dxCrCr() + M_CrNb(xCr, xNb) * d2g_lav_dxCrNb())), // D11
-			std::fabs(f_lav * ( M_CrCr(xCr, xNb) * d2g_lav_dxNbCr() + M_CrNb(xCr, xNb) * d2g_lav_dxNbNb())), // D12
-			std::fabs(f_lav * ( M_NbCr(xCr, xNb) * d2g_lav_dxCrCr() + M_NbNb(xCr, xNb) * d2g_lav_dxCrNb())), // D21
-			std::fabs(f_lav * ( M_NbCr(xCr, xNb) * d2g_lav_dxNbCr() + M_NbNb(xCr, xNb) * d2g_lav_dxNbNb()))  // D22
+			std::fabs(pLav * ( M_CrCr(xCr, xNb) * d2g_lav_dxCrCr() + M_CrNb(xCr, xNb) * d2g_lav_dxCrNb())), // D11
+			std::fabs(pLav * ( M_CrCr(xCr, xNb) * d2g_lav_dxNbCr() + M_CrNb(xCr, xNb) * d2g_lav_dxNbNb())), // D12
+			std::fabs(pLav * ( M_NbCr(xCr, xNb) * d2g_lav_dxCrCr() + M_NbNb(xCr, xNb) * d2g_lav_dxCrNb())), // D21
+			std::fabs(pLav * ( M_NbCr(xCr, xNb) * d2g_lav_dxNbCr() + M_NbNb(xCr, xNb) * d2g_lav_dxNbNb()))  // D22
 		};
 
 		const fp_t local_dt = (meshres * meshres) / (4.0 * *(std::max_element(D, D + 12)));
@@ -228,8 +228,8 @@ void seed_solitaire(GRID2D& grid,
 		// Embed a delta particle
 		xCr = grid(x)[0];
 		xNb = grid(x)[1];
-		const fp_t phi_del = h(grid(x)[NC]);
-		const fp_t phi_lav = h(grid(x)[NC+1]);
+		const fp_t phi_del = p(grid(x)[NC]);
+		const fp_t phi_lav = p(grid(x)[NC+1]);
 		const fp_t phi_gam = 1.0 - phi_del - phi_lav;
 
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
@@ -256,8 +256,8 @@ void seed_solitaire(GRID2D& grid,
 		// Embed a Laves particle
 		xCr = grid(x)[0];
 		xNb = grid(x)[1];
-		const fp_t phi_del = h(grid(x)[NC]);
-		const fp_t phi_lav = h(grid(x)[NC+1]);
+		const fp_t phi_del = p(grid(x)[NC]);
+		const fp_t phi_lav = p(grid(x)[NC+1]);
 		const fp_t phi_gam = 1.0 - phi_del - phi_lav;
 
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
@@ -539,26 +539,26 @@ T gibbs(const MMSP::vector<T>& v)
 	// Derivation: TKR5p280, Eq. (4)
 	const T xCr = v[0];
 	const T xNb = v[1];
-	const T f_del = h(v[NC  ]);
-	const T f_lav = h(v[NC + 1]);
+	const T pDel = p(v[NC  ]);
+	const T pLav = p(v[NC + 1]);
 
-	const T f_gam = 1.0 - f_del - f_lav;
-	const T inv_det = inv_fict_det(f_del, f_gam, f_lav);
-	const T gam_Cr = fict_gam_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
-	const T gam_Nb = fict_gam_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
-	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
-	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
-	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
-	const T lav_Nb = fict_lav_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
+	const T pGam = 1.0 - pDel - pLav;
+	const T inv_det = inv_fict_det(pDel, pGam, pLav);
+	const T gam_Cr = fict_gam_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T gam_Nb = fict_gam_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T lav_Nb = fict_lav_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
 
 	MMSP::vector<T> phiSq(NP);
 
 	for (int i = 0; i < NP; i++)
 		phiSq[i] = v[NC + i] * v[NC + i];
 
-	T g  = f_gam * g_gam(gam_Cr, gam_Nb);
-	g += f_del * g_del(del_Cr, del_Nb);
-	g += f_lav * g_lav(lav_Cr, lav_Nb);
+	T g  = pGam * g_gam(gam_Cr, gam_Nb);
+	  g += pDel * g_del(del_Cr, del_Nb);
+	  g += pLav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
 		g += omega[i] * phiSq[i] * pow(1.0 - v[NC + i], 2);
@@ -621,7 +621,7 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim, MMSP::vector<T> > const& G
 		mySummary[NC] = 1.0; // gamma fraction init
 
 		for (int i = 0; i < NP; i++) {
-			const T newPhaseFrac = h(gridN[NC + i]);
+			const T newPhaseFrac = p(gridN[NC + i]);
 
 			mySummary[NC + i + 1] = newPhaseFrac; // secondary phase fraction
 			mySummary[NC    ] -= newPhaseFrac; // contributes to gamma phase;

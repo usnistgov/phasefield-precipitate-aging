@@ -10,8 +10,8 @@
 #ifndef PRECIPITATEAGING__PARABOLA625__H
 #define PRECIPITATEAGING__PARABOLA625__H
 
-double h(double x);
-double hprime(double x);
+double p(double x);
+double pPrime(double x);
 double interface_profile(double z);
 double kT();
 double RT();

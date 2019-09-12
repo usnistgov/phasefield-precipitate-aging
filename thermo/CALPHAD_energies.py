@@ -355,8 +355,8 @@ M_NbNb = Vm**3 * ( M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB*
 
 codegen(
     [  # Interpolator
-        ("h", interpolator),
-        ("hprime", dinterpdx),
+        ("p", interpolator),
+        ("pPrime", dinterpdx),
         ("interface_profile", interfaceProfile),
         # temperature
         ("kT", 1.380649e-23 * temp),

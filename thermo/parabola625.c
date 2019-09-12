@@ -8,21 +8,21 @@
 #include "parabola625.h"
 #include <math.h>
 
-double h(double x)
+double p(double x)
 {
 
-	double h_result;
-	h_result = pow(x, 3)*(6.0*pow(x, 2) - 15.0*x + 10.0);
-	return h_result;
+	double p_result;
+	p_result = pow(x, 3)*(6.0*pow(x, 2) - 15.0*x + 10.0);
+	return p_result;
 
 }
 
-double hprime(double x)
+double pPrime(double x)
 {
 
-	double hprime_result;
-	hprime_result = 30.0*pow(x, 2)*pow(1.0 - x, 2);
-	return hprime_result;
+	double pPrime_result;
+	pPrime_result = 30.0*pow(x, 2)*pow(1.0 - x, 2);
+	return pPrime_result;
 
 }
 
