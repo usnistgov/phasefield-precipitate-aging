@@ -279,22 +279,7 @@ int main(int argc, char* argv[])
 
 			// determine timestep
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
-			fp_t dtDiffusionLimited = 1.0;
-			#ifdef _OPENMP
-            #pragma omp parallel for reduction(min: dtDiffusionLimited)
-			#endif
-			for (int n = 0; n < MMSP::nodes(grid); n++) {
-				MMSP::vector<fp_t>& GridN = grid(n);
-				const fp_t xCr = GridN[0];
-				const fp_t xNb = GridN[1];
-				const fp_t phi_del = h(GridN[NC]);
-				const fp_t phi_lav = h(GridN[NC+1]);
-				const fp_t local_dt = (meshres * meshres) /
-					(2.0 * dim * std::max(std::fabs(D_CrCr(xCr, xNb, phi_del, phi_lav)),
-										  std::fabs(D_NbNb(xCr, xNb, phi_del, phi_lav))));
-
-				dtDiffusionLimited = std::min(local_dt, dtDiffusionLimited);
-			}
+			fp_t dtDiffusionLimited = MMSP::timestep(grid);
 			const double dt = std::floor(4e11 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e11;
 			const uint64_t img_interval = std::min(increment / 4, (uint64_t)(0.2 / dt));
 			const uint64_t nrg_interval = img_interval;

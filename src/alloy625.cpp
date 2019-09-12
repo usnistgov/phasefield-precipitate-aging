@@ -9,6 +9,7 @@
 #ifndef __CUDA625_CPP__
 #define __CUDA625_CPP__
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -47,11 +48,27 @@ fp_t timestep(const GRID2D& grid)
 		const fp_t xNb = GridN[1];
 		const fp_t f_del = h(GridN[NC]);
 		const fp_t f_lav = h(GridN[NC+1]);
+		const fp_t f_gam = 1.0 - f_del - f_lav;
 
-		const fp_t D11 = D_CrCr(xCr, xNb, f_del, f_lav);
-		const fp_t D22 = D_NbNb(xCr, xNb, f_del, f_lav);
-		const fp_t local_dt = (meshres * meshres) /
-			(4.0 * std::max(std::fabs(D11), std::fabs(D22)));
+		const fp_t D[12] = {
+			// D_gam
+			std::fabs(f_gam * ( M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb())), // D11
+			std::fabs(f_gam * ( M_CrCr(xCr, xNb) * d2g_gam_dxNbCr() + M_CrNb(xCr, xNb) * d2g_gam_dxNbNb())), // D12
+			std::fabs(f_gam * ( M_NbCr(xCr, xNb) * d2g_gam_dxCrCr() + M_NbNb(xCr, xNb) * d2g_gam_dxCrNb())), // D21
+			std::fabs(f_gam * ( M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb())), // D22
+			// D_del
+			std::fabs(f_del * ( M_CrCr(xCr, xNb) * d2g_del_dxCrCr() + M_CrNb(xCr, xNb) * d2g_del_dxCrNb())), // D11
+			std::fabs(f_del * ( M_CrCr(xCr, xNb) * d2g_del_dxNbCr() + M_CrNb(xCr, xNb) * d2g_del_dxNbNb())), // D12
+			std::fabs(f_del * ( M_NbCr(xCr, xNb) * d2g_del_dxCrCr() + M_NbNb(xCr, xNb) * d2g_del_dxCrNb())), // D21
+			std::fabs(f_del * ( M_NbCr(xCr, xNb) * d2g_del_dxNbCr() + M_NbNb(xCr, xNb) * d2g_del_dxNbNb())), // D22
+			// D_lav
+			std::fabs(f_lav * ( M_CrCr(xCr, xNb) * d2g_lav_dxCrCr() + M_CrNb(xCr, xNb) * d2g_lav_dxCrNb())), // D11
+			std::fabs(f_lav * ( M_CrCr(xCr, xNb) * d2g_lav_dxNbCr() + M_CrNb(xCr, xNb) * d2g_lav_dxNbNb())), // D12
+			std::fabs(f_lav * ( M_NbCr(xCr, xNb) * d2g_lav_dxCrCr() + M_NbNb(xCr, xNb) * d2g_lav_dxCrNb())), // D21
+			std::fabs(f_lav * ( M_NbCr(xCr, xNb) * d2g_lav_dxNbCr() + M_NbNb(xCr, xNb) * d2g_lav_dxNbNb()))  // D22
+		};
+
+		const fp_t local_dt = (meshres * meshres) / (4.0 * *(std::max_element(D, D + 12)));
 
 		dt = std::min(local_dt, dt);
 	}
@@ -213,12 +230,13 @@ void seed_solitaire(GRID2D& grid,
 		xNb = grid(x)[1];
 		const fp_t phi_del = h(grid(x)[NC]);
 		const fp_t phi_lav = h(grid(x)[NC+1]);
+		const fp_t phi_gam = 1.0 - phi_del - phi_lav;
 
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr(xCr, xNb, phi_del, phi_lav),
-									  D_NbNb(xCr, xNb, phi_del, phi_lav),
+									  phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
+									  phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
 		                              sigma_del,
 		                              Vatom,
 		                              n_gam,
@@ -240,12 +258,13 @@ void seed_solitaire(GRID2D& grid,
 		xNb = grid(x)[1];
 		const fp_t phi_del = h(grid(x)[NC]);
 		const fp_t phi_lav = h(grid(x)[NC+1]);
+		const fp_t phi_gam = 1.0 - phi_del - phi_lav;
 
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr(xCr, xNb, phi_del, phi_lav),
-									  D_NbNb(xCr, xNb, phi_del, phi_lav),
+									  phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
+									  phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
 		                              sigma_lav,
 		                              Vatom,
 		                              n_gam,

@@ -788,13 +788,14 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		const fp_t xNb = d_conc_Nb[idx];
 		const fp_t pDel = d_h(d_phi_del[idx]);
 		const fp_t pLav = d_h(d_phi_lav[idx]);
+        const fp_t pGam = 1.0 - pDel - pLav;
 
 		// Test a delta particle
 		d_nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		d_nucleation_probability_sphere(xCr, xNb,
 		                                dG_chem,
-		                                d_D_CrCr(xCr, xNb, pDel, pLav),
-		                                d_D_NbNb(xCr, xNb, pDel, pLav),
+                                        pGam * (d_M_CrCr(xCr, xNb) * d_d2g_gam_dxCrCr() + d_M_CrNb(xCr, xNb) * d_d2g_gam_dxCrNb()),
+                                        pGam * (d_M_NbCr(xCr, xNb) * d_d2g_gam_dxNbCr() + d_M_NbNb(xCr, xNb) * d_d2g_gam_dxNbNb()),
 		                                sigma_del,
 		                                Vatom,
 		                                n_gam,
@@ -819,8 +820,8 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		d_nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		d_nucleation_probability_sphere(xCr, xNb,
 		                                dG_chem,
-		                                d_D_CrCr(xCr, xNb, pDel, pLav),
-		                                d_D_NbNb(xCr, xNb, pDel, pLav),
+                                        pGam * (d_M_CrCr(xCr, xNb) * d_d2g_gam_dxCrCr() + d_M_CrNb(xCr, xNb) * d_d2g_gam_dxCrNb()),
+                                        pGam * (d_M_NbCr(xCr, xNb) * d_d2g_gam_dxNbCr() + d_M_NbNb(xCr, xNb) * d_d2g_gam_dxNbNb()),
 		                                sigma_lav,
 		                                Vatom,
 		                                n_gam,
