@@ -342,7 +342,7 @@ M_Nb = XCR * M_Nb_Cr + XNB * M_Nb_Nb + (1 - XCR - XNB) * M_Nb_Ni
 M_Ni = XCR * M_Ni_Cr + XNB * M_Ni_Nb + (1 - XCR - XNB) * M_Ni_Ni + XCR * (1 - XCR - XNB) * M_Ni_CrNi
 
 # === Chemical Mobilities in FCC Ni ===
-## TKR5p292
+## TKR5p292 and 311-312
 
 phi_del, phi_lav = symbols("phi_del, phi_lav")
 
