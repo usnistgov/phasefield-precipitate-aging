@@ -11,7 +11,7 @@
 
 __device__ fp_t d_tanh_interp(const fp_t r, const fp_t w)
 {
-	// TKR5p243
+	// TKR5p243, Boettinger *et al.* 2002
 	return 0.5 - 0.5 * tanh(r / w);
 }
 

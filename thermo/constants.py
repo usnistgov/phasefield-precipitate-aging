@@ -3,11 +3,20 @@
 from numpy import arange, sqrt
 
 def molfrac(wCr, wNb, wNi):
-    nCr = wCr / 51.996
+    # Assume 1 g of material
+    nCr = wCr / 51.996 # g / (g/mol) = mol
     nNb = wNb / 92.906
     nNi = wNi / 58.693
-    N = nCr + nNb + nNi
-    return (nCr/N, nNb/N, nNi/N)
+    nTot = nCr + nNb + nNi
+    return (nCr / nTot, nNb / nTot, nNi / nTot)
+
+def wt_frac(xCr, xNb, xNi):
+    # Assume 1 mol of material
+    mCr = xCr * 51.996 # mol * (g/mol) = g
+    mNb = xNb * 92.906
+    mNi = xNi * 58.693
+    mTot = mCr + mNb + mNi
+    return (mCr / mTot, mNb / mTot, mNi / mTot)
 
 # Ni Alloy 625 particulars
 temp = 870 + 273.15  # 1143 K
@@ -21,32 +30,50 @@ s_laves = s_delta  # J/m²
 
 # Specify gamma-delta-Laves corners (from phase diagram)
 # with compositions as mass fractions
+# Ref: TKR5p310
 
-we_gam_Cr = 0.5250
-we_gam_Nb = 0.0180
+we_gam_Cr = 0.490
+we_gam_Nb = 0.0217
+we_gam_Ni = 1 - we_gam_Cr - we_gam_Nb
 
-we_del_Cr = 0.0258
-we_del_Nb = 0.2440
+we_del_Cr = 0.0178
+we_del_Nb = 0.346
+we_del_Ni = 1 - we_del_Cr - we_del_Nb
 
-we_lav_Cr = 0.3750
-we_lav_Nb = 0.2590
+we_lav_Cr = 0.299
+we_lav_Nb = 0.369
+we_lav_Ni = 1 - we_lav_Cr - we_lav_Nb
 
-xe_gam_Cr, xe_gam_Nb, xe_gam_Ni = molfrac(we_gam_Cr, we_gam_Nb, 1 - we_gam_Cr - we_gam_Nb)
-xe_del_Cr, xe_del_Nb, xe_del_Ni = molfrac(we_del_Cr, we_del_Nb, 1 - we_del_Cr - we_del_Nb)
-xe_lav_Cr, xe_lav_Nb, xe_lav_Ni = molfrac(we_lav_Cr, we_lav_Nb, 1 - we_lav_Cr - we_lav_Nb)
+xe_gam_Cr, xe_gam_Nb, xe_gam_Ni = molfrac(we_gam_Cr, we_gam_Nb, we_gam_Ni)
+xe_del_Cr, xe_del_Nb, xe_del_Ni = molfrac(we_del_Cr, we_del_Nb, we_del_Ni)
+xe_lav_Cr, xe_lav_Nb, xe_lav_Ni = molfrac(we_lav_Cr, we_lav_Nb, we_lav_Ni)
 
-# allowable matrix compositions (mole fractions), converted from ASTM F3056 (TKR5p238)
-matrixMinNb = 0.0215
-matrixMaxNb = 0.0269
-matrixMinCr = 0.2794
-matrixMaxCr = 0.3288
+# allowable matrix compositions (mass fractions), from ASTM F3056 (TKR5p238)
+matrixMinCr_w = 0.2800
+matrixMinNb_w = 0.0315
+matrixMinNi_w = 1 - matrixMinCr_w - matrixMinNb_w
+matrixMaxCr_w = 0.3300
+matrixMaxNb_w = 0.0415
+matrixMaxNi_w = 1 - matrixMaxCr_w - matrixMaxNb_w
 
-# allowable enriched compositions (mole fractions) centered on DICTRA
+# allowable matrix compositions (mole fractions)
+
+matrixMinCr, matrixMinNb, matrixMinNi = molfrac(matrixMinCr_w, matrixMinNb_w, matrixMinNi_w)
+matrixMaxCr, matrixMaxNb, matrixMaxNi = molfrac(matrixMaxCr_w, matrixMaxNb_w, matrixMaxNi_w)
+
+# allowable enriched compositions (mass fractions) centered on DICTRA
 # (with same span as matrix)
-enrichMinNb = 0.1659
-enrichMaxNb = 0.1726
-enrichMinCr = 0.2473
-enrichMaxCr = 0.2967
+enrichMinCr_w = 0.275 - (matrixMaxCr_w - matrixMinCr_w) / 2
+enrichMinNb_w = 0.235 - (matrixMaxNb_w - matrixMinNb_w) / 2
+enrichMinNi_w = 1 - enrichMinCr_w - enrichMinNb_w
+enrichMaxCr_w = 0.275 + (matrixMaxCr_w - matrixMinCr_w) / 2
+enrichMaxNb_w = 0.235 + (matrixMaxNb_w - matrixMinNb_w) / 2
+enrichMaxNi_w = 1 - enrichMaxCr_w - enrichMaxNb_w
+
+# allowable enriched compositions (mole fractions)
+
+enrichMinCr, enrichMinNb, enrichMinNi = molfrac(enrichMinCr_w, enrichMinNb_w, enrichMinNi_w)
+enrichMaxCr, enrichMaxNb, enrichMaxNi = molfrac(enrichMaxCr_w, enrichMaxNb_w, enrichMaxNi_w)
 
 # Let's avoid integer arithmetic in fractions.
 fr3by4 = 0.75
@@ -63,10 +90,8 @@ epsilon = 1e-10  # tolerance for comparing floating-point numbers to zero
 def simX(x2, x3):
     return x2 + fr1by2 * x3
 
-
 def simY(x3):
     return rt3by2 * x3
-
 
 # triangle bounding the Gibbs simplex
 XS = [0, simX(1, 0), simX(0, 1), 0]

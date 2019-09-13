@@ -10,8 +10,8 @@
 #ifndef PRECIPITATEAGING__PARABOLA625__H
 #define PRECIPITATEAGING__PARABOLA625__H
 
-double h(double x);
-double hprime(double x);
+double p(double x);
+double pPrime(double x);
 double interface_profile(double z);
 double kT();
 double RT();
@@ -66,6 +66,10 @@ double d2g_lav_dxCrCr();
 double d2g_lav_dxCrNb();
 double d2g_lav_dxNbCr();
 double d2g_lav_dxNbNb();
+double M_CrCr(double XCR, double XNB);
+double M_CrNb(double XCR, double XNB);
+double M_NbCr(double XCR, double XNB);
+double M_NbNb(double XCR, double XNB);
 
 #endif
 

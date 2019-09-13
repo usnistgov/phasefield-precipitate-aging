@@ -8,6 +8,7 @@
 #include <vector>
 #include <iso646.h>
 #include <cmath>
+#include "parabola625.h"
 #include "output.h"
 #include "matplotlibcpp.h"
 
@@ -24,9 +25,9 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 		char* pch;
 		int ibx=0, iby=0, isc=0;
 
-		/* read parameters */
+		// read parameters
 		while ( !feof(input)) {
-			/* process key-value pairs line-by-line */
+			// process key-value pairs line-by-line
 			if (fgets(buffer, 256, input) != NULL) {
 				pch = strtok(buffer, " ");
 
@@ -50,7 +51,7 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 			}
 		}
 
-		/* make sure we got everyone */
+		// make sure we got everyone
 		if (! ibx)
 			printf("Warning: parameter %s undefined. Using default value, %i.\n", "bx", *bx);
 		else if (! iby)
@@ -93,20 +94,20 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 	char num[20];
 	int i, j;
 
-	/* generate the filename */
+	// generate the filename
 	sprintf(num, "%07i", step);
 	strcpy(name, "spinodal.");
 	strcat(name, num);
 	strcat(name, ".csv");
 
-	/* open the file */
+	// open the file
 	output = fopen(name, "w");
 	if (output == NULL) {
 		printf("Error: unable to open %s for output. Check permissions.\n", name);
 		exit(EXIT_FAILURE);
 	}
 
-	/* write csv data */
+	// write csv data
 	fprintf(output, "x,y,c\n");
 	for (j = 1; j < ny-1; j++) {
 		fp_t y = dy * (j - 1);
@@ -139,7 +140,8 @@ void figure(int w, int h, size_t dpi)
 	Py_DECREF(res);
 }
 
-void write_matplotlib(fp_t** conc, fp_t** phi,
+void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
+					  fp_t** phi_del, fp_t** phi_lav,
 					  const int nx, const int ny, const int nm,
                       const fp_t deltax,
                       const int step, const fp_t dt, const char* filename)
@@ -149,30 +151,32 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	int w = nx - nm/2;
 	int h = ny - nm/2;
 
-	std::vector<float> c(w * h);
-	std::vector<float> p(w * h);
+	std::vector<float> c_Cr(w * h);
+	std::vector<float> c_Nb(w * h);
+	std::vector<float> p_del(w * h);
+	std::vector<float> p_lav(w * h);
 
 	std::vector<float> d(w);
-	std::vector<float> cbar(w);
-	std::vector<float> pbar(w);
+	std::vector<float> c_Cr_bar(w);
+	std::vector<float> c_Nb_bar(w);
+	std::vector<float> p_del_bar(w);
+	std::vector<float> p_lav_bar(w);
 
 	PyObject* mat;
 
 	for (int i = 0; i < w; ++i) {
 		d.at(i) = 1e6 * deltax * i;
 		for (int j = 0; j < h; ++j) {
-			const float x = conc[j+nm/2][i+nm/2];
-			const float z = phi[j+nm/2][i+nm/2];
-			c.at(w * j + i) = x;
-			p.at(w * j + i) = z;
+			c_Cr.at(w * j + i) = conc_Cr[j+nm/2][i+nm/2];
+			c_Nb.at(w * j + i) = conc_Nb[j+nm/2][i+nm/2];
+			p_del.at(w * j + i) = phi_del[j+nm/2][i+nm/2];
+			p_lav.at(w * j + i) = phi_lav[j+nm/2][i+nm/2];
 
-			/*
-			cbar.at(i) += x / h;
-			pbar.at(i) += z / h;
-			*/
 			if (j == h/2) {
-				cbar.at(i) = x;
-				pbar.at(i) = z;
+				c_Cr_bar.at(i) = conc_Cr[j+nm/2][i+nm/2];
+				c_Nb_bar.at(i) = conc_Nb[j+nm/2][i+nm/2];
+				p_del_bar.at(i) = phi_del[j+nm/2][i+nm/2];
+				p_lav_bar.at(i) = phi_lav[j+nm/2][i+nm/2];
 			}
 		}
 	}
@@ -196,13 +200,13 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	const long ncols = 5;
 
 	plt::subplot2grid(nrows, ncols, 0, 0, 1, ncols - 1);
-	mat = plt::imshow(&(p[0]), h, w, colors, str_kw, num_kw);
-	plt::title("$\\phi$");
+	mat = plt::imshow(&(p_del[0]), h, w, colors, str_kw, num_kw);
+	plt::title("$\\phi^{\\delta}$");
 	plt::axis("off");
 
 	plt::subplot2grid(nrows, ncols, 1, 0, 1, ncols - 1);
-	mat = plt::imshow(&(c[0]), h, w, colors, str_kw, num_kw);
-	plt::title("$c$");
+	mat = plt::imshow(&(c_Nb[0]), h, w, colors, str_kw, num_kw);
+	plt::title("$x_{\\mathrm{Nb}}$");
 	plt::axis("off");
 
 	plt::subplot2grid(nrows, ncols, 0, ncols - 1, 2, 1);
@@ -215,14 +219,18 @@ void write_matplotlib(fp_t** conc, fp_t** phi,
 	plt::subplot2grid(nrows, ncols, nrows-1, 0, 1, ncols - 1);
 	plt::xlim(0., 1e6 * deltax * nx);
 	plt::ylim(0., 1.);
-	plt::xlabel("$x\\ /\\ [\\mathrm{\\mu m}]$");
-	plt::ylabel("$\\chi_{\\mathrm{Ni}}(y=0)$");
+	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
+	plt::ylabel("$x_{\\mathrm{Ni}}(Y=0)$");
 
 	str_kw.clear();
-	str_kw["label"] = "$x_{\\mathrm{Ni}}$";
-	plt::plot(d, cbar, str_kw);
-	str_kw["label"] = "$\\phi_{\\mathrm{precip}}$";
-	plt::plot(d, pbar, str_kw);
+	str_kw["label"] = "$x_{\\mathrm{Nb}}$";
+	plt::plot(d, c_Nb_bar, str_kw);
+	str_kw["label"] = "$x_{\\mathrm{Cr}}$";
+	plt::plot(d, c_Cr_bar, str_kw);
+	str_kw["label"] = "$\\phi^{\\mathrm{\\delta}}$";
+	plt::plot(d, p_del_bar, str_kw);
+	str_kw["label"] = "$\\phi^{\\mathrm{\\lambda}}$";
+	plt::plot(d, p_lav_bar, str_kw);
 
 	plt::legend();
 

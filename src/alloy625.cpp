@@ -9,6 +9,7 @@
 #ifndef __CUDA625_CPP__
 #define __CUDA625_CPP__
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -34,25 +35,67 @@
 namespace MMSP
 {
 
+fp_t timestep(const GRID2D& grid)
+{
+	fp_t dt = 1.0;
+
+	#ifdef _OPENMP
+	#pragma omp parallel for reduction(min:dt)
+	#endif
+	for (int n = 0; n < nodes(grid); n++) {
+		vector<fp_t>& GridN = grid(n);
+		const fp_t xCr = GridN[0];
+		const fp_t xNb = GridN[1];
+		const fp_t pDel = p(GridN[NC]);
+		const fp_t pLav = p(GridN[NC+1]);
+		const fp_t pGam = 1.0 - pDel - pLav;
+
+		const fp_t D[12] = {
+			// D_gam
+			std::fabs(pGam * ( M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb())), // D11
+			std::fabs(pGam * ( M_CrCr(xCr, xNb) * d2g_gam_dxNbCr() + M_CrNb(xCr, xNb) * d2g_gam_dxNbNb())), // D12
+			std::fabs(pGam * ( M_NbCr(xCr, xNb) * d2g_gam_dxCrCr() + M_NbNb(xCr, xNb) * d2g_gam_dxCrNb())), // D21
+			std::fabs(pGam * ( M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb())), // D22
+			// D_del
+			std::fabs(pDel * ( M_CrCr(xCr, xNb) * d2g_del_dxCrCr() + M_CrNb(xCr, xNb) * d2g_del_dxCrNb())), // D11
+			std::fabs(pDel * ( M_CrCr(xCr, xNb) * d2g_del_dxNbCr() + M_CrNb(xCr, xNb) * d2g_del_dxNbNb())), // D12
+			std::fabs(pDel * ( M_NbCr(xCr, xNb) * d2g_del_dxCrCr() + M_NbNb(xCr, xNb) * d2g_del_dxCrNb())), // D21
+			std::fabs(pDel * ( M_NbCr(xCr, xNb) * d2g_del_dxNbCr() + M_NbNb(xCr, xNb) * d2g_del_dxNbNb())), // D22
+			// D_lav
+			std::fabs(pLav * ( M_CrCr(xCr, xNb) * d2g_lav_dxCrCr() + M_CrNb(xCr, xNb) * d2g_lav_dxCrNb())), // D11
+			std::fabs(pLav * ( M_CrCr(xCr, xNb) * d2g_lav_dxNbCr() + M_CrNb(xCr, xNb) * d2g_lav_dxNbNb())), // D12
+			std::fabs(pLav * ( M_NbCr(xCr, xNb) * d2g_lav_dxCrCr() + M_NbNb(xCr, xNb) * d2g_lav_dxCrNb())), // D21
+			std::fabs(pLav * ( M_NbCr(xCr, xNb) * d2g_lav_dxNbCr() + M_NbNb(xCr, xNb) * d2g_lav_dxNbNb()))  // D22
+		};
+
+		const fp_t local_dt = (meshres * meshres) / (4.0 * *(std::max_element(D, D + 12)));
+
+		dt = std::min(local_dt, dt);
+	}
+
+	return dt;
+}
+
+
 void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 {
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
 
+	/*
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
+	*/
 
 	/* Favor a high delta-phase fraction, with a composition
 	 * chosen from the gamma-delta edge of the three-phase field
 	 */
-	/*
 	double xCrE = 0.415625;
 	double xNbE = 0.0625;
-	*/
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
@@ -131,8 +174,8 @@ void embed_OPC(GRID2D& grid,
                const fp_t& R_precip,
                const int pid)
 {
-	const fp_t R_depletion_Cr = R_precip * sqrt(1. + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
-	const fp_t R_depletion_Nb = R_precip * sqrt(1. + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t R_depletion_Cr = R_precip * sqrt(1.0 + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = R_precip * sqrt(1.0 + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
 	const fp_t R = std::max(std::max(R_depletion_Cr, R_depletion_Nb),
 							R_precip + 4 * ifce_width / meshres);
 
@@ -160,7 +203,6 @@ void embed_OPC(GRID2D& grid,
 }
 
 void seed_solitaire(GRID2D& grid,
-                    const fp_t D_CrCr, const fp_t D_NbNb,
                     const fp_t sigma_del, const fp_t sigma_lav,
                     const fp_t lattice_const, const fp_t ifce_width,
                     const fp_t dx, const fp_t dt, std::mt19937& mtrand)
@@ -186,11 +228,15 @@ void seed_solitaire(GRID2D& grid,
 		// Embed a delta particle
 		xCr = grid(x)[0];
 		xNb = grid(x)[1];
+		const fp_t phi_del = p(grid(x)[NC]);
+		const fp_t phi_lav = p(grid(x)[NC+1]);
+		const fp_t phi_gam = 1.0 - phi_del - phi_lav;
 
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr, D_NbNb,
+									  phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
+									  phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
 		                              sigma_del,
 		                              Vatom,
 		                              n_gam,
@@ -210,11 +256,15 @@ void seed_solitaire(GRID2D& grid,
 		// Embed a Laves particle
 		xCr = grid(x)[0];
 		xNb = grid(x)[1];
+		const fp_t phi_del = p(grid(x)[NC]);
+		const fp_t phi_lav = p(grid(x)[NC+1]);
+		const fp_t phi_gam = 1.0 - phi_del - phi_lav;
 
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-		                              D_CrCr, D_NbNb,
+									  phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
+									  phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
 		                              sigma_lav,
 		                              Vatom,
 		                              n_gam,
@@ -235,28 +285,34 @@ void seed_solitaire(GRID2D& grid,
 
 void seed_planar_delta(GRID2D& grid, const int w_precip)
 {
-	vector<int> x(2);
-	const int mid = nodes(grid) / 2;
+	fp_t xCr = 0.0, xNb = 0.0;
+	for (int n=0; n<nodes(grid); n++) {
+		xCr += grid(n)[0];
+		xNb += grid(n)[1];
+	}
+	xCr /= nodes(grid);
+	xNb /= nodes(grid);
 
-	const fp_t xCr = grid(mid)[0];
-	const fp_t xNb = grid(mid)[1];
+	const fp_t R_precip = meshres * w_precip;
+	const fp_t R_depletion_Cr = R_precip * (1.0 + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
-	const int R_depletion_Cr = w_precip * (1. + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
-	const int R_depletion_Nb = w_precip * (1. + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
-
-	for (x[1] = g0(grid, 1); x[1] < g1(grid, 1); x[1]++) {
-		for (x[0] = g0(grid, 0); x[0] < g0(grid, 0) + w_precip; x[0]++) {
+	vector<int> x(2, 0);
+	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
+		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
+			// Smoothly interpolate through the interface, TKR5p276
 			vector<fp_t>& GridN = grid(x);
-			GridN[0] = xe_del_Cr();
-			GridN[1] = xe_del_Nb();
-			GridN[NC] = 1.;
+			const fp_t r = meshres * (x[0] - g0(grid, 0));
+			GridN[NC] = tanh_interp(r - R_precip, ifce_width);
+			GridN[0] = xe_del_Cr() * tanh_interp(r - R_precip, ifce_width)
+			         + xe_gam_Cr() * tanh_interp(R_precip - r, ifce_width)
+			         - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, ifce_width)
+			         + xCr * tanh_interp(R_depletion_Cr - r, ifce_width);
+			GridN[1] = xe_del_Nb() * tanh_interp(r - R_precip, ifce_width)
+			         + xe_gam_Nb() * tanh_interp(R_precip - r, ifce_width)
+			         - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, ifce_width)
+			         + xNb * tanh_interp(R_depletion_Nb - r, ifce_width);
 		}
-
-		for (x[0] = g0(grid, 0) + w_precip; x[0] < g0(grid, 0) + R_depletion_Cr; x[0]++)
-			grid(x)[0] = xe_gam_Cr();
-
-		for (x[0] = g0(grid, 0) + w_precip; x[0] < g0(grid, 0) + R_depletion_Nb; x[0]++)
-			grid(x)[1] = xe_gam_Nb();
 	}
 }
 
@@ -343,10 +399,6 @@ void generate(int dim, const char* filename)
 	if (rank == 0)
 		cfile = fopen("c.log", "w"); // existing log will be overwritten
 
-	const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
-	const double dtDiffusionLimited = (meshres * meshres) / (std::pow(2.0, dim) * std::max(D_Cr[0], D_Nb[1]));
-	const fp_t dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
-
 	// Initialize pseudo-random number generator
 	std::mt19937 mtrand; // Mersenne Twister PRNG
 	const unsigned int seed = (std::chrono::high_resolution_clock::now() - beginning).count();
@@ -358,10 +410,10 @@ void generate(int dim, const char* filename)
 		const int Ny = 2500;
 		*/
 		const int Nx = 768;
-		const int Ny =   9; // Nx for particles
+		const int Ny =  32;
 
 		double Ntot = 1.0;
-		GRID2D initGrid(2 * NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
+		GRID2D initGrid(NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
 		for (int d = 0; d < dim; d++) {
 			dx(initGrid, d) = meshres;
 			Ntot *= g1(initGrid, d) - g0(initGrid, d);
@@ -371,12 +423,6 @@ void generate(int dim, const char* filename)
 				b1(initGrid, d) = Neumann;
 		}
 
-		if (rank == 0)
-			std::cout << "Timestep dt=" << dt
-			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
-			          << ", dtDiffusionLimited=" << dtDiffusionLimited
-			          << '.' << std::endl;
-
 		init_flat_composition(initGrid, mtrand);
 		/*
 		init_gaussian_enrichment(initGrid, mtrand);
@@ -385,21 +431,24 @@ void generate(int dim, const char* filename)
 		const int w_precip = glength(initGrid, 0) / 6;
 		seed_planar_delta(initGrid, w_precip);
 		/*
-		seed_solitaire(initGrid, D_Cr[0], D_Nb[1],
-		               s_delta(), s_laves(),
-		               lattice_const, ifce_width, meshres, dt, mtrand);
+		seed_solitaire(initGrid, s_delta(), s_laves(), lattice_const,
+					   ifce_width, meshres, dt, mtrand);
 		*/
-
-		// Update fictitious compositions
-		for (int n = 0; n < nodes(initGrid); n++)
-			update_compositions(initGrid(n));
 
 		ghostswap(initGrid);
 
 		vector<double> summary = summarize_fields(initGrid);
 		const double energy = summarize_energy(initGrid);
 
+		const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
+		fp_t dtDiffusionLimited = MMSP::timestep(initGrid);
+		const double dt = std::floor(4e11 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e11;
+
 		if (rank == 0) {
+			std::cout << "Timestep dt=" << dt
+			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
+			          << ", dtDiffusionLimited=" << dtDiffusionLimited
+			          << '.' << std::endl;
 			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s\n",
 			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
 			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
@@ -415,14 +464,20 @@ void generate(int dim, const char* filename)
 
 		// write initial condition image
 
-		fp_t** xNi = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
-		fp_t** phi = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
-		xNi[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
-		phi[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		fp_t** xCr = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** xNb = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** pDel = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** pLav = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		xCr[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		xNb[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		pDel[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		pLav[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
 
 		for (int i = 1; i < Ny + 2; i++) {
-			xNi[i] = &(xNi[0])[(Nx + 2) * i];
-			phi[i] = &(phi[0])[(Nx + 2) * i];
+			xCr[i] = &(xCr[0])[(Nx + 2) * i];
+			xNb[i] = &(xNb[0])[(Nx + 2) * i];
+			pDel[i] = &(pDel[0])[(Nx + 2) * i];
+			pLav[i] = &(pLav[0])[(Nx + 2) * i];
 		}
 
 		#ifdef _OPENMP
@@ -433,8 +488,10 @@ void generate(int dim, const char* filename)
 			const int i = x[0] - g0(initGrid, 0) + 1;
 			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
 			                                          // (mmsp2png of mesh is correct)
-			xNi[j][i] = 1. - initGrid(n)[0] - initGrid(n)[1];
-			phi[j][i] = h(initGrid(n)[NC]) + h(initGrid(n)[NC+1]);
+			xCr[j][i] = initGrid(n)[0];
+			xNb[j][i] = initGrid(n)[1];
+			pDel[j][i] = initGrid(n)[NC];
+			pLav[j][i] = initGrid(n)[NC+1];
 		}
 
 		std::string imgname(filename);
@@ -445,13 +502,17 @@ void generate(int dim, const char* filename)
 		Abort(EXIT_FAILURE);
 		#endif
 		const int nm = 3, step = 0;
-		const double dt = 1.;
-		write_matplotlib(xNi, phi, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
+		write_matplotlib(xCr, xNb, pDel, pLav, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
 
-		free(xNi[0]);
-		free(phi[0]);
-		free(xNi);
-		free(phi);
+		free(xCr[0]);
+		free(xNb[0]);
+		free(pDel[0]);
+		free(pLav[0]);
+		free(xCr);
+		free(xNb);
+		free(pDel);
+		free(pLav);
+
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
 		Abort(EXIT_FAILURE);
@@ -472,47 +533,32 @@ double radius(const MMSP::vector<int>& a, const MMSP::vector<int>& b, const doub
 	return dx * std::sqrt(r);
 }
 
-template<typename T>
-void update_compositions(MMSP::vector<T>& GRIDN)
-{
-	const T& xcr = GRIDN[0];
-	const T& xnb = GRIDN[1];
-
-	const T fdel = h(GRIDN[NC]);
-	const T flav = h(GRIDN[NC+1]);
-	const T fgam = 1. - fdel - flav;
-
-	const T inv_det = inv_fict_det(fdel, fgam, flav);
-	GRIDN[NC + NP]     = fict_gam_Cr(inv_det, xcr, xnb, fdel, fgam, flav);
-	GRIDN[NC + NP + 1] = fict_gam_Nb(inv_det, xcr, xnb, fdel, fgam, flav);
-}
-
 template <typename T>
 T gibbs(const MMSP::vector<T>& v)
 {
 	// Derivation: TKR5p280, Eq. (4)
 	const T xCr = v[0];
 	const T xNb = v[1];
-	const T f_del = h(v[NC  ]);
-	const T f_lav = h(v[NC + 1]);
-	const T gam_Cr = v[NC + NP];
-	const T gam_Nb = v[NC + NP + 1];
+	const T pDel = p(v[NC  ]);
+	const T pLav = p(v[NC + 1]);
 
-	const T f_gam = 1.0 - f_del - f_lav;
-	const T inv_det = inv_fict_det(f_del, f_gam, f_lav);
-	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
-	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
-	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, f_del, f_gam, f_lav);
-	const T lav_Nb = fict_lav_Nb(inv_det, xCr, xNb, f_del, f_gam, f_lav);
+	const T pGam = 1.0 - pDel - pLav;
+	const T inv_det = inv_fict_det(pDel, pGam, pLav);
+	const T gam_Cr = fict_gam_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T gam_Nb = fict_gam_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T lav_Nb = fict_lav_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
 
 	MMSP::vector<T> phiSq(NP);
 
 	for (int i = 0; i < NP; i++)
 		phiSq[i] = v[NC + i] * v[NC + i];
 
-	T g  = f_gam * g_gam(gam_Cr, gam_Nb);
-	g += f_del * g_del(del_Cr, del_Nb);
-	g += f_lav * g_lav(lav_Cr, lav_Nb);
+	T g  = pGam * g_gam(gam_Cr, gam_Nb);
+	  g += pDel * g_del(del_Cr, del_Nb);
+	  g += pLav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
 		g += omega[i] * phiSq[i] * pow(1.0 - v[NC + i], 2);
@@ -526,7 +572,9 @@ T gibbs(const MMSP::vector<T>& v)
 }
 
 template <int dim, typename T>
-MMSP::vector<T> maskedgradient(const MMSP::grid<dim, MMSP::vector<T> >& GRID, const MMSP::vector<int>& x, const int N)
+MMSP::vector<T> maskedgradient(const MMSP::grid<dim, MMSP::vector<T> >& GRID,
+							   const MMSP::vector<int>& x,
+							   const int N)
 {
 	MMSP::vector<T> gradient(dim);
 	MMSP::vector<int> s = x;
@@ -573,7 +621,7 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim, MMSP::vector<T> > const& G
 		mySummary[NC] = 1.0; // gamma fraction init
 
 		for (int i = 0; i < NP; i++) {
-			const T newPhaseFrac = h(gridN[NC + i]);
+			const T newPhaseFrac = p(gridN[NC + i]);
 
 			mySummary[NC + i + 1] = newPhaseFrac; // secondary phase fraction
 			mySummary[NC    ] -= newPhaseFrac; // contributes to gamma phase;

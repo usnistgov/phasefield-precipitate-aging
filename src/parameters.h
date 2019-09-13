@@ -11,36 +11,11 @@
 
 // === Discretization Parameters ===
 
-const double meshres = 1.25e-10;   // grid spacing, Δx (m); max. is 2.5 Å
-const double ifce_width = 7.5e-10;  // interface thickness, 2λ (m), TKR5p274
-const fp_t LinStab = 1. / 7.28438;  // threshold of linear (von Neumann) stability, Co (dimensionless)
-const fp_t precip_stabilizer = 13.; // 1.5 Rc = R0, the root of the curve; fitting parameter
-
-/* CFL Values
-| dx[/nm] | dt[/s]  | CFL       | Note     |
-| ------- | ------- | --------- | -------- |
-| 0.125   | 1.00e-7 | 9.105475  |          |
-| 0.125   | 1.25e-7 | 7.28438   |          |
-| 0.125   | 1.50e-7 | 6.0703167 | unstable |
-| 0.250   | 5.00e-7 | 7.28438   |          |
-*/
-
-/* Stabilizer Values
-| dx[/nm] | stabilizer | Delta       | Laves       | Comment               |
-| ------- | ---------- | ----------- | ----------- | --------------------- |
-| 0.125   |         16 | unstable    | unstable    |                       |
-| 0.125   |         17*| stable      | stable      |                       |
-| 0.0625  |          7 | unstable    | unstable    | melted before growing |
-| 0.0625  |         13 |     |     |  |
-*/
-
-// === Kinetic Parameters ===
-
-// Diffusion constants in FCC Ni from Xu (m^2/s)
-//                     Cr        Nb
-const fp_t D_Cr[NC] = {2.16e-15, 2.97e-15}; // first row of diffusivity matrix
-const fp_t D_Nb[NC] = {0.56e-15, 4.29e-15}; // second row of diffusivity matrix
-const fp_t lattice_const = 0.352e-9;        // lattice spacing of FCC nickel (m)
+const double meshres = 0.5e-9;       // grid spacing, Δx (m); max. is 2.5 Å
+const double ifce_width = 2.5e-9;    // interface thickness, 2λ (m), TKR5p274
+const fp_t LinStab = 0.125;          // threshold of linear (von Neumann) stability, Co (dimensionless)
+const fp_t precip_stabilizer = 13.;  // 1.5 Rc = R0, the root of the curve; fitting parameter
+const fp_t lattice_const = 0.352e-9; // lattice spacing of FCC nickel (m)
 
 // Define st.dev. of bell curves for alloying element segregation
 //                       Cr      Nb

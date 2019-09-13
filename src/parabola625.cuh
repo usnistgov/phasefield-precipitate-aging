@@ -10,8 +10,8 @@
 #ifndef D_PRECIPITATEAGING__PARABOLA625__H
 #define D_PRECIPITATEAGING__PARABOLA625__H
 
-__device__ double d_h(double x);
-__device__ double d_hprime(double x);
+__device__ double d_p(double x);
+__device__ double d_pPrime(double x);
 __device__ double d_interface_profile(double z);
 __device__ double d_kT();
 __device__ double d_RT();
@@ -66,6 +66,10 @@ __device__ double d_d2g_lav_dxCrCr();
 __device__ double d_d2g_lav_dxCrNb();
 __device__ double d_d2g_lav_dxNbCr();
 __device__ double d_d2g_lav_dxNbNb();
+__device__ double d_M_CrCr(double XCR, double XNB);
+__device__ double d_M_CrNb(double XCR, double XNB);
+__device__ double d_M_NbCr(double XCR, double XNB);
+__device__ double d_M_NbNb(double XCR, double XNB);
 
 #endif
 

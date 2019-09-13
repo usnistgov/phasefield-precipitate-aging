@@ -271,20 +271,18 @@ int main(int argc, char* argv[])
 				host.conc_Nb_old[j][i] = gridN[1];
 				host.phi_del_old[j][i] = gridN[NC];
 				host.phi_lav_old[j][i] = gridN[NC+1];
-				host.gam_Cr[j][i]      = gridN[NC+NP];
-				host.gam_Nb[j][i]      = gridN[NC+NP+1];
 			}
 
 			// initialize GPU
-			init_cuda(&host, nx, ny, nm, D_Cr, D_Nb, kappa, omega, Lmob, &dev);
+			init_cuda(&host, nx, ny, nm, kappa, omega, Lmob, &dev);
 			device_init_prng(&dev, nx, ny, nm, bx, by);
 
+			// determine timestep
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
-			const double dtDiffusionLimited = (meshres*meshres) / (2.0 * dim * std::max(D_Cr[0], D_Nb[1]));
-			const double dt = LinStab * std::min(dtTransformLimited, dtDiffusionLimited);
+			fp_t dtDiffusionLimited = MMSP::timestep(grid);
+			const double dt = std::floor(4e11 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e11;
 			const uint64_t img_interval = std::min(increment / 4, (uint64_t)(0.2 / dt));
 			const uint64_t nrg_interval = img_interval;
-			// const uint64_t nuc_interval = 1e-5 / dt;
 
 			// setup logging
 			FILE* cfile = NULL;
@@ -297,10 +295,11 @@ int main(int argc, char* argv[])
 				/* start update() */
 				for (uint64_t j = i; j < i + increment; j++) {
 					print_progress(j - i, increment);
+
 					// === Start Architecture-Specific Kernel ===
 					device_boundaries(&dev, nx, ny, nm, bx, by);
 
-					device_laplacian(&dev, nx, ny, nm, bx, by);
+					device_laplacian(&dev, nx, ny, nm, bx, by, dx(grid, 0), dx(grid, 1));
 
 					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 
@@ -310,15 +309,12 @@ int main(int argc, char* argv[])
 					const bool nuc_step = (j % nuc_interval == 0);
 					if (nuc_step) {
 						device_nucleation(&dev, nx, ny, nm, bx, by,
-						                  D_Cr, D_Nb,
 						                  sigma[0], sigma[1],
 						                  lattice_const, ifce_width,
 						                  meshres, meshres, meshres,
 						                  nuc_interval * dt);
 					}
 					*/
-
-					device_fictitious(&dev, nx, ny, nm, bx, by);
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
@@ -343,7 +339,8 @@ int main(int argc, char* argv[])
 						std::cerr << "Error: cannot write images in parallel." <<std::endl;
 						MMSP::Abort(EXIT_FAILURE);
 						#endif
-						write_matplotlib(host.conc_Ni, host.phi,
+						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
+										 host.phi_del_new, host.phi_lav_new,
 										 nx, ny, nm, MMSP::dx(grid),
 										 j+1, dt, imgname.str().c_str());
 					}
@@ -361,8 +358,13 @@ int main(int argc, char* argv[])
 							gridN[1]       = host.conc_Nb_new[j][i];
 							gridN[NC]      = host.phi_del_new[j][i];
 							gridN[NC+1]    = host.phi_lav_new[j][i];
-							gridN[NC+NP]   = host.gam_Cr[j][i];
-							gridN[NC+NP+1] = host.gam_Nb[j][i];
+						}
+
+						dtDiffusionLimited = MMSP::timestep(grid);
+						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
+							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least "
+									  << dt / (LinStab * dtDiffusionLimited) << std::endl;
+							std::exit(EXIT_FAILURE);
 						}
 
 						std::stringstream outstr;

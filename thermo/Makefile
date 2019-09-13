@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -O3 -Wall
 INCLUDES = -I. -I../src -I$(CUDA_HDR_PATH)
-OBJS = enrichment.o nucleation.o parabola625.o
+OBJS = enrichment.o nucleation.o parabola625.o enrichment.so parabola625.so
 
 all: check-nucleation
 .PHONY: all
@@ -55,4 +55,4 @@ tie-lines.npz: phase-diagram.py
 
 .PHONY: clean
 clean:
-	rm -vf check-nucleation enrichment.c enrichment.o enrichment.so nucleation.o parabola625.* sigma.csv sigma.png
+	rm -vf check-nucleation enrichment.h enrichment.c enrichment.o enrichment.so nucleation.o parabola625.* sigma.csv sigma.png
