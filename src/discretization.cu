@@ -195,6 +195,58 @@ __device__ fp_t discrete_laplacian(const fp_t& D_middle,
 		   - (D_middle + D_bottom) * (c_middle - c_bottom)) / (2.0 * dy * dy);
 }
 
+__device__ void fictitious(const fp_t xCr, const fp_t xNb, const fp_t pDel, const fp_t pLav,
+                           fp_t* gam_Cr, fp_t* gam_Nb, fp_t* del_Cr, fp_t* del_Nb, fp_t* lav_Cr, fp_t* lav_Nb)
+{
+	const fp_t pGam = 1.0 - pDel - pLav;
+    const fp_t inv_det = d_inv_fict_det(pDel, pGam, pLav);
+    *gam_Cr = d_fict_gam_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
+    *del_Cr = d_fict_del_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
+    *lav_Cr = d_fict_lav_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
+    *gam_Nb = d_fict_gam_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+    *del_Nb = d_fict_del_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+    *lav_Nb = d_fict_lav_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+}
+
+__device__ fp_t D_gam_CrCr(const fp_t xCr, const fp_t xNb) {
+	return d_M_CrCr(xCr, xNb) * d_d2g_gam_dxCrCr() + d_M_CrNb(xCr, xNb) * d_d2g_gam_dxCrNb();
+}
+__device__ fp_t D_gam_CrNb(const fp_t xCr, const fp_t xNb) {
+	return d_M_CrCr(xCr, xNb) * d_d2g_gam_dxNbCr() + d_M_CrNb(xCr, xNb) * d_d2g_gam_dxNbNb();
+}
+__device__ fp_t D_gam_NbCr(const fp_t xCr, const fp_t xNb) {
+	return d_M_NbCr(xCr, xNb) * d_d2g_gam_dxCrCr() + d_M_NbNb(xCr, xNb) * d_d2g_gam_dxCrNb();
+}
+__device__ fp_t D_gam_NbNb(const fp_t xCr, const fp_t xNb) {
+	return d_M_NbCr(xCr, xNb) * d_d2g_gam_dxNbCr() + d_M_NbNb(xCr, xNb) * d_d2g_gam_dxNbNb();
+}
+
+__device__ fp_t D_del_CrCr(const fp_t xCr, const fp_t xNb) {
+	return d_M_CrCr(xCr, xNb) * d_d2g_del_dxCrCr() + d_M_CrNb(xCr, xNb) * d_d2g_del_dxCrNb();
+}
+__device__ fp_t D_del_CrNb(const fp_t xCr, const fp_t xNb) {
+	return d_M_CrCr(xCr, xNb) * d_d2g_del_dxNbCr() + d_M_CrNb(xCr, xNb) * d_d2g_del_dxNbNb();
+}
+__device__ fp_t D_del_NbCr(const fp_t xCr, const fp_t xNb) {
+	return d_M_NbCr(xCr, xNb) * d_d2g_del_dxCrCr() + d_M_NbNb(xCr, xNb) * d_d2g_del_dxCrNb();
+}
+__device__ fp_t D_del_NbNb(const fp_t xCr, const fp_t xNb) {
+	return d_M_NbCr(xCr, xNb) * d_d2g_del_dxNbCr() + d_M_NbNb(xCr, xNb) * d_d2g_del_dxNbNb();
+}
+
+__device__ fp_t D_lav_CrCr(const fp_t xCr, const fp_t xNb) {
+	return d_M_CrCr(xCr, xNb) * d_d2g_lav_dxCrCr() + d_M_CrNb(xCr, xNb) * d_d2g_lav_dxCrNb();
+}
+__device__ fp_t D_lav_CrNb(const fp_t xCr, const fp_t xNb) {
+	return d_M_CrCr(xCr, xNb) * d_d2g_lav_dxNbCr() + d_M_CrNb(xCr, xNb) * d_d2g_lav_dxNbNb();
+}
+__device__ fp_t D_lav_NbCr(const fp_t xCr, const fp_t xNb) {
+	return d_M_NbCr(xCr, xNb) * d_d2g_lav_dxCrCr() + d_M_NbNb(xCr, xNb) * d_d2g_lav_dxCrNb();
+}
+__device__ fp_t D_lav_NbNb(const fp_t xCr, const fp_t xNb) {
+	return d_M_NbCr(xCr, xNb) * d_d2g_lav_dxNbCr() + d_M_NbNb(xCr, xNb) * d_d2g_lav_dxNbNb();
+}
+
 __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
         fp_t* d_conc_Cr_old, fp_t* d_conc_Cr_new,
         fp_t* d_conc_Nb_old, fp_t* d_conc_Nb_new,
@@ -272,45 +324,16 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 		const fp_t top_pGam = 1.0 - top_pDel - top_pLav;
 
 		// Fictitious compositions
-		fp_t inv_det = d_inv_fict_det(mid_pDel, mid_pGam, mid_pLav);
-		const fp_t mid_gam_Cr = d_fict_gam_Cr(inv_det, mid->x, mid->y, mid_pDel, mid_pGam, mid_pLav);
-		const fp_t mid_del_Cr = d_fict_del_Cr(inv_det, mid->x, mid->y, mid_pDel, mid_pGam, mid_pLav);
-		const fp_t mid_lav_Cr = d_fict_lav_Cr(inv_det, mid->x, mid->y, mid_pDel, mid_pGam, mid_pLav);
-		const fp_t mid_gam_Nb = d_fict_gam_Nb(inv_det, mid->x, mid->y, mid_pDel, mid_pGam, mid_pLav);
-		const fp_t mid_del_Nb = d_fict_del_Nb(inv_det, mid->x, mid->y, mid_pDel, mid_pGam, mid_pLav);
-		const fp_t mid_lav_Nb = d_fict_lav_Nb(inv_det, mid->x, mid->y, mid_pDel, mid_pGam, mid_pLav);
-
-		inv_det = d_inv_fict_det(lft_pDel, lft_pGam, lft_pLav);
-		const fp_t lft_gam_Cr = d_fict_gam_Cr(inv_det, lft->x, lft->y, lft_pDel, lft_pGam, lft_pLav);
-		const fp_t lft_del_Cr = d_fict_del_Cr(inv_det, lft->x, lft->y, lft_pDel, lft_pGam, lft_pLav);
-		const fp_t lft_lav_Cr = d_fict_lav_Cr(inv_det, lft->x, lft->y, lft_pDel, lft_pGam, lft_pLav);
-		const fp_t lft_gam_Nb = d_fict_gam_Nb(inv_det, lft->x, lft->y, lft_pDel, lft_pGam, lft_pLav);
-		const fp_t lft_del_Nb = d_fict_del_Nb(inv_det, lft->x, lft->y, lft_pDel, lft_pGam, lft_pLav);
-		const fp_t lft_lav_Nb = d_fict_lav_Nb(inv_det, lft->x, lft->y, lft_pDel, lft_pGam, lft_pLav);
-
-		inv_det = d_inv_fict_det(rgt_pDel, rgt_pGam, rgt_pLav);
-		const fp_t rgt_gam_Cr = d_fict_gam_Cr(inv_det, rgt->x, rgt->y, rgt_pDel, rgt_pGam, rgt_pLav);
-		const fp_t rgt_del_Cr = d_fict_del_Cr(inv_det, rgt->x, rgt->y, rgt_pDel, rgt_pGam, rgt_pLav);
-		const fp_t rgt_lav_Cr = d_fict_lav_Cr(inv_det, rgt->x, rgt->y, rgt_pDel, rgt_pGam, rgt_pLav);
-		const fp_t rgt_gam_Nb = d_fict_gam_Nb(inv_det, rgt->x, rgt->y, rgt_pDel, rgt_pGam, rgt_pLav);
-		const fp_t rgt_del_Nb = d_fict_del_Nb(inv_det, rgt->x, rgt->y, rgt_pDel, rgt_pGam, rgt_pLav);
-		const fp_t rgt_lav_Nb = d_fict_lav_Nb(inv_det, rgt->x, rgt->y, rgt_pDel, rgt_pGam, rgt_pLav);
-
-		inv_det = d_inv_fict_det(bot_pDel, bot_pGam, bot_pLav);
-		const fp_t bot_gam_Cr = d_fict_gam_Cr(inv_det, bot->x, bot->y, bot_pDel, bot_pGam, bot_pLav);
-		const fp_t bot_del_Cr = d_fict_del_Cr(inv_det, bot->x, bot->y, bot_pDel, bot_pGam, bot_pLav);
-		const fp_t bot_lav_Cr = d_fict_lav_Cr(inv_det, bot->x, bot->y, bot_pDel, bot_pGam, bot_pLav);
-		const fp_t bot_gam_Nb = d_fict_gam_Nb(inv_det, bot->x, bot->y, bot_pDel, bot_pGam, bot_pLav);
-		const fp_t bot_del_Nb = d_fict_del_Nb(inv_det, bot->x, bot->y, bot_pDel, bot_pGam, bot_pLav);
-		const fp_t bot_lav_Nb = d_fict_lav_Nb(inv_det, bot->x, bot->y, bot_pDel, bot_pGam, bot_pLav);
-
-		inv_det = d_inv_fict_det(top_pDel, top_pGam, top_pLav);
-		const fp_t top_gam_Cr = d_fict_gam_Cr(inv_det, top->x, top->y, top_pDel, top_pGam, top_pLav);
-		const fp_t top_del_Cr = d_fict_del_Cr(inv_det, top->x, top->y, top_pDel, top_pGam, top_pLav);
-		const fp_t top_lav_Cr = d_fict_lav_Cr(inv_det, top->x, top->y, top_pDel, top_pGam, top_pLav);
-		const fp_t top_gam_Nb = d_fict_gam_Nb(inv_det, top->x, top->y, top_pDel, top_pGam, top_pLav);
-		const fp_t top_del_Nb = d_fict_del_Nb(inv_det, top->x, top->y, top_pDel, top_pGam, top_pLav);
-		const fp_t top_lav_Nb = d_fict_lav_Nb(inv_det, top->x, top->y, top_pDel, top_pGam, top_pLav);
+		fp_t mid_gam_Cr, mid_gam_Nb, mid_del_Cr, mid_del_Nb, mid_lav_Cr, mid_lav_Nb;
+		fp_t lft_gam_Cr, lft_gam_Nb, lft_del_Cr, lft_del_Nb, lft_lav_Cr, lft_lav_Nb;
+		fp_t rgt_gam_Cr, rgt_gam_Nb, rgt_del_Cr, rgt_del_Nb, rgt_lav_Cr, rgt_lav_Nb;
+		fp_t bot_gam_Cr, bot_gam_Nb, bot_del_Cr, bot_del_Nb, bot_lav_Cr, bot_lav_Nb;
+		fp_t top_gam_Cr, top_gam_Nb, top_del_Cr, top_del_Nb, top_lav_Cr, top_lav_Nb;
+        fictitious(mid->x, mid->y, mid_pDel, mid_pLav, &mid_gam_Cr, &mid_gam_Nb, &mid_del_Cr, &mid_del_Nb, &mid_lav_Cr, &mid_lav_Nb);
+        fictitious(lft->x, lft->y, lft_pDel, lft_pLav, &lft_gam_Cr, &lft_gam_Nb, &lft_del_Cr, &lft_del_Nb, &lft_lav_Cr, &lft_lav_Nb);
+        fictitious(rgt->x, rgt->y, rgt_pDel, rgt_pLav, &rgt_gam_Cr, &rgt_gam_Nb, &rgt_del_Cr, &rgt_del_Nb, &rgt_lav_Cr, &rgt_lav_Nb);
+        fictitious(bot->x, bot->y, bot_pDel, bot_pLav, &bot_gam_Cr, &bot_gam_Nb, &bot_del_Cr, &bot_del_Nb, &bot_lav_Cr, &bot_lav_Nb);
+        fictitious(top->x, top->y, top_pDel, top_pLav, &top_gam_Cr, &top_gam_Nb, &top_del_Cr, &top_del_Nb, &top_lav_Cr, &top_lav_Nb);
 
 		// Finite Differences
 		// Derivation: TKR5 pp. 301--305
@@ -321,174 +344,113 @@ __global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav
 
 		{ // k = Cr
 			// TKR5p303, Eqn. 7, term 1
-			mid_D = mid_pGam * (d_M_CrCr(mid->x, mid->y) * d_d2g_gam_dxCrCr() + d_M_CrNb(mid->x, mid->y) * d_d2g_gam_dxCrNb());
-			lft_D = lft_pGam * (d_M_CrCr(lft->x, lft->y) * d_d2g_gam_dxCrCr() + d_M_CrNb(lft->x, lft->y) * d_d2g_gam_dxCrNb());
-			rgt_D = rgt_pGam * (d_M_CrCr(rgt->x, rgt->y) * d_d2g_gam_dxCrCr() + d_M_CrNb(rgt->x, rgt->y) * d_d2g_gam_dxCrNb());
-			bot_D = bot_pGam * (d_M_CrCr(bot->x, bot->y) * d_d2g_gam_dxCrCr() + d_M_CrNb(bot->x, bot->y) * d_d2g_gam_dxCrNb());
-			top_D = top_pGam * (d_M_CrCr(top->x, top->y) * d_d2g_gam_dxCrCr() + d_M_CrNb(top->x, top->y) * d_d2g_gam_dxCrNb());
+			mid_D = mid_pGam * D_gam_CrCr(mid->x, mid->y);
+			lft_D = lft_pGam * D_gam_CrCr(lft->x, lft->y);
+			rgt_D = rgt_pGam * D_gam_CrCr(rgt->x, rgt->y);
+			bot_D = bot_pGam * D_gam_CrCr(bot->x, bot->y);
+			top_D = top_pGam * D_gam_CrCr(top->x, top->y);
 			divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_gam_Cr, lft_gam_Cr, rgt_gam_Cr, bot_gam_Cr, top_gam_Cr, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 2
-			mid_D = mid_pGam * (d_M_CrCr(mid->x, mid->y) * d_d2g_gam_dxNbCr() + d_M_CrNb(mid->x, mid->y) * d_d2g_gam_dxNbNb());
-			lft_D = lft_pGam * (d_M_CrCr(lft->x, lft->y) * d_d2g_gam_dxNbCr() + d_M_CrNb(lft->x, lft->y) * d_d2g_gam_dxNbNb());
-			rgt_D = rgt_pGam * (d_M_CrCr(rgt->x, rgt->y) * d_d2g_gam_dxNbCr() + d_M_CrNb(rgt->x, rgt->y) * d_d2g_gam_dxNbNb());
-			bot_D = bot_pGam * (d_M_CrCr(bot->x, bot->y) * d_d2g_gam_dxNbCr() + d_M_CrNb(bot->x, bot->y) * d_d2g_gam_dxNbNb());
-			top_D = top_pGam * (d_M_CrCr(top->x, top->y) * d_d2g_gam_dxNbCr() + d_M_CrNb(top->x, top->y) * d_d2g_gam_dxNbNb());
+			mid_D = mid_pGam * D_gam_CrNb(mid->x, mid->y);
+			lft_D = lft_pGam * D_gam_CrNb(lft->x, lft->y);
+			rgt_D = rgt_pGam * D_gam_CrNb(rgt->x, rgt->y);
+			bot_D = bot_pGam * D_gam_CrNb(bot->x, bot->y);
+			top_D = top_pGam * D_gam_CrNb(top->x, top->y);
 			divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_gam_Nb, lft_gam_Nb, rgt_gam_Nb, bot_gam_Nb, top_gam_Nb, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 3
-			mid_D = mid_pDel * (d_M_CrCr(mid->x, mid->y) * d_d2g_del_dxCrCr() + d_M_CrNb(mid->x, mid->y) * d_d2g_del_dxCrNb());
-			lft_D = lft_pDel * (d_M_CrCr(lft->x, lft->y) * d_d2g_del_dxCrCr() + d_M_CrNb(lft->x, lft->y) * d_d2g_del_dxCrNb());
-			rgt_D = rgt_pDel * (d_M_CrCr(rgt->x, rgt->y) * d_d2g_del_dxCrCr() + d_M_CrNb(rgt->x, rgt->y) * d_d2g_del_dxCrNb());
-			bot_D = bot_pDel * (d_M_CrCr(bot->x, bot->y) * d_d2g_del_dxCrCr() + d_M_CrNb(bot->x, bot->y) * d_d2g_del_dxCrNb());
-			top_D = top_pDel * (d_M_CrCr(top->x, top->y) * d_d2g_del_dxCrCr() + d_M_CrNb(top->x, top->y) * d_d2g_del_dxCrNb());
+			mid_D = mid_pDel * D_del_CrCr(mid->x, mid->y);
+			lft_D = lft_pDel * D_del_CrCr(lft->x, lft->y);
+			rgt_D = rgt_pDel * D_del_CrCr(rgt->x, rgt->y);
+			bot_D = bot_pDel * D_del_CrCr(bot->x, bot->y);
+			top_D = top_pDel * D_del_CrCr(top->x, top->y);
 			divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_del_Cr, lft_del_Cr, rgt_del_Cr, bot_del_Cr, top_del_Cr, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 4
-			mid_D = mid_pDel * (d_M_CrCr(mid->x, mid->y) * d_d2g_del_dxNbCr() + d_M_CrNb(mid->x, mid->y) * d_d2g_del_dxNbNb());
-			lft_D = lft_pDel * (d_M_CrCr(lft->x, lft->y) * d_d2g_del_dxNbCr() + d_M_CrNb(lft->x, lft->y) * d_d2g_del_dxNbNb());
-			rgt_D = rgt_pDel * (d_M_CrCr(rgt->x, rgt->y) * d_d2g_del_dxNbCr() + d_M_CrNb(rgt->x, rgt->y) * d_d2g_del_dxNbNb());
-			bot_D = bot_pDel * (d_M_CrCr(bot->x, bot->y) * d_d2g_del_dxNbCr() + d_M_CrNb(bot->x, bot->y) * d_d2g_del_dxNbNb());
-			top_D = top_pDel * (d_M_CrCr(top->x, top->y) * d_d2g_del_dxNbCr() + d_M_CrNb(top->x, top->y) * d_d2g_del_dxNbNb());
+			mid_D = mid_pDel * D_del_CrNb(mid->x, mid->y);
+			lft_D = lft_pDel * D_del_CrNb(lft->x, lft->y);
+			rgt_D = rgt_pDel * D_del_CrNb(rgt->x, rgt->y);
+			bot_D = bot_pDel * D_del_CrNb(bot->x, bot->y);
+			top_D = top_pDel * D_del_CrNb(top->x, top->y);
 			divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_del_Nb, lft_del_Nb, rgt_del_Nb, bot_del_Nb, top_del_Nb, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 5
-			mid_D = mid_pLav * (d_M_CrCr(mid->x, mid->y) * d_d2g_lav_dxCrCr() + d_M_CrNb(mid->x, mid->y) * d_d2g_lav_dxCrNb());
-			lft_D = lft_pLav * (d_M_CrCr(lft->x, lft->y) * d_d2g_lav_dxCrCr() + d_M_CrNb(lft->x, lft->y) * d_d2g_lav_dxCrNb());
-			rgt_D = rgt_pLav * (d_M_CrCr(rgt->x, rgt->y) * d_d2g_lav_dxCrCr() + d_M_CrNb(rgt->x, rgt->y) * d_d2g_lav_dxCrNb());
-			bot_D = bot_pLav * (d_M_CrCr(bot->x, bot->y) * d_d2g_lav_dxCrCr() + d_M_CrNb(bot->x, bot->y) * d_d2g_lav_dxCrNb());
-			top_D = top_pLav * (d_M_CrCr(top->x, top->y) * d_d2g_lav_dxCrCr() + d_M_CrNb(top->x, top->y) * d_d2g_lav_dxCrNb());
+			mid_D = mid_pLav * D_lav_CrCr(mid->x, mid->y);
+			lft_D = lft_pLav * D_lav_CrCr(lft->x, lft->y);
+			rgt_D = rgt_pLav * D_lav_CrCr(rgt->x, rgt->y);
+			bot_D = bot_pLav * D_lav_CrCr(bot->x, bot->y);
+			top_D = top_pLav * D_lav_CrCr(top->x, top->y);
 			divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_lav_Cr, lft_lav_Cr, rgt_lav_Cr, bot_lav_Cr, top_lav_Cr, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 6
-			mid_D = mid_pLav * (d_M_CrCr(mid->x, mid->y) * d_d2g_lav_dxNbCr() + d_M_CrNb(mid->x, mid->y) * d_d2g_lav_dxNbNb());
-			lft_D = lft_pLav * (d_M_CrCr(lft->x, lft->y) * d_d2g_lav_dxNbCr() + d_M_CrNb(lft->x, lft->y) * d_d2g_lav_dxNbNb());
-			rgt_D = rgt_pLav * (d_M_CrCr(rgt->x, rgt->y) * d_d2g_lav_dxNbCr() + d_M_CrNb(rgt->x, rgt->y) * d_d2g_lav_dxNbNb());
-			bot_D = bot_pLav * (d_M_CrCr(bot->x, bot->y) * d_d2g_lav_dxNbCr() + d_M_CrNb(bot->x, bot->y) * d_d2g_lav_dxNbNb());
-			top_D = top_pLav * (d_M_CrCr(top->x, top->y) * d_d2g_lav_dxNbCr() + d_M_CrNb(top->x, top->y) * d_d2g_lav_dxNbNb());
+			mid_D = mid_pLav * D_lav_CrNb(mid->x, mid->y);
+			lft_D = lft_pLav * D_lav_CrNb(lft->x, lft->y);
+			rgt_D = rgt_pLav * D_lav_CrNb(rgt->x, rgt->y);
+			bot_D = bot_pLav * D_lav_CrNb(bot->x, bot->y);
+			top_D = top_pLav * D_lav_CrNb(top->x, top->y);
 			divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_lav_Nb, lft_lav_Nb, rgt_lav_Nb, bot_lav_Nb, top_lav_Nb, dx, dy);
-
-
-			/*
-			// TKR5p303, Eqn. 7, term 7
-			mid_D = d_pPrime(mid->z) * (d_M_CrCr(mid->x, mid->y) * (d_dg_del_dxCr(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
-			                         +  d_M_CrNb(mid->x, mid->y) * (d_dg_del_dxNb(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb)));
-			lft_D = d_pPrime(lft->z) * (d_M_CrCr(lft->x, lft->y) * (d_dg_del_dxCr(lft_del_Cr, lft_del_Nb) - d_dg_gam_dxCr(lft_gam_Cr, lft_gam_Nb))
-			                         +  d_M_CrNb(lft->x, lft->y) * (d_dg_del_dxNb(lft_del_Cr, lft_del_Nb) - d_dg_gam_dxNb(lft_gam_Cr, lft_gam_Nb)));
-			rgt_D = d_pPrime(rgt->z) * (d_M_CrCr(rgt->x, rgt->y) * (d_dg_del_dxCr(rgt_del_Cr, rgt_del_Nb) - d_dg_gam_dxCr(rgt_gam_Cr, rgt_gam_Nb))
-			                         +  d_M_CrNb(rgt->x, rgt->y) * (d_dg_del_dxNb(rgt_del_Cr, rgt_del_Nb) - d_dg_gam_dxNb(rgt_gam_Cr, rgt_gam_Nb)));
-			bot_D = d_pPrime(bot->z) * (d_M_CrCr(bot->x, bot->y) * (d_dg_del_dxCr(bot_del_Cr, bot_del_Nb) - d_dg_gam_dxCr(bot_gam_Cr, bot_gam_Nb))
-			                         +  d_M_CrNb(bot->x, bot->y) * (d_dg_del_dxNb(bot_del_Cr, bot_del_Nb) - d_dg_gam_dxNb(bot_gam_Cr, bot_gam_Nb)));
-			top_D = d_pPrime(top->z) * (d_M_CrCr(top->x, top->y) * (d_dg_del_dxCr(top_del_Cr, top_del_Nb) - d_dg_gam_dxCr(top_gam_Cr, top_gam_Nb))
-			                         +  d_M_CrNb(top->x, top->y) * (d_dg_del_dxNb(top_del_Cr, top_del_Nb) - d_dg_gam_dxNb(top_gam_Cr, top_gam_Nb)));
-			divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-											   mid->z, lft->z, rgt->z, bot->z, top->z, dx, dy);
-
-			// TKR5p303, Eqn. 7, term 8
-			mid_D = d_pPrime(mid->w) * (d_M_CrCr(mid->x, mid->y) * (d_dg_lav_dxCr(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
-			                         +  d_M_CrNb(mid->x, mid->y) * (d_dg_lav_dxNb(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb)));
-			lft_D = d_pPrime(lft->w) * (d_M_CrCr(lft->x, lft->y) * (d_dg_lav_dxCr(lft_lav_Cr, lft_lav_Nb) - d_dg_gam_dxCr(lft_gam_Cr, lft_gam_Nb))
-			                         +  d_M_CrNb(lft->x, lft->y) * (d_dg_lav_dxNb(lft_lav_Cr, lft_lav_Nb) - d_dg_gam_dxNb(lft_gam_Cr, lft_gam_Nb)));
-			rgt_D = d_pPrime(rgt->w) * (d_M_CrCr(rgt->x, rgt->y) * (d_dg_lav_dxCr(rgt_lav_Cr, rgt_lav_Nb) - d_dg_gam_dxCr(rgt_gam_Cr, rgt_gam_Nb))
-			                         +  d_M_CrNb(rgt->x, rgt->y) * (d_dg_lav_dxNb(rgt_lav_Cr, rgt_lav_Nb) - d_dg_gam_dxNb(rgt_gam_Cr, rgt_gam_Nb)));
-			bot_D = d_pPrime(bot->w) * (d_M_CrCr(bot->x, bot->y) * (d_dg_lav_dxCr(bot_lav_Cr, bot_lav_Nb) - d_dg_gam_dxCr(bot_gam_Cr, bot_gam_Nb))
-			                         +  d_M_CrNb(bot->x, bot->y) * (d_dg_lav_dxNb(bot_lav_Cr, bot_lav_Nb) - d_dg_gam_dxNb(bot_gam_Cr, bot_gam_Nb)));
-			top_D = d_pPrime(top->w) * (d_M_CrCr(top->x, top->y) * (d_dg_lav_dxCr(top_lav_Cr, top_lav_Nb) - d_dg_gam_dxCr(top_gam_Cr, top_gam_Nb))
-			                         +  d_M_CrNb(top->x, top->y) * (d_dg_lav_dxNb(top_lav_Cr, top_lav_Nb) - d_dg_gam_dxNb(top_gam_Cr, top_gam_Nb)));
-			divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-											   mid->w, lft->w, rgt->w, bot->w, top->w, dx, dy);
-			*/
 		}
 		{ // k = Nb
 			// TKR5p303, Eqn. 7, term 1
-			mid_D = mid_pGam * (d_M_NbCr(mid->x, mid->y) * d_d2g_gam_dxCrCr() + d_M_NbNb(mid->x, mid->y) * d_d2g_gam_dxCrNb());
-			lft_D = lft_pGam * (d_M_NbCr(lft->x, lft->y) * d_d2g_gam_dxCrCr() + d_M_NbNb(lft->x, lft->y) * d_d2g_gam_dxCrNb());
-			rgt_D = rgt_pGam * (d_M_NbCr(rgt->x, rgt->y) * d_d2g_gam_dxCrCr() + d_M_NbNb(rgt->x, rgt->y) * d_d2g_gam_dxCrNb());
-			bot_D = bot_pGam * (d_M_NbCr(bot->x, bot->y) * d_d2g_gam_dxCrCr() + d_M_NbNb(bot->x, bot->y) * d_d2g_gam_dxCrNb());
-			top_D = top_pGam * (d_M_NbCr(top->x, top->y) * d_d2g_gam_dxCrCr() + d_M_NbNb(top->x, top->y) * d_d2g_gam_dxCrNb());
+			mid_D = mid_pGam * D_gam_NbCr(mid->x, mid->y);
+			lft_D = lft_pGam * D_gam_NbCr(lft->x, lft->y);
+			rgt_D = rgt_pGam * D_gam_NbCr(rgt->x, rgt->y);
+			bot_D = bot_pGam * D_gam_NbCr(bot->x, bot->y);
+			top_D = top_pGam * D_gam_NbCr(top->x, top->y);
 			divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_gam_Cr, lft_gam_Cr, rgt_gam_Cr, bot_gam_Cr, top_gam_Cr, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 2
-			mid_D = mid_pGam * (d_M_NbCr(mid->x, mid->y) * d_d2g_gam_dxNbCr() + d_M_NbNb(mid->x, mid->y) * d_d2g_gam_dxNbNb());
-			lft_D = lft_pGam * (d_M_NbCr(lft->x, lft->y) * d_d2g_gam_dxNbCr() + d_M_NbNb(lft->x, lft->y) * d_d2g_gam_dxNbNb());
-			rgt_D = rgt_pGam * (d_M_NbCr(rgt->x, rgt->y) * d_d2g_gam_dxNbCr() + d_M_NbNb(rgt->x, rgt->y) * d_d2g_gam_dxNbNb());
-			bot_D = bot_pGam * (d_M_NbCr(bot->x, bot->y) * d_d2g_gam_dxNbCr() + d_M_NbNb(bot->x, bot->y) * d_d2g_gam_dxNbNb());
-			top_D = top_pGam * (d_M_NbCr(top->x, top->y) * d_d2g_gam_dxNbCr() + d_M_NbNb(top->x, top->y) * d_d2g_gam_dxNbNb());
+			mid_D = mid_pGam * D_gam_NbNb(mid->x, mid->y);
+			lft_D = lft_pGam * D_gam_NbNb(lft->x, lft->y);
+			rgt_D = rgt_pGam * D_gam_NbNb(rgt->x, rgt->y);
+			bot_D = bot_pGam * D_gam_NbNb(bot->x, bot->y);
+			top_D = top_pGam * D_gam_NbNb(top->x, top->y);
 			divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_gam_Nb, lft_gam_Nb, rgt_gam_Nb, bot_gam_Nb, top_gam_Nb, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 3
-			mid_D = mid_pDel * (d_M_NbCr(mid->x, mid->y) * d_d2g_del_dxCrCr() + d_M_NbNb(mid->x, mid->y) * d_d2g_del_dxCrNb());
-			lft_D = lft_pDel * (d_M_NbCr(lft->x, lft->y) * d_d2g_del_dxCrCr() + d_M_NbNb(lft->x, lft->y) * d_d2g_del_dxCrNb());
-			rgt_D = rgt_pDel * (d_M_NbCr(rgt->x, rgt->y) * d_d2g_del_dxCrCr() + d_M_NbNb(rgt->x, rgt->y) * d_d2g_del_dxCrNb());
-			bot_D = bot_pDel * (d_M_NbCr(bot->x, bot->y) * d_d2g_del_dxCrCr() + d_M_NbNb(bot->x, bot->y) * d_d2g_del_dxCrNb());
-			top_D = top_pDel * (d_M_NbCr(top->x, top->y) * d_d2g_del_dxCrCr() + d_M_NbNb(top->x, top->y) * d_d2g_del_dxCrNb());
+			mid_D = mid_pDel * D_del_NbCr(mid->x, mid->y);
+			lft_D = lft_pDel * D_del_NbCr(lft->x, lft->y);
+			rgt_D = rgt_pDel * D_del_NbCr(rgt->x, rgt->y);
+			bot_D = bot_pDel * D_del_NbCr(bot->x, bot->y);
+			top_D = top_pDel * D_del_NbCr(top->x, top->y);
 			divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_del_Cr, lft_del_Cr, rgt_del_Cr, bot_del_Cr, top_del_Cr, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 4
-			mid_D = mid_pDel * (d_M_NbCr(mid->x, mid->y) * d_d2g_del_dxNbCr() + d_M_NbNb(mid->x, mid->y) * d_d2g_del_dxNbNb());
-			lft_D = lft_pDel * (d_M_NbCr(lft->x, lft->y) * d_d2g_del_dxNbCr() + d_M_NbNb(lft->x, lft->y) * d_d2g_del_dxNbNb());
-			rgt_D = rgt_pDel * (d_M_NbCr(rgt->x, rgt->y) * d_d2g_del_dxNbCr() + d_M_NbNb(rgt->x, rgt->y) * d_d2g_del_dxNbNb());
-			bot_D = bot_pDel * (d_M_NbCr(bot->x, bot->y) * d_d2g_del_dxNbCr() + d_M_NbNb(bot->x, bot->y) * d_d2g_del_dxNbNb());
-			top_D = top_pDel * (d_M_NbCr(top->x, top->y) * d_d2g_del_dxNbCr() + d_M_NbNb(top->x, top->y) * d_d2g_del_dxNbNb());
+			mid_D = mid_pDel * D_del_NbNb(mid->x, mid->y);
+			lft_D = lft_pDel * D_del_NbNb(lft->x, lft->y);
+			rgt_D = rgt_pDel * D_del_NbNb(rgt->x, rgt->y);
+			bot_D = bot_pDel * D_del_NbNb(bot->x, bot->y);
+			top_D = top_pDel * D_del_NbNb(top->x, top->y);
 			divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_del_Nb, lft_del_Nb, rgt_del_Nb, bot_del_Nb, top_del_Nb, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 5
-			mid_D = mid_pLav * (d_M_NbCr(mid->x, mid->y) * d_d2g_lav_dxCrCr() + d_M_NbNb(mid->x, mid->y) * d_d2g_lav_dxCrNb());
-			lft_D = lft_pLav * (d_M_NbCr(lft->x, lft->y) * d_d2g_lav_dxCrCr() + d_M_NbNb(lft->x, lft->y) * d_d2g_lav_dxCrNb());
-			rgt_D = rgt_pLav * (d_M_NbCr(rgt->x, rgt->y) * d_d2g_lav_dxCrCr() + d_M_NbNb(rgt->x, rgt->y) * d_d2g_lav_dxCrNb());
-			bot_D = bot_pLav * (d_M_NbCr(bot->x, bot->y) * d_d2g_lav_dxCrCr() + d_M_NbNb(bot->x, bot->y) * d_d2g_lav_dxCrNb());
-			top_D = top_pLav * (d_M_NbCr(top->x, top->y) * d_d2g_lav_dxCrCr() + d_M_NbNb(top->x, top->y) * d_d2g_lav_dxCrNb());
+			mid_D = mid_pLav * D_lav_NbCr(mid->x, mid->y);
+			lft_D = lft_pLav * D_lav_NbCr(lft->x, lft->y);
+			rgt_D = rgt_pLav * D_lav_NbCr(rgt->x, rgt->y);
+			bot_D = bot_pLav * D_lav_NbCr(bot->x, bot->y);
+			top_D = top_pLav * D_lav_NbCr(top->x, top->y);
 			divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_lav_Cr, lft_lav_Cr, rgt_lav_Cr, bot_lav_Cr, top_lav_Cr, dx, dy);
 
 			// TKR5p303, Eqn. 7, term 6
-			mid_D = mid_pLav * (d_M_NbCr(mid->x, mid->y) * d_d2g_lav_dxNbCr() + d_M_NbNb(mid->x, mid->y) * d_d2g_lav_dxNbNb());
-			lft_D = lft_pLav * (d_M_NbCr(lft->x, lft->y) * d_d2g_lav_dxNbCr() + d_M_NbNb(lft->x, lft->y) * d_d2g_lav_dxNbNb());
-			rgt_D = rgt_pLav * (d_M_NbCr(rgt->x, rgt->y) * d_d2g_lav_dxNbCr() + d_M_NbNb(rgt->x, rgt->y) * d_d2g_lav_dxNbNb());
-			bot_D = bot_pLav * (d_M_NbCr(bot->x, bot->y) * d_d2g_lav_dxNbCr() + d_M_NbNb(bot->x, bot->y) * d_d2g_lav_dxNbNb());
-			top_D = top_pLav * (d_M_NbCr(top->x, top->y) * d_d2g_lav_dxNbCr() + d_M_NbNb(top->x, top->y) * d_d2g_lav_dxNbNb());
+			mid_D = mid_pLav * D_lav_NbNb(mid->x, mid->y);
+			lft_D = lft_pLav * D_lav_NbNb(lft->x, lft->y);
+			rgt_D = rgt_pLav * D_lav_NbNb(rgt->x, rgt->y);
+			bot_D = bot_pLav * D_lav_NbNb(bot->x, bot->y);
+			top_D = top_pLav * D_lav_NbNb(top->x, top->y);
 			divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
 											   mid_lav_Nb, lft_lav_Nb, rgt_lav_Nb, bot_lav_Nb, top_lav_Nb, dx, dy);
-
-			/*
-			// TKR5p303, Eqn. 7, term 7
-			mid_D = d_pPrime(mid->z) * (d_M_NbCr(mid->x, mid->y) * (d_dg_del_dxCr(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
-			                         +  d_M_NbNb(mid->x, mid->y) * (d_dg_del_dxNb(mid_del_Cr, mid_del_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb)));
-			lft_D = d_pPrime(lft->z) * (d_M_NbCr(lft->x, lft->y) * (d_dg_del_dxCr(lft_del_Cr, lft_del_Nb) - d_dg_gam_dxCr(lft_gam_Cr, lft_gam_Nb))
-			                         +  d_M_NbNb(lft->x, lft->y) * (d_dg_del_dxNb(lft_del_Cr, lft_del_Nb) - d_dg_gam_dxNb(lft_gam_Cr, lft_gam_Nb)));
-			rgt_D = d_pPrime(rgt->z) * (d_M_NbCr(rgt->x, rgt->y) * (d_dg_del_dxCr(rgt_del_Cr, rgt_del_Nb) - d_dg_gam_dxCr(rgt_gam_Cr, rgt_gam_Nb))
-			                         +  d_M_NbNb(rgt->x, rgt->y) * (d_dg_del_dxNb(rgt_del_Cr, rgt_del_Nb) - d_dg_gam_dxNb(rgt_gam_Cr, rgt_gam_Nb)));
-			bot_D = d_pPrime(bot->z) * (d_M_NbCr(bot->x, bot->y) * (d_dg_del_dxCr(bot_del_Cr, bot_del_Nb) - d_dg_gam_dxCr(bot_gam_Cr, bot_gam_Nb))
-			                         +  d_M_NbNb(bot->x, bot->y) * (d_dg_del_dxNb(bot_del_Cr, bot_del_Nb) - d_dg_gam_dxNb(bot_gam_Cr, bot_gam_Nb)));
-			top_D = d_pPrime(top->z) * (d_M_NbCr(top->x, top->y) * (d_dg_del_dxCr(top_del_Cr, top_del_Nb) - d_dg_gam_dxCr(top_gam_Cr, top_gam_Nb))
-			                         +  d_M_NbNb(top->x, top->y) * (d_dg_del_dxNb(top_del_Cr, top_del_Nb) - d_dg_gam_dxNb(top_gam_Cr, top_gam_Nb)));
-			divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-											   mid->z, lft->z, rgt->z, bot->z, top->z, dx, dy);
-
-			// TKR5p303, Eqn. 7, term 8
-			mid_D = d_pPrime(mid->w) * (d_M_NbCr(mid->x, mid->y) * (d_dg_lav_dxCr(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxCr(mid_gam_Cr, mid_gam_Nb))
-			                         +  d_M_NbNb(mid->x, mid->y) * (d_dg_lav_dxNb(mid_lav_Cr, mid_lav_Nb) - d_dg_gam_dxNb(mid_gam_Cr, mid_gam_Nb)));
-			lft_D = d_pPrime(lft->w) * (d_M_NbCr(lft->x, lft->y) * (d_dg_lav_dxCr(lft_lav_Cr, lft_lav_Nb) - d_dg_gam_dxCr(lft_gam_Cr, lft_gam_Nb))
-			                         +  d_M_NbNb(lft->x, lft->y) * (d_dg_lav_dxNb(lft_lav_Cr, lft_lav_Nb) - d_dg_gam_dxNb(lft_gam_Cr, lft_gam_Nb)));
-			rgt_D = d_pPrime(rgt->w) * (d_M_NbCr(rgt->x, rgt->y) * (d_dg_lav_dxCr(rgt_lav_Cr, rgt_lav_Nb) - d_dg_gam_dxCr(rgt_gam_Cr, rgt_gam_Nb))
-			                         +  d_M_NbNb(rgt->x, rgt->y) * (d_dg_lav_dxNb(rgt_lav_Cr, rgt_lav_Nb) - d_dg_gam_dxNb(rgt_gam_Cr, rgt_gam_Nb)));
-			bot_D = d_pPrime(bot->w) * (d_M_NbCr(bot->x, bot->y) * (d_dg_lav_dxCr(bot_lav_Cr, bot_lav_Nb) - d_dg_gam_dxCr(bot_gam_Cr, bot_gam_Nb))
-			                         +  d_M_NbNb(bot->x, bot->y) * (d_dg_lav_dxNb(bot_lav_Cr, bot_lav_Nb) - d_dg_gam_dxNb(bot_gam_Cr, bot_gam_Nb)));
-			top_D = d_pPrime(top->w) * (d_M_NbCr(top->x, top->y) * (d_dg_lav_dxCr(top_lav_Cr, top_lav_Nb) - d_dg_gam_dxCr(top_gam_Cr, top_gam_Nb))
-			                         +  d_M_NbNb(top->x, top->y) * (d_dg_lav_dxNb(top_lav_Cr, top_lav_Nb) - d_dg_gam_dxNb(top_gam_Cr, top_gam_Nb)));
-			divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-											   mid->w, lft->w, rgt->w, bot->w, top->w, dx, dy);
-			*/
 		}
 
 		/* record value */
