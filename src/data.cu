@@ -13,11 +13,15 @@ void init_cuda(struct HostData* host,
 			   struct CudaData* dev)
 {
 	/* allocate memory on device */
+	cudaMalloc((void**) &(dev->prng), nx * ny * sizeof(curandState));
+	cudaStreamCreate(&(dev->str_A));
+	cudaStreamCreate(&(dev->str_B));
+	cudaStreamCreate(&(dev->str_C));
+
 	cudaMalloc((void**) &(dev->conc_Cr_old), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->conc_Cr_new), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->conc_Nb_old), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->conc_Nb_new), nx * ny * sizeof(fp_t));
-	cudaMalloc((void**) &(dev->conc_Ni), nx * ny * sizeof(fp_t));
 
 	cudaMalloc((void**) &(dev->phi_del_old), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->phi_del_new), nx * ny * sizeof(fp_t));
@@ -25,7 +29,29 @@ void init_cuda(struct HostData* host,
 	cudaMalloc((void**) &(dev->phi_lav_new), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->phi),         nx * ny * sizeof(fp_t));
 
-	cudaMalloc((void**) &(dev->prng), nx * ny * sizeof(curandState));
+	cudaMalloc((void**) &(dev->conc_Cr_gam), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->conc_Cr_del), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->conc_Cr_lav), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->conc_Nb_gam), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->conc_Nb_del), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->conc_Nb_lav), nx * ny * sizeof(fp_t));
+
+	cudaMalloc((void**) &(dev->conc_Ni), nx * ny * sizeof(fp_t));
+
+	cudaMalloc((void**) &(dev->mob_gam_CrCr), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->mob_gam_CrNb), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->mob_gam_NbCr), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->mob_gam_NbNb), nx * ny * sizeof(fp_t));
+
+	cudaMalloc((void**) &(dev->mob_del_CrCr), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->mob_del_CrNb), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->mob_del_NbCr), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->mob_del_NbNb), nx * ny * sizeof(fp_t));
+
+	cudaMalloc((void**) &(dev->mob_lav_CrCr), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->mob_lav_CrNb), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->mob_lav_NbCr), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->mob_lav_NbNb), nx * ny * sizeof(fp_t));
 
 	/* transfer mask to protected memory on GPU */
 	cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t));
@@ -50,11 +76,15 @@ void init_cuda(struct HostData* host,
 void free_cuda(struct CudaData* dev)
 {
 	/* free memory on device */
+	cudaFree(dev->prng);
+	cudaStreamDestroy(dev->str_A);
+	cudaStreamDestroy(dev->str_B);
+	cudaStreamDestroy(dev->str_C);
+
 	cudaFree(dev->conc_Cr_old);
 	cudaFree(dev->conc_Cr_new);
 	cudaFree(dev->conc_Nb_old);
 	cudaFree(dev->conc_Nb_new);
-	cudaFree(dev->conc_Ni);
 
 	cudaFree(dev->phi_del_old);
 	cudaFree(dev->phi_del_new);
@@ -62,7 +92,29 @@ void free_cuda(struct CudaData* dev)
 	cudaFree(dev->phi_lav_new);
 	cudaFree(dev->phi);
 
-	cudaFree(dev->prng);
+	cudaFree(dev->conc_Cr_gam);
+	cudaFree(dev->conc_Cr_del);
+	cudaFree(dev->conc_Cr_lav);
+	cudaFree(dev->conc_Nb_gam);
+	cudaFree(dev->conc_Nb_del);
+	cudaFree(dev->conc_Nb_lav);
+
+	cudaFree(dev->conc_Ni);
+
+	cudaFree(dev->mob_gam_CrCr);
+	cudaFree(dev->mob_gam_CrNb);
+	cudaFree(dev->mob_gam_NbCr);
+	cudaFree(dev->mob_gam_NbNb);
+
+	cudaFree(dev->mob_del_CrCr);
+	cudaFree(dev->mob_del_CrNb);
+	cudaFree(dev->mob_del_NbCr);
+	cudaFree(dev->mob_del_NbNb);
+
+	cudaFree(dev->mob_lav_CrCr);
+	cudaFree(dev->mob_lav_CrNb);
+	cudaFree(dev->mob_lav_NbCr);
+	cudaFree(dev->mob_lav_NbNb);
 }
 
 void read_out_result(struct CudaData* dev, struct HostData* host,

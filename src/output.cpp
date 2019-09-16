@@ -159,6 +159,7 @@ void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	std::vector<float> d(w);
 	std::vector<float> c_Cr_bar(w);
 	std::vector<float> c_Nb_bar(w);
+	std::vector<float> c_Ni_bar(w);
 	std::vector<float> p_del_bar(w);
 	std::vector<float> p_lav_bar(w);
 
@@ -175,6 +176,7 @@ void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 			if (j == h/2) {
 				c_Cr_bar.at(i) = conc_Cr[j+nm/2][i+nm/2];
 				c_Nb_bar.at(i) = conc_Nb[j+nm/2][i+nm/2];
+				c_Ni_bar.at(i) = 1.0 - conc_Cr[j+nm/2][i+nm/2] - conc_Nb[j+nm/2][i+nm/2];
 				p_del_bar.at(i) = phi_del[j+nm/2][i+nm/2];
 				p_lav_bar.at(i) = phi_lav[j+nm/2][i+nm/2];
 			}
@@ -227,6 +229,8 @@ void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	plt::plot(d, c_Nb_bar, str_kw);
 	str_kw["label"] = "$x_{\\mathrm{Cr}}$";
 	plt::plot(d, c_Cr_bar, str_kw);
+	str_kw["label"] = "$x_{\\mathrm{Ni}}$";
+	plt::plot(d, c_Ni_bar, str_kw);
 	str_kw["label"] = "$\\phi^{\\mathrm{\\delta}}$";
 	plt::plot(d, p_del_bar, str_kw);
 	str_kw["label"] = "$\\phi^{\\mathrm{\\lambda}}$";
