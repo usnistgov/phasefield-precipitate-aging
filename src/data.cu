@@ -17,6 +17,8 @@ void init_cuda(struct HostData* host,
 	cudaStreamCreate(&(dev->str_A));
 	cudaStreamCreate(&(dev->str_B));
 	cudaStreamCreate(&(dev->str_C));
+	cudaStreamCreate(&(dev->str_D));
+	cudaStreamCreate(&(dev->str_V));
 
 	cudaMalloc((void**) &(dev->conc_Cr_old), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->conc_Cr_new), nx * ny * sizeof(fp_t));
@@ -36,7 +38,11 @@ void init_cuda(struct HostData* host,
 	cudaMalloc((void**) &(dev->conc_Nb_del), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->conc_Nb_lav), nx * ny * sizeof(fp_t));
 
+	cudaMalloc((void**) &(dev->conc_Cr_viz), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->conc_Nb_viz), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->conc_Ni), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->phi_del_viz), nx * ny * sizeof(fp_t));
+	cudaMalloc((void**) &(dev->phi_lav_viz), nx * ny * sizeof(fp_t));
 
 	cudaMalloc((void**) &(dev->mob_gam_CrCr), nx * ny * sizeof(fp_t));
 	cudaMalloc((void**) &(dev->mob_gam_CrNb), nx * ny * sizeof(fp_t));
@@ -80,6 +86,8 @@ void free_cuda(struct CudaData* dev)
 	cudaStreamDestroy(dev->str_A);
 	cudaStreamDestroy(dev->str_B);
 	cudaStreamDestroy(dev->str_C);
+	cudaStreamDestroy(dev->str_D);
+	cudaStreamDestroy(dev->str_V);
 
 	cudaFree(dev->conc_Cr_old);
 	cudaFree(dev->conc_Cr_new);
@@ -99,7 +107,11 @@ void free_cuda(struct CudaData* dev)
 	cudaFree(dev->conc_Nb_del);
 	cudaFree(dev->conc_Nb_lav);
 
+	cudaFree(dev->conc_Cr_viz);
+	cudaFree(dev->conc_Nb_viz);
 	cudaFree(dev->conc_Ni);
+	cudaFree(dev->phi_del_viz);
+	cudaFree(dev->phi_lav_viz);
 
 	cudaFree(dev->mob_gam_CrCr);
 	cudaFree(dev->mob_gam_CrNb);

@@ -48,22 +48,26 @@ struct HostData {
 */
 struct CudaData {
 	curandState* prng;
-	cudaStream_t str_A, str_B, str_C;
+	cudaStream_t str_A, str_B, str_C, str_D, str_V;
 
 	fp_t* conc_Ni;
 	fp_t* phi;
 
 	fp_t* conc_Cr_old;
 	fp_t* conc_Cr_new;
+	fp_t* conc_Cr_viz;
 
 	fp_t* conc_Nb_old;
 	fp_t* conc_Nb_new;
+	fp_t* conc_Nb_viz;
 
 	fp_t* phi_del_old;
 	fp_t* phi_del_new;
+	fp_t* phi_del_viz;
 
 	fp_t* phi_lav_old;
 	fp_t* phi_lav_new;
+	fp_t* phi_lav_viz;
 
 	fp_t* conc_Cr_gam;
 	fp_t* conc_Cr_del;

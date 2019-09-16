@@ -246,8 +246,12 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
  \brief Device kernel to copy data out for visualization
 */
 
-__global__ void dataviz_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb, fp_t* d_conc_Ni,
-                               fp_t* d_ph_del, fp_t* d_phi_lav, fp_t* d_phi,
+__global__ void dataviz_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Cr_viz,
+                               fp_t* d_conc_Nb, fp_t* d_conc_Nb_viz,
+                               fp_t* d_conc_Ni,
+                               fp_t* d_phi_del, fp_t* d_phi_del_viz,
+                               fp_t* d_phi_lav, fp_t* d_phi_lav_viz,
+                               fp_t* d_phi,
                                const int nx, const int ny);
 
 /** \cond SuppressGuard */
