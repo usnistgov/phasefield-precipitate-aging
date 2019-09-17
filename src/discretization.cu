@@ -133,24 +133,31 @@ void device_fictitious(struct CudaData* dev,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
+    cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
+    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+
 	fictitious_gam_kernel
       <<< num_tiles, tile_size, 0, dev->str_A>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
 	 dev->phi_del_old, dev->phi_lav_old,
 	 dev->conc_Cr_gam, dev->conc_Nb_gam,
 	 nx, ny, nm);
+    cudaEventRecord(dev->ev_A, dev->str_A);
 	fictitious_del_kernel
 	<<< num_tiles, tile_size, 0, dev->str_B>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
 	 dev->phi_del_old, dev->phi_lav_old,
 	 dev->conc_Cr_del, dev->conc_Nb_del,
 	 nx, ny, nm);
+    cudaEventRecord(dev->ev_B, dev->str_B);
 	fictitious_lav_kernel
 	<<< num_tiles, tile_size, 0, dev->str_C>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
 	 dev->phi_del_old, dev->phi_lav_old,
 	 dev->conc_Cr_lav, dev->conc_Nb_lav,
 	 nx, ny, nm);
+    cudaEventRecord(dev->ev_C, dev->str_C);
 }
 
 __global__ void mobility_gam_kernel(fp_t* d_conc_Cr,
@@ -245,6 +252,10 @@ void device_mobilities(struct CudaData* dev,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
+    cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
+    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+
 	mobility_gam_kernel
 	<<< num_tiles, tile_size, 0, dev->str_A>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
@@ -252,6 +263,7 @@ void device_mobilities(struct CudaData* dev,
 	 dev->mob_gam_CrCr, dev->mob_gam_CrNb,
 	 dev->mob_gam_NbCr, dev->mob_gam_NbNb,
 	 nx, ny, nm);
+    cudaEventRecord(dev->ev_A, dev->str_A);
 	mobility_del_kernel
 	<<< num_tiles, tile_size, 0, dev->str_B>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
@@ -259,6 +271,7 @@ void device_mobilities(struct CudaData* dev,
 	 dev->mob_del_CrCr, dev->mob_del_CrNb,
 	 dev->mob_del_NbCr, dev->mob_del_NbNb,
 	 nx, ny, nm);
+    cudaEventRecord(dev->ev_B, dev->str_B);
 	mobility_lav_kernel
 	<<< num_tiles, tile_size, 0, dev->str_C>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
@@ -266,6 +279,7 @@ void device_mobilities(struct CudaData* dev,
 	 dev->mob_lav_CrCr, dev->mob_lav_CrNb,
 	 dev->mob_lav_NbCr, dev->mob_lav_NbNb,
 	 nx, ny, nm);
+    cudaEventRecord(dev->ev_C, dev->str_C);
 }
 
 __global__ void boundary_kernel(fp_t* d_field,
@@ -313,6 +327,10 @@ void device_boundaries(struct CudaData* dev,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
+    cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
+    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
 	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_old, nx, ny, nm);
 	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_old, nx, ny, nm);
@@ -342,6 +360,11 @@ void device_boundaries(struct CudaData* dev,
 	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_lav_CrNb, nx, ny, nm);
 	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_lav_NbCr, nx, ny, nm);
 	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_lav_NbNb, nx, ny, nm);
+
+    cudaEventRecord(dev->ev_A, dev->str_A);
+    cudaEventRecord(dev->ev_B, dev->str_B);
+    cudaEventRecord(dev->ev_C, dev->str_C);
+    cudaEventRecord(dev->ev_D, dev->str_D);
 }
 
 void device_laplacian_boundaries(struct CudaData* dev,
@@ -354,10 +377,19 @@ void device_laplacian_boundaries(struct CudaData* dev,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
+    cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
+    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
+
 	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_new, nx, ny, nm);
+    cudaEventRecord(dev->ev_A, dev->str_A);
 	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_new, nx, ny, nm);
+    cudaEventRecord(dev->ev_B, dev->str_B);
 	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_C>>> (dev->phi_del_new, nx, ny, nm);
+    cudaEventRecord(dev->ev_C, dev->str_C);
 	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_D>>> (dev->phi_lav_new, nx, ny, nm);
+    cudaEventRecord(dev->ev_D, dev->str_D);
 }
 
 __global__ void convolution_kernel(fp_t* d_old,
@@ -694,6 +726,11 @@ void device_laplacian(struct CudaData* dev,
 	               1);
 	const size_t buf_size = (tile_size.x + nm) * (tile_size.y + nm) * sizeof(double4);
 
+    cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
+    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
+
 	convolution_kernel <<< num_tiles, tile_size, buf_size, dev->str_A>>> (
 	    dev->phi_del_old, dev->phi_del_new, nx, ny, nm);
 	convolution_kernel <<< num_tiles, tile_size, buf_size, dev->str_B>>> (
@@ -726,6 +763,11 @@ void device_laplacian(struct CudaData* dev,
         dev->conc_Cr_new,
 	    nx, ny, nm,
 	    dx, dy);
+
+    cudaEventRecord(dev->ev_A, dev->str_A);
+    cudaEventRecord(dev->ev_B, dev->str_B);
+    cudaEventRecord(dev->ev_C, dev->str_C);
+    cudaEventRecord(dev->ev_D, dev->str_D);
 }
 
 __device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc_Nb_old,
@@ -870,6 +912,10 @@ void device_evolution(struct CudaData* dev,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
+
+    cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
+    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+
 	cahn_hilliard_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
 	    dev->phi_del_old, dev->phi_lav_old,
@@ -884,6 +930,9 @@ void device_evolution(struct CudaData* dev,
 	    nx, ny, nm,
 	    alpha,
 	    dt);
+
+    cudaEventRecord(dev->ev_A, dev->str_A);
+    cudaEventRecord(dev->ev_B, dev->str_B);
 }
 
 __global__ void init_prng_kernel(curandState* d_prng, const int nx, const int ny)
@@ -1104,6 +1153,11 @@ void device_dataviz(struct CudaData* dev,
 	               nTiles(ny, tile_size.y, nm),
 	               1);
 
+    cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
+    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
+
 	dataviz_kernel <<< num_tiles, tile_size>>>(
                                                dev->conc_Cr_old, dev->conc_Cr_viz,
                                                dev->conc_Nb_old, dev->conc_Nb_viz,
@@ -1113,11 +1167,11 @@ void device_dataviz(struct CudaData* dev,
                                                dev->phi,
                                                nx, ny);
 
-	cudaMemcpyAsync(host->conc_Cr_new[0], dev->conc_Cr_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost, dev->str_V);
-	cudaMemcpyAsync(host->conc_Nb_new[0], dev->conc_Nb_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost, dev->str_V);
-	cudaMemcpyAsync(host->conc_Ni[0], dev->conc_Ni, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost, dev->str_V);
+	cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->conc_Ni[0], dev->conc_Ni, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 
-	cudaMemcpyAsync(host->phi_del_new[0], dev->phi_del_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost, dev->str_V);
-	cudaMemcpyAsync(host->phi_lav_new[0], dev->phi_lav_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost, dev->str_V);
-	cudaMemcpyAsync(host->phi[0], dev->phi, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost, dev->str_V);
+	cudaMemcpy(host->phi_del_new[0], dev->phi_del_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->phi_lav_new[0], dev->phi_lav_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->phi[0], dev->phi, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 }

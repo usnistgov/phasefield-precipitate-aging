@@ -140,11 +140,20 @@ void figure(int w, int h, size_t dpi)
 	Py_DECREF(res);
 }
 
-void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
-					  fp_t** phi_del, fp_t** phi_lav,
-					  const int nx, const int ny, const int nm,
-                      const fp_t deltax,
-                      const int step, const fp_t dt, const char* filename)
+int write_dummy(fp_t** conc_Cr, fp_t** conc_Nb,
+				fp_t** phi_del, fp_t** phi_lav,
+				const int nx, const int ny, const int nm,
+				const fp_t deltax,
+				const int step, const fp_t dt, const char* filename)
+{
+	return 0;
+}
+
+int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
+					 fp_t** phi_del, fp_t** phi_lav,
+					 const int nx, const int ny, const int nm,
+					 const fp_t deltax,
+					 const int step, const fp_t dt, const char* filename)
 {
 	plt::backend("Agg");
 
@@ -240,4 +249,6 @@ void write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 
 	plt::save(filename);
 	plt::close();
+
+	return 0;
 }
