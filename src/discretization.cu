@@ -661,7 +661,7 @@ void device_laplacian(struct CudaData* dev,
         dev->mob_del_NbCr, dev->mob_del_NbNb,
         dev->mob_lav_CrCr, dev->mob_lav_CrNb,
         dev->mob_lav_NbCr, dev->mob_lav_NbNb,
-        dev->conc_Cr_new,
+        dev->conc_Nb_new,
 	    nx, ny, nm,
 	    dx, dy);
 
