@@ -430,12 +430,12 @@ void generate(int dim, const char* filename)
 	mtrand.seed(seed);
 
 	if (dim == 2) {
+		/*
 		const int Nx = 4000;
 		const int Ny = 2500;
-		/*
+		*/
 		const int Nx = 768;
 		const int Ny =  32;
-		*/
 
 		double Ntot = 1.0;
 		GRID2D initGrid(NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
@@ -448,16 +448,18 @@ void generate(int dim, const char* filename)
 				b1(initGrid, d) = Neumann;
 		}
 
-		// init_flat_composition(initGrid, mtrand);
+		/*
+		init_flat_composition(initGrid, mtrand);
+		*/
 		init_gaussian_enrichment(initGrid, mtrand);
 
-		/*
-		  const int w_precip = glength(initGrid, 0) / 6;
+		const int w_precip = glength(initGrid, 0) / 6;
 		seed_planar_delta(initGrid, w_precip);
-		*/
+		/*
 		const fp_t rough_dt = 1.25e-9;
 		seed_solitaire(initGrid, s_delta(), s_laves(), lattice_const,
 		               ifce_width, meshres, rough_dt, mtrand);
+		*/
 
 		ghostswap(initGrid);
 
@@ -511,7 +513,6 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(initGrid, n);
 			const int i = x[0] - g0(initGrid, 0) + 1;
 			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
-			// (mmsp2png of mesh is correct)
 			xCr[j][i] = initGrid(n)[0];
 			xNb[j][i] = initGrid(n)[1];
 			pDel[j][i] = initGrid(n)[NC];
