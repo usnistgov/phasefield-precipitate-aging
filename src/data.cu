@@ -134,6 +134,11 @@ void free_cuda(struct CudaData* dev)
 void read_out_result(struct CudaData* dev, struct HostData* host,
                      const int nx, const int ny)
 {
+	cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
+    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
+
 	checkCuda(cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_old, nx * ny * sizeof(fp_t),
 						 cudaMemcpyDeviceToHost));
 	checkCuda(cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_old, nx * ny * sizeof(fp_t),
