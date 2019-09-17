@@ -138,7 +138,7 @@ void device_fictitious(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	fictitious_gam_kernel<<< num_tiles, tile_size, 0, dev->str_A>>>
+	fictitious_gam_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -147,7 +147,7 @@ void device_fictitious(struct CudaData* dev,
        dev->conc_Nb_gam,
        nx, ny, nm);
 
-	fictitious_del_kernel<<< num_tiles, tile_size, 0, dev->str_B>>>
+	fictitious_del_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -156,7 +156,7 @@ void device_fictitious(struct CudaData* dev,
        dev->conc_Nb_del,
        nx, ny, nm);
     
-    fictitious_lav_kernel<<< num_tiles, tile_size, 0, dev->str_C>>>
+    fictitious_lav_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -276,7 +276,7 @@ void device_mobilities(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	mobility_gam_kernel<<< num_tiles, tile_size, 0, dev->str_A>>>
+	mobility_gam_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -287,7 +287,7 @@ void device_mobilities(struct CudaData* dev,
        dev->mob_gam_NbNb,
        nx, ny, nm);
 
-	mobility_del_kernel<<< num_tiles, tile_size, 0, dev->str_B>>>
+	mobility_del_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -297,7 +297,7 @@ void device_mobilities(struct CudaData* dev,
        dev->mob_del_NbNb,
        nx, ny, nm);
 
-    mobility_lav_kernel<<< num_tiles, tile_size, 0, dev->str_C>>>
+    mobility_lav_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_lav_old,
@@ -362,35 +362,35 @@ void device_boundaries(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_old, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_old, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Cr_old, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Nb_old, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->phi_del_old, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->phi_lav_old, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->phi_del_old, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->phi_lav_old, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_gam, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_gam, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Cr_gam, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Nb_gam, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->conc_Cr_del, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->conc_Nb_del, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Cr_del, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Nb_del, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_lav, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_lav, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Cr_lav, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Nb_lav, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_gam_CrCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_gam_CrNb, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_gam_NbCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_gam_NbNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_gam_CrCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_gam_CrNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_gam_NbCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_gam_NbNb, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_del_CrCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_del_CrNb, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_del_NbCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_del_NbNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_del_CrCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_del_CrNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_del_NbCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_del_NbNb, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_lav_CrCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_lav_CrNb, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_lav_NbCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_lav_NbNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_lav_CrCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_lav_CrNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_lav_NbCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_lav_NbNb, nx, ny, nm);
 
     cudaEventRecord(dev->ev_A, dev->str_A);
     cudaEventRecord(dev->ev_B, dev->str_B);
@@ -412,14 +412,14 @@ void fictitious_boundaries(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_gam, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_gam, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Cr_gam, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Nb_gam, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->conc_Cr_del, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->conc_Nb_del, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Cr_del, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Nb_del, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_lav, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_lav, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Cr_lav, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Nb_lav, nx, ny, nm);
 
     cudaEventRecord(dev->ev_A, dev->str_A);
     cudaEventRecord(dev->ev_B, dev->str_B);
@@ -441,20 +441,20 @@ void mobility_boundaries(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_gam_CrCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_gam_CrNb, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_gam_NbCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_gam_NbNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_gam_CrCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_gam_CrNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_gam_NbCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_gam_NbNb, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_del_CrCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_del_CrNb, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_del_NbCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_del_NbNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_del_CrCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_del_CrNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_del_NbCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_del_NbNb, nx, ny, nm);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_lav_CrCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_lav_CrNb, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_lav_NbCr, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_lav_NbNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_lav_CrCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_lav_CrNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_lav_NbCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->mob_lav_NbNb, nx, ny, nm);
 
     cudaEventRecord(dev->ev_A, dev->str_A);
     cudaEventRecord(dev->ev_B, dev->str_B);
@@ -477,10 +477,10 @@ void device_laplacian_boundaries(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_new, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_new, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->phi_del_new, nx, ny, nm);
-	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->phi_lav_new, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Cr_new, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->conc_Nb_new, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->phi_del_new, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size>>> (dev->phi_lav_new, nx, ny, nm);
 
     cudaEventRecord(dev->ev_A, dev->str_A);
     cudaEventRecord(dev->ev_B, dev->str_B);
@@ -715,13 +715,13 @@ void device_laplacian(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	convolution_kernel<<< num_tiles, tile_size, buf_size, dev->str_A>>>
+	convolution_kernel<<< num_tiles, tile_size, buf_size>>>
       (dev->phi_del_old, dev->phi_del_new, nx, ny, nm);
 
-	convolution_kernel<<< num_tiles, tile_size, buf_size, dev->str_B>>>
+	convolution_kernel<<< num_tiles, tile_size, buf_size>>>
       (dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
 
-	chemical_convolution_Cr_kernel<<< num_tiles, tile_size, 0, dev->str_C>>>
+	chemical_convolution_Cr_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_gam, dev->conc_Nb_gam,
        dev->conc_Cr_del, dev->conc_Nb_del,
        dev->conc_Cr_lav, dev->conc_Nb_lav,
@@ -732,7 +732,7 @@ void device_laplacian(struct CudaData* dev,
        nx, ny, nm,
        dx, dy);
 
-	chemical_convolution_Nb_kernel<<< num_tiles, tile_size, 0, dev->str_D>>>
+	chemical_convolution_Nb_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_gam, dev->conc_Nb_gam,
        dev->conc_Cr_del, dev->conc_Nb_del,
        dev->conc_Cr_lav, dev->conc_Nb_lav,
@@ -898,7 +898,7 @@ void device_evolution(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	cahn_hilliard_kernel<<< num_tiles, tile_size, 0, dev->str_A>>>
+	cahn_hilliard_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->conc_Cr_new,
@@ -906,7 +906,7 @@ void device_evolution(struct CudaData* dev,
        nx, ny, nm,
        dt);
 
-	allen_cahn_kernel<<< num_tiles, tile_size, 0, dev->str_B>>>
+	allen_cahn_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -1101,7 +1101,7 @@ void device_nucleation(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	nucleation_kernel<<< num_tiles, tile_size, 0, dev->str_A>>>
+	nucleation_kernel<<< num_tiles, tile_size>>>
       (dev->conc_Cr_new,
        dev->conc_Nb_new,
        dev->phi_del_new,
