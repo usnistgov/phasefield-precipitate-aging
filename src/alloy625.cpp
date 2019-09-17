@@ -83,19 +83,17 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
 
-	/*
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
-	*/
 
 	/* Favor a high delta-phase fraction, with a composition
 	 * chosen from the gamma-delta edge of the three-phase field
-	 */
 	double xCrE = 0.415625;
 	double xNbE = 0.0625;
+	*/
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
@@ -316,6 +314,39 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 	}
 }
 
+void seed_planar_laves(GRID2D& grid, const int w_precip)
+{
+	fp_t xCr = 0.0, xNb = 0.0;
+	for (int n=0; n<nodes(grid); n++) {
+		xCr += grid(n)[0];
+		xNb += grid(n)[1];
+	}
+	xCr /= nodes(grid);
+	xNb /= nodes(grid);
+
+	const fp_t R_precip = meshres * w_precip;
+	const fp_t R_depletion_Cr = R_precip * (1.0 + (xe_lav_Cr() - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_lav_Nb() - xNb) / (xNb - xe_gam_Nb()));
+
+	vector<int> x(2, 0);
+	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
+		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
+			// Smoothly interpolate through the interface, TKR5p276
+			vector<fp_t>& GridN = grid(x);
+			const fp_t r = meshres * (x[0] - g0(grid, 0));
+			GridN[NC] = tanh_interp(r - R_precip, 2 * ifce_width);
+			GridN[0] = xe_lav_Cr() * tanh_interp(r - R_precip, 2 * ifce_width)
+			         + xe_gam_Cr() * tanh_interp(R_precip - r, 2 * ifce_width)
+			         - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, 2 * ifce_width)
+			         + xCr * tanh_interp(R_depletion_Cr - r, 2 * ifce_width);
+			GridN[1] = xe_lav_Nb() * tanh_interp(r - R_precip, 2 * ifce_width)
+			         + xe_gam_Nb() * tanh_interp(R_precip - r, 2 * ifce_width)
+			         - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, 2 * ifce_width)
+			         + xNb * tanh_interp(R_depletion_Nb - r, 2 * ifce_width);
+		}
+	}
+}
+
 void seed_pair(GRID2D& grid,
                const fp_t D_CrCr, const fp_t D_NbNb,
                const fp_t sigma_del, const fp_t sigma_lav,
@@ -424,15 +455,14 @@ void generate(int dim, const char* filename)
 		}
 
 		init_flat_composition(initGrid, mtrand);
-		/*
-		init_gaussian_enrichment(initGrid, mtrand);
-		*/
+		// init_gaussian_enrichment(initGrid, mtrand);
 
 		const int w_precip = glength(initGrid, 0) / 6;
 		seed_planar_delta(initGrid, w_precip);
 		/*
+		const fp_t rough_dt = 1.25e-9;
 		seed_solitaire(initGrid, s_delta(), s_laves(), lattice_const,
-					   ifce_width, meshres, dt, mtrand);
+					   ifce_width, meshres, rough_dt, mtrand);
 		*/
 
 		ghostswap(initGrid);

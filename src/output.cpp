@@ -212,7 +212,7 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 
 	plt::subplot2grid(nrows, ncols, 0, 0, 1, ncols - 1);
 	mat = plt::imshow(&(p_del[0]), h, w, colors, str_kw, num_kw);
-	plt::title("$\\phi^{\\delta}$");
+	plt::title("$\\phi$");
 	plt::axis("off");
 
 	plt::subplot2grid(nrows, ncols, 1, 0, 1, ncols - 1);
