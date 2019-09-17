@@ -136,6 +136,7 @@ void device_fictitious(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
     cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
 	fictitious_gam_kernel
       <<< num_tiles, tile_size, 0, dev->str_A>>>
@@ -144,6 +145,7 @@ void device_fictitious(struct CudaData* dev,
 	 dev->conc_Cr_gam, dev->conc_Nb_gam,
 	 nx, ny, nm);
     cudaEventRecord(dev->ev_A, dev->str_A);
+
 	fictitious_del_kernel
 	<<< num_tiles, tile_size, 0, dev->str_B>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
@@ -151,7 +153,8 @@ void device_fictitious(struct CudaData* dev,
 	 dev->conc_Cr_del, dev->conc_Nb_del,
 	 nx, ny, nm);
     cudaEventRecord(dev->ev_B, dev->str_B);
-	fictitious_lav_kernel
+
+    fictitious_lav_kernel
 	<<< num_tiles, tile_size, 0, dev->str_C>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
 	 dev->phi_del_old, dev->phi_lav_old,
@@ -255,6 +258,7 @@ void device_mobilities(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
     cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
 	mobility_gam_kernel
 	<<< num_tiles, tile_size, 0, dev->str_A>>>
@@ -264,6 +268,7 @@ void device_mobilities(struct CudaData* dev,
 	 dev->mob_gam_NbCr, dev->mob_gam_NbNb,
 	 nx, ny, nm);
     cudaEventRecord(dev->ev_A, dev->str_A);
+
 	mobility_del_kernel
 	<<< num_tiles, tile_size, 0, dev->str_B>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
@@ -272,7 +277,8 @@ void device_mobilities(struct CudaData* dev,
 	 dev->mob_del_NbCr, dev->mob_del_NbNb,
 	 nx, ny, nm);
     cudaEventRecord(dev->ev_B, dev->str_B);
-	mobility_lav_kernel
+
+    mobility_lav_kernel
 	<<< num_tiles, tile_size, 0, dev->str_C>>>
 	(dev->conc_Cr_old, dev->conc_Nb_old,
 	 dev->phi_lav_old,
@@ -447,19 +453,17 @@ __global__ void convolution_kernel(fp_t* d_old,
 	}
 }
 
-__device__ fp_t discrete_laplacian(const fp_t& D_middle,
-                                   const fp_t& D_left, const fp_t& D_right,
-                                   const fp_t& D_bottom, const fp_t& D_top,
-                                   const fp_t& c_middle,
-                                   const fp_t& c_left, const fp_t& c_right,
-                                   const fp_t& c_bottom, const fp_t& c_top,
-                                   const fp_t& dx, const fp_t& dy)
+__device__ fp_t discrete_laplacian(const fp_t& D_low,
+                                   const fp_t& D_mid,
+                                   const fp_t& D_hi,
+                                   const fp_t& c_low,
+                                   const fp_t& c_mid,
+                                   const fp_t& c_hi,
+                                   const fp_t& dx)
 {
-	// Five-point stencil
-	return ( (D_right + D_middle) * (c_right - c_middle)
-	         - (D_middle + D_left) * (c_middle - c_left)) / (2.0 * dx * dx)
-	       + ( (D_top + D_middle) * (c_top - c_middle)
-	           - (D_middle + D_bottom) * (c_middle - c_bottom)) / (2.0 * dy * dy);
+	// Five-point stencil, 1 dimension at a time
+	return ( (D_hi  + D_mid) * (c_hi  - c_mid)
+           - (D_mid + D_low) * (c_mid - c_low) ) / (2.0 * dx * dx);
 }
 
 __global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc_Nb_gam,
@@ -495,93 +499,41 @@ __global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc
 
 		fp_t divDgradU_Cr = 0.0;
 
-		fp_t mid_D, lft_D, rgt_D, top_D, bot_D;
-		fp_t mid_Cr, lft_Cr, rgt_Cr, top_Cr, bot_Cr;
-		fp_t mid_Nb, lft_Nb, rgt_Nb, top_Nb, bot_Nb;
-
 		// TKR5p303, Eqn. 7, term 1
-		mid_D = d_mob_gam_CrCr[mid];
-		lft_D = d_mob_gam_CrCr[lft];
-		rgt_D = d_mob_gam_CrCr[rgt];
-		bot_D = d_mob_gam_CrCr[bot];
-		top_D = d_mob_gam_CrCr[top];
-		mid_Cr = d_conc_Cr_gam[mid];
-		lft_Cr = d_conc_Cr_gam[lft];
-		rgt_Cr = d_conc_Cr_gam[rgt];
-		bot_Cr = d_conc_Cr_gam[bot];
-		top_Cr = d_conc_Cr_gam[top];
-		divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Cr, lft_Cr, rgt_Cr, bot_Cr, top_Cr, dx, dy);
+		divDgradU_Cr += discrete_laplacian(d_mob_gam_CrCr[lft], d_mob_gam_CrCr[mid], d_mob_gam_CrCr[rgt],
+                                           d_conc_Cr_gam[lft],  d_conc_Cr_gam[mid],  d_conc_Cr_gam[rgt], dx);
+		divDgradU_Cr += discrete_laplacian(d_mob_gam_CrCr[bot], d_mob_gam_CrCr[mid], d_mob_gam_CrCr[top],
+                                           d_conc_Cr_gam[bot],  d_conc_Cr_gam[mid],  d_conc_Cr_gam[top], dy);
 
 		// TKR5p303, Eqn. 7, term 2
-		mid_D = d_mob_gam_CrNb[mid];
-		lft_D = d_mob_gam_CrNb[lft];
-		rgt_D = d_mob_gam_CrNb[rgt];
-		bot_D = d_mob_gam_CrNb[bot];
-		top_D = d_mob_gam_CrNb[top];
-		mid_Nb = d_conc_Nb_gam[mid];
-		lft_Nb = d_conc_Nb_gam[lft];
-		rgt_Nb = d_conc_Nb_gam[rgt];
-		bot_Nb = d_conc_Nb_gam[bot];
-		top_Nb = d_conc_Nb_gam[top];
-		divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Nb, lft_Nb, rgt_Nb, bot_Nb, top_Nb, dx, dy);
+		divDgradU_Cr += discrete_laplacian(d_mob_gam_CrNb[lft], d_mob_gam_CrNb[mid], d_mob_gam_CrNb[rgt],
+                                           d_conc_Nb_gam[lft],  d_conc_Nb_gam[mid],  d_conc_Nb_gam[rgt], dx);
+		divDgradU_Cr += discrete_laplacian(d_mob_gam_CrNb[bot], d_mob_gam_CrNb[mid], d_mob_gam_CrNb[top],
+                                           d_conc_Nb_gam[bot],  d_conc_Nb_gam[mid],  d_conc_Nb_gam[top], dy);
 
 		// TKR5p303, Eqn. 7, term 3
-		mid_D = d_mob_del_CrCr[mid];
-		lft_D = d_mob_del_CrCr[lft];
-		rgt_D = d_mob_del_CrCr[rgt];
-		bot_D = d_mob_del_CrCr[bot];
-		top_D = d_mob_del_CrCr[top];
-		mid_Cr = d_conc_Cr_del[mid];
-		lft_Cr = d_conc_Cr_del[lft];
-		rgt_Cr = d_conc_Cr_del[rgt];
-		bot_Cr = d_conc_Cr_del[bot];
-		top_Cr = d_conc_Cr_del[top];
-		divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Cr, lft_Cr, rgt_Cr, bot_Cr, top_Cr, dx, dy);
+		divDgradU_Cr += discrete_laplacian(d_mob_del_CrCr[lft], d_mob_del_CrCr[mid], d_mob_del_CrCr[rgt],
+                                           d_conc_Cr_del[lft],  d_conc_Cr_del[mid],  d_conc_Cr_del[rgt], dx);
+		divDgradU_Cr += discrete_laplacian(d_mob_del_CrCr[bot], d_mob_del_CrCr[mid], d_mob_del_CrCr[top],
+                                           d_conc_Cr_del[bot],  d_conc_Cr_del[mid],  d_conc_Cr_del[top], dy);
 
 		// TKR5p303, Eqn. 7, term 4
-		mid_D = d_mob_del_CrNb[mid];
-		lft_D = d_mob_del_CrNb[lft];
-		rgt_D = d_mob_del_CrNb[rgt];
-		bot_D = d_mob_del_CrNb[bot];
-		top_D = d_mob_del_CrNb[top];
-		mid_Nb = d_conc_Nb_del[mid];
-		lft_Nb = d_conc_Nb_del[lft];
-		rgt_Nb = d_conc_Nb_del[rgt];
-		bot_Nb = d_conc_Nb_del[bot];
-		top_Nb = d_conc_Nb_del[top];
-		divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Nb, lft_Nb, rgt_Nb, bot_Nb, top_Nb, dx, dy);
+		divDgradU_Cr += discrete_laplacian(d_mob_del_CrNb[lft], d_mob_del_CrNb[mid], d_mob_del_CrNb[rgt],
+                                           d_conc_Nb_del[lft],  d_conc_Nb_del[mid],  d_conc_Nb_del[rgt], dx);
+		divDgradU_Cr += discrete_laplacian(d_mob_del_CrNb[bot], d_mob_del_CrNb[mid], d_mob_del_CrNb[top],
+                                           d_conc_Nb_del[bot],  d_conc_Nb_del[mid],  d_conc_Nb_del[top], dy);
 
 		// TKR5p303, Eqn. 7, term 5
-		mid_D = d_mob_lav_CrCr[mid];
-		lft_D = d_mob_lav_CrCr[lft];
-		rgt_D = d_mob_lav_CrCr[rgt];
-		bot_D = d_mob_lav_CrCr[bot];
-		top_D = d_mob_lav_CrCr[top];
-		mid_Cr = d_conc_Cr_lav[mid];
-		lft_Cr = d_conc_Cr_lav[lft];
-		rgt_Cr = d_conc_Cr_lav[rgt];
-		bot_Cr = d_conc_Cr_lav[bot];
-		top_Cr = d_conc_Cr_lav[top];
-		divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Cr, lft_Cr, rgt_Cr, bot_Cr, top_Cr, dx, dy);
+		divDgradU_Cr += discrete_laplacian(d_mob_lav_CrCr[lft], d_mob_lav_CrCr[mid], d_mob_lav_CrCr[rgt],
+                                           d_conc_Cr_lav[lft],  d_conc_Cr_lav[mid],  d_conc_Cr_lav[rgt], dx);
+		divDgradU_Cr += discrete_laplacian(d_mob_lav_CrCr[bot], d_mob_lav_CrCr[mid], d_mob_lav_CrCr[top],
+                                           d_conc_Cr_lav[bot],  d_conc_Cr_lav[mid],  d_conc_Cr_lav[top], dy);
 
 		// TKR5p303, Eqn. 7, term 6
-		mid_D = d_mob_lav_CrNb[mid];
-		lft_D = d_mob_lav_CrNb[lft];
-		rgt_D = d_mob_lav_CrNb[rgt];
-		bot_D = d_mob_lav_CrNb[bot];
-		top_D = d_mob_lav_CrNb[top];
-		mid_Nb = d_conc_Nb_lav[mid];
-		lft_Nb = d_conc_Nb_lav[lft];
-		rgt_Nb = d_conc_Nb_lav[rgt];
-		bot_Nb = d_conc_Nb_lav[bot];
-		top_Nb = d_conc_Nb_lav[top];
-		divDgradU_Cr += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Nb, lft_Nb, rgt_Nb, bot_Nb, top_Nb, dx, dy);
+		divDgradU_Cr += discrete_laplacian(d_mob_lav_CrNb[lft], d_mob_lav_CrNb[mid], d_mob_lav_CrNb[rgt],
+                                           d_conc_Nb_lav[lft],  d_conc_Nb_lav[mid],  d_conc_Nb_lav[rgt], dx);
+		divDgradU_Cr += discrete_laplacian(d_mob_lav_CrNb[bot], d_mob_lav_CrNb[mid], d_mob_lav_CrNb[top],
+                                           d_conc_Nb_lav[bot],  d_conc_Nb_lav[mid],  d_conc_Nb_lav[top], dy);
 
 		/* record value */
 		d_conc_Cr_new[idx] = divDgradU_Cr;
@@ -621,93 +573,41 @@ __global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc
 
 		fp_t divDgradU_Nb = 0.0;
 
-		fp_t mid_D, lft_D, rgt_D, top_D, bot_D;
-		fp_t mid_Cr, lft_Cr, rgt_Cr, top_Cr, bot_Cr;
-		fp_t mid_Nb, lft_Nb, rgt_Nb, top_Nb, bot_Nb;
-
 		// TKR5p303, Eqn. 7, term 1
-		mid_D = d_mob_gam_NbCr[mid];
-		lft_D = d_mob_gam_NbCr[lft];
-		rgt_D = d_mob_gam_NbCr[rgt];
-		bot_D = d_mob_gam_NbCr[bot];
-		top_D = d_mob_gam_NbCr[top];
-		mid_Cr = d_conc_Cr_gam[mid];
-		lft_Cr = d_conc_Cr_gam[lft];
-		rgt_Cr = d_conc_Cr_gam[rgt];
-		bot_Cr = d_conc_Cr_gam[bot];
-		top_Cr = d_conc_Cr_gam[top];
-		divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Cr, lft_Cr, rgt_Cr, bot_Cr, top_Cr, dx, dy);
+		divDgradU_Nb += discrete_laplacian(d_mob_gam_NbCr[lft], d_mob_gam_NbCr[mid], d_mob_gam_NbCr[rgt],
+                                           d_conc_Cr_gam[lft],  d_conc_Cr_gam[mid],  d_conc_Cr_gam[rgt], dx);
+		divDgradU_Nb += discrete_laplacian(d_mob_gam_NbCr[bot], d_mob_gam_NbCr[mid], d_mob_gam_NbCr[top],
+                                           d_conc_Cr_gam[bot],  d_conc_Cr_gam[mid],  d_conc_Cr_gam[top], dy);
 
 		// TKR5p303, Eqn. 7, term 2
-		mid_D = d_mob_gam_NbNb[mid];
-		lft_D = d_mob_gam_NbNb[lft];
-		rgt_D = d_mob_gam_NbNb[rgt];
-		bot_D = d_mob_gam_NbNb[bot];
-		top_D = d_mob_gam_NbNb[top];
-		mid_Nb = d_conc_Nb_gam[mid];
-		lft_Nb = d_conc_Nb_gam[lft];
-		rgt_Nb = d_conc_Nb_gam[rgt];
-		bot_Nb = d_conc_Nb_gam[bot];
-		top_Nb = d_conc_Nb_gam[top];
-		divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Nb, lft_Nb, rgt_Nb, bot_Nb, top_Nb, dx, dy);
+		divDgradU_Nb += discrete_laplacian(d_mob_gam_NbNb[lft], d_mob_gam_NbNb[mid], d_mob_gam_NbNb[rgt],
+                                           d_conc_Nb_gam[lft],  d_conc_Nb_gam[mid],  d_conc_Nb_gam[rgt], dx);
+		divDgradU_Nb += discrete_laplacian(d_mob_gam_NbNb[bot], d_mob_gam_NbNb[mid], d_mob_gam_NbNb[top],
+                                           d_conc_Nb_gam[bot],  d_conc_Nb_gam[mid],  d_conc_Nb_gam[top], dy);
 
 		// TKR5p303, Eqn. 7, term 3
-		mid_D = d_mob_del_NbCr[mid];
-		lft_D = d_mob_del_NbCr[lft];
-		rgt_D = d_mob_del_NbCr[rgt];
-		bot_D = d_mob_del_NbCr[bot];
-		top_D = d_mob_del_NbCr[top];
-		mid_Cr = d_conc_Cr_del[mid];
-		lft_Cr = d_conc_Cr_del[lft];
-		rgt_Cr = d_conc_Cr_del[rgt];
-		bot_Cr = d_conc_Cr_del[bot];
-		top_Cr = d_conc_Cr_del[top];
-		divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Cr, lft_Cr, rgt_Cr, bot_Cr, top_Cr, dx, dy);
+		divDgradU_Nb += discrete_laplacian(d_mob_del_NbCr[lft], d_mob_del_NbCr[mid], d_mob_del_NbCr[rgt],
+                                           d_conc_Cr_del[lft],  d_conc_Cr_del[mid],  d_conc_Cr_del[rgt], dx);
+		divDgradU_Nb += discrete_laplacian(d_mob_del_NbCr[bot], d_mob_del_NbCr[mid], d_mob_del_NbCr[top],
+                                           d_conc_Cr_del[bot],  d_conc_Cr_del[mid],  d_conc_Cr_del[top], dx);
 
 		// TKR5p303, Eqn. 7, term 4
-		mid_D = d_mob_del_NbNb[mid];
-		lft_D = d_mob_del_NbNb[lft];
-		rgt_D = d_mob_del_NbNb[rgt];
-		bot_D = d_mob_del_NbNb[bot];
-		top_D = d_mob_del_NbNb[top];
-		mid_Nb = d_conc_Nb_del[mid];
-		lft_Nb = d_conc_Nb_del[lft];
-		rgt_Nb = d_conc_Nb_del[rgt];
-		bot_Nb = d_conc_Nb_del[bot];
-		top_Nb = d_conc_Nb_del[top];
-		divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Nb, lft_Nb, rgt_Nb, bot_Nb, top_Nb, dx, dy);
+		divDgradU_Nb += discrete_laplacian(d_mob_del_NbNb[lft], d_mob_del_NbNb[mid], d_mob_del_NbNb[rgt],
+                                           d_conc_Nb_del[lft],  d_conc_Nb_del[mid],  d_conc_Nb_del[rgt], dx);
+		divDgradU_Nb += discrete_laplacian(d_mob_del_NbNb[bot], d_mob_del_NbNb[mid], d_mob_del_NbNb[top],
+                                           d_conc_Nb_del[bot],  d_conc_Nb_del[mid],  d_conc_Nb_del[top], dy);
 
 		// TKR5p303, Eqn. 7, term 5
-		mid_D = d_mob_lav_NbCr[mid];
-		lft_D = d_mob_lav_NbCr[lft];
-		rgt_D = d_mob_lav_NbCr[rgt];
-		bot_D = d_mob_lav_NbCr[bot];
-		top_D = d_mob_lav_NbCr[top];
-		mid_Cr = d_conc_Cr_lav[mid];
-		lft_Cr = d_conc_Cr_lav[lft];
-		rgt_Cr = d_conc_Cr_lav[rgt];
-		bot_Cr = d_conc_Cr_lav[bot];
-		top_Cr = d_conc_Cr_lav[top];
-		divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Cr, lft_Cr, rgt_Cr, bot_Cr, top_Cr, dx, dy);
+		divDgradU_Nb += discrete_laplacian(d_mob_lav_NbCr[lft], d_mob_lav_NbCr[mid], d_mob_lav_NbCr[rgt],
+                                           d_conc_Cr_lav[lft],  d_conc_Cr_lav[mid],  d_conc_Cr_lav[rgt], dx);
+		divDgradU_Nb += discrete_laplacian(d_mob_lav_NbCr[bot], d_mob_lav_NbCr[mid], d_mob_lav_NbCr[top],
+                                           d_conc_Cr_lav[bot],  d_conc_Cr_lav[mid],  d_conc_Cr_lav[top], dy);
 
 		// TKR5p303, Eqn. 7, term 6
-		mid_D = d_mob_lav_NbNb[mid];
-		lft_D = d_mob_lav_NbNb[lft];
-		rgt_D = d_mob_lav_NbNb[rgt];
-		bot_D = d_mob_lav_NbNb[bot];
-		top_D = d_mob_lav_NbNb[top];
-		mid_Nb = d_conc_Nb_lav[mid];
-		lft_Nb = d_conc_Nb_lav[lft];
-		rgt_Nb = d_conc_Nb_lav[rgt];
-		bot_Nb = d_conc_Nb_lav[bot];
-		top_Nb = d_conc_Nb_lav[top];
-		divDgradU_Nb += discrete_laplacian(mid_D, lft_D, rgt_D, bot_D, top_D,
-		                                   mid_Nb, lft_Nb, rgt_Nb, bot_Nb, top_Nb, dx, dy);
+		divDgradU_Nb += discrete_laplacian(d_mob_lav_NbNb[lft], d_mob_lav_NbNb[mid], d_mob_lav_NbNb[rgt],
+                                           d_conc_Nb_lav[lft],  d_conc_Nb_lav[mid],  d_conc_Nb_lav[rgt], dx);
+		divDgradU_Nb += discrete_laplacian(d_mob_lav_NbNb[bot], d_mob_lav_NbNb[mid], d_mob_lav_NbNb[top],
+                                           d_conc_Nb_lav[bot],  d_conc_Nb_lav[mid],  d_conc_Nb_lav[top], dy);
 
 		/* record value */
 		d_conc_Nb_new[idx] = divDgradU_Nb;
