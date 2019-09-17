@@ -59,7 +59,7 @@ __global__ void fictitious_gam_kernel(fp_t* d_conc_Cr,
 
 	if (x < nx && y < ny) {
 		const fp_t xCr = d_conc_Cr[idx];
-		const fp_t xNb = d_conc_Cr[idx];
+		const fp_t xNb = d_conc_Nb[idx];
 		const fp_t pDel = d_p(d_phi_del[idx]);
 		const fp_t pLav = d_p(d_phi_lav[idx]);
 		const fp_t pGam = 1.0 - pDel - pLav;
@@ -86,7 +86,7 @@ __global__ void fictitious_del_kernel(fp_t* d_conc_Cr,
 
 	if (x < nx && y < ny) {
 		const fp_t xCr = d_conc_Cr[idx];
-		const fp_t xNb = d_conc_Cr[idx];
+		const fp_t xNb = d_conc_Nb[idx];
 		const fp_t pDel = d_p(d_phi_del[idx]);
 		const fp_t pLav = d_p(d_phi_lav[idx]);
 		const fp_t pGam = 1.0 - pDel - pLav;
@@ -113,7 +113,7 @@ __global__ void fictitious_lav_kernel(fp_t* d_conc_Cr,
 
 	if (x < nx && y < ny) {
 		const fp_t xCr = d_conc_Cr[idx];
-		const fp_t xNb = d_conc_Cr[idx];
+		const fp_t xNb = d_conc_Nb[idx];
 		const fp_t pDel = d_p(d_phi_del[idx]);
 		const fp_t pLav = d_p(d_phi_lav[idx]);
 		const fp_t pGam = 1.0 - pDel - pLav;
@@ -182,7 +182,7 @@ __global__ void mobility_gam_kernel(fp_t* d_conc_Cr,
 
 	if (x < nx && y < ny) {
 		const fp_t xCr = d_conc_Cr[idx];
-		const fp_t xNb = d_conc_Cr[idx];
+		const fp_t xNb = d_conc_Nb[idx];
 		const fp_t pGam = 1.0 - d_p(d_phi_del[idx]) - d_p(d_phi_lav[idx]);
 		d_mob_gam_CrCr[idx] = pGam * (d_M_CrCr(xCr, xNb) * d_d2g_gam_dxCrCr() + d_M_CrNb(xCr, xNb) * d_d2g_gam_dxCrNb());
 		d_mob_gam_CrNb[idx] = pGam * (d_M_CrCr(xCr, xNb) * d_d2g_gam_dxNbCr() + d_M_CrNb(xCr, xNb) * d_d2g_gam_dxNbNb());
@@ -209,7 +209,7 @@ __global__ void mobility_del_kernel(fp_t* d_conc_Cr,
 
 	if (x < nx && y < ny) {
 		const fp_t xCr = d_conc_Cr[idx];
-		const fp_t xNb = d_conc_Cr[idx];
+		const fp_t xNb = d_conc_Nb[idx];
 		const fp_t pDel = d_p(d_phi_del[idx]);
 		d_mob_del_CrCr[idx] = pDel * (d_M_CrCr(xCr, xNb) * d_d2g_del_dxCrCr() + d_M_CrNb(xCr, xNb) * d_d2g_del_dxCrNb());
 		d_mob_del_CrNb[idx] = pDel * (d_M_CrCr(xCr, xNb) * d_d2g_del_dxNbCr() + d_M_CrNb(xCr, xNb) * d_d2g_del_dxNbNb());
@@ -236,7 +236,7 @@ __global__ void mobility_lav_kernel(fp_t* d_conc_Cr,
 
 	if (x < nx && y < ny) {
 		const fp_t xCr = d_conc_Cr[idx];
-		const fp_t xNb = d_conc_Cr[idx];
+		const fp_t xNb = d_conc_Nb[idx];
 		const fp_t pLav = d_p(d_phi_lav[idx]);
 		d_mob_lav_CrCr[idx] = pLav * (d_M_CrCr(xCr, xNb) * d_d2g_lav_dxCrCr() + d_M_CrNb(xCr, xNb) * d_d2g_lav_dxCrNb());
 		d_mob_lav_CrNb[idx] = pLav * (d_M_CrCr(xCr, xNb) * d_d2g_lav_dxNbCr() + d_M_CrNb(xCr, xNb) * d_d2g_lav_dxNbNb());
