@@ -223,7 +223,7 @@ p_d2Glav_dxNbNb = diff(p_laves, XNB, XNB)
 gamCr, gamNb = symbols("gamCr, gamNb")
 delCr, delNb = symbols("delCr, delNb")
 lavCr, lavNb = symbols("lavCr, lavNb")
-f_gam, f_del, f_lav = symbols("f_gam, f_del, f_lav")
+pGam, pDel, pLav = symbols("pGam, pDel, pLav")
 INV_DET = symbols("INV_DET")
 gcd = 1.0e-60
 
@@ -235,8 +235,8 @@ ficLdCr = p_dGlav_dxCr.subs({XCR: lavCr, XNB: lavNb})
 ficLdNb = p_dGlav_dxNb.subs({XCR: lavCr, XNB: lavNb})
 
 ficEqns = (
-    XCR - f_gam * gamCr - f_del * delCr - f_lav * lavCr,
-    XNB - f_gam * gamNb - f_del * delNb - f_lav * lavNb,
+    XCR - pGam * gamCr - pDel * delCr - pLav * lavCr,
+    XNB - pGam * gamNb - pDel * delNb - pLav * lavNb,
     ficGdCr - ficDdCr,
     ficGdNb - ficDdNb,
     ficGdCr - ficLdCr,

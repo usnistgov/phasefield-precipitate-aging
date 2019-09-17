@@ -242,65 +242,65 @@ __device__ double d_xr_lav_Nb(double P_del, double P_lav)
 
 }
 
-__device__ double d_inv_fict_det(double f_del, double f_gam, double f_lav)
+__device__ double d_inv_fict_det(double pDel, double pGam, double pLav)
 {
 
 	double inv_fict_det_result;
-	inv_fict_det_result = 1.0479034445859148/(0.001036042775998007*f_del*f_del + 0.12229015747171916*f_del*f_gam + 0.041785936156220206*f_del*f_lav + 1.0*f_gam*f_gam + 0.73028945399293654*f_gam*f_lav + 0.093983883345629848*f_lav*f_lav);
+	inv_fict_det_result = 1.0479034445859148/(0.001036042775998007*pow(pDel, 2) + 0.12229015747171916*pDel*pGam + 0.041785936156220206*pDel*pLav + 1.0*pow(pGam, 2) + 0.73028945399293654*pGam*pLav + 0.093983883345629848*pow(pLav, 2));
 	return inv_fict_det_result;
 
 }
 
-__device__ double d_fict_gam_Cr(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav)
+__device__ double d_fict_gam_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav)
 {
 
 	double fict_gam_Cr_result;
-	fict_gam_Cr_result = 0.95428639457822939*INV_DET*(0.016938286205500769*XCR*f_del + 1.0*XCR*f_gam + 0.54889980006097583*XCR*f_lav - 0.34687466604954664*XNB*f_del - 0.10246420218061991*XNB*f_lav + 0.086819224054883931*f_del*f_del + 0.036767802923980242*f_del*f_gam + 0.11815012520929236*f_del*f_lav - 0.27750258277182049*f_gam*f_lav - 0.12951476250779617*f_lav*f_lav);
+	fict_gam_Cr_result = 0.95428639457822939*INV_DET*(0.016938286205500769*XCR*pDel + 1.0*XCR*pGam + 0.54889980006097583*XCR*pLav - 0.34687466604954664*XNB*pDel - 0.10246420218061991*XNB*pLav + 0.086819224054883931*pow(pDel, 2) + 0.036767802923980242*pDel*pGam + 0.11815012520929236*pDel*pLav - 0.27750258277182049*pGam*pLav - 0.12951476250779617*pow(pLav, 2));
 	return fict_gam_Cr_result;
 
 }
 
-__device__ double d_fict_gam_Nb(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav)
+__device__ double d_fict_gam_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav)
 {
 
 	double fict_gam_Nb_result;
-	fict_gam_Nb_result = -0.95428639457822939*INV_DET*(0.0021576593653206372*XCR*f_del + 0.054466450838266962*XCR*f_lav - 0.10535187126621839*XNB*f_del - 1.0*XNB*f_gam - 0.18138965393196071*XNB*f_lav + 0.026258691080522339*f_del*f_del + 0.24849448207756411*f_del*f_gam + 0.06992726713680375*f_del*f_lav + 0.22257870755542866*f_gam*f_lav + 0.025258893954068835*f_lav*f_lav);
+	fict_gam_Nb_result = -0.95428639457822939*INV_DET*(0.0021576593653206372*XCR*pDel + 0.054466450838266962*XCR*pLav - 0.10535187126621839*XNB*pDel - 1.0*XNB*pGam - 0.18138965393196071*XNB*pLav + 0.026258691080522339*pow(pDel, 2) + 0.24849448207756411*pDel*pGam + 0.06992726713680375*pDel*pLav + 0.22257870755542866*pGam*pLav + 0.025258893954068835*pow(pLav, 2));
 	return fict_gam_Nb_result;
 
 }
 
-__device__ double d_fict_del_Cr(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav)
+__device__ double d_fict_del_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav)
 {
 
 	double fict_del_Cr_result;
-	fict_del_Cr_result = 0.33101777443494923*INV_DET*(0.0029867928603642142*XCR*f_del + 0.30371739875396442*XCR*f_gam + 0.11224396861282378*XCR*f_lav + 1.0*XNB*f_gam + 0.15026949298026257*XNB*f_lav - 0.25028989589710454*f_del*f_gam - 0.038472217853981416*f_del*f_lav - 0.10599737173866837*f_gam*f_gam - 0.38426983287411115*f_gam*f_lav - 0.074556825343604541*f_lav*f_lav);
+	fict_del_Cr_result = 0.33101777443494923*INV_DET*(0.0029867928603642142*XCR*pDel + 0.30371739875396442*XCR*pGam + 0.11224396861282378*XCR*pLav + 1.0*XNB*pGam + 0.15026949298026257*XNB*pLav - 0.25028989589710454*pDel*pGam - 0.038472217853981416*pDel*pLav - 0.10599737173866837*pow(pGam, 2) - 0.38426983287411115*pGam*pLav - 0.074556825343604541*pow(pLav, 2));
 	return fict_del_Cr_result;
 
 }
 
-__device__ double d_fict_del_Nb(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav)
+__device__ double d_fict_del_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav)
 {
 
 	double fict_del_Nb_result;
-	fict_del_Nb_result = 0.23713490337438312*INV_DET*(0.0086829266681549624*XCR*f_gam + 0.0010534256500958393*XCR*f_lav + 0.0041692787998190662*XNB*f_del + 0.068163631095090937*XNB*f_gam + 0.011474488301439057*XNB*f_lav + 0.10567112340275649*f_del*f_gam + 0.038045328588644858*f_del*f_lav + 1.0*f_gam*f_gam + 0.71270814650507486*f_gam*f_lav + 0.091137578230976013*f_lav*f_lav);
+	fict_del_Nb_result = 0.23713490337438312*INV_DET*(0.0086829266681549624*XCR*pGam + 0.0010534256500958393*XCR*pLav + 0.0041692787998190662*XNB*pDel + 0.068163631095090937*XNB*pGam + 0.011474488301439057*XNB*pLav + 0.10567112340275649*pDel*pGam + 0.038045328588644858*pDel*pLav + 1.0*pow(pGam, 2) + 0.71270814650507486*pGam*pLav + 0.091137578230976013*pow(pLav, 2));
 	return fict_del_Nb_result;
 
 }
 
-__device__ double d_fict_lav_Cr(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav)
+__device__ double d_fict_lav_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav)
 {
 
 	double fict_lav_Cr_result;
-	fict_lav_Cr_result = 0.26481693919946725*INV_DET*(0.010275028791049912*XCR*f_del + 0.65365032685519309*XCR*f_gam + 0.33867750853659306*XCR*f_lav - 0.18783493715380431*XNB*f_del + 0.36923693162478494*XNB*f_gam + 0.048089778433731953*f_del*f_del + 0.054570103782716275*f_del*f_gam + 0.093195074562756067*f_del*f_lav + 1.0*f_gam*f_gam + 0.46671552103819908*f_gam*f_lav);
+	fict_lav_Cr_result = 0.26481693919946725*INV_DET*(0.010275028791049912*XCR*pDel + 0.65365032685519309*XCR*pGam + 0.33867750853659306*XCR*pLav - 0.18783493715380431*XNB*pDel + 0.36923693162478494*XNB*pGam + 0.048089778433731953*pow(pDel, 2) + 0.054570103782716275*pDel*pGam + 0.093195074562756067*pDel*pLav + 1.0*pow(pGam, 2) + 0.46671552103819908*pGam*pLav);
 	return fict_lav_Cr_result;
 
 }
 
-__device__ double d_fict_lav_Nb(double INV_DET, double XCR, double XNB, double f_del, double f_gam, double f_lav)
+__device__ double d_fict_lav_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav)
 {
 
 	double fict_lav_Nb_result;
-	fict_lav_Nb_result = -0.5238076111848996*INV_DET*(0.00047690026722310252*XCR*f_del - 0.09922840349407383*XCR*f_gam - 0.070932051941581878*XNB*f_del - 1.0*XNB*f_gam - 0.1712222947342838*XNB*f_lav + 0.017223643043877631*f_del*f_del + 0.19525744879034307*f_del*f_gam + 0.04125923401282721*f_del*f_lav - 0.40549970601319762*f_gam*f_gam - 0.046017313089315927*f_gam*f_lav);
+	fict_lav_Nb_result = -0.5238076111848996*INV_DET*(0.00047690026722310252*XCR*pDel - 0.09922840349407383*XCR*pGam - 0.070932051941581878*XNB*pDel - 1.0*XNB*pGam - 0.1712222947342838*XNB*pLav + 0.017223643043877631*pow(pDel, 2) + 0.19525744879034307*pDel*pGam + 0.04125923401282721*pDel*pLav - 0.40549970601319762*pow(pGam, 2) - 0.046017313089315927*pGam*pLav);
 	return fict_lav_Nb_result;
 
 }
