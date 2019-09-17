@@ -89,12 +89,6 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
 
-	/* Favor a high delta-phase fraction, with a composition
-	 * chosen from the gamma-delta edge of the three-phase field
-	double xCrE = 0.415625;
-	double xNbE = 0.0625;
-	*/
-
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
 	MPI::COMM_WORLD.Bcast(&xCrE, 1, MPI_DOUBLE, 0);
@@ -436,12 +430,12 @@ void generate(int dim, const char* filename)
 	mtrand.seed(seed);
 
 	if (dim == 2) {
-		/*
 		const int Nx = 4000;
 		const int Ny = 2500;
-		*/
+		/*
 		const int Nx = 768;
 		const int Ny =  32;
+		*/
 
 		double Ntot = 1.0;
 		GRID2D initGrid(NC + NP, -Nx / 2, Nx / 2, -Ny / 2, Ny / 2);
@@ -454,16 +448,16 @@ void generate(int dim, const char* filename)
 				b1(initGrid, d) = Neumann;
 		}
 
-		init_flat_composition(initGrid, mtrand);
-		// init_gaussian_enrichment(initGrid, mtrand);
+		// init_flat_composition(initGrid, mtrand);
+		init_gaussian_enrichment(initGrid, mtrand);
 
-		const int w_precip = glength(initGrid, 0) / 6;
-		seed_planar_delta(initGrid, w_precip);
 		/*
+		  const int w_precip = glength(initGrid, 0) / 6;
+		seed_planar_delta(initGrid, w_precip);
+		*/
 		const fp_t rough_dt = 1.25e-9;
 		seed_solitaire(initGrid, s_delta(), s_laves(), lattice_const,
 					   ifce_width, meshres, rough_dt, mtrand);
-		*/
 
 		ghostswap(initGrid);
 
