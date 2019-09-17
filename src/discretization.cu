@@ -138,28 +138,34 @@ void device_fictitious(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	fictitious_gam_kernel
-      <<< num_tiles, tile_size, 0, dev->str_A>>>
-	(dev->conc_Cr_old, dev->conc_Nb_old,
-	 dev->phi_del_old, dev->phi_lav_old,
-	 dev->conc_Cr_gam, dev->conc_Nb_gam,
-	 nx, ny, nm);
+	fictitious_gam_kernel <<< num_tiles, tile_size, 0, dev->str_A>>>
+      (dev->conc_Cr_old,
+       dev->conc_Nb_old,
+       dev->phi_del_old,
+       dev->phi_lav_old,
+       dev->conc_Cr_gam,
+       dev->conc_Nb_gam,
+       nx, ny, nm);
     cudaEventRecord(dev->ev_A, dev->str_A);
 
-	fictitious_del_kernel
-	<<< num_tiles, tile_size, 0, dev->str_B>>>
-	(dev->conc_Cr_old, dev->conc_Nb_old,
-	 dev->phi_del_old, dev->phi_lav_old,
-	 dev->conc_Cr_del, dev->conc_Nb_del,
-	 nx, ny, nm);
+	fictitious_del_kernel <<< num_tiles, tile_size, 0, dev->str_B>>>
+      (dev->conc_Cr_old,
+       dev->conc_Nb_old,
+       dev->phi_del_old,
+       dev->phi_lav_old,
+       dev->conc_Cr_del,
+       dev->conc_Nb_del,
+       nx, ny, nm);
     cudaEventRecord(dev->ev_B, dev->str_B);
-
-    fictitious_lav_kernel
-	<<< num_tiles, tile_size, 0, dev->str_C>>>
-	(dev->conc_Cr_old, dev->conc_Nb_old,
-	 dev->phi_del_old, dev->phi_lav_old,
-	 dev->conc_Cr_lav, dev->conc_Nb_lav,
-	 nx, ny, nm);
+    
+    fictitious_lav_kernel <<< num_tiles, tile_size, 0, dev->str_C>>>
+      (dev->conc_Cr_old,
+       dev->conc_Nb_old,
+       dev->phi_del_old,
+       dev->phi_lav_old,
+       dev->conc_Cr_lav,
+       dev->conc_Nb_lav,
+       nx, ny, nm);
     cudaEventRecord(dev->ev_C, dev->str_C);
 }
 
@@ -260,31 +266,38 @@ void device_mobilities(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	mobility_gam_kernel
-	<<< num_tiles, tile_size, 0, dev->str_A>>>
-	(dev->conc_Cr_old, dev->conc_Nb_old,
-	 dev->phi_del_old, dev->phi_lav_old,
-	 dev->mob_gam_CrCr, dev->mob_gam_CrNb,
-	 dev->mob_gam_NbCr, dev->mob_gam_NbNb,
-	 nx, ny, nm);
+	mobility_gam_kernel <<< num_tiles, tile_size, 0, dev->str_A>>>
+      (dev->conc_Cr_old,
+       dev->conc_Nb_old,
+       dev->phi_del_old,
+       dev->phi_lav_old,
+       dev->mob_gam_CrCr,
+       dev->mob_gam_CrNb,
+       dev->mob_gam_NbCr,
+       dev->mob_gam_NbNb,
+       nx, ny, nm);
     cudaEventRecord(dev->ev_A, dev->str_A);
 
-	mobility_del_kernel
-	<<< num_tiles, tile_size, 0, dev->str_B>>>
-	(dev->conc_Cr_old, dev->conc_Nb_old,
-	 dev->phi_del_old,
-	 dev->mob_del_CrCr, dev->mob_del_CrNb,
-	 dev->mob_del_NbCr, dev->mob_del_NbNb,
-	 nx, ny, nm);
+	mobility_del_kernel <<< num_tiles, tile_size, 0, dev->str_B>>>
+      (dev->conc_Cr_old,
+       dev->conc_Nb_old,
+       dev->phi_del_old,
+       dev->mob_del_CrCr,
+       dev->mob_del_CrNb,
+       dev->mob_del_NbCr,
+       dev->mob_del_NbNb,
+       nx, ny, nm);
     cudaEventRecord(dev->ev_B, dev->str_B);
 
-    mobility_lav_kernel
-	<<< num_tiles, tile_size, 0, dev->str_C>>>
-	(dev->conc_Cr_old, dev->conc_Nb_old,
-	 dev->phi_lav_old,
-	 dev->mob_lav_CrCr, dev->mob_lav_CrNb,
-	 dev->mob_lav_NbCr, dev->mob_lav_NbNb,
-	 nx, ny, nm);
+    mobility_lav_kernel <<< num_tiles, tile_size, 0, dev->str_C>>>
+      (dev->conc_Cr_old,
+       dev->conc_Nb_old,
+       dev->phi_lav_old,
+       dev->mob_lav_CrCr,
+       dev->mob_lav_CrNb,
+       dev->mob_lav_NbCr,
+       dev->mob_lav_NbNb,
+       nx, ny, nm);
     cudaEventRecord(dev->ev_C, dev->str_C);
 }
 
@@ -424,12 +437,12 @@ __global__ void convolution_kernel(fp_t* d_old,
 	const int src_y = dst_y - nm / 2;
 
 	/* copy tile: __shared__ gives access to all threads working on this tile */
-	extern __shared__ double4 d_tile[];
+	extern __shared__ fp_t d_tile[];
 
 	if (src_x >= 0 && src_x < nx &&
 	    src_y >= 0 && src_y < ny ) {
 		/* if src_y==0, then dst_y==nm/2: this is a halo row */
-		(d_tile[til_nx * til_y + til_x]).x = d_old[nx * src_y + src_x];
+		d_tile[til_nx * til_y + til_x] = d_old[nx * src_y + src_x];
 	}
 
 	/* tile data is shared: wait for all threads to finish copying */
@@ -440,8 +453,8 @@ __global__ void convolution_kernel(fp_t* d_old,
 		fp_t value = 0.;
 		for (int j = 0; j < nm; j++) {
 			for (int i = 0; i < nm; i++) {
-				const double4& mid = (d_tile[til_nx * (til_y + j) + (til_x + i)]);
-				value += d_mask[j * nm + i] * mid.x;
+				const fp_t& mid = (d_tile[til_nx * (til_y + j) + (til_x + i)]);
+				value += d_mask[j * nm + i] * mid;
 			}
 		}
 		/* record value */
@@ -624,7 +637,7 @@ void device_laplacian(struct CudaData* dev,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
-	const size_t buf_size = (tile_size.x + nm) * (tile_size.y + nm) * sizeof(double4);
+	const size_t buf_size = (tile_size.x + nm) * (tile_size.y + nm) * sizeof(fp_t);
 
     cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
     cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
