@@ -55,6 +55,20 @@ void device_boundaries(struct CudaData* dev,
                        const int bx, const int by);
 
 /**
+ \brief Apply boundary conditions to fictitious composition fields on device
+*/
+void fictitious_boundaries(struct CudaData* dev,
+                           const int nx, const int ny, const int nm,
+                           const int bx, const int by);
+
+/**
+ \brief Apply boundary conditions to mobility fields on device
+*/
+void mobility_boundaries(struct CudaData* dev,
+                         const int nx, const int ny, const int nm,
+                         const int bx, const int by);
+
+/**
    \brief Apply boundary conditions to Laplacian fields on device
 */
 void device_laplacian_boundaries(struct CudaData* dev,

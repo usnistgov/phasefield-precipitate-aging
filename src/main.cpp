@@ -305,11 +305,15 @@ int main(int argc, char* argv[])
 					print_progress(j - i, increment);
 
 					// === Start Architecture-Specific Kernel ===
+					device_boundaries(&dev, nx, ny, nm, bx, by);
+
 					device_fictitious(&dev, nx, ny, nm, bx, by);
+
+					fictitious_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_mobilities(&dev, nx, ny, nm, bx, by);
 
-					device_boundaries(&dev, nx, ny, nm, bx, by);
+					mobility_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_laplacian(&dev, nx, ny, nm, bx, by, dx(grid, 0), dx(grid, 1));
 
