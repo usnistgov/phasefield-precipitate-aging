@@ -138,34 +138,34 @@ __global__ void convolution_kernel(fp_t* d_conc_old,
  \brief Discrete Laplacian operator with variable mobilities
 */
 __device__ fp_t discrete_laplacian(const fp_t& D_middle,
-								   const fp_t& D_left, const fp_t& D_right,
-								   const fp_t& D_bottom, const fp_t& D_top,
-								   const fp_t& c_middle,
-								   const fp_t& c_left, const fp_t& c_right,
-								   const fp_t& c_bottom, const fp_t& c_top,
-								   const fp_t& dx, const fp_t& dy);
+                                   const fp_t& D_left, const fp_t& D_right,
+                                   const fp_t& D_bottom, const fp_t& D_top,
+                                   const fp_t& c_middle,
+                                   const fp_t& c_left, const fp_t& c_right,
+                                   const fp_t& c_bottom, const fp_t& c_top,
+                                   const fp_t& dx, const fp_t& dy);
 
 /**
  \brief Tiled Laplacian with variable diffusivity for execution on the GPU
 */
 __global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc_Nb_gam,
-                                               fp_t* d_conc_Cr_del, fp_t* d_conc_Nb_del,
-                                               fp_t* d_conc_Cr_lav, fp_t* d_conc_Nb_lav,
-                                               fp_t* d_mob_gam_CrCr, fp_t* d_mob_gam_CrNb,
-                                               fp_t* d_mob_del_CrCr, fp_t* d_mob_del_CrNb,
-                                               fp_t* d_mob_lav_CrCr, fp_t* d_mob_lav_CrNb,
-                                               fp_t* d_conc_Cr_new,
-                                               const int nx, const int ny, const int nm,
-                                               const fp_t dx2, const fp_t dy2);
+        fp_t* d_conc_Cr_del, fp_t* d_conc_Nb_del,
+        fp_t* d_conc_Cr_lav, fp_t* d_conc_Nb_lav,
+        fp_t* d_mob_gam_CrCr, fp_t* d_mob_gam_CrNb,
+        fp_t* d_mob_del_CrCr, fp_t* d_mob_del_CrNb,
+        fp_t* d_mob_lav_CrCr, fp_t* d_mob_lav_CrNb,
+        fp_t* d_conc_Cr_new,
+        const int nx, const int ny, const int nm,
+        const fp_t dx2, const fp_t dy2);
 __global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc_Nb_gam,
-                                               fp_t* d_conc_Cr_del, fp_t* d_conc_Nb_del,
-                                               fp_t* d_conc_Cr_lav, fp_t* d_conc_Nb_lav,
-                                               fp_t* d_mob_gam_NbCr, fp_t* d_mob_gam_NbNb,
-                                               fp_t* d_mob_del_NbCr, fp_t* d_mob_del_NbNb,
-                                               fp_t* d_mob_lav_NbCr, fp_t* d_mob_lav_NbNb,
-                                               fp_t* d_conc_Nb_new,
-                                               const int nx, const int ny, const int nm,
-                                               const fp_t dx2, const fp_t dy2);
+        fp_t* d_conc_Cr_del, fp_t* d_conc_Nb_del,
+        fp_t* d_conc_Cr_lav, fp_t* d_conc_Nb_lav,
+        fp_t* d_mob_gam_NbCr, fp_t* d_mob_gam_NbNb,
+        fp_t* d_mob_del_NbCr, fp_t* d_mob_del_NbNb,
+        fp_t* d_mob_lav_NbCr, fp_t* d_mob_lav_NbNb,
+        fp_t* d_conc_Nb_new,
+        const int nx, const int ny, const int nm,
+        const fp_t dx2, const fp_t dy2);
 
 /**
  \brief Device kernel to update field variables for composition

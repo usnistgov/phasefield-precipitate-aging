@@ -169,7 +169,7 @@ void embed_OPC(GRID2D& grid,
 	const fp_t R_depletion_Cr = R_precip * sqrt(1.0 + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
 	const fp_t R_depletion_Nb = R_precip * sqrt(1.0 + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
 	const fp_t R = std::max(std::max(R_depletion_Cr, R_depletion_Nb),
-							R_precip + 4 * ifce_width / meshres);
+	                        R_precip + 4 * ifce_width / meshres);
 
 	for (int i = -R; i < R + 1; i++) {
 		for (int j = -R; j < R + 1; j++) {
@@ -182,12 +182,12 @@ void embed_OPC(GRID2D& grid,
 
 			// Smoothly interpolate through the interface , TKR5p276
 			GridY[0] = xe_gam_Cr()
-				+ (par_xe_Cr - xe_gam_Cr()) * tanh_interp(z, 0.1 * ifce_width)
-			    + (xCr - xe_gam_Cr()) * tanh_interp(meshres * (R_depletion_Cr - r), 0.1 * ifce_width);
+			           + (par_xe_Cr - xe_gam_Cr()) * tanh_interp(z, 0.1 * ifce_width)
+			           + (xCr - xe_gam_Cr()) * tanh_interp(meshres * (R_depletion_Cr - r), 0.1 * ifce_width);
 
 			GridY[1] = xe_gam_Nb()
-				+ (par_xe_Nb - xe_gam_Nb()) * tanh_interp(z, 0.1 * ifce_width)
-			    + (xNb - xe_gam_Nb()) * tanh_interp(meshres * (R_depletion_Nb - r), 0.1 * ifce_width);
+			           + (par_xe_Nb - xe_gam_Nb()) * tanh_interp(z, 0.1 * ifce_width)
+			           + (xNb - xe_gam_Nb()) * tanh_interp(meshres * (R_depletion_Nb - r), 0.1 * ifce_width);
 
 			GridY[pid] = tanh_interp(z, 0.5 * ifce_width);
 		}
@@ -227,8 +227,8 @@ void seed_solitaire(GRID2D& grid,
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-									  phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
-									  phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
+		                              phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
+		                              phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
 		                              sigma_del,
 		                              Vatom,
 		                              n_gam,
@@ -255,8 +255,8 @@ void seed_solitaire(GRID2D& grid,
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-									  phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
-									  phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
+		                              phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
+		                              phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
 		                              sigma_lav,
 		                              Vatom,
 		                              n_gam,
@@ -297,13 +297,13 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
 			GridN[NC] = tanh_interp(r - R_precip, ifce_width);
 			GridN[0] = xe_del_Cr() * tanh_interp(r - R_precip, ifce_width)
-			         + xe_gam_Cr() * tanh_interp(R_precip - r, ifce_width)
-			         - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, ifce_width)
-			         + xCr * tanh_interp(R_depletion_Cr - r, ifce_width);
+			           + xe_gam_Cr() * tanh_interp(R_precip - r, ifce_width)
+			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, ifce_width)
+			           + xCr * tanh_interp(R_depletion_Cr - r, ifce_width);
 			GridN[1] = xe_del_Nb() * tanh_interp(r - R_precip, ifce_width)
-			         + xe_gam_Nb() * tanh_interp(R_precip - r, ifce_width)
-			         - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, ifce_width)
-			         + xNb * tanh_interp(R_depletion_Nb - r, ifce_width);
+			           + xe_gam_Nb() * tanh_interp(R_precip - r, ifce_width)
+			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, ifce_width)
+			           + xNb * tanh_interp(R_depletion_Nb - r, ifce_width);
 		}
 	}
 }
@@ -330,13 +330,13 @@ void seed_planar_laves(GRID2D& grid, const int w_precip)
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
 			GridN[NC] = tanh_interp(r - R_precip, 2 * ifce_width);
 			GridN[0] = xe_lav_Cr() * tanh_interp(r - R_precip, 2 * ifce_width)
-			         + xe_gam_Cr() * tanh_interp(R_precip - r, 2 * ifce_width)
-			         - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, 2 * ifce_width)
-			         + xCr * tanh_interp(R_depletion_Cr - r, 2 * ifce_width);
+			           + xe_gam_Cr() * tanh_interp(R_precip - r, 2 * ifce_width)
+			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, 2 * ifce_width)
+			           + xCr * tanh_interp(R_depletion_Cr - r, 2 * ifce_width);
 			GridN[1] = xe_lav_Nb() * tanh_interp(r - R_precip, 2 * ifce_width)
-			         + xe_gam_Nb() * tanh_interp(R_precip - r, 2 * ifce_width)
-			         - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, 2 * ifce_width)
-			         + xNb * tanh_interp(R_depletion_Nb - r, 2 * ifce_width);
+			           + xe_gam_Nb() * tanh_interp(R_precip - r, 2 * ifce_width)
+			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, 2 * ifce_width)
+			           + xNb * tanh_interp(R_depletion_Nb - r, 2 * ifce_width);
 		}
 	}
 }
@@ -457,7 +457,7 @@ void generate(int dim, const char* filename)
 		*/
 		const fp_t rough_dt = 1.25e-9;
 		seed_solitaire(initGrid, s_delta(), s_laves(), lattice_const,
-					   ifce_width, meshres, rough_dt, mtrand);
+		               ifce_width, meshres, rough_dt, mtrand);
 
 		ghostswap(initGrid);
 
@@ -511,7 +511,7 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(initGrid, n);
 			const int i = x[0] - g0(initGrid, 0) + 1;
 			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
-			                                          // (mmsp2png of mesh is correct)
+			// (mmsp2png of mesh is correct)
 			xCr[j][i] = initGrid(n)[0];
 			xNb[j][i] = initGrid(n)[1];
 			pDel[j][i] = initGrid(n)[NC];
@@ -581,8 +581,8 @@ T gibbs(const MMSP::vector<T>& v)
 		phiSq[i] = v[NC + i] * v[NC + i];
 
 	T g  = pGam * g_gam(gam_Cr, gam_Nb);
-	  g += pDel * g_del(del_Cr, del_Nb);
-	  g += pLav * g_lav(lav_Cr, lav_Nb);
+	g += pDel * g_del(del_Cr, del_Nb);
+	g += pLav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
 		g += omega[i] * phiSq[i] * pow(1.0 - v[NC + i], 2);
@@ -597,8 +597,8 @@ T gibbs(const MMSP::vector<T>& v)
 
 template <int dim, typename T>
 MMSP::vector<T> maskedgradient(const MMSP::grid<dim, MMSP::vector<T> >& GRID,
-							   const MMSP::vector<int>& x,
-							   const int N)
+                               const MMSP::vector<int>& x,
+                               const int N)
 {
 	MMSP::vector<T> gradient(dim);
 	MMSP::vector<int> s = x;

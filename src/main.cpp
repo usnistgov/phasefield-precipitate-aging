@@ -370,9 +370,9 @@ int main(int argc, char* argv[])
 														j+1, dt, imgname.str().c_str()));
 						*/
 						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
-										 host.phi_del_new, host.phi_lav_new,
-										 nx, ny, nm, MMSP::dx(grid),
-										 j+1, dt, imgname.str().c_str());
+						                 host.phi_del_new, host.phi_lav_new,
+						                 nx, ny, nm, MMSP::dx(grid),
+						                 j+1, dt, imgname.str().c_str());
 					}
 
 					const bool nrg_step = ((j+1) % nrg_interval == 0 || (j+1) == steps);
@@ -393,7 +393,7 @@ int main(int argc, char* argv[])
 						dtDiffusionLimited = MMSP::timestep(grid);
 						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
 							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least "
-									  << dt / (LinStab * dtDiffusionLimited) << std::endl;
+							          << dt / (LinStab * dtDiffusionLimited) << std::endl;
 							std::exit(EXIT_FAILURE);
 						}
 

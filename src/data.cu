@@ -9,8 +9,8 @@
 
 void init_cuda(struct HostData* host,
                const int nx, const int ny, const int nm,
-			   const fp_t* kappa, const fp_t* omega, const fp_t* Lmob, 
-			   struct CudaData* dev)
+               const fp_t* kappa, const fp_t* omega, const fp_t* Lmob,
+               struct CudaData* dev)
 {
 	/* allocate memory on device */
 	checkCuda(cudaMalloc((void**) &(dev->prng), nx * ny * sizeof(curandState)));
@@ -70,14 +70,14 @@ void init_cuda(struct HostData* host,
 
 	/* transfer data from host in to GPU */
 	checkCuda(cudaMemcpy(dev->conc_Cr_old, host->conc_Cr_old[0], nx * ny * sizeof(fp_t),
-						 cudaMemcpyHostToDevice));
+	                     cudaMemcpyHostToDevice));
 	checkCuda(cudaMemcpy(dev->conc_Nb_old, host->conc_Nb_old[0], nx * ny * sizeof(fp_t),
-						 cudaMemcpyHostToDevice));
+	                     cudaMemcpyHostToDevice));
 
 	checkCuda(cudaMemcpy(dev->phi_del_old, host->phi_del_old[0], nx * ny * sizeof(fp_t),
-						 cudaMemcpyHostToDevice));
+	                     cudaMemcpyHostToDevice));
 	checkCuda(cudaMemcpy(dev->phi_lav_old, host->phi_lav_old[0], nx * ny * sizeof(fp_t),
-						 cudaMemcpyHostToDevice));
+	                     cudaMemcpyHostToDevice));
 }
 
 void free_cuda(struct CudaData* dev)
@@ -135,16 +135,16 @@ void read_out_result(struct CudaData* dev, struct HostData* host,
                      const int nx, const int ny)
 {
 	cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
-    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
-    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
-    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
+	cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+	cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+	cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
 	checkCuda(cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_old, nx * ny * sizeof(fp_t),
-						 cudaMemcpyDeviceToHost));
+	                     cudaMemcpyDeviceToHost));
 	checkCuda(cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_old, nx * ny * sizeof(fp_t),
-						 cudaMemcpyDeviceToHost));
+	                     cudaMemcpyDeviceToHost));
 	checkCuda(cudaMemcpy(host->phi_del_new[0], dev->phi_del_old, nx * ny * sizeof(fp_t),
-						 cudaMemcpyDeviceToHost));
+	                     cudaMemcpyDeviceToHost));
 	checkCuda(cudaMemcpy(host->phi_lav_new[0], dev->phi_lav_old, nx * ny * sizeof(fp_t),
-						 cudaMemcpyDeviceToHost));
+	                     cudaMemcpyDeviceToHost));
 }
