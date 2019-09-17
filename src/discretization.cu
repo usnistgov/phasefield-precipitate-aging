@@ -633,6 +633,7 @@ void device_laplacian(struct CudaData* dev,
 
 	convolution_kernel <<< num_tiles, tile_size, buf_size, dev->str_A>>> (
 	    dev->phi_del_old, dev->phi_del_new, nx, ny, nm);
+
 	convolution_kernel <<< num_tiles, tile_size, buf_size, dev->str_B>>> (
 	    dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
 
@@ -815,6 +816,8 @@ void device_evolution(struct CudaData* dev,
 
     cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
     cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
 	cahn_hilliard_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (
 	    dev->conc_Cr_old, dev->conc_Nb_old,
@@ -1008,6 +1011,11 @@ void device_nucleation(struct CudaData* dev,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
+    cudaStreamWaitEvent(dev->str_A, dev->ev_A, 0);
+    cudaStreamWaitEvent(dev->str_B, dev->ev_B, 0);
+    cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
+    cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
+
 	nucleation_kernel <<< num_tiles, tile_size>>> (
 	    dev->conc_Cr_new, dev->conc_Nb_new,
 	    dev->phi_del_new, dev->phi_lav_new,
@@ -1018,11 +1026,11 @@ void device_nucleation(struct CudaData* dev,
 	    dx, dy, dz, dt);
 }
 
-__global__ void dataviz_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Cr_viz,
-                               fp_t* d_conc_Nb, fp_t* d_conc_Nb_viz,
+__global__ void dataviz_kernel(fp_t* d_conc_Cr,
+                               fp_t* d_conc_Nb,
                                fp_t* d_conc_Ni,
-                               fp_t* d_phi_del, fp_t* d_phi_del_viz,
-                               fp_t* d_phi_lav, fp_t* d_phi_lav_viz,
+                               fp_t* d_phi_del,
+                               fp_t* d_phi_lav,
                                fp_t* d_phi,
                                const int nx, const int ny)
 {
@@ -1035,10 +1043,6 @@ __global__ void dataviz_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Cr_viz,
 	if (x < nx && y < ny) {
 		d_conc_Ni[idx] = 1.0 - d_conc_Cr[idx] - d_conc_Nb[idx];
 		d_phi[idx] = d_p(d_phi_del[idx]) + d_p(d_phi_lav[idx]);
-        d_conc_Cr_viz[idx] = d_conc_Cr[idx];
-        d_conc_Nb_viz[idx] = d_conc_Nb[idx];
-        d_phi_del_viz[idx] = d_phi_del[idx];
-        d_phi_lav_viz[idx] = d_phi_lav[idx];
 	}
 }
 
@@ -1058,20 +1062,19 @@ void device_dataviz(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	dataviz_kernel <<< num_tiles, tile_size>>>(
-                                               dev->conc_Cr_old, dev->conc_Cr_viz,
-                                               dev->conc_Nb_old, dev->conc_Nb_viz,
+	dataviz_kernel <<< num_tiles, tile_size>>>(dev->conc_Cr_old,
+                                               dev->conc_Nb_old,
                                                dev->conc_Ni,
-                                               dev->phi_del_old, dev->phi_del_viz,
-                                               dev->phi_lav_old, dev->phi_lav_viz,
+                                               dev->phi_del_old,
+                                               dev->phi_lav_old,
                                                dev->phi,
                                                nx, ny);
 
-	cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 	cudaMemcpy(host->conc_Ni[0], dev->conc_Ni, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 
-	cudaMemcpy(host->phi_del_new[0], dev->phi_del_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
-	cudaMemcpy(host->phi_lav_new[0], dev->phi_lav_viz, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->phi_del_new[0], dev->phi_del_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host->phi_lav_new[0], dev->phi_lav_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 	cudaMemcpy(host->phi[0], dev->phi, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 }

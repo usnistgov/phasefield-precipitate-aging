@@ -5,7 +5,7 @@
 #include <sstream>
 #include <cstdlib>
 #include <cctype>
-#include <future>
+// #include <future>
 #include <time.h>
 
 int main(int argc, char* argv[])
@@ -282,7 +282,7 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			fp_t dtDiffusionLimited = MMSP::timestep(grid);
 			const double dt = std::floor(4e11 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e11;
-			const uint64_t img_interval = std::min(increment, (uint64_t)(0.2 / dt));
+			const uint64_t img_interval = std::min(increment / 4, (uint64_t)(0.2 / dt));
 			const uint64_t nrg_interval = img_interval;
 			/*
 			std::future<int>* img_check = new std::future<int>(std::async(write_dummy,
@@ -387,7 +387,7 @@ int main(int argc, char* argv[])
 						}
 
 						dtDiffusionLimited = MMSP::timestep(grid);
-						if (LinStab * dtDiffusionLimited < 0.5 * dt) {
+						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
 							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least "
 									  << dt / (LinStab * dtDiffusionLimited) << std::endl;
 							std::exit(EXIT_FAILURE);
