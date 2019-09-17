@@ -671,8 +671,10 @@ void device_laplacian(struct CudaData* dev,
     cudaEventRecord(dev->ev_D, dev->str_D);
 }
 
-__device__ void composition_kernel(const fp_t& d_conc_Cr_old, const fp_t& d_conc_Nb_old,
-                                   fp_t& d_conc_Cr_new,       fp_t& d_conc_Nb_new,
+__device__ void composition_kernel(const fp_t& d_conc_Cr_old,
+                                   const fp_t& d_conc_Nb_old,
+                                   fp_t& d_conc_Cr_new,
+                                   fp_t& d_conc_Nb_new,
                                    const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
@@ -720,11 +722,10 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 	const fp_t del_Nb = d_fict_del_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
 	const fp_t del_nrg = d_g_del(del_Cr, del_Nb);
 
-	/* pressure */
-	const fp_t P_del = gam_nrg - del_nrg - dgGdxCr * (gam_Cr - del_Cr) - dgGdxNb * (gam_Nb - del_Nb);
+	const fp_t grand_potential = gam_nrg - del_nrg - dgGdxCr * (gam_Cr - del_Cr) - dgGdxNb * (gam_Nb - del_Nb);
 
 	/* variational derivative */
-	const fp_t dFdPhi_del = -d_pPrime(phi_del_old) * P_del
+	const fp_t dFdPhi_del = -d_pPrime(phi_del_old) * grand_potential
 	                        + 2.0 * d_Omeg[0] * phi_del_old * (phi_del_old - 1.0) * (2.0 * phi_del_old - 1.0)
 	                        + 2.0 * alpha * phi_del_old * phi_lav_old * phi_lav_old
 	                        - d_Kapp[0] * phi_del_new;
@@ -750,11 +751,10 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 	const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
 	const fp_t lav_nrg = d_g_lav(lav_Cr, lav_Nb);
 
-	/* pressure */
-	const fp_t P_lav = gam_nrg - lav_nrg - dgGdxCr * (gam_Cr - lav_Cr) - dgGdxNb * (gam_Nb - lav_Nb);
+	const fp_t grand_potential = gam_nrg - lav_nrg - dgGdxCr * (gam_Cr - lav_Cr) - dgGdxNb * (gam_Nb - lav_Nb);
 
 	/* variational derivative */
-	const fp_t dFdPhi_lav = -d_pPrime(phi_lav_old) * P_lav
+	const fp_t dFdPhi_lav = -d_pPrime(phi_lav_old) * grand_potential
 	                        + 2.0 * d_Omeg[1] * phi_lav_old * (phi_lav_old - 1.0) * (2.0 * phi_lav_old - 1.0)
 	                        + 2.0 * alpha * phi_lav_old * phi_del_old * phi_del_old
 	                        - d_Kapp[1] * phi_lav_new;
