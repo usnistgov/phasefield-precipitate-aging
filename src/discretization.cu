@@ -138,7 +138,7 @@ void device_fictitious(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	fictitious_gam_kernel <<< num_tiles, tile_size, 0, dev->str_A>>>
+	fictitious_gam_kernel<<< num_tiles, tile_size, 0, dev->str_A>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -146,9 +146,8 @@ void device_fictitious(struct CudaData* dev,
        dev->conc_Cr_gam,
        dev->conc_Nb_gam,
        nx, ny, nm);
-    cudaEventRecord(dev->ev_A, dev->str_A);
 
-	fictitious_del_kernel <<< num_tiles, tile_size, 0, dev->str_B>>>
+	fictitious_del_kernel<<< num_tiles, tile_size, 0, dev->str_B>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -156,9 +155,8 @@ void device_fictitious(struct CudaData* dev,
        dev->conc_Cr_del,
        dev->conc_Nb_del,
        nx, ny, nm);
-    cudaEventRecord(dev->ev_B, dev->str_B);
     
-    fictitious_lav_kernel <<< num_tiles, tile_size, 0, dev->str_C>>>
+    fictitious_lav_kernel<<< num_tiles, tile_size, 0, dev->str_C>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -166,6 +164,9 @@ void device_fictitious(struct CudaData* dev,
        dev->conc_Cr_lav,
        dev->conc_Nb_lav,
        nx, ny, nm);
+
+    cudaEventRecord(dev->ev_A, dev->str_A);
+    cudaEventRecord(dev->ev_B, dev->str_B);
     cudaEventRecord(dev->ev_C, dev->str_C);
 }
 
@@ -266,7 +267,7 @@ void device_mobilities(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	mobility_gam_kernel <<< num_tiles, tile_size, 0, dev->str_A>>>
+	mobility_gam_kernel<<< num_tiles, tile_size, 0, dev->str_A>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -276,9 +277,8 @@ void device_mobilities(struct CudaData* dev,
        dev->mob_gam_NbCr,
        dev->mob_gam_NbNb,
        nx, ny, nm);
-    cudaEventRecord(dev->ev_A, dev->str_A);
 
-	mobility_del_kernel <<< num_tiles, tile_size, 0, dev->str_B>>>
+	mobility_del_kernel<<< num_tiles, tile_size, 0, dev->str_B>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_del_old,
@@ -287,9 +287,8 @@ void device_mobilities(struct CudaData* dev,
        dev->mob_del_NbCr,
        dev->mob_del_NbNb,
        nx, ny, nm);
-    cudaEventRecord(dev->ev_B, dev->str_B);
 
-    mobility_lav_kernel <<< num_tiles, tile_size, 0, dev->str_C>>>
+    mobility_lav_kernel<<< num_tiles, tile_size, 0, dev->str_C>>>
       (dev->conc_Cr_old,
        dev->conc_Nb_old,
        dev->phi_lav_old,
@@ -298,6 +297,9 @@ void device_mobilities(struct CudaData* dev,
        dev->mob_lav_NbCr,
        dev->mob_lav_NbNb,
        nx, ny, nm);
+
+    cudaEventRecord(dev->ev_A, dev->str_A);
+    cudaEventRecord(dev->ev_B, dev->str_B);
     cudaEventRecord(dev->ev_C, dev->str_C);
 }
 
@@ -351,34 +353,35 @@ void device_boundaries(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_old, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_old, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_C>>> (dev->phi_del_old, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_D>>> (dev->phi_lav_old, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_old, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_old, nx, ny, nm);
 
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_gam, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_gam, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->phi_del_old, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->phi_lav_old, nx, ny, nm);
 
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_C>>> (dev->conc_Cr_del, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_D>>> (dev->conc_Nb_del, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_gam, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_gam, nx, ny, nm);
 
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_lav, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_lav, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->conc_Cr_del, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->conc_Nb_del, nx, ny, nm);
 
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_gam_CrCr, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_gam_CrNb, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_gam_NbCr, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_gam_NbNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_lav, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_lav, nx, ny, nm);
 
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_del_CrCr, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_del_CrNb, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_del_NbCr, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_del_NbNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_gam_CrCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_gam_CrNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_gam_NbCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_gam_NbNb, nx, ny, nm);
 
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_lav_CrCr, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_lav_CrNb, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_lav_NbCr, nx, ny, nm);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_lav_NbNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_del_CrCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_del_CrNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_del_NbCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_del_NbNb, nx, ny, nm);
+
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_lav_CrCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_lav_CrNb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_lav_NbCr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_lav_NbNb, nx, ny, nm);
 
     cudaEventRecord(dev->ev_A, dev->str_A);
     cudaEventRecord(dev->ev_B, dev->str_B);
@@ -401,13 +404,14 @@ void device_laplacian_boundaries(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_new, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_new, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_new, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->phi_del_new, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->phi_lav_new, nx, ny, nm);
+
     cudaEventRecord(dev->ev_A, dev->str_A);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_new, nx, ny, nm);
     cudaEventRecord(dev->ev_B, dev->str_B);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_C>>> (dev->phi_del_new, nx, ny, nm);
     cudaEventRecord(dev->ev_C, dev->str_C);
-	boundary_kernel <<< num_tiles, tile_size, 0, dev->str_D>>> (dev->phi_lav_new, nx, ny, nm);
     cudaEventRecord(dev->ev_D, dev->str_D);
 }
 
@@ -453,7 +457,7 @@ __global__ void convolution_kernel(fp_t* d_old,
 		fp_t value = 0.;
 		for (int j = 0; j < nm; j++) {
 			for (int i = 0; i < nm; i++) {
-				const fp_t& mid = (d_tile[til_nx * (til_y + j) + (til_x + i)]);
+				const fp_t& mid = d_tile[til_nx * (til_y + j) + (til_x + i)];
 				value += d_mask[j * nm + i] * mid;
 			}
 		}
@@ -479,15 +483,12 @@ __device__ fp_t discrete_laplacian(const fp_t& D_low,
            - (D_mid + D_low) * (c_mid - c_low) ) / (2.0 * dx * dx);
 }
 
-__global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc_Nb_gam,
-                                               fp_t* d_conc_Cr_del, fp_t* d_conc_Nb_del,
-                                               fp_t* d_conc_Cr_lav, fp_t* d_conc_Nb_lav,
+__global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam,  fp_t* d_conc_Nb_gam,
+                                               fp_t* d_conc_Cr_del,  fp_t* d_conc_Nb_del,
+                                               fp_t* d_conc_Cr_lav,  fp_t* d_conc_Nb_lav,
                                                fp_t* d_mob_gam_CrCr, fp_t* d_mob_gam_CrNb,
-                                               fp_t* d_mob_gam_NbCr, fp_t* d_mob_gam_NbNb,
                                                fp_t* d_mob_del_CrCr, fp_t* d_mob_del_CrNb,
-                                               fp_t* d_mob_del_NbCr, fp_t* d_mob_del_NbNb,
                                                fp_t* d_mob_lav_CrCr, fp_t* d_mob_lav_CrNb,
-                                               fp_t* d_mob_lav_NbCr, fp_t* d_mob_lav_NbNb,
                                                fp_t* d_conc_Cr_new,
                                                const int nx, const int ny, const int nm,
                                                const fp_t dx, const fp_t dy)
@@ -553,14 +554,11 @@ __global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc
 	}
 }
 
-__global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc_Nb_gam,
-                                               fp_t* d_conc_Cr_del, fp_t* d_conc_Nb_del,
-                                               fp_t* d_conc_Cr_lav, fp_t* d_conc_Nb_lav,
-                                               fp_t* d_mob_gam_CrCr, fp_t* d_mob_gam_CrNb,
+__global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam,  fp_t* d_conc_Nb_gam,
+                                               fp_t* d_conc_Cr_del,  fp_t* d_conc_Nb_del,
+                                               fp_t* d_conc_Cr_lav,  fp_t* d_conc_Nb_lav,
                                                fp_t* d_mob_gam_NbCr, fp_t* d_mob_gam_NbNb,
-                                               fp_t* d_mob_del_CrCr, fp_t* d_mob_del_CrNb,
                                                fp_t* d_mob_del_NbCr, fp_t* d_mob_del_NbNb,
-                                               fp_t* d_mob_lav_CrCr, fp_t* d_mob_lav_CrNb,
                                                fp_t* d_mob_lav_NbCr, fp_t* d_mob_lav_NbNb,
                                                fp_t* d_conc_Nb_new,
                                                const int nx, const int ny, const int nm,
@@ -644,39 +642,33 @@ void device_laplacian(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	convolution_kernel <<< num_tiles, tile_size, buf_size, dev->str_A>>> (
-	    dev->phi_del_old, dev->phi_del_new, nx, ny, nm);
+	convolution_kernel<<< num_tiles, tile_size, buf_size, dev->str_A>>>
+      (dev->phi_del_old, dev->phi_del_new, nx, ny, nm);
 
-	convolution_kernel <<< num_tiles, tile_size, buf_size, dev->str_B>>> (
-	    dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
+	convolution_kernel<<< num_tiles, tile_size, buf_size, dev->str_B>>>
+      (dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
 
-	chemical_convolution_Cr_kernel <<< num_tiles, tile_size, 0, dev->str_C>>> (
-	    dev->conc_Cr_gam, dev->conc_Nb_gam,
-        dev->conc_Cr_del, dev->conc_Nb_del,
-        dev->conc_Cr_lav, dev->conc_Nb_lav,
-        dev->mob_gam_CrCr, dev->mob_gam_CrNb,
-        dev->mob_gam_NbCr, dev->mob_gam_NbNb,
-        dev->mob_del_CrCr, dev->mob_del_CrNb,
-        dev->mob_del_NbCr, dev->mob_del_NbNb,
-        dev->mob_lav_CrCr, dev->mob_lav_CrNb,
-        dev->mob_lav_NbCr, dev->mob_lav_NbNb,
-        dev->conc_Cr_new,
-	    nx, ny, nm,
-	    dx, dy);
+	chemical_convolution_Cr_kernel<<< num_tiles, tile_size, 0, dev->str_C>>>
+      (dev->conc_Cr_gam, dev->conc_Nb_gam,
+       dev->conc_Cr_del, dev->conc_Nb_del,
+       dev->conc_Cr_lav, dev->conc_Nb_lav,
+       dev->mob_gam_CrCr, dev->mob_gam_CrNb,
+       dev->mob_del_CrCr, dev->mob_del_CrNb,
+       dev->mob_lav_CrCr, dev->mob_lav_CrNb,
+       dev->conc_Cr_new,
+       nx, ny, nm,
+       dx, dy);
 
-	chemical_convolution_Nb_kernel <<< num_tiles, tile_size, 0, dev->str_D>>> (
-	    dev->conc_Cr_gam, dev->conc_Nb_gam,
-        dev->conc_Cr_del, dev->conc_Nb_del,
-        dev->conc_Cr_lav, dev->conc_Nb_lav,
-        dev->mob_gam_CrCr, dev->mob_gam_CrNb,
-        dev->mob_gam_NbCr, dev->mob_gam_NbNb,
-        dev->mob_del_CrCr, dev->mob_del_CrNb,
-        dev->mob_del_NbCr, dev->mob_del_NbNb,
-        dev->mob_lav_CrCr, dev->mob_lav_CrNb,
-        dev->mob_lav_NbCr, dev->mob_lav_NbNb,
-        dev->conc_Nb_new,
-	    nx, ny, nm,
-	    dx, dy);
+	chemical_convolution_Nb_kernel<<< num_tiles, tile_size, 0, dev->str_D>>>
+      (dev->conc_Cr_gam, dev->conc_Nb_gam,
+       dev->conc_Cr_del, dev->conc_Nb_del,
+       dev->conc_Cr_lav, dev->conc_Nb_lav,
+       dev->mob_gam_NbCr, dev->mob_gam_NbNb,
+       dev->mob_del_NbCr, dev->mob_del_NbNb,
+       dev->mob_lav_NbCr, dev->mob_lav_NbNb,
+       dev->conc_Nb_new,
+       nx, ny, nm,
+       dx, dy);
 
     cudaEventRecord(dev->ev_A, dev->str_A);
     cudaEventRecord(dev->ev_B, dev->str_B);
@@ -699,7 +691,6 @@ __device__ void composition_kernel(const fp_t& d_conc_Cr_old,
 }
 
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                     fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
                                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                      const int nx, const int ny, const int nm,
                                      const fp_t dt)
@@ -712,8 +703,10 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 	/* explicit Euler solution to the equation of motion */
 	if (x < nx && y < ny) {
 		/* Cahn-Hilliard equations of motion for composition */
-		composition_kernel(d_conc_Cr_old[idx],      d_conc_Nb_old[idx],
-		                   d_conc_Cr_new[idx],      d_conc_Nb_new[idx],
+		composition_kernel(d_conc_Cr_old[idx],
+                           d_conc_Nb_old[idx],
+		                   d_conc_Cr_new[idx],
+                           d_conc_Nb_new[idx],
 		                   dt);
 	}
 }
@@ -832,20 +825,24 @@ void device_evolution(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	cahn_hilliard_kernel <<< num_tiles, tile_size, 0, dev->str_A>>> (
-	    dev->conc_Cr_old, dev->conc_Nb_old,
-	    dev->phi_del_old, dev->phi_lav_old,
-	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    nx, ny, nm,
-	    dt);
+	cahn_hilliard_kernel<<< num_tiles, tile_size, 0, dev->str_A>>>
+      (dev->conc_Cr_old,
+       dev->conc_Nb_old,
+       dev->conc_Cr_new,
+       dev->conc_Nb_new,
+       nx, ny, nm,
+       dt);
 
-	allen_cahn_kernel <<< num_tiles, tile_size, 0, dev->str_B>>> (
-	    dev->conc_Cr_old, dev->conc_Nb_old,
-	    dev->phi_del_old, dev->phi_lav_old,
-	    dev->phi_del_new, dev->phi_lav_new,
-	    nx, ny, nm,
-	    alpha,
-	    dt);
+	allen_cahn_kernel<<< num_tiles, tile_size, 0, dev->str_B>>>
+      (dev->conc_Cr_old,
+       dev->conc_Nb_old,
+       dev->phi_del_old,
+       dev->phi_lav_old,
+       dev->phi_del_new,
+       dev->phi_lav_new,
+       nx, ny, nm,
+       alpha,
+       dt);
 
     cudaEventRecord(dev->ev_A, dev->str_A);
     cudaEventRecord(dev->ev_B, dev->str_B);
@@ -871,14 +868,14 @@ void device_init_prng(struct CudaData* dev,
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
 	               1);
-	init_prng_kernel <<< num_tiles, tile_size>>> (
+	init_prng_kernel<<< num_tiles, tile_size>>> (
 	    dev->prng, nx, ny);
 }
 
 __device__ void embed_OPC_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                  fp_t* d_phi_del, fp_t* d_phi_lav,
                                  const int nx, const int ny,
-                                 const int x, const int y, const int idx,
+                                 const int x, const int y,
                                  const fp_t xCr,
                                  const fp_t xNb,
                                  const fp_t par_xe_Cr,
@@ -929,7 +926,7 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 	fp_t phi_pre = 0.;
 	fp_t dG_chem = 0.;
 	fp_t R_precip, R_star;
-	fp_t P_nuc;
+	fp_t prob_nuc;
 	fp_t rand_pre;
 
 	// Scan neighborhood for existing precipitates
@@ -968,16 +965,16 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		                                n_gam,
 		                                dV, dt,
 		                                &R_star,
-		                                &P_nuc);
+		                                &prob_nuc);
 		if (R_star > 0.) {
 			R_precip = R_star / dx;
-			rand_pre = P_nuc - (fp_t)curand_uniform_double(&(d_prng[idx]));
+			rand_pre = prob_nuc - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
 			if (rand_pre > 0)
 				embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
 				                 d_phi_del, d_phi_lav,
 				                 nx, ny,
-				                 x, y, idx,
+				                 x, y,
 				                 xCr, xNb,
 				                 d_xe_del_Cr(), d_xe_del_Nb(),
 				                 R_precip);
@@ -994,16 +991,16 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
 		                                n_gam,
 		                                dV, dt,
 		                                &R_star,
-		                                &P_nuc);
+		                                &prob_nuc);
 		if (R_star > 0.) {
 			R_precip = R_star / dx;
-			rand_pre = P_nuc - (fp_t)curand_uniform_double(&(d_prng[idx]));
+			rand_pre = prob_nuc - (fp_t)curand_uniform_double(&(d_prng[idx]));
 
 			if (rand_pre > 0)
 				embed_OPC_kernel(d_conc_Cr, d_conc_Nb,
 				                 d_phi_lav, d_phi_lav,
 				                 nx, ny,
-				                 x, y, idx,
+				                 x, y,
 				                 xCr, xNb,
 				                 d_xe_lav_Cr(), d_xe_lav_Nb(),
 				                 R_precip);
@@ -1029,14 +1026,16 @@ void device_nucleation(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	nucleation_kernel <<< num_tiles, tile_size>>> (
-	    dev->conc_Cr_new, dev->conc_Nb_new,
-	    dev->phi_del_new, dev->phi_lav_new,
-	    dev->prng,
-	    nx, ny, nm,
-	    sigma_del, sigma_lav,
-	    lattice_const, ifce_width,
-	    dx, dy, dz, dt);
+	nucleation_kernel<<< num_tiles, tile_size>>>
+      (dev->conc_Cr_new,
+       dev->conc_Nb_new,
+       dev->phi_del_new,
+       dev->phi_lav_new,
+       dev->prng,
+       nx, ny, nm,
+       sigma_del, sigma_lav,
+       lattice_const, ifce_width,
+       dx, dy, dz, dt);
 }
 
 __global__ void dataviz_kernel(fp_t* d_conc_Cr,
@@ -1075,13 +1074,14 @@ void device_dataviz(struct CudaData* dev,
     cudaStreamWaitEvent(dev->str_C, dev->ev_C, 0);
     cudaStreamWaitEvent(dev->str_D, dev->ev_D, 0);
 
-	dataviz_kernel <<< num_tiles, tile_size>>>(dev->conc_Cr_old,
-                                               dev->conc_Nb_old,
-                                               dev->conc_Ni,
-                                               dev->phi_del_old,
-                                               dev->phi_lav_old,
-                                               dev->phi,
-                                               nx, ny);
+	dataviz_kernel<<< num_tiles, tile_size>>>
+      (dev->conc_Cr_old,
+       dev->conc_Nb_old,
+       dev->conc_Ni,
+       dev->phi_del_old,
+       dev->phi_lav_old,
+       dev->phi,
+       nx, ny);
 
 	cudaMemcpy(host->conc_Cr_new[0], dev->conc_Cr_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);
 	cudaMemcpy(host->conc_Nb_new[0], dev->conc_Nb_old, nx * ny * sizeof(fp_t), cudaMemcpyDeviceToHost);

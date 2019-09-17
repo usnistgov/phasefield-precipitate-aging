@@ -14,6 +14,7 @@ void init_cuda(struct HostData* host,
 {
 	/* allocate memory on device */
 	cudaMalloc((void**) &(dev->prng), nx * ny * sizeof(curandState));
+
 	cudaStreamCreate(&(dev->str_A));
 	cudaStreamCreate(&(dev->str_B));
 	cudaStreamCreate(&(dev->str_C));
