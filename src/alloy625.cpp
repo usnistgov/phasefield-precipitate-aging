@@ -299,7 +299,7 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	vector<int> x(2, 0);
-	const fp_t inflation = 1.5;
+	const fp_t inflation = 1.0;
 	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
 		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
 			// Smoothly interpolate through the interface, TKR5p276
@@ -333,7 +333,7 @@ void seed_planar_laves(GRID2D& grid, const int w_precip)
 	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_lav_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	vector<int> x(2, 0);
-	const fp_t inflation = 1.5;
+	const fp_t inflation = 1.0;
 	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
 		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
 			// Smoothly interpolate through the interface, TKR5p276

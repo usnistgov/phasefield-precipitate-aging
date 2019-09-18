@@ -556,7 +556,8 @@ __device__ fp_t discrete_laplacian(const fp_t& D_low,
 	         - (D_mid + D_low) * (c_mid - c_low) ) / (2.0 * dx * dx);
 }
 
-__global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam,  fp_t* d_conc_Nb_gam,
+__global__ void chemical_convolution_Cr_kernel(
+        fp_t* d_conc_Cr_gam,  fp_t* d_conc_Nb_gam,
         fp_t* d_conc_Cr_del,  fp_t* d_conc_Nb_del,
         fp_t* d_conc_Cr_lav,  fp_t* d_conc_Nb_lav,
         fp_t* d_mob_gam_CrCr, fp_t* d_mob_gam_CrNb,
@@ -572,14 +573,13 @@ __global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam,  fp_t* d_con
 	const size_t idx = nx * y + x;
 
 	/* compute the 5-point Laplacian with variable coefficients */
-	if (x > nm/2 && x < nx - nm/2 &&
-	    y > nm/2 && y < ny - nm/2) {
+	if (x < nx && y < ny) {
 		/* Note: tile is centered on [til_nx*(til_y+nm/2) + (til_x+nm/2)] */
 		const size_t mid = idx;
-		const size_t lft = nx * y + (x - 1);
-		const size_t rgt = nx * y + (x + 1);
-		const size_t bot = nx * (y - 1) + x;
-		const size_t top = nx * (y + 1) + x;
+		const size_t lft = (x == 0) ? mid : nx * y + (x - 1);
+		const size_t rgt = (x == nx - nm/2) ? mid : nx * y + (x + 1);
+		const size_t bot = (y == 0) ? mid : nx * (y - 1) + x;
+		const size_t top = (y == ny - nm/2) ? mid : nx * (y + 1) + x;
 
 		// Finite Differences
 		// Derivation: TKR5 pp. 301--305
@@ -627,7 +627,8 @@ __global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam,  fp_t* d_con
 	}
 }
 
-__global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam,  fp_t* d_conc_Nb_gam,
+__global__ void chemical_convolution_Nb_kernel(
+        fp_t* d_conc_Cr_gam,  fp_t* d_conc_Nb_gam,
         fp_t* d_conc_Cr_del,  fp_t* d_conc_Nb_del,
         fp_t* d_conc_Cr_lav,  fp_t* d_conc_Nb_lav,
         fp_t* d_mob_gam_NbCr, fp_t* d_mob_gam_NbNb,
@@ -643,14 +644,13 @@ __global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam,  fp_t* d_con
 	const size_t idx = nx * y + x;
 
 	/* compute the 5-point Laplacian with variable coefficients */
-	if (x > nm/2 && x < nx - nm/2 &&
-	    y > nm/2 && y < ny - nm/2) {
+	if (x < nx && y < ny) {
 		/* Note: tile is centered on [til_nx*(til_y+nm/2) + (til_x+nm/2)] */
 		const size_t mid = idx;
-		const size_t lft = nx * y + (x - 1);
-		const size_t rgt = nx * y + (x + 1);
-		const size_t bot = nx * (y - 1) + x;
-		const size_t top = nx * (y + 1) + x;
+		const size_t lft = (x == 0) ? mid : nx * y + (x - 1);
+		const size_t rgt = (x == nx - nm/2) ? mid : nx * y + (x + 1);
+		const size_t bot = (y == 0) ? mid : nx * (y - 1) + x;
+		const size_t top = (y == ny - nm/2) ? mid : nx * (y + 1) + x;
 
 		// Finite Differences
 		// Derivation: TKR5 pp. 301--305
