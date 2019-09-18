@@ -282,7 +282,7 @@ int main(int argc, char* argv[])
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			fp_t dtDiffusionLimited = MMSP::timestep(grid);
 			const double dt = std::floor(4e10 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e10;
-			const uint64_t img_interval = std::min(increment / 4, (uint64_t)(0.2 / dt));
+			const uint64_t img_interval = std::min(increment / 4, (uint64_t)(0.5 / dt));
 			const uint64_t nrg_interval = img_interval;
 			/*
 			std::future<int>* img_check = new std::future<int>(std::async(write_dummy,

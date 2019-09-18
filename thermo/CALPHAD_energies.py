@@ -97,6 +97,7 @@ g_laves = parse_expr(str(model.ast))
 XCR, XNB = symbols("XCR XNB")
 
 # Define lever rule equations
+# Ref: TKR4p161, 172; TKR5p266, 272, 293
 xo, yo = symbols("xo yo")
 xb, yb = symbols("xb yb")
 xc, yc = symbols("xc yc")
