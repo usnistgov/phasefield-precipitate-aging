@@ -17,6 +17,9 @@
 #include <set>
 #include <sstream>
 #include <vector>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_multiroots.h>
 #ifdef _OPENMP
 #include "omp.h"
 #endif
@@ -31,6 +34,7 @@
 #include "output.h"
 #include "parabola625.h"
 #include "parameters.h"
+#include "phasefrac.h"
 
 namespace MMSP
 {
@@ -76,8 +80,7 @@ fp_t timestep(const GRID2D& grid)
 	return dt;
 }
 
-
-void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
+void init_flat_composition(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0)
 {
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
@@ -105,9 +108,12 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	for (int n = 0; n < nodes(grid); n++) {
 		grid(n) = init;
 	}
+
+	xCr0 = xCrE;
+	xNb0 = xCrE;
 }
 
-void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
+void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0)
 {
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
@@ -155,6 +161,9 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 			grid(x)[1] = matrixNb;
 		}
 	}
+
+	xCr0 = xCrM;
+	xNb0 = xNbM;
 }
 
 void embed_OPC(GRID2D& grid,
@@ -290,20 +299,21 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	vector<int> x(2, 0);
+	const fp_t inflation = 1.5;
 	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
 		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
 			// Smoothly interpolate through the interface, TKR5p276
 			vector<fp_t>& GridN = grid(x);
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
-			GridN[NC] = tanh_interp(r - R_precip, ifce_width);
-			GridN[0] = xe_del_Cr() * tanh_interp(r - R_precip, ifce_width)
-			           + xe_gam_Cr() * tanh_interp(R_precip - r, ifce_width)
-			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, ifce_width)
-			           + xCr * tanh_interp(R_depletion_Cr - r, ifce_width);
-			GridN[1] = xe_del_Nb() * tanh_interp(r - R_precip, ifce_width)
-			           + xe_gam_Nb() * tanh_interp(R_precip - r, ifce_width)
-			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, ifce_width)
-			           + xNb * tanh_interp(R_depletion_Nb - r, ifce_width);
+			GridN[NC] = tanh_interp(r - R_precip, inflation * ifce_width);
+			GridN[0] = xe_del_Cr() * tanh_interp(r - R_precip, inflation * ifce_width)
+			           + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width)
+			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, inflation * ifce_width)
+			           + xCr * tanh_interp(R_depletion_Cr - r, inflation * ifce_width);
+			GridN[1] = xe_del_Nb() * tanh_interp(r - R_precip, inflation * ifce_width)
+			           + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width)
+			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, inflation * ifce_width)
+			           + xNb * tanh_interp(R_depletion_Nb - r, inflation * ifce_width);
 		}
 	}
 }
@@ -323,20 +333,21 @@ void seed_planar_laves(GRID2D& grid, const int w_precip)
 	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_lav_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	vector<int> x(2, 0);
+	const fp_t inflation = 1.5;
 	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
 		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
 			// Smoothly interpolate through the interface, TKR5p276
 			vector<fp_t>& GridN = grid(x);
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
-			GridN[NC] = tanh_interp(r - R_precip, 2 * ifce_width);
-			GridN[0] = xe_lav_Cr() * tanh_interp(r - R_precip, 2 * ifce_width)
-			           + xe_gam_Cr() * tanh_interp(R_precip - r, 2 * ifce_width)
-			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, 2 * ifce_width)
-			           + xCr * tanh_interp(R_depletion_Cr - r, 2 * ifce_width);
-			GridN[1] = xe_lav_Nb() * tanh_interp(r - R_precip, 2 * ifce_width)
-			           + xe_gam_Nb() * tanh_interp(R_precip - r, 2 * ifce_width)
-			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, 2 * ifce_width)
-			           + xNb * tanh_interp(R_depletion_Nb - r, 2 * ifce_width);
+			GridN[NC+1] = tanh_interp(r - R_precip, inflation * ifce_width);
+			GridN[0] = xe_lav_Cr() * tanh_interp(r - R_precip, inflation * ifce_width)
+			           + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width)
+			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, inflation * ifce_width)
+			           + xCr * tanh_interp(R_depletion_Cr - r, inflation * ifce_width);
+			GridN[1] = xe_lav_Nb() * tanh_interp(r - R_precip, inflation * ifce_width)
+			           + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width)
+			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, inflation * ifce_width)
+			           + xNb * tanh_interp(R_depletion_Nb - r, inflation * ifce_width);
 		}
 	}
 }
@@ -448,12 +459,16 @@ void generate(int dim, const char* filename)
 				b1(initGrid, d) = Neumann;
 		}
 
-		/*
-		init_flat_composition(initGrid, mtrand);
-		*/
-		init_gaussian_enrichment(initGrid, mtrand);
+		fp_t xCr0, xNb0;
 
-		const int w_precip = glength(initGrid, 0) / 6;
+		init_flat_composition(initGrid, mtrand, xCr0, xNb0);
+		/*
+		init_gaussian_enrichment(initGrid, mtrand, xCr0, xNb0);
+		*/
+
+		const double del_frac = estimate_fraction_del(xCr0, xNb0);
+
+		const int w_precip = del_frac * glength(initGrid, 0);
 		seed_planar_delta(initGrid, w_precip);
 		/*
 		const fp_t rough_dt = 1.25e-9;
@@ -472,9 +487,9 @@ void generate(int dim, const char* filename)
 
 		if (rank == 0) {
 			std::cout << "Timestep dt=" << dt
-			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
-			          << ", dtDiffusionLimited=" << dtDiffusionLimited
-			          << '.' << std::endl;
+			          << ". Linear stability limit =" << dtDiffusionLimited
+			          << ". Eqm. frac. Delta = " << del_frac << '.'
+					  << std::endl;
 			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s\n",
 			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
 			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
@@ -716,6 +731,9 @@ double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
 
 	return energy;
 }
+
+
+
 #endif
 
 #include "main.cpp"

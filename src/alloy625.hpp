@@ -90,12 +90,12 @@ void molfrac(const fp_t& wCr, const fp_t& wNb, fp_t& xCr, fp_t& xNb)
 /**
  \brief Initialize domain with flat composition field
 */
-void init_flat_composition(GRID2D& grid, std::mt19937& mtrand);
+void init_flat_composition(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0);
 
 /**
  \brief Initialize domain with Gaussian peaks in compositions
 */
-void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand);
+void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0);
 
 /**
  \brief Embed particle at specified position
