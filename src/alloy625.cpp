@@ -110,7 +110,7 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t&
 	}
 
 	xCr0 = xCrE;
-	xNb0 = xCrE;
+	xNb0 = xNbE;
 }
 
 void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0)
@@ -468,7 +468,7 @@ void generate(int dim, const char* filename)
 
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 
-		const int w_precip = del_frac * glength(initGrid, 0);
+		const int w_precip = glength(initGrid, 0) / 7;
 		seed_planar_delta(initGrid, w_precip);
 		/*
 		const fp_t rough_dt = 1.25e-9;
@@ -487,8 +487,9 @@ void generate(int dim, const char* filename)
 
 		if (rank == 0) {
 			std::cout << "Timestep dt=" << dt
-			          << ". Linear stability limit =" << dtDiffusionLimited
-			          << ". Eqm. frac. Delta = " << del_frac << '.'
+			          << ". Linear stability limit = " << dtDiffusionLimited
+			          << ".\nWith xCr = " << xCr0 << " and xNb = " << xNb0
+					  << ", eqm. frac. Delta = " << del_frac << '.'
 					  << std::endl;
 			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s\n",
 			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
