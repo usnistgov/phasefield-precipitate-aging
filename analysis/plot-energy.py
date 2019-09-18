@@ -12,7 +12,7 @@ else:
         filename, skip_header=1, skip_footer=0, usecols=(4, 5, 6), unpack=True, dtype=float
     )
 
-    dt = 0.2
+    dt = 0.1
     t = dt * np.arange(0, len(delta))
 
     imgname = filename.replace("log", "png")

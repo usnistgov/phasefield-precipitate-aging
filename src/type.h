@@ -47,6 +47,10 @@ struct HostData {
  \brief Container for pointers to arrays on the GPU
 */
 struct CudaData {
+	curandState* prng;
+	cudaStream_t str_A, str_B, str_C, str_D;
+	cudaEvent_t ev_A, ev_B, ev_C, ev_D;
+
 	fp_t* conc_Ni;
 	fp_t* phi;
 
@@ -62,7 +66,28 @@ struct CudaData {
 	fp_t* phi_lav_old;
 	fp_t* phi_lav_new;
 
-	curandState* prng;
+	fp_t* conc_Cr_gam;
+	fp_t* conc_Cr_del;
+	fp_t* conc_Cr_lav;
+
+	fp_t* conc_Nb_gam;
+	fp_t* conc_Nb_del;
+	fp_t* conc_Nb_lav;
+
+	fp_t* mob_gam_CrCr;
+	fp_t* mob_gam_CrNb;
+	fp_t* mob_gam_NbCr;
+	fp_t* mob_gam_NbNb;
+
+	fp_t* mob_del_CrCr;
+	fp_t* mob_del_CrNb;
+	fp_t* mob_del_NbCr;
+	fp_t* mob_del_NbNb;
+
+	fp_t* mob_lav_CrCr;
+	fp_t* mob_lav_CrNb;
+	fp_t* mob_lav_NbCr;
+	fp_t* mob_lav_NbNb;
 };
 
 /** \cond SuppressGuard */

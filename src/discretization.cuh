@@ -34,11 +34,39 @@ __constant__ extern fp_t d_Lmob[NP];
 float nTiles(int domain_size, int tile_loc, int mask_size);
 
 /**
+ \brief Update fictitious composition fields on device
+*/
+void device_fictitious(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by);
+
+/**
+ \brief Update mobility fields on device
+*/
+void device_mobilities(struct CudaData* dev,
+                       const int nx, const int ny, const int nm,
+                       const int bx, const int by);
+
+/**
  \brief Apply boundary conditions to fields on device
 */
 void device_boundaries(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by);
+
+/**
+ \brief Apply boundary conditions to fictitious composition fields on device
+*/
+void fictitious_boundaries(struct CudaData* dev,
+                           const int nx, const int ny, const int nm,
+                           const int bx, const int by);
+
+/**
+ \brief Apply boundary conditions to mobility fields on device
+*/
+void mobility_boundaries(struct CudaData* dev,
+                         const int nx, const int ny, const int nm,
+                         const int bx, const int by);
 
 /**
    \brief Apply boundary conditions to Laplacian fields on device
@@ -83,13 +111,6 @@ void device_nucleation(struct CudaData* dev,
                        const fp_t dt);
 
 /**
- \brief Update fictitious composition fields on device
-*/
-void device_fictitious(struct CudaData* dev,
-                       const int nx, const int ny, const int nm,
-                       const int bx, const int by);
-
-/**
    \brief Compute Ni composition and order parameter on device
 */
 void device_dataviz(struct CudaData* dev,struct HostData* host,
@@ -99,9 +120,7 @@ void device_dataviz(struct CudaData* dev,struct HostData* host,
 /**
  \brief Boundary condition kernel for execution on the GPU
 */
-__global__ void boundary_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
-                                fp_t* d_phi_del,
-                                fp_t* d_phi_lav,
+__global__ void boundary_kernel(fp_t* d_field,
                                 const int nx,
                                 const int ny,
                                 const int nm);
@@ -119,29 +138,40 @@ __global__ void convolution_kernel(fp_t* d_conc_old,
  \brief Discrete Laplacian operator with variable mobilities
 */
 __device__ fp_t discrete_laplacian(const fp_t& D_middle,
-								   const fp_t& D_left, const fp_t& D_right,
-								   const fp_t& D_bottom, const fp_t& D_top,
-								   const fp_t& c_middle,
-								   const fp_t& c_left, const fp_t& c_right,
-								   const fp_t& c_bottom, const fp_t& c_top,
-								   const fp_t& dx, const fp_t& dy);
+                                   const fp_t& D_left, const fp_t& D_right,
+                                   const fp_t& D_bottom, const fp_t& D_top,
+                                   const fp_t& c_middle,
+                                   const fp_t& c_left, const fp_t& c_right,
+                                   const fp_t& c_bottom, const fp_t& c_top,
+                                   const fp_t& dx, const fp_t& dy);
 
 /**
  \brief Tiled Laplacian with variable diffusivity for execution on the GPU
 */
-__global__ void chemical_convolution_kernel(fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
-                                            fp_t* d_conc_Cr_old, fp_t* d_conc_Cr_new,
-                                            fp_t* d_conc_Nb_old, fp_t* d_conc_Nb_new,
-                                            const int nx, const int ny, const int nm,
-                                            const fp_t dx2, const fp_t dy2);
+__global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc_Nb_gam,
+        fp_t* d_conc_Cr_del, fp_t* d_conc_Nb_del,
+        fp_t* d_conc_Cr_lav, fp_t* d_conc_Nb_lav,
+        fp_t* d_mob_gam_CrCr, fp_t* d_mob_gam_CrNb,
+        fp_t* d_mob_del_CrCr, fp_t* d_mob_del_CrNb,
+        fp_t* d_mob_lav_CrCr, fp_t* d_mob_lav_CrNb,
+        fp_t* d_conc_Cr_new,
+        const int nx, const int ny, const int nm,
+        const fp_t dx2, const fp_t dy2);
+__global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam, fp_t* d_conc_Nb_gam,
+        fp_t* d_conc_Cr_del, fp_t* d_conc_Nb_del,
+        fp_t* d_conc_Cr_lav, fp_t* d_conc_Nb_lav,
+        fp_t* d_mob_gam_NbCr, fp_t* d_mob_gam_NbNb,
+        fp_t* d_mob_del_NbCr, fp_t* d_mob_del_NbNb,
+        fp_t* d_mob_lav_NbCr, fp_t* d_mob_lav_NbNb,
+        fp_t* d_conc_Nb_new,
+        const int nx, const int ny, const int nm,
+        const fp_t dx2, const fp_t dy2);
 
 /**
  \brief Device kernel to update field variables for composition
 */
 __device__ void composition_kernel(const fp_t& d_conc_Cr_old,
                                    const fp_t& d_conc_Nb_old,
-                                   const fp_t& d_frac_del,
-                                   const fp_t& d_frac_lav,
                                    fp_t& d_conc_Cr_new,
                                    fp_t& d_conc_Nb_new,
                                    const fp_t dt);
@@ -150,7 +180,6 @@ __device__ void composition_kernel(const fp_t& d_conc_Cr_old,
  \brief Device kernel to update composition field variables
 */
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
-                                     fp_t* d_phi_del_old, fp_t* d_phi_lav_old,
                                      fp_t* d_conc_Cr_new, fp_t* d_conc_Nb_new,
                                      const int nx, const int ny, const int nm,
                                      const fp_t dt);
@@ -202,7 +231,7 @@ __global__ void init_prng_kernel(curandState* prng, const int nx, const int ny);
 __device__ void embed_OPC_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
                                  fp_t* d_phi_del, fp_t* d_phi_lav,
                                  const int nx, const int ny,
-                                 const int x, const int y, const int idx,
+                                 const int x, const int y,
                                  const fp_t xCr,
                                  const fp_t xNb,
                                  const fp_t par_xe_Cr,
@@ -224,9 +253,14 @@ __global__ void nucleation_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb,
  \brief Device kernel to copy data out for visualization
 */
 
-__global__ void dataviz_kernel(fp_t* d_conc_Cr, fp_t* d_conc_Nb, fp_t* d_conc_Ni,
-                               fp_t* d_ph_del, fp_t* d_phi_lav, fp_t* d_phi,
-                               const int nx, const int ny);
+__global__ void dataviz_kernel(fp_t* d_conc_Cr,
+                               fp_t* d_conc_Nb,
+                               fp_t* d_conc_Ni,
+                               fp_t* d_phi_del,
+                               fp_t* d_phi_lav,
+                               fp_t* d_phi,
+                               const int nx,
+                               const int ny);
 
 /** \cond SuppressGuard */
 #endif /* _CUDA_KERNELS_H_ */

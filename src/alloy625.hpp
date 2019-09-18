@@ -74,9 +74,10 @@ Composition& Composition::operator+=(const Composition& c)
 /**
  \brief Convert from weight fraction to mole fraction
 */
-void molfrac(const fp_t& wCr, const fp_t& wNb, fp_t& xCr, fp_t& xNb) {
+void molfrac(const fp_t& wCr, const fp_t& wNb, fp_t& xCr, fp_t& xNb)
+{
 	const fp_t wNi = 1. - wCr - wNb;
-    const fp_t nCr = wCr / 51.996;
+	const fp_t nCr = wCr / 51.996;
 	const fp_t nNb = wNb / 92.906;
 	const fp_t nNi = wNi / 58.693;
 	const fp_t N = nCr + nNb + nNi;
@@ -89,12 +90,12 @@ void molfrac(const fp_t& wCr, const fp_t& wNb, fp_t& xCr, fp_t& xNb) {
 /**
  \brief Initialize domain with flat composition field
 */
-void init_flat_composition(GRID2D& grid, std::mt19937& mtrand);
+void init_flat_composition(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0);
 
 /**
  \brief Initialize domain with Gaussian peaks in compositions
 */
-void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand);
+void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0);
 
 /**
  \brief Embed particle at specified position

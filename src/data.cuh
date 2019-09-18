@@ -20,7 +20,7 @@ cudaError_t checkCuda(cudaError_t result);
 */
 void init_cuda(struct HostData* host,
                const int nx, const int ny, const int nm,
-			   const fp_t* kappa, const fp_t* omega, const fp_t* Lmob,
+               const fp_t* kappa, const fp_t* omega, const fp_t* Lmob,
                struct CudaData* dev);
 
 /**

@@ -25,11 +25,11 @@ NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
              $(INCLUDES) --compiler-options="$(CXXFLAGS)"
 
-LINKS = -lcuda -lcurand -lm $(PLT_LNK) -lz
+LINKS = -lcuda -lcurand -lgsl -lgslcblas -lm $(PLT_LNK) -lz
 
 OBJS = data_cu.o discretization_cu.o nucleation_cu.o parabola625_cu.o \
        enrichment_c.o nucleation_c.o parabola625_c.o \
-       mesh_cpp.o output_cpp.o
+       mesh_cpp.o output_cpp.o phasefrac_cpp.o
 
 # Executables
 

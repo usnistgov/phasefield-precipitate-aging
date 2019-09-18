@@ -5,6 +5,7 @@
 #include <sstream>
 #include <cstdlib>
 #include <cctype>
+// #include <future>
 #include <time.h>
 
 int main(int argc, char* argv[])
@@ -280,9 +281,16 @@ int main(int argc, char* argv[])
 			// determine timestep
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			fp_t dtDiffusionLimited = MMSP::timestep(grid);
-			const double dt = std::floor(4e11 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e11;
-			const uint64_t img_interval = std::min(increment / 4, (uint64_t)(0.2 / dt));
+			const double dt = std::floor(4e10 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e10;
+			const uint64_t img_interval = std::min(increment, (uint64_t)(0.1 / dt));
 			const uint64_t nrg_interval = img_interval;
+			/*
+			std::future<int>* img_check = new std::future<int>(std::async(write_dummy,
+																		  host.conc_Cr_new, host.conc_Nb_new,
+																		  host.phi_del_new, host.phi_lav_new,
+																		  nx, ny, nm, MMSP::dx(grid),
+																		  1, dt, "")); // to allow asynchronous image output
+			*/
 
 			// setup logging
 			FILE* cfile = NULL;
@@ -298,6 +306,14 @@ int main(int argc, char* argv[])
 
 					// === Start Architecture-Specific Kernel ===
 					device_boundaries(&dev, nx, ny, nm, bx, by);
+
+					device_fictitious(&dev, nx, ny, nm, bx, by);
+
+					fictitious_boundaries(&dev, nx, ny, nm, bx, by);
+
+					device_mobilities(&dev, nx, ny, nm, bx, by);
+
+					mobility_boundaries(&dev, nx, ny, nm, bx, by);
 
 					device_laplacian(&dev, nx, ny, nm, bx, by, dx(grid, 0), dx(grid, 1));
 
@@ -323,6 +339,12 @@ int main(int argc, char* argv[])
 
 					const bool img_step = ((j+1) % img_interval == 0 || (j+1) == steps);
 					if (img_step) {
+						/*
+						img_check->get(); // wait for image to finish writing
+						delete img_check;
+						img_check = NULL;
+						*/
+
 						device_dataviz(&dev, &host, nx, ny, nm, bx, by);
 
 						std::stringstream imgname;
@@ -336,13 +358,21 @@ int main(int argc, char* argv[])
 						}
 
 						#ifdef MPI_VERSION
-						std::cerr << "Error: cannot write images in parallel." <<std::endl;
+						std::cerr << "Error: cannot write images in parallel." << std::endl;
 						MMSP::Abort(EXIT_FAILURE);
 						#endif
+						/*
+						img_check = new
+							std::future<int>(std::async(write_matplotlib,
+														host.conc_Cr_new, host.conc_Nb_new,
+														host.phi_del_new, host.phi_lav_new,
+														nx, ny, nm, MMSP::dx(grid),
+														j+1, dt, imgname.str().c_str()));
+						*/
 						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
-										 host.phi_del_new, host.phi_lav_new,
-										 nx, ny, nm, MMSP::dx(grid),
-										 j+1, dt, imgname.str().c_str());
+						                 host.phi_del_new, host.phi_lav_new,
+						                 nx, ny, nm, MMSP::dx(grid),
+						                 j+1, dt, imgname.str().c_str());
 					}
 
 					const bool nrg_step = ((j+1) % nrg_interval == 0 || (j+1) == steps);
@@ -363,7 +393,7 @@ int main(int argc, char* argv[])
 						dtDiffusionLimited = MMSP::timestep(grid);
 						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
 							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least "
-									  << dt / (LinStab * dtDiffusionLimited) << std::endl;
+							          << dt / (LinStab * dtDiffusionLimited) << std::endl;
 							std::exit(EXIT_FAILURE);
 						}
 
@@ -412,6 +442,12 @@ int main(int argc, char* argv[])
 				print_progress(increment, increment);
 				/* finish update() */
 			}
+			/*
+			if (img_check != NULL) {
+				img_check->get(); // wait for image to finish writing
+				delete img_check;
+			}
+			*/
 			free_cuda(&dev);
 			free_arrays(&host);
 			if (rank == 0)

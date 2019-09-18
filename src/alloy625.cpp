@@ -17,6 +17,9 @@
 #include <set>
 #include <sstream>
 #include <vector>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_multiroots.h>
 #ifdef _OPENMP
 #include "omp.h"
 #endif
@@ -31,6 +34,7 @@
 #include "output.h"
 #include "parabola625.h"
 #include "parameters.h"
+#include "phasefrac.h"
 
 namespace MMSP
 {
@@ -76,26 +80,17 @@ fp_t timestep(const GRID2D& grid)
 	return dt;
 }
 
-
-void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
+void init_flat_composition(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0)
 {
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
 
-	/*
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
-	*/
-
-	/* Favor a high delta-phase fraction, with a composition
-	 * chosen from the gamma-delta edge of the three-phase field
-	 */
-	double xCrE = 0.415625;
-	double xNbE = 0.0625;
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
@@ -113,9 +108,12 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand)
 	for (int n = 0; n < nodes(grid); n++) {
 		grid(n) = init;
 	}
+
+	xCr0 = xCrE;
+	xNb0 = xNbE;
 }
 
-void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
+void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0)
 {
 	/* Randomly choose enriched compositions in a rectangular region of the phase diagram
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
@@ -163,6 +161,9 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand)
 			grid(x)[1] = matrixNb;
 		}
 	}
+
+	xCr0 = xCrM;
+	xNb0 = xNbM;
 }
 
 void embed_OPC(GRID2D& grid,
@@ -177,7 +178,7 @@ void embed_OPC(GRID2D& grid,
 	const fp_t R_depletion_Cr = R_precip * sqrt(1.0 + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
 	const fp_t R_depletion_Nb = R_precip * sqrt(1.0 + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
 	const fp_t R = std::max(std::max(R_depletion_Cr, R_depletion_Nb),
-							R_precip + 4 * ifce_width / meshres);
+	                        R_precip + 4 * ifce_width / meshres);
 
 	for (int i = -R; i < R + 1; i++) {
 		for (int j = -R; j < R + 1; j++) {
@@ -190,12 +191,12 @@ void embed_OPC(GRID2D& grid,
 
 			// Smoothly interpolate through the interface , TKR5p276
 			GridY[0] = xe_gam_Cr()
-				+ (par_xe_Cr - xe_gam_Cr()) * tanh_interp(z, 0.1 * ifce_width)
-			    + (xCr - xe_gam_Cr()) * tanh_interp(meshres * (R_depletion_Cr - r), 0.1 * ifce_width);
+			           + (par_xe_Cr - xe_gam_Cr()) * tanh_interp(z, 0.1 * ifce_width)
+			           + (xCr - xe_gam_Cr()) * tanh_interp(meshres * (R_depletion_Cr - r), 0.1 * ifce_width);
 
 			GridY[1] = xe_gam_Nb()
-				+ (par_xe_Nb - xe_gam_Nb()) * tanh_interp(z, 0.1 * ifce_width)
-			    + (xNb - xe_gam_Nb()) * tanh_interp(meshres * (R_depletion_Nb - r), 0.1 * ifce_width);
+			           + (par_xe_Nb - xe_gam_Nb()) * tanh_interp(z, 0.1 * ifce_width)
+			           + (xNb - xe_gam_Nb()) * tanh_interp(meshres * (R_depletion_Nb - r), 0.1 * ifce_width);
 
 			GridY[pid] = tanh_interp(z, 0.5 * ifce_width);
 		}
@@ -235,8 +236,8 @@ void seed_solitaire(GRID2D& grid,
 		nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-									  phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
-									  phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
+		                              phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
+		                              phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
 		                              sigma_del,
 		                              Vatom,
 		                              n_gam,
@@ -263,8 +264,8 @@ void seed_solitaire(GRID2D& grid,
 		nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 		nucleation_probability_sphere(xCr, xNb,
 		                              dG_chem,
-									  phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
-									  phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
+		                              phi_gam * (M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb()),
+		                              phi_gam * (M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb()),
 		                              sigma_lav,
 		                              Vatom,
 		                              n_gam,
@@ -298,20 +299,55 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
 
 	vector<int> x(2, 0);
+	const fp_t inflation = 1.0;
 	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
 		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
 			// Smoothly interpolate through the interface, TKR5p276
 			vector<fp_t>& GridN = grid(x);
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
-			GridN[NC] = tanh_interp(r - R_precip, ifce_width);
-			GridN[0] = xe_del_Cr() * tanh_interp(r - R_precip, ifce_width)
-			         + xe_gam_Cr() * tanh_interp(R_precip - r, ifce_width)
-			         - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, ifce_width)
-			         + xCr * tanh_interp(R_depletion_Cr - r, ifce_width);
-			GridN[1] = xe_del_Nb() * tanh_interp(r - R_precip, ifce_width)
-			         + xe_gam_Nb() * tanh_interp(R_precip - r, ifce_width)
-			         - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, ifce_width)
-			         + xNb * tanh_interp(R_depletion_Nb - r, ifce_width);
+			GridN[NC] = tanh_interp(r - R_precip, inflation * ifce_width);
+			GridN[0] = xe_del_Cr() * tanh_interp(r - R_precip, inflation * ifce_width)
+			           + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width)
+			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, inflation * ifce_width)
+			           + xCr * tanh_interp(R_depletion_Cr - r, inflation * ifce_width);
+			GridN[1] = xe_del_Nb() * tanh_interp(r - R_precip, inflation * ifce_width)
+			           + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width)
+			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, inflation * ifce_width)
+			           + xNb * tanh_interp(R_depletion_Nb - r, inflation * ifce_width);
+		}
+	}
+}
+
+void seed_planar_laves(GRID2D& grid, const int w_precip)
+{
+	fp_t xCr = 0.0, xNb = 0.0;
+	for (int n=0; n<nodes(grid); n++) {
+		xCr += grid(n)[0];
+		xNb += grid(n)[1];
+	}
+	xCr /= nodes(grid);
+	xNb /= nodes(grid);
+
+	const fp_t R_precip = meshres * w_precip;
+	const fp_t R_depletion_Cr = R_precip * (1.0 + (xe_lav_Cr() - xCr) / (xCr - xe_gam_Cr()));
+	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_lav_Nb() - xNb) / (xNb - xe_gam_Nb()));
+
+	vector<int> x(2, 0);
+	const fp_t inflation = 1.0;
+	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
+		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
+			// Smoothly interpolate through the interface, TKR5p276
+			vector<fp_t>& GridN = grid(x);
+			const fp_t r = meshres * (x[0] - g0(grid, 0));
+			GridN[NC+1] = tanh_interp(r - R_precip, inflation * ifce_width);
+			GridN[0] = xe_lav_Cr() * tanh_interp(r - R_precip, inflation * ifce_width)
+			           + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width)
+			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, inflation * ifce_width)
+			           + xCr * tanh_interp(R_depletion_Cr - r, inflation * ifce_width);
+			GridN[1] = xe_lav_Nb() * tanh_interp(r - R_precip, inflation * ifce_width)
+			           + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width)
+			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, inflation * ifce_width)
+			           + xNb * tanh_interp(R_depletion_Nb - r, inflation * ifce_width);
 		}
 	}
 }
@@ -423,16 +459,21 @@ void generate(int dim, const char* filename)
 				b1(initGrid, d) = Neumann;
 		}
 
-		init_flat_composition(initGrid, mtrand);
+		fp_t xCr0, xNb0;
+
+		init_flat_composition(initGrid, mtrand, xCr0, xNb0);
 		/*
-		init_gaussian_enrichment(initGrid, mtrand);
+		init_gaussian_enrichment(initGrid, mtrand, xCr0, xNb0);
 		*/
 
-		const int w_precip = glength(initGrid, 0) / 6;
+		const double del_frac = estimate_fraction_del(xCr0, xNb0);
+
+		const int w_precip = glength(initGrid, 0) / 7;
 		seed_planar_delta(initGrid, w_precip);
 		/*
+		const fp_t rough_dt = 1.25e-9;
 		seed_solitaire(initGrid, s_delta(), s_laves(), lattice_const,
-					   ifce_width, meshres, dt, mtrand);
+		               ifce_width, meshres, rough_dt, mtrand);
 		*/
 
 		ghostswap(initGrid);
@@ -446,9 +487,10 @@ void generate(int dim, const char* filename)
 
 		if (rank == 0) {
 			std::cout << "Timestep dt=" << dt
-			          << ". Linear stability limits: dtTransformLimited=" << dtTransformLimited
-			          << ", dtDiffusionLimited=" << dtDiffusionLimited
-			          << '.' << std::endl;
+			          << ". Linear stability limit = " << dtDiffusionLimited
+			          << ".\nWith xCr = " << xCr0 << " and xNb = " << xNb0
+					  << ", eqm. frac. Delta = " << del_frac << '.'
+					  << std::endl;
 			fprintf(cfile, "%10s %9s %9s %12s %12s %12s %12s\n",
 			        "time", "x_Cr", "x_Nb", "gamma", "delta", "Laves", "energy");
 			fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
@@ -487,7 +529,6 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(initGrid, n);
 			const int i = x[0] - g0(initGrid, 0) + 1;
 			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
-			                                          // (mmsp2png of mesh is correct)
 			xCr[j][i] = initGrid(n)[0];
 			xNb[j][i] = initGrid(n)[1];
 			pDel[j][i] = initGrid(n)[NC];
@@ -557,8 +598,8 @@ T gibbs(const MMSP::vector<T>& v)
 		phiSq[i] = v[NC + i] * v[NC + i];
 
 	T g  = pGam * g_gam(gam_Cr, gam_Nb);
-	  g += pDel * g_del(del_Cr, del_Nb);
-	  g += pLav * g_lav(lav_Cr, lav_Nb);
+	g += pDel * g_del(del_Cr, del_Nb);
+	g += pLav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
 		g += omega[i] * phiSq[i] * pow(1.0 - v[NC + i], 2);
@@ -573,8 +614,8 @@ T gibbs(const MMSP::vector<T>& v)
 
 template <int dim, typename T>
 MMSP::vector<T> maskedgradient(const MMSP::grid<dim, MMSP::vector<T> >& GRID,
-							   const MMSP::vector<int>& x,
-							   const int N)
+                               const MMSP::vector<int>& x,
+                               const int N)
 {
 	MMSP::vector<T> gradient(dim);
 	MMSP::vector<int> s = x;
@@ -691,6 +732,9 @@ double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
 
 	return energy;
 }
+
+
+
 #endif
 
 #include "main.cpp"
