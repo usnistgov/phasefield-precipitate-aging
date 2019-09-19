@@ -15,11 +15,10 @@ PLT_LNK = -lpython$(PYVER)
 PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
 
 CXX = g++
+DIRECTIV = -DPLANAR # -DPLANAR -DNUCLEATION -DPAIR
 INCLUDES = -I. -I../thermo -I$(MMSP_PATH)/include -I$(CUDA_HDR_PATH) $(PLTFLAGS)
-
-CXXFLAGS = -O3 -Wall -std=c++11 \
-           -funroll-loops -ffast-math -fopenmp \
-           $(INCLUDES)
+CXXFOPTS = -funroll-loops -ffast-math -fopenmp
+CXXFLAGS = -O3 -Wall -std=c++11 $(DIRECTIV) $(CXXFOPTS) $(INCLUDES)
 
 NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \

@@ -1,11 +1,11 @@
 #ifndef __MMSP_MAIN_CPP__
 #define __MMSP_MAIN_CPP__
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <cstdlib>
+
 #include <cctype>
-// #include <future>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 #include <time.h>
 
 int main(int argc, char* argv[])
@@ -284,13 +284,9 @@ int main(int argc, char* argv[])
 			const double dt = std::floor(4e10 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e10;
 			const uint64_t img_interval = std::min(increment, (uint64_t)(0.1 / dt));
 			const uint64_t nrg_interval = img_interval;
-			/*
-			std::future<int>* img_check = new std::future<int>(std::async(write_dummy,
-																		  host.conc_Cr_new, host.conc_Nb_new,
-																		  host.phi_del_new, host.phi_lav_new,
-																		  nx, ny, nm, MMSP::dx(grid),
-																		  1, dt, "")); // to allow asynchronous image output
-			*/
+			#ifdef NUCLEATION
+			const uint64_t nuc_interval = (uint64_t)(0.001 / dt);
+			#endif
 
 			// setup logging
 			FILE* cfile = NULL;
@@ -321,7 +317,7 @@ int main(int argc, char* argv[])
 
 					device_evolution(&dev, nx, ny, nm, bx, by, alpha, dt);
 
-					/*
+					#ifdef NUCLEATION
 					const bool nuc_step = (j % nuc_interval == 0);
 					if (nuc_step) {
 						device_nucleation(&dev, nx, ny, nm, bx, by,
@@ -330,7 +326,7 @@ int main(int argc, char* argv[])
 						                  meshres, meshres, meshres,
 						                  nuc_interval * dt);
 					}
-					*/
+					#endif
 
 					swap_pointers_1D(&(dev.conc_Cr_old), &(dev.conc_Cr_new));
 					swap_pointers_1D(&(dev.conc_Nb_old), &(dev.conc_Nb_new));
@@ -339,12 +335,6 @@ int main(int argc, char* argv[])
 
 					const bool img_step = ((j+1) % img_interval == 0 || (j+1) == steps);
 					if (img_step) {
-						/*
-						img_check->get(); // wait for image to finish writing
-						delete img_check;
-						img_check = NULL;
-						*/
-
 						device_dataviz(&dev, &host, nx, ny, nm, bx, by);
 
 						std::stringstream imgname;
@@ -361,14 +351,7 @@ int main(int argc, char* argv[])
 						std::cerr << "Error: cannot write images in parallel." << std::endl;
 						MMSP::Abort(EXIT_FAILURE);
 						#endif
-						/*
-						img_check = new
-							std::future<int>(std::async(write_matplotlib,
-														host.conc_Cr_new, host.conc_Nb_new,
-														host.phi_del_new, host.phi_lav_new,
-														nx, ny, nm, MMSP::dx(grid),
-														j+1, dt, imgname.str().c_str()));
-						*/
+
 						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
 						                 host.phi_del_new, host.phi_lav_new,
 						                 nx, ny, nm, MMSP::dx(grid),
@@ -442,12 +425,7 @@ int main(int argc, char* argv[])
 				print_progress(increment, increment);
 				/* finish update() */
 			}
-			/*
-			if (img_check != NULL) {
-				img_check->get(); // wait for image to finish writing
-				delete img_check;
-			}
-			*/
+
 			free_cuda(&dev);
 			free_arrays(&host);
 			if (rank == 0)

@@ -112,17 +112,26 @@ void embed_OPC(GRID2D& grid,
                const int pid);
 
 /**
- \brief Insert a single particle at the specified location
- Secondary phase will be chosen by random "coin toss".
+ \brief Insert a single delta particle at the specified location
 */
-void seed_solitaire(GRID2D& grid,
-                    const fp_t D_CrCr, const fp_t D_NbNb,
-                    const fp_t sigma_del, const fp_t sigma_lav,
-                    const fp_t lattice_const,
-                    const fp_t ifce_width,
-                    const fp_t dx,
-                    const fp_t dt,
-                    std::mt19937& mtrand);
+void seed_solitaire_delta(GRID2D& grid,
+                          const fp_t D_CrCr, const fp_t D_NbNb,
+                          const fp_t sigma_del,
+                          const fp_t lattice_const,
+                          const fp_t ifce_width,
+                          const fp_t dx,
+                          const fp_t dt);
+
+/**
+   \brief Insert a single Laves particle at the specified location
+*/
+void seed_solitaire_laves(GRID2D& grid,
+                          const fp_t D_CrCr, const fp_t D_NbNb,
+                          const fp_t sigma_lav,
+                          const fp_t lattice_const,
+                          const fp_t ifce_width,
+                          const fp_t dx,
+                          const fp_t dt);
 
 /**
  \brief Insert a slab of delta phase at the left border
@@ -135,7 +144,6 @@ void embed_planar_delta(GRID2D& grid, const int w_precip);
  and separated vertically by an equal distance from the midpoint.
 */
 void seed_pair(GRID2D& grid,
-               const fp_t D_CrCr, const fp_t D_NbNb,
                const fp_t sigma_del, const fp_t sigma_lav,
                const fp_t lattice_const,
                const fp_t ifce_width,

@@ -15,7 +15,6 @@
 
 // Constants
 const fp_t dV = meshres * meshres * meshres;
-const fp_t vFccNi = lattice_const * lattice_const * lattice_const / 4.;
 const fp_t n_gam = M_PI / (3. * sqrt(2.) * vFccNi);
 const size_t iters = 50000;
 
