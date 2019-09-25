@@ -188,56 +188,56 @@ __device__ double d_enrich_max_Nb()
 
 }
 
-__device__ double d_xr_gam_Cr(double P_del, double P_lav)
+__device__ double d_xr_gam_Cr(double r_del, double r_lav)
 {
 
 	double xr_gam_Cr_result;
-	xr_gam_Cr_result = -1.0416420522061151e-9*P_del + 7.8015873139432392e-10*P_lav + 0.52421634830562147;
+	xr_gam_Cr_result = 0.52421634830562147 + 2.0284127016252441e-10/r_lav - 2.7082693357358988e-10/r_del;
 	return xr_gam_Cr_result;
 
 }
 
-__device__ double d_xr_gam_Nb(double P_del, double P_lav)
+__device__ double d_xr_gam_Nb(double r_del, double r_lav)
 {
 
 	double xr_gam_Nb_result;
-	xr_gam_Nb_result = 1.2685791187413322e-10*P_del - 5.4699345802775539e-11*P_lav + 0.01299272922003303;
+	xr_gam_Nb_result = 0.01299272922003303 - 1.4221829908721655e-11/r_lav + 3.2983057087274643e-11/r_del;
 	return xr_gam_Nb_result;
 
 }
 
-__device__ double d_xr_del_Cr(double P_del, double P_lav)
+__device__ double d_xr_del_Cr(double r_del, double r_lav)
 {
 
 	double xr_del_Cr_result;
-	xr_del_Cr_result = -6.5735143572415373e-11*P_del + 6.321736492860471e-11*P_lav + 0.022966218927631978;
+	xr_del_Cr_result = 0.022966218927631978 + 1.6436514881437235e-11/r_lav - 1.7091137328827994e-11/r_del;
 	return xr_del_Cr_result;
 
 }
 
-__device__ double d_xr_del_Nb(double P_del, double P_lav)
+__device__ double d_xr_del_Nb(double r_del, double r_lav)
 {
 
 	double xr_del_Nb_result;
-	xr_del_Nb_result = -9.8753110498082084e-14*P_del + 7.568036187685703e-13*P_lav + 0.24984563695705883;
+	xr_del_Nb_result = 0.24984563695705883 + 1.967689408798284e-13/r_lav - 2.5675808729501275e-14/r_del;
 	return xr_del_Nb_result;
 
 }
 
-__device__ double d_xr_lav_Cr(double P_del, double P_lav)
+__device__ double d_xr_lav_Cr(double r_del, double r_lav)
 {
 
 	double xr_lav_Cr_result;
-	xr_lav_Cr_result = -1.7594469664015904e-10*P_del + 1.3590799747212884e-10*P_lav + 0.37392129441013022;
+	xr_lav_Cr_result = 0.37392129441013022 + 3.5336079342753527e-11/r_lav - 4.5745621126441332e-11/r_del;
 	return xr_lav_Cr_result;
 
 }
 
-__device__ double d_xr_lav_Nb(double P_del, double P_lav)
+__device__ double d_xr_lav_Nb(double r_del, double r_lav)
 {
 
 	double xr_lav_Nb_result;
-	xr_lav_Nb_result = 1.2897736836308307e-11*P_del + 1.2468017214924273e-11*P_lav + 0.25826261799015571;
+	xr_lav_Nb_result = 0.25826261799015571 + 3.2416844758803114e-12/r_lav + 3.3534115774401598e-12/r_del;
 	return xr_lav_Nb_result;
 
 }
@@ -320,6 +320,138 @@ __device__ double d_s_laves()
 	double s_laves_result;
 	s_laves_result = 0.13;
 	return s_laves_result;
+
+}
+
+__device__ double d_CALPHAD_gam(double XCR, double XNB)
+{
+
+	double CALPHAD_gam_result;
+	CALPHAD_gam_result = -2111099999.9999998*pow(XCR, 2)*XNB*(-XCR - XNB + 1) - 2111099999.9999998*XCR*pow(XNB, 2)*(-XCR - XNB + 1) - 2111099999.9999998*XCR*XNB*(-XCR - XNB + 1)*(-XCR - XNB + 1) + 1474821796.9999995*XCR*(-XCR - XNB + 1)*(2*XCR + XNB - 1) - 669388631.5*XCR*(-XCR - XNB + 1) + 1707300680.1792686*XCR + 6973684804.4499989*XNB*(-XCR - XNB + 1)*(XCR + 2*XNB - 1) - 7846288044.7499981*XNB*(-XCR - XNB + 1) + 1069046462.7507229*XNB + 950472067.50000012*((XCR > 1.0e-13) ? (
+	                         XCR*log(XCR)
+	                     )
+	                     : (
+	                         0
+	                     )) + 950472067.50000012*((XNB > 1.0e-13) ? (
+	                                 XNB*log(XNB)
+	                             )
+	                             : (
+	                                 0
+	                             )) + 950472067.50000012*((XCR + XNB - 1 < -1.0e-13) ? (
+	                                     (-XCR - XNB + 1)*log(-XCR - XNB + 1)
+	                                     )
+	                                     : (
+	                                             0
+	                                     )) + 950472067.50000012*((((3605*XCR*(-XCR - XNB + 1) + 1742*XCR + 633*XNB - 633 >= 0) ? (
+	                                             1143.1500000000001/(1201.6666666666699*XCR*(-XCR - XNB + 1) + 580.66666666666697*XCR + 211.0*XNB - 210.99999999900001) < 1
+	                                             )
+	                                             : (
+	                                                     1143.1500000000001/(-3605.0*XCR*(-XCR - XNB + 1) - 1742.0*XCR - 633.0*XNB + 633.00000000099999) < 1
+	                                             ))) ? (
+	                                                     -0.00075260355561858024*(-3605*XCR*(-XCR - XNB + 1) - 1742*XCR - 633*XNB + 633)*((3605*XCR*(-XCR - XNB + 1) + 1742*XCR + 633*XNB - 633 >= 0) ? (
+	                                                             -0.33333333333333298
+	                                                             )
+	                                                             : (
+	                                                                     1.0
+	                                                             )) + 0.99999999999924738 - 260665342.34018135/pow((-3605*XCR*(-XCR - XNB + 1) - 1742*XCR - 633*XNB + 633)*((3605*XCR*(-XCR - XNB + 1) + 1742*XCR + 633*XNB - 633 >= 0) ? (
+	                                                                     -0.33333333333333298
+	                                                                     )
+	                                                                     : (
+	                                                                             1.0
+	                                                                     )) + 1.0000000000000001e-9, 3) - 2.5853544793776527e+25/pow((-3605*XCR*(-XCR - XNB + 1) - 1742*XCR - 633*XNB + 633)*((3605*XCR*(-XCR - XNB + 1) + 1742*XCR + 633*XNB - 633 >= 0) ? (
+	                                                                             -0.33333333333333298
+	                                                                             )
+	                                                                             : (
+	                                                                                     1.0
+	                                                                             )) + 1.0000000000000001e-9, 9) - 1.2981412192316947e+43/pow((-3605*XCR*(-XCR - XNB + 1) - 1742*XCR - 633*XNB + 633)*((3605*XCR*(-XCR - XNB + 1) + 1742*XCR + 633*XNB - 633 >= 0) ? (
+	                                                                                     -0.33333333333333298
+	                                                                                     )
+	                                                                                     : (
+	                                                                                             1.0
+	                                                                                     )) + 1.0000000000000001e-9, 15)
+	                                             )
+	                                             : (
+	                                                     -1.0038219457461011e-80*pow((-3605*XCR*(-XCR - XNB + 1) - 1742*XCR - 633*XNB + 633)*((3605*XCR*(-XCR - XNB + 1) + 1742*XCR + 633*XNB - 633 >= 0) ? (
+	                                                             -0.33333333333333298
+	                                                             )
+	                                                             : (
+	                                                                     1.0
+	                                                             )) + 1.0000000000000001e-9, 25) - 1.8216695466490673e-49*pow((-3605*XCR*(-XCR - XNB + 1) - 1742*XCR - 633*XNB + 633)*((3605*XCR*(-XCR - XNB + 1) + 1742*XCR + 633*XNB - 633 >= 0) ? (
+	                                                                     -0.33333333333333298
+	                                                                     )
+	                                                                     : (
+	                                                                             1.0
+	                                                                     )) + 1.0000000000000001e-9, 15) - 2.186816584109128e-17*pow((-3605*XCR*(-XCR - XNB + 1) - 1742*XCR - 633*XNB + 633)*((3605*XCR*(-XCR - XNB + 1) + 1742*XCR + 633*XNB - 633 >= 0) ? (
+	                                                                             -0.33333333333333298
+	                                                                             )
+	                                                                             : (
+	                                                                                     1.0
+	                                                                             )) + 1.0000000000000001e-9, 5)
+	                                             ))*log((-1.9099999999999999*XCR*(-XCR - XNB + 1) - 2.98*XCR - 0.52000000000000002*XNB + 0.52000000000000002)*((1.9099999999999999*XCR*(-XCR - XNB + 1) + 2.98*XCR + 0.52000000000000002*XNB - 0.52000000000000002 >= 0) ? (
+	                                                     -0.33333333333333298
+	                                                     )
+	                                                     : (
+	                                                             1.0
+	                                                     )) + 1) - 5464277694.8364201;
+	return CALPHAD_gam_result;
+
+}
+
+__device__ double d_CALPHAD_del(double XCR, double XNB)
+{
+
+	double CALPHAD_del_result;
+	CALPHAD_del_result = -21668797081.409531*XCR*XNB - 5258769591.26929*XCR*(1 - 4*XNB) - 1231849999.9999998*XNB*(1 - 1.3333333333333333*XCR)*(1 - 4*XNB) - 34242601639.394947*XNB*(1 - 1.3333333333333333*XCR) - 4964277694.8364201*(1 - 1.3333333333333333*XCR)*(1 - 4*XNB) + 712854050.625*((1.3333333333333333*XCR > 1.0e-13) ? (
+	                         1.3333333333333333*XCR*log(1.3333333333333333*XCR)
+	                     )
+	                     : (
+	                         0
+	                     )) + 237618016.87500003*((4*XNB > 1.0e-13) ? (
+	                                 4*XNB*log(4*XNB)
+	                             )
+	                             : (
+	                                 0
+	                             )) + 712854050.625*((1.3333333333333333*XCR - 1 < -1.0e-13) ? (
+	                                     (1 - 1.3333333333333333*XCR)*log(1 - 1.3333333333333333*XCR)
+	                                     )
+	                                     : (
+	                                             0
+	                                     )) + 237618016.87500003*((4*XNB - 1 < -1.0e-13) ? (
+	                                             (1 - 4*XNB)*log(1 - 4*XNB)
+	                                             )
+	                                             : (
+	                                                     0
+	                                             ));
+	return CALPHAD_del_result;
+
+}
+
+__device__ double d_CALPHAD_lav(double XCR, double XNB)
+{
+
+	double CALPHAD_lav_result;
+	CALPHAD_lav_result = -46695351257.249992*XNB*(1 - 3*XNB)*(-1.5*XCR - 1.5*XNB + 1.5) + 1851135999.9999998*XNB*(1 - 3*XNB)*(1.5*XCR + 1.5*XNB - 0.5) - 10298680536.599998*XNB*(-1.5*XCR - 1.5*XNB + 1.5)*(1.5*XCR + 1.5*XNB - 0.5) - 22164936866.458534*XNB*(-1.5*XCR - 1.5*XNB + 1.5) - 16694022288.40456*XNB*(1.5*XCR + 1.5*XNB - 0.5) + 4855811416.8900013*(1 - 3*XNB)*(-1.5*XCR - 1.5*XNB + 1.5) - 4004010359.6571507*(1 - 3*XNB)*(1.5*XCR + 1.5*XNB - 0.5) + 316824022.5*((3*XNB > 1.0e-13) ? (
+	                         3*XNB*log(3*XNB)
+	                     )
+	                     : (
+	                         0
+	                     )) + 316824022.5*((3*XNB - 1 < -1.0e-13) ? (
+	                             (1 - 3*XNB)*log(1 - 3*XNB)
+	                                       )
+	                                       : (
+	                                               0
+	                                       )) + 633648045.0*((1.5*XCR + 1.5*XNB - 1.5 < -1.0e-13) ? (
+	                                               (-1.5*XCR - 1.5*XNB + 1.5)*log(-1.5*XCR - 1.5*XNB + 1.5)
+	                                               )
+	                                               : (
+	                                                       0
+	                                               )) + 633648045.0*((1.5*XCR + 1.5*XNB - 0.5 > 1.0e-13) ? (
+	                                                       (1.5*XCR + 1.5*XNB - 0.5)*log(1.5*XCR + 1.5*XNB - 0.5)
+	                                                       )
+	                                                       : (
+	                                                               0
+	                                                       ));
+	return CALPHAD_lav_result;
 
 }
 

@@ -35,6 +35,18 @@ g_gam.restype = c_double
 g_del.restype = c_double
 g_lav.restype = c_double
 
+CALPHAD_gam = p625.CALPHAD_gam
+CALPHAD_del = p625.CALPHAD_del
+CALPHAD_lav = p625.CALPHAD_lav
+
+CALPHAD_gam.argtypes = [c_double, c_double]
+CALPHAD_del.argtypes = [c_double, c_double]
+CALPHAD_lav.argtypes = [c_double, c_double]
+
+CALPHAD_gam.restype = c_double
+CALPHAD_del.restype = c_double
+CALPHAD_lav.restype = c_double
+
 # First Derivatives
 
 ## Gamma
@@ -105,6 +117,21 @@ d2g_lav_dxCrCr.restype = c_double
 d2g_lav_dxCrNb.restype = c_double
 d2g_lav_dxNbCr.restype = c_double
 d2g_lav_dxNbNb.restype = c_double
+
+## Mobility
+
+M_CrCr = p625.M_CrCr
+M_CrCr.argtypes = [c_double, c_double]
+M_CrCr.restype = c_double
+M_CrNb = p625.M_CrNb
+M_CrNb.argtypes = [c_double, c_double]
+M_CrNb.restype = c_double
+M_NbCr = p625.M_NbCr
+M_NbCr.argtypes = [c_double, c_double]
+M_NbCr.restype = c_double
+M_NbNb = p625.M_NbNb
+M_NbNb.argtypes = [c_double, c_double]
+M_NbNb.restype = c_double
 
 ## Gaussian Enrichment
 

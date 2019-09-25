@@ -15,10 +15,9 @@ PLT_LNK = -lpython$(PYVER)
 PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
 
 CXX = g++
-DIRECTIV = -DPLANAR # -DPLANAR -DNUCLEATION -DPAIR
 INCLUDES = -I. -I../thermo -I$(MMSP_PATH)/include -I$(CUDA_HDR_PATH) $(PLTFLAGS)
 CXXFOPTS = -funroll-loops -ffast-math -fopenmp
-CXXFLAGS = -O3 -Wall -std=c++11 $(DIRECTIV) $(CXXFOPTS) $(INCLUDES)
+CXXFLAGS = -O3 -Wall -std=c++11 $(CXXFOPTS) $(INCLUDES)
 
 NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
@@ -44,6 +43,16 @@ profile: CXXOPT = -O1 -pg
 profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo
 profile: alloy625
+
+# Initial Condition Flags
+
+planar: CXXFLAGS += -DPLANAR
+planar: NVCXXFLAGS += -DPLANAR
+planar: alloy625
+
+pair: CXXFLAGS += -DPAIR
+pair: NVCXXFLAGS += -DPAIR
+pair: alloy625
 
 # Derived source code
 nucleation.cu: energy_functions.sh ../thermo/nucleation.c

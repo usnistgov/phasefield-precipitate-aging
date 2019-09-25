@@ -240,8 +240,8 @@ void seed_solitaire_delta(GRID2D& grid,
 		const fp_t R_precip = precip_stabilizer * R_star / dx;
 		embed_OPC(grid, x,
 		          xCr, xNb,
-		          xe_del_Cr(),
-		          xe_del_Nb(),
+		          xr_del_Cr(precip_stabilizer * R_star, 1.0),
+		          xr_del_Nb(precip_stabilizer * R_star, 1.0),
 		          R_precip,
 		          NC);
 	}
@@ -280,8 +280,8 @@ void seed_solitaire_laves(GRID2D& grid,
 		const fp_t R_precip = precip_stabilizer * R_star / dx;
 		embed_OPC(grid, x,
 		          xCr, xNb,
-		          xe_lav_Cr(),
-		          xe_lav_Nb(),
+		          xr_lav_Cr(1.0, precip_stabilizer * R_star),
+		          xr_lav_Nb(1.0, precip_stabilizer * R_star),
 		          R_precip,
 		          NC + 1);
 	}
@@ -310,13 +310,17 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
 			GridN[NC] = tanh_interp(r - R_precip, inflation * ifce_width);
 			GridN[0] = xe_del_Cr() * tanh_interp(r - R_precip, inflation * ifce_width)
-			           + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width)
+			         + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width);
+			/*
 			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, inflation * ifce_width)
 			           + xCr * tanh_interp(R_depletion_Cr - r, inflation * ifce_width);
+			*/
 			GridN[1] = xe_del_Nb() * tanh_interp(r - R_precip, inflation * ifce_width)
-			           + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width)
+			         + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width);
+			/*
 			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, inflation * ifce_width)
 			           + xNb * tanh_interp(R_depletion_Nb - r, inflation * ifce_width);
+			*/
 		}
 	}
 }
@@ -344,13 +348,17 @@ void seed_planar_laves(GRID2D& grid, const int w_precip)
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
 			GridN[NC+1] = tanh_interp(r - R_precip, inflation * ifce_width);
 			GridN[0] = xe_lav_Cr() * tanh_interp(r - R_precip, inflation * ifce_width)
-			           + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width)
+			         + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width);
+			/*
 			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, inflation * ifce_width)
 			           + xCr * tanh_interp(R_depletion_Cr - r, inflation * ifce_width);
+			*/
 			GridN[1] = xe_lav_Nb() * tanh_interp(r - R_precip, inflation * ifce_width)
-			           + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width)
+			         + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width);
+			/*
 			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, inflation * ifce_width)
 			           + xNb * tanh_interp(R_depletion_Nb - r, inflation * ifce_width);
+			*/
 		}
 	}
 }
@@ -482,7 +490,7 @@ void generate(int dim, const char* filename)
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 
 		#ifdef PLANAR
-		const int w_precip = glength(initGrid, 0) / 7;
+		const int w_precip = 9 * ifce_width / meshres;
 		seed_planar_delta(initGrid, w_precip);
 		#elif defined(PAIR)
 		const fp_t nuc_dt = 1.0e-3;
@@ -505,6 +513,7 @@ void generate(int dim, const char* filename)
 		if (rank == 0) {
 			std::cout << "Timestep dt=" << dt
 			          << ". Linear stability limit = " << dtDiffusionLimited
+			          << ", interface limit = " << dtTransformLimited
 			          << ".\nWith xCr = " << xCr0 << " and xNb = " << xNb0
 			          << ", eqm. frac. Delta = " << del_frac << '.'
 			          << std::endl;

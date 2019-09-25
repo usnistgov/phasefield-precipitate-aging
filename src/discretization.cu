@@ -568,7 +568,7 @@ __device__ fp_t discrete_laplacian(const fp_t& D_low,
 {
 	// Five-point stencil, 1 dimension at a time
 	return ( (D_hi  + D_mid) * (c_hi  - c_mid)
-	         - (D_mid + D_low) * (c_mid - c_low) ) / (2.0 * dx * dx);
+	       - (D_mid + D_low) * (c_mid - c_low) ) / (2.0 * dx * dx);
 }
 
 __global__ void chemical_convolution_Cr_kernel(

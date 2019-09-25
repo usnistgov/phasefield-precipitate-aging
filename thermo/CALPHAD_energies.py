@@ -267,7 +267,9 @@ fict_lav_Cr = factor(expand(gcd * fict_lav_Cr)) * INV_DET
 fict_lav_Nb = factor(expand(gcd * fict_lav_Nb)) * INV_DET
 
 # ============ COMPOSITION SHIFTS ============
-P_del, P_lav = symbols("P_del, P_lav")
+# Ref: TKR5p219
+
+r_del, r_lav = symbols("r_del, r_lav")
 
 GaCrCr = p_d2Ggam_dxCrCr
 GaCrNb = p_d2Ggam_dxCrNb
@@ -309,7 +311,7 @@ A = Matrix(
     ]
 )
 
-br = Matrix([[0], [0], [0], [0], [-P_del], [-P_lav]])
+br = Matrix([[0], [0], [0], [0], [-2 * s_delta / r_del], [-2 * s_laves / r_lav]])
 
 xr = A.cholesky_solve(br)
 
@@ -399,6 +401,9 @@ codegen(
         ("s_delta", s_delta),
         ("s_laves", s_laves),
         # Gibbs energies
+        ("CALPHAD_gam", g_gamma),
+        ("CALPHAD_del", g_delta),
+        ("CALPHAD_lav", g_laves),
         ("g_gam", p_gamma),
         ("g_del", p_delta),
         ("g_lav", p_laves),
