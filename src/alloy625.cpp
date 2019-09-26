@@ -172,17 +172,17 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp
 
 void embed_OPC(GRID2D& grid,
                const vector<int>& x,
-               const fp_t& xCr,
-               const fp_t& xNb,
                const fp_t& par_xe_Cr,
                const fp_t& par_xe_Nb,
                const fp_t& R_precip,
                const int pid)
 {
+	/*
 	const fp_t R_depletion_Cr = R_precip * sqrt(1.0 + (par_xe_Cr - xCr) / (xCr - xe_gam_Cr()));
 	const fp_t R_depletion_Nb = R_precip * sqrt(1.0 + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
-	const int R = int(std::max(std::max(R_depletion_Cr, R_depletion_Nb),
-	                           R_precip + 4 * ifce_width / meshres));
+	*/
+	const int R = int(//std::max(std::max(R_depletion_Cr, R_depletion_Nb),
+	                           R_precip + 4 * ifce_width / meshres);
 
 	for (int i = -R; i < R + 1; i++) {
 		for (int j = -R; j < R + 1; j++) {
@@ -190,19 +190,19 @@ void embed_OPC(GRID2D& grid,
 			y[0] += i;
 			y[1] += j;
 			vector<fp_t>& GridY = grid(y);
+			const fp_t& xCr = GridY[0];
+			const fp_t& xNb = GridY[1];
+
 			const fp_t r = sqrt(fp_t(i * i + j * j)); // distance to seed center
 			const fp_t z = meshres * (r - R_precip);
+			const fp_t inflation = 0.5;
 
 			// Smoothly interpolate through the interface , TKR5p276
-			GridY[0] = xe_gam_Cr()
-			           + (par_xe_Cr - xe_gam_Cr()) * tanh_interp(z, 0.1 * ifce_width)
-			           + (xCr - xe_gam_Cr()) * tanh_interp(meshres * (R_depletion_Cr - r), 0.1 * ifce_width);
-
-			GridY[1] = xe_gam_Nb()
-			           + (par_xe_Nb - xe_gam_Nb()) * tanh_interp(z, 0.1 * ifce_width)
-			           + (xNb - xe_gam_Nb()) * tanh_interp(meshres * (R_depletion_Nb - r), 0.1 * ifce_width);
-
-			GridY[pid] = tanh_interp(z, 0.5 * ifce_width);
+			GridY[pid] = tanh_interp(z, inflation * ifce_width);
+			GridY[0] = par_xe_Cr * tanh_interp(r - R_precip, inflation * ifce_width)
+			         + xCr * tanh_interp(R_precip - r, inflation * ifce_width);
+			GridY[1] = par_xe_Nb * tanh_interp(r - R_precip, inflation * ifce_width)
+				+ xNb * tanh_interp(R_precip - r, inflation * ifce_width);
 		}
 	}
 }
@@ -239,7 +239,6 @@ void seed_solitaire_delta(GRID2D& grid,
 	if (R_star > 0.) {
 		const fp_t R_precip = precip_stabilizer * R_star / dx;
 		embed_OPC(grid, x,
-		          xCr, xNb,
 		          xr_del_Cr(precip_stabilizer * R_star, 1.0),
 		          xr_del_Nb(precip_stabilizer * R_star, 1.0),
 		          R_precip,
@@ -279,7 +278,6 @@ void seed_solitaire_laves(GRID2D& grid,
 	if (R_star > 0.) {
 		const fp_t R_precip = precip_stabilizer * R_star / dx;
 		embed_OPC(grid, x,
-		          xCr, xNb,
 		          xr_lav_Cr(1.0, precip_stabilizer * R_star),
 		          xr_lav_Nb(1.0, precip_stabilizer * R_star),
 		          R_precip,
@@ -298,11 +296,9 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 	xNb /= nodes(grid);
 
 	const fp_t R_precip = meshres * w_precip;
-	const fp_t R_depletion_Cr = R_precip * (1.0 + (xe_del_Cr() - xCr) / (xCr - xe_gam_Cr()));
-	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_del_Nb() - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t inflation = 0.5;
 
 	vector<int> x(2, 0);
-	const fp_t inflation = 1.0;
 	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
 		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
 			// Smoothly interpolate through the interface, TKR5p276
@@ -310,17 +306,9 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
 			GridN[NC] = tanh_interp(r - R_precip, inflation * ifce_width);
 			GridN[0] = xe_del_Cr() * tanh_interp(r - R_precip, inflation * ifce_width)
-			         + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width);
-			/*
-			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, inflation * ifce_width)
-			           + xCr * tanh_interp(R_depletion_Cr - r, inflation * ifce_width);
-			*/
+			         + xCr * tanh_interp(R_precip - r, inflation * ifce_width);
 			GridN[1] = xe_del_Nb() * tanh_interp(r - R_precip, inflation * ifce_width)
-			         + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width);
-			/*
-			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, inflation * ifce_width)
-			           + xNb * tanh_interp(R_depletion_Nb - r, inflation * ifce_width);
-			*/
+			         + xNb * tanh_interp(R_precip - r, inflation * ifce_width);
 		}
 	}
 }
@@ -336,11 +324,9 @@ void seed_planar_laves(GRID2D& grid, const int w_precip)
 	xNb /= nodes(grid);
 
 	const fp_t R_precip = meshres * w_precip;
-	const fp_t R_depletion_Cr = R_precip * (1.0 + (xe_lav_Cr() - xCr) / (xCr - xe_gam_Cr()));
-	const fp_t R_depletion_Nb = R_precip * (1.0 + (xe_lav_Nb() - xNb) / (xNb - xe_gam_Nb()));
+	const fp_t inflation = 0.5;
 
 	vector<int> x(2, 0);
-	const fp_t inflation = 1.0;
 	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
 		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
 			// Smoothly interpolate through the interface, TKR5p276
@@ -349,16 +335,8 @@ void seed_planar_laves(GRID2D& grid, const int w_precip)
 			GridN[NC+1] = tanh_interp(r - R_precip, inflation * ifce_width);
 			GridN[0] = xe_lav_Cr() * tanh_interp(r - R_precip, inflation * ifce_width)
 			         + xe_gam_Cr() * tanh_interp(R_precip - r, inflation * ifce_width);
-			/*
-			           - xe_gam_Cr() * tanh_interp(R_depletion_Cr - r, inflation * ifce_width)
-			           + xCr * tanh_interp(R_depletion_Cr - r, inflation * ifce_width);
-			*/
 			GridN[1] = xe_lav_Nb() * tanh_interp(r - R_precip, inflation * ifce_width)
 			         + xe_gam_Nb() * tanh_interp(R_precip - r, inflation * ifce_width);
-			/*
-			           - xe_gam_Nb() * tanh_interp(R_depletion_Nb - r, inflation * ifce_width)
-			           + xNb * tanh_interp(R_depletion_Nb - r, inflation * ifce_width);
-			*/
 		}
 	}
 }
@@ -399,7 +377,6 @@ void seed_pair(GRID2D& grid,
 	if (R_star > 0.) {
 		const fp_t R_precip = precip_stabilizer * R_star / dx;
 		embed_OPC(grid, x,
-		          xCr, xNb,
 		          xe_del_Cr(),
 		          xe_del_Nb(),
 		          R_precip,
@@ -427,7 +404,6 @@ void seed_pair(GRID2D& grid,
 	if (R_star > 0.) {
 		const fp_t R_precip = precip_stabilizer * R_star / dx;
 		embed_OPC(grid, x,
-		          xCr, xNb,
 		          xe_lav_Cr(),
 		          xe_lav_Nb(),
 		          R_precip,

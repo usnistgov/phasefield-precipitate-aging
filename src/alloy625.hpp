@@ -104,8 +104,6 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp
 */
 void embed_OPC(GRID2D& grid,
                const MMSP::vector<int>& x,
-               const fp_t& xCr,
-               const fp_t& xNb,
                const fp_t& par_xe_Cr,
                const fp_t& par_xe_Nb,
                const fp_t& R_precip,

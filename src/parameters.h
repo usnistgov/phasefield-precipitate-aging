@@ -14,7 +14,7 @@
 const double meshres = 0.5e-9;       // grid spacing, Δx (m); max. is 2.5 Å
 const double ifce_width = 2.5e-9;    // interface thickness, 2λ (m), TKR5p274
 const fp_t LinStab = 0.164;          // threshold of linear (von Neumann) stability, Co (dimensionless)
-const fp_t precip_stabilizer = 13.;  // 1.5 Rc = R0, the root of the curve; fitting parameter
+const fp_t precip_stabilizer = 20.;  // 1.5 Rc = R0, the root of the curve; fitting parameter
 const fp_t lattice_const = 0.352e-9; // lattice spacing of FCC nickel (m)
 const fp_t vFccNi = lattice_const * lattice_const * lattice_const / 4.; // Volume of an FCC Ni atom
 
@@ -26,7 +26,7 @@ const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
 // Choose numerical diffusivity to lock chemical and transformational timescales
 //                      delta      Laves
-const fp_t Lmob[NP]  = {1e-8,      1e-8};      // numerical mobility (m^2/(Ns))
+const fp_t Lmob[NP]  = {1e-6,      1e-6};      // numerical mobility (m^2/(Ns))
 const fp_t sigma[NP] = {s_delta(), s_laves()}; // interfacial energy (J/m^2)
 const fp_t alpha = 1.07e11;                    // three-phase coexistence coefficient (J/m^3)
 

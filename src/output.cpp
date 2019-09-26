@@ -234,8 +234,10 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	plt::plot(d, c_Nb_bar, str_kw);
 	str_kw["label"] = "$x_{\\mathrm{Cr}}$";
 	plt::plot(d, c_Cr_bar, str_kw);
+	/*
 	str_kw["label"] = "$x_{\\mathrm{Ni}}$";
 	plt::plot(d, c_Ni_bar, str_kw);
+	*/
 	str_kw["label"] = "$\\phi^{\\mathrm{\\delta}}$";
 	plt::plot(d, p_del_bar, str_kw);
 	str_kw["label"] = "$\\phi^{\\mathrm{\\lambda}}$";
