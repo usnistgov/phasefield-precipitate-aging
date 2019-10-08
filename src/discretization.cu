@@ -1123,7 +1123,7 @@ void device_nucleation(struct CudaData* dev,
 	 nx, ny, nm,
 	 sigma_del, sigma_lav,
 	 lattice_const, ifce_width,
-	 dx, dy, dz, dt);
+	 dx * nx, dy * ny, dz, dt);
 
 	cudaEventRecord(dev->ev_A, dev->str_A);
 }

@@ -54,6 +54,10 @@ pair: CXXFLAGS += -DPAIR
 pair: NVCXXFLAGS += -DPAIR
 pair: alloy625
 
+nucleation: CXXFLAGS += -DNUCLEATION
+nucleation: NVCXXFLAGS += -DNUCLEATION
+nucleation: alloy625
+
 # Derived source code
 nucleation.cu: energy_functions.sh ../thermo/nucleation.c
 	bash $<

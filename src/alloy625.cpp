@@ -471,7 +471,7 @@ void generate(int dim, const char* filename)
 		#elif defined(PAIR)
 		const fp_t nuc_dt = 1.0e-3;
 		seed_pair(initGrid, s_delta(), s_laves(), lattice_const, ifce_width, meshres, nuc_dt);
-		#else
+        #elif !defined(NUCLEATION)
 		const fp_t nuc_dt = 1.0e-3;
 		seed_solitaire_delta(initGrid, s_delta(), lattice_const,
 		                     ifce_width, meshres, nuc_dt);

@@ -59,7 +59,7 @@ import numpy as np
 
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
-from sympy import diff, Eq, expand, factor, fraction, Matrix, symbols
+from sympy import Eq, Matrix, diff, expand, init_printing, factor, fraction, pprint, symbols
 from sympy.abc import x, r, y, z, L
 from sympy.core.numbers import pi
 from sympy.functions.elementary.exponential import exp, log
@@ -67,6 +67,7 @@ from sympy.functions.elementary.trigonometric import tanh
 from sympy.parsing.sympy_parser import parse_expr
 from sympy.solvers import solve, solve_linear_system
 from sympy.utilities.codegen import codegen
+init_printing()
 
 # Thermodynamic information
 from pycalphad import Database, Model
@@ -248,14 +249,16 @@ ficVars = (gamCr, gamNb, delCr, delNb, lavCr, lavNb)
 
 fictitious = solve(ficEqns, ficVars, dict=True)
 
-fict_gam_Cr, det_gam_Cr = fraction(fictitious[0][gamCr])
-fict_gam_Nb, det_gam_Nb = fraction(fictitious[0][gamNb])
-fict_del_Cr, det_del_Cr = fraction(fictitious[0][delCr])
-fict_del_Nb, det_del_Nb = fraction(fictitious[0][delNb])
-fict_lav_Cr, det_lav_Cr = fraction(fictitious[0][lavCr])
-fict_lav_Nb, det_lav_Nb = fraction(fictitious[0][lavNb])
+# Note: denominator is the determinant, identical by
+# definition. So, we separate it to save some FLOPs.
+fict_gam_Cr, determinant = fraction(fictitious[0][gamCr])
+fict_gam_Nb, determinant = fraction(fictitious[0][gamNb])
+fict_del_Cr, determinant = fraction(fictitious[0][delCr])
+fict_del_Nb, determinant = fraction(fictitious[0][delNb])
+fict_lav_Cr, determinant = fraction(fictitious[0][lavCr])
+fict_lav_Nb, determinant = fraction(fictitious[0][lavNb])
 
-inv_fict_det = 1.0 / (factor(expand(gcd * det_gam_Cr)))
+inv_fict_det = 1.0 / (factor(expand(gcd * determinant)))
 
 fict_gam_Cr = factor(expand(gcd * fict_gam_Cr)) * INV_DET
 fict_gam_Nb = factor(expand(gcd * fict_gam_Nb)) * INV_DET
