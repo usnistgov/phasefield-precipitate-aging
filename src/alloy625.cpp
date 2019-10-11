@@ -202,7 +202,7 @@ void embed_OPC(GRID2D& grid,
 			GridY[0] = par_xe_Cr * tanh_interp(r - R_precip, inflation * ifce_width)
 			         + xCr * tanh_interp(R_precip - r, inflation * ifce_width);
 			GridY[1] = par_xe_Nb * tanh_interp(r - R_precip, inflation * ifce_width)
-				+ xNb * tanh_interp(R_precip - r, inflation * ifce_width);
+			         + xNb * tanh_interp(R_precip - r, inflation * ifce_width);
 		}
 	}
 }

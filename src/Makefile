@@ -39,7 +39,7 @@ debug: CXXFLAGS += $(CXXOPT)
 debug: NVCXXFLAGS += $(CXXOPT) -lineinfo
 debug: alloy625
 
-profile: CXXOPT = -O1 -pg
+profile: CXXOPT = -O1 -pg -DPLANAR
 profile: CXXFLAGS += $(CXXOPT)
 profile: NVCXXFLAGS += $(CXXOPT) -lineinfo
 profile: alloy625
