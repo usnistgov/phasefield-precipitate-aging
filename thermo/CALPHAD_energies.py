@@ -327,35 +327,39 @@ dx_r_lav_Nb = xr[5]
 
 # === Atomic Mobilities in FCC Ni ===
 # Mobility of (1) in pure (2), from `NIST-nifcc-mob.TDB`
-## TKR5p286
+## TKR5p286 and 316
 
-M_Cr_Cr   = exp((-235000 - 82.0 * temp) / RT) / RT
-M_Cr_Nb   = exp((-287000 - 64.4 * temp) / RT) / RT
-M_Cr_Ni   = exp((-287000 - 64.4 * temp) / RT) / RT
-M_Cr_CrNi = exp((-68000)                / RT) / RT
+Q_Cr_Cr   = -235000 - 82.0 * temp
+Q_Cr_Nb   = -287000 - 64.4 * temp
+Q_Cr_Ni   = -287000 - 64.4 * temp
+Q_Cr_CrNi = -68000
 
-M_Nb_Cr   = exp((-255333 + RT * log(7.6071E-5)) / RT) / RT
-M_Nb_Nb   = exp((-274328 + RT * log(8.6440E-5)) / RT) / RT
-M_Nb_Ni   = exp((-255333 + RT * log(7.6071e-5)) / RT) / RT
+Q_Nb_Cr   = -255333 + RT * log(7.6071E-5)
+Q_Nb_Nb   = -274328 + RT * log(8.6440E-5)
+Q_Nb_Ni   = -255333 + RT * log(7.6071e-5)
 
-M_Ni_Cr   = exp((-235000 - 82.0 * temp)      / RT) / RT
-M_Ni_Nb   = exp((-287000 + RT * log(1.0E-4)) / RT) / RT
-M_Ni_Ni   = exp((-287000 - 69.8 * temp)      / RT) / RT
-M_Ni_CrNi = exp((-81000)                     / RT) / RT
+Q_Ni_Cr   = -235000 - 82.0 * temp
+Q_Ni_Nb   = -287000 + RT * log(1.0E-4)
+Q_Ni_Ni   = -287000 - 69.8 * temp
+Q_Ni_CrNi = -81000
 
-M_Cr = XCR * M_Cr_Cr + XNB * M_Cr_Nb + (1 - XCR - XNB) * M_Cr_Ni + XCR * (1 - XCR - XNB) * M_Cr_CrNi
-M_Nb = XCR * M_Nb_Cr + XNB * M_Nb_Nb + (1 - XCR - XNB) * M_Nb_Ni
-M_Ni = XCR * M_Ni_Cr + XNB * M_Ni_Nb + (1 - XCR - XNB) * M_Ni_Ni + XCR * (1 - XCR - XNB) * M_Ni_CrNi
+Q_Cr = XCR * Q_Cr_Cr + XNB * Q_Cr_Nb + (1 - XCR - XNB) * Q_Cr_Ni + XCR * (1 - XCR - XNB) * Q_Cr_CrNi
+Q_Nb = XCR * Q_Nb_Cr + XNB * Q_Nb_Nb + (1 - XCR - XNB) * Q_Nb_Ni
+Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + (1 - XCR - XNB) * Q_Ni_Ni + XCR * (1 - XCR - XNB) * Q_Ni_CrNi
+
+M_Cr = exp(Q_Cr / RT) / RT
+M_Nb = exp(Q_Nb / RT) / RT
+M_Ni = exp(Q_Ni / RT) / RT
 
 # === Chemical Mobilities in FCC Ni ===
 ## TKR5p292 and 311-312
 
 phi_del, phi_lav = symbols("phi_del, phi_lav")
 
-M_CrCr = Vm**3 * ( M_Cr * (1 - XCR)**2    + M_Nb * XCR**2          + M_Ni * XCR**2)
-M_CrNb = Vm**3 * (-M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB)
-M_NbCr = Vm**3 * (-M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB)
-M_NbNb = Vm**3 * ( M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2)
+M_CrCr =  M_Cr * (1 - XCR)**2    + M_Nb * XCR**2          + M_Ni * XCR**2
+M_CrNb = -M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB
+M_NbCr = M_CrNb # M is symmetric
+M_NbNb =  M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2
 
 # Generate numerically efficient C-code
 
@@ -431,6 +435,9 @@ codegen(
         ("d2g_lav_dxNbCr", p_d2Glav_dxNbCr),
         ("d2g_lav_dxNbNb", p_d2Glav_dxNbNb),
         # Mobilities
+        ("M_Cr", M_Cr),
+        ("M_Nb", M_Nb),
+        ("M_Ni", M_Ni),
         ("M_CrCr", M_CrCr), ("M_CrNb", M_CrNb),
         ("M_NbCr", M_NbCr), ("M_NbNb", M_NbNb)
     ],

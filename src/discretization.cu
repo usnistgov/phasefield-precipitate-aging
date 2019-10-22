@@ -190,16 +190,15 @@ __global__ void mobility_gam_kernel(fp_t* d_conc_Cr,
 		const fp_t xNb = d_conc_Nb[idx];
         const fp_t mCrCr = d_M_CrCr(xCr, xNb);
         const fp_t mCrNb = d_M_CrNb(xCr, xNb);
-        const fp_t mNbCr = d_M_NbCr(xCr, xNb);
         const fp_t mNbNb = d_M_NbNb(xCr, xNb);
 
 		// Ref: TKR5p305
 		// l = Cr
-		d_mob_gam_CrCr[idx] = mCrCr * d_d2g_gam_dxCrCr() + mCrNb * d_d2g_gam_dxCrNb(); // term 1
-		d_mob_gam_CrNb[idx] = mCrCr * d_d2g_gam_dxNbCr() + mCrNb * d_d2g_gam_dxNbNb(); // term 2
+		d_mob_gam_CrCr[idx] = d_Vm() * (mCrCr * d_d2g_gam_dxCrCr() + mCrNb * d_d2g_gam_dxCrNb()); // term 1
+		d_mob_gam_CrNb[idx] = d_Vm() * (mCrCr * d_d2g_gam_dxNbCr() + mCrNb * d_d2g_gam_dxNbNb()); // term 2
 		// l = Nb
-        d_mob_gam_NbCr[idx] = mNbCr * d_d2g_gam_dxCrCr() + mNbNb * d_d2g_gam_dxCrNb(); // term 1
-		d_mob_gam_NbNb[idx] = mNbCr * d_d2g_gam_dxNbCr() + mNbNb * d_d2g_gam_dxNbNb(); // term 2
+        d_mob_gam_NbCr[idx] = d_Vm() * (mCrNb * d_d2g_gam_dxCrCr() + mNbNb * d_d2g_gam_dxCrNb()); // term 1
+		d_mob_gam_NbNb[idx] = d_Vm() * (mCrNb * d_d2g_gam_dxNbCr() + mNbNb * d_d2g_gam_dxNbNb()); // term 2
 	}
 }
 

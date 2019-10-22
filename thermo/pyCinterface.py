@@ -120,17 +120,31 @@ d2g_lav_dxNbNb.restype = c_double
 
 ## Mobility
 
+M_Cr = p625.M_Cr
+M_Nb = p625.M_Nb
+M_Ni = p625.M_Ni
+
+M_Cr.argtypes = [c_double, c_double]
+M_Nb.argtypes = [c_double]
+M_Ni.argtypes = [c_double, c_double]
+
+M_Cr.restype = c_double
+M_Nb.restype = c_double
+M_Ni.restype = c_double
+
 M_CrCr = p625.M_CrCr
-M_CrCr.argtypes = [c_double, c_double]
-M_CrCr.restype = c_double
 M_CrNb = p625.M_CrNb
-M_CrNb.argtypes = [c_double, c_double]
-M_CrNb.restype = c_double
 M_NbCr = p625.M_NbCr
-M_NbCr.argtypes = [c_double, c_double]
-M_NbCr.restype = c_double
 M_NbNb = p625.M_NbNb
+
+M_CrCr.argtypes = [c_double, c_double]
+M_CrNb.argtypes = [c_double, c_double]
+M_NbCr.argtypes = [c_double, c_double]
 M_NbNb.argtypes = [c_double, c_double]
+
+M_CrCr.restype = c_double
+M_CrNb.restype = c_double
+M_NbCr.restype = c_double
 M_NbNb.restype = c_double
 
 ## Gaussian Enrichment

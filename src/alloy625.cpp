@@ -463,6 +463,18 @@ void generate(int dim, const char* filename)
 		init_gaussian_enrichment(initGrid, mtrand, xCr0, xNb0);
 		#endif
 
+		// === Sanity Check ===
+		const fp_t mCr = M_Cr(xCr0, xNb0);
+		const fp_t mNb = M_Nb(xNb0);
+		const fp_t mNi = M_Ni(xCr0, xNb0);
+		printf("Mobility of Cr is %10.4g\n", mCr);
+		printf("Mobility of Cr is %10.4g\n", mNb);
+		printf("Mobility of Cr is %10.4g\n", mNi);
+		const fp_t mCrCr = M_CrCr(xCr0, xNb0);
+		const fp_t mCrNb = M_CrNb(xCr0, xNb0);
+		const fp_t mNbNb = M_NbNb(xCr0, xNb0);
+		printf("Mobility matrix is %10.4g %10.4g\n                    %10.4g %10.4g\n", mCrCr, mCrNb, mCrNb, mNbNb);
+
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 
 		#ifdef PLANAR
