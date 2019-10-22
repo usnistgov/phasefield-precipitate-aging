@@ -464,12 +464,7 @@ void generate(int dim, const char* filename)
 		#endif
 
 		// === Sanity Check ===
-		const fp_t mCr = M_Cr(xCr0, xNb0);
-		const fp_t mNb = M_Nb(xNb0);
-		const fp_t mNi = M_Ni(xCr0, xNb0);
-		printf("Mobility of Cr is %10.4g\n", mCr);
-		printf("Mobility of Cr is %10.4g\n", mNb);
-		printf("Mobility of Cr is %10.4g\n", mNi);
+		printf("System composition is %10.4g Cr, %10.4g Nb\n", xCr0, xNb0);
 		const fp_t mCrCr = M_CrCr(xCr0, xNb0);
 		const fp_t mCrNb = M_CrNb(xCr0, xNb0);
 		const fp_t mNbNb = M_NbNb(xCr0, xNb0);
@@ -496,7 +491,13 @@ void generate(int dim, const char* filename)
 
 		const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
 		fp_t dtDiffusionLimited = MMSP::timestep(initGrid);
-		const double dt = std::floor(4e11 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e11;
+		double round_dt = 0.0;
+		double roundoff = 4e6;
+		while (round_dt < 1e-20) {
+			roundoff *= 10;
+			round_dt = std::floor(roundoff * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / roundoff;
+		}
+		const double dt = round_dt;
 
 		if (rank == 0) {
 			std::cout << "Timestep dt=" << dt

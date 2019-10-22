@@ -281,7 +281,13 @@ int main(int argc, char* argv[])
 			// determine timestep
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
 			fp_t dtDiffusionLimited = MMSP::timestep(grid);
-			const double dt = std::floor(4e10 * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / 4e10;
+			double round_dt = 0.0;
+			double roundoff = 4e6;
+			while (round_dt < 1e-20) {
+				roundoff *= 10;
+				round_dt = std::floor(roundoff * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / roundoff;
+			}
+			const double dt = round_dt;
 			const uint64_t img_interval = std::min(increment, (uint64_t)(0.05 / dt));
 			const uint64_t nrg_interval = img_interval;
 			#ifdef NUCLEATION
