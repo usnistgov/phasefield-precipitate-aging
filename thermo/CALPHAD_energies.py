@@ -356,10 +356,10 @@ M_Ni = exp(Q_Ni / RT) / RT
 
 phi_del, phi_lav = symbols("phi_del, phi_lav")
 
-M_CrCr =  M_Cr * (1 - XCR)**2    + M_Nb * XCR**2          + M_Ni * XCR**2
-M_CrNb = -M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB
+M_CrCr = Vm * ( M_Cr * (1 - XCR)**2    + M_Nb * XCR**2          + M_Ni * XCR**2)
+M_CrNb = Vm * (-M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB)
+M_NbNb = Vm * ( M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2)
 M_NbCr = M_CrNb # M is symmetric
-M_NbNb =  M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2
 
 # Generate numerically efficient C-code
 
