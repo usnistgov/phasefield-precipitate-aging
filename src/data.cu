@@ -54,11 +54,15 @@ void init_cuda(struct HostData* host,
 	checkCuda(cudaMalloc((void**) &(dev->mob_del_CrNb), nx * ny * sizeof(fp_t)));
 	checkCuda(cudaMalloc((void**) &(dev->mob_del_NbCr), nx * ny * sizeof(fp_t)));
 	checkCuda(cudaMalloc((void**) &(dev->mob_del_NbNb), nx * ny * sizeof(fp_t)));
+	checkCuda(cudaMalloc((void**) &(dev->mob_phi_del_Cr), nx * ny * sizeof(fp_t)));
+	checkCuda(cudaMalloc((void**) &(dev->mob_phi_del_Nb), nx * ny * sizeof(fp_t)));
 
 	checkCuda(cudaMalloc((void**) &(dev->mob_lav_CrCr), nx * ny * sizeof(fp_t)));
 	checkCuda(cudaMalloc((void**) &(dev->mob_lav_CrNb), nx * ny * sizeof(fp_t)));
 	checkCuda(cudaMalloc((void**) &(dev->mob_lav_NbCr), nx * ny * sizeof(fp_t)));
 	checkCuda(cudaMalloc((void**) &(dev->mob_lav_NbNb), nx * ny * sizeof(fp_t)));
+	checkCuda(cudaMalloc((void**) &(dev->mob_phi_lav_Cr), nx * ny * sizeof(fp_t)));
+	checkCuda(cudaMalloc((void**) &(dev->mob_phi_lav_Nb), nx * ny * sizeof(fp_t)));
 
 	/* transfer mask to protected memory on GPU */
 	checkCuda(cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t)));
@@ -129,6 +133,11 @@ void free_cuda(struct CudaData* dev)
 	checkCuda(cudaFree(dev->mob_lav_CrNb));
 	checkCuda(cudaFree(dev->mob_lav_NbCr));
 	checkCuda(cudaFree(dev->mob_lav_NbNb));
+
+	checkCuda(cudaFree(dev->mob_phi_del_Cr));
+	checkCuda(cudaFree(dev->mob_phi_del_Nb));
+	checkCuda(cudaFree(dev->mob_phi_lav_Cr));
+	checkCuda(cudaFree(dev->mob_phi_lav_Nb));
 }
 
 void read_out_result(struct CudaData* dev, struct HostData* host,

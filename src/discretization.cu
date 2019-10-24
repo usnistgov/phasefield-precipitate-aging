@@ -172,14 +172,22 @@ void device_fictitious(struct CudaData* dev,
 
 __global__ void mobility_Cr_kernel(fp_t* d_conc_Cr,
                                    fp_t* d_conc_Nb,
+                                   fp_t* d_phi_del,
+                                   fp_t* d_phi_lav,
+                                   fp_t* d_conc_gam_Cr,
+                                   fp_t* d_conc_gam_Nb,
+                                   fp_t* d_conc_del_Cr,
+                                   fp_t* d_conc_del_Nb,
+                                   fp_t* d_conc_lav_Cr,
+                                   fp_t* d_conc_lav_Nb,
                                    fp_t* d_mob_gam_CrCr,
                                    fp_t* d_mob_gam_CrNb,
                                    fp_t* d_mob_del_CrCr,
                                    fp_t* d_mob_del_CrNb,
                                    fp_t* d_mob_lav_CrCr,
                                    fp_t* d_mob_lav_CrNb,
-                                   fp_t* d_phi_del,
-                                   fp_t* d_phi_lav,
+                                   fp_t* d_mob_phi_del_Cr,
+                                   fp_t* d_mob_phi_lav_Cr,
                                    const int nx,
                                    const int ny,
                                    const int nm)
@@ -194,35 +202,53 @@ __global__ void mobility_Cr_kernel(fp_t* d_conc_Cr,
 		const fp_t xNb = d_conc_Nb[idx];
 		const fp_t mCrCr = d_M_CrCr(xCr, xNb);
 		const fp_t mCrNb = d_M_CrNb(xCr, xNb);
-        /*
 		const fp_t pDel = d_p(d_phi_del[idx]);
 		const fp_t pLav = d_p(d_phi_lav[idx]);
-        */
-		const fp_t pGam = 1.0; // - pDel - pLav;
+		const fp_t pGam = 1.0 - pDel - pLav;
 
 		// Ref: TKR5p305
 		// l = Cr
 		d_mob_gam_CrCr[idx] = pGam * (mCrCr * d_d2g_gam_dxCrCr() + mCrNb * d_d2g_gam_dxCrNb()); // term 1
 		d_mob_gam_CrNb[idx] = pGam * (mCrCr * d_d2g_gam_dxNbCr() + mCrNb * d_d2g_gam_dxNbNb()); // term 2
-        /*
 		d_mob_del_CrCr[idx] = pDel * (mCrCr * d_d2g_del_dxCrCr() + mCrNb * d_d2g_del_dxCrNb()); // term 3
 		d_mob_del_CrNb[idx] = pDel * (mCrCr * d_d2g_del_dxNbCr() + mCrNb * d_d2g_del_dxNbNb()); // term 4
 		d_mob_lav_CrCr[idx] = pLav * (mCrCr * d_d2g_lav_dxCrCr() + mCrNb * d_d2g_lav_dxCrNb()); // term 5
 		d_mob_lav_CrNb[idx] = pLav * (mCrCr * d_d2g_lav_dxNbCr() + mCrNb * d_d2g_lav_dxNbNb()); // term 6
-        */
+
+        const fp_t& xGCr = d_conc_gam_Cr[idx];
+        const fp_t& xGNb = d_conc_gam_Nb[idx];
+        const fp_t& xDCr = d_conc_del_Cr[idx];
+        const fp_t& xDNb = d_conc_del_Nb[idx];
+        const fp_t& xLCr = d_conc_lav_Cr[idx];
+        const fp_t& xLNb = d_conc_lav_Nb[idx];
+
+        d_mob_phi_del_Cr[idx] = d_pPrime(d_phi_del[idx])
+          * ( mCrCr * (d_dg_del_dxCr(xDCr, xDNb) - d_dg_gam_dxCr(xGCr, xGNb))
+            + mCrNb * (d_dg_del_dxNb(xDCr, xDNb) - d_dg_gam_dxNb(xGCr, xGNb))); // term 7
+		d_mob_phi_lav_Cr[idx] = d_pPrime(d_phi_lav[idx])
+          * ( mCrCr * (d_dg_lav_dxCr(xLCr, xLNb) - d_dg_gam_dxCr(xGCr, xGNb))
+            + mCrNb * (d_dg_lav_dxNb(xLCr, xLNb) - d_dg_gam_dxNb(xGCr, xGNb))); // term 8
 	}
 }
 
 __global__ void mobility_Nb_kernel(fp_t* d_conc_Cr,
                                    fp_t* d_conc_Nb,
+                                   fp_t* d_phi_del,
+                                   fp_t* d_phi_lav,
+                                   fp_t* d_conc_gam_Cr,
+                                   fp_t* d_conc_gam_Nb,
+                                   fp_t* d_conc_del_Cr,
+                                   fp_t* d_conc_del_Nb,
+                                   fp_t* d_conc_lav_Cr,
+                                   fp_t* d_conc_lav_Nb,
                                    fp_t* d_mob_gam_NbCr,
                                    fp_t* d_mob_gam_NbNb,
                                    fp_t* d_mob_del_NbCr,
                                    fp_t* d_mob_del_NbNb,
                                    fp_t* d_mob_lav_NbCr,
                                    fp_t* d_mob_lav_NbNb,
-                                   fp_t* d_phi_del,
-                                   fp_t* d_phi_lav,
+                                   fp_t* d_mob_phi_del_Nb,
+                                   fp_t* d_mob_phi_lav_Nb,
                                    const int nx,
                                    const int ny,
                                    const int nm)
@@ -237,22 +263,32 @@ __global__ void mobility_Nb_kernel(fp_t* d_conc_Cr,
 		const fp_t xNb = d_conc_Nb[idx];
 		const fp_t mNbCr = d_M_NbCr(xCr, xNb);
 		const fp_t mNbNb = d_M_NbNb(xCr, xNb);
-        /*
 		const fp_t pDel = d_p(d_phi_del[idx]);
 		const fp_t pLav = d_p(d_phi_lav[idx]);
-        */
-		const fp_t pGam = 1.0; // - pDel - pLav;
+		const fp_t pGam = 1.0 - pDel - pLav;
 
 		// Ref: TKR5p305
 		// l = Cr
 		d_mob_gam_NbCr[idx] = pGam * (mNbCr * d_d2g_gam_dxCrCr() + mNbNb * d_d2g_gam_dxNbCr()); // term 1
 		d_mob_gam_NbNb[idx] = pGam * (mNbCr * d_d2g_gam_dxNbCr() + mNbNb * d_d2g_gam_dxNbNb()); // term 2
-        /*
 		d_mob_del_NbCr[idx] = pDel * (mNbCr * d_d2g_del_dxCrCr() + mNbNb * d_d2g_del_dxNbCr()); // term 3
 		d_mob_del_NbNb[idx] = pDel * (mNbCr * d_d2g_del_dxNbCr() + mNbNb * d_d2g_del_dxNbNb()); // term 4
 		d_mob_lav_NbCr[idx] = pLav * (mNbCr * d_d2g_lav_dxCrCr() + mNbNb * d_d2g_lav_dxNbCr()); // term 5
 		d_mob_lav_NbNb[idx] = pLav * (mNbCr * d_d2g_lav_dxNbCr() + mNbNb * d_d2g_lav_dxNbNb()); // term 6
-        */
+
+        const fp_t& xGCr = d_conc_gam_Cr[idx];
+        const fp_t& xGNb = d_conc_gam_Nb[idx];
+        const fp_t& xDCr = d_conc_del_Cr[idx];
+        const fp_t& xDNb = d_conc_del_Nb[idx];
+        const fp_t& xLCr = d_conc_lav_Cr[idx];
+        const fp_t& xLNb = d_conc_lav_Nb[idx];
+
+		d_mob_phi_del_Nb[idx] = d_pPrime(d_phi_del[idx])
+          * ( mNbCr * (d_dg_del_dxCr(xDCr, xDNb) - d_dg_gam_dxCr(xGCr, xGNb))
+            + mNbNb * (d_dg_del_dxNb(xDCr, xDNb) - d_dg_gam_dxNb(xGCr, xGNb))); // term 7
+		d_mob_phi_lav_Nb[idx] = d_pPrime(d_phi_lav[idx])
+          * ( mNbCr * (d_dg_lav_dxCr(xLCr, xLNb) - d_dg_gam_dxCr(xGCr, xGNb))
+            + mNbNb * (d_dg_lav_dxNb(xLCr, xLNb) - d_dg_gam_dxNb(xGCr, xGNb))); // term 8
 	}
 }
 
@@ -271,30 +307,46 @@ void device_mobilities(struct CudaData* dev,
 	cudaEventSynchronize(dev->ev_C);
 	cudaEventSynchronize(dev->ev_D);
 
-	mobility_Cr_kernel<<< num_tiles, tile_size, 0, dev->str_A>>>
+    mobility_Cr_kernel<<< num_tiles, tile_size, 0, dev->str_A>>>
 	(dev->conc_Cr_old,
 	 dev->conc_Nb_old,
+	 dev->phi_del_old,
+	 dev->phi_lav_old,
+     dev->conc_Cr_gam,
+     dev->conc_Nb_gam,
+     dev->conc_Cr_del,
+     dev->conc_Nb_del,
+     dev->conc_Cr_lav,
+     dev->conc_Nb_lav,
 	 dev->mob_gam_CrCr,
 	 dev->mob_gam_CrNb,
 	 dev->mob_del_CrCr,
 	 dev->mob_del_CrNb,
 	 dev->mob_lav_CrCr,
 	 dev->mob_lav_CrNb,
-	 dev->phi_del_old,
-	 dev->phi_lav_old,
+	 dev->mob_phi_del_Cr,
+	 dev->mob_phi_lav_Cr,
 	 nx, ny, nm);
 
 	mobility_Nb_kernel<<< num_tiles, tile_size, 0, dev->str_B>>>
 	(dev->conc_Cr_old,
 	 dev->conc_Nb_old,
+	 dev->phi_del_old,
+	 dev->phi_lav_old,
+     dev->conc_Cr_gam,
+     dev->conc_Nb_gam,
+     dev->conc_Cr_del,
+     dev->conc_Nb_del,
+     dev->conc_Cr_lav,
+     dev->conc_Nb_lav,
 	 dev->mob_gam_NbCr,
 	 dev->mob_gam_NbNb,
 	 dev->mob_del_NbCr,
 	 dev->mob_del_NbNb,
 	 dev->mob_lav_NbCr,
 	 dev->mob_lav_NbNb,
-	 dev->phi_del_old,
-	 dev->phi_lav_old,
+	 dev->mob_phi_del_Nb,
+	 dev->mob_phi_lav_Nb,
 	 nx, ny, nm);
 
 	cudaEventRecord(dev->ev_A, dev->str_A);
@@ -371,7 +423,6 @@ void device_boundaries(struct CudaData* dev,
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_gam_NbCr, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_gam_NbNb, nx, ny, nm);
 
-    /*
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_del_CrCr, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_del_CrNb, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_del_NbCr, nx, ny, nm);
@@ -381,7 +432,11 @@ void device_boundaries(struct CudaData* dev,
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_lav_CrNb, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_lav_NbCr, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_lav_NbNb, nx, ny, nm);
-    */
+
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_phi_del_Cr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_phi_del_Nb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_phi_lav_Cr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_phi_lav_Nb, nx, ny, nm);
 
 	cudaEventRecord(dev->ev_A, dev->str_A);
 	cudaEventRecord(dev->ev_B, dev->str_B);
@@ -437,7 +492,6 @@ void mobility_boundaries(struct CudaData* dev,
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_gam_NbCr, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_gam_NbNb, nx, ny, nm);
 
-    /*
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_del_CrCr, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_del_CrNb, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_del_NbCr, nx, ny, nm);
@@ -447,7 +501,11 @@ void mobility_boundaries(struct CudaData* dev,
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_lav_CrNb, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_lav_NbCr, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_lav_NbNb, nx, ny, nm);
-    */
+
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_phi_del_Cr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_phi_del_Nb, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_phi_lav_Cr, nx, ny, nm);
+	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_phi_lav_Nb, nx, ny, nm);
 
 	cudaEventRecord(dev->ev_A, dev->str_A);
 	cudaEventRecord(dev->ev_B, dev->str_B);
@@ -550,20 +608,24 @@ __device__ fp_t discrete_laplacian(const fp_t& D_low,
 }
 
 __global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam,
-        fp_t* d_conc_Nb_gam,
-        fp_t* d_conc_Cr_del,
-        fp_t* d_conc_Nb_del,
-        fp_t* d_conc_Cr_lav,
-        fp_t* d_conc_Nb_lav,
-        fp_t* d_mob_gam_CrCr,
-        fp_t* d_mob_gam_CrNb,
-        fp_t* d_mob_del_CrCr,
-        fp_t* d_mob_del_CrNb,
-        fp_t* d_mob_lav_CrCr,
-        fp_t* d_mob_lav_CrNb,
-        fp_t* d_conc_Cr_new,
-        const int nx, const int ny, const int nm,
-        const fp_t dx, const fp_t dy)
+                                               fp_t* d_conc_Nb_gam,
+                                               fp_t* d_conc_Cr_del,
+                                               fp_t* d_conc_Nb_del,
+                                               fp_t* d_conc_Cr_lav,
+                                               fp_t* d_conc_Nb_lav,
+                                               fp_t* d_mob_gam_CrCr,
+                                               fp_t* d_mob_gam_CrNb,
+                                               fp_t* d_mob_del_CrCr,
+                                               fp_t* d_mob_del_CrNb,
+                                               fp_t* d_mob_lav_CrCr,
+                                               fp_t* d_mob_lav_CrNb,
+                                               fp_t* d_mob_phi_del_Cr,
+                                               fp_t* d_mob_phi_lav_Cr,
+                                               fp_t* d_phi_del,
+                                               fp_t* d_phi_lav,
+                                               fp_t* d_conc_Cr_new,
+                                               const int nx, const int ny, const int nm,
+                                               const fp_t dx, const fp_t dy)
 {
 	/* determine indices on which to operate */
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -594,7 +656,6 @@ __global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam,
 		                                   d_conc_Nb_gam[lft],  d_conc_Nb_gam[mid],  d_conc_Nb_gam[rgt], dx);
 		divDgradU_Cr += discrete_laplacian(d_mob_gam_CrNb[bot], d_mob_gam_CrNb[mid], d_mob_gam_CrNb[top],
 		                                   d_conc_Nb_gam[bot],  d_conc_Nb_gam[mid],  d_conc_Nb_gam[top], dy);
-        /*
 		// TKR5p305, term 3
 		divDgradU_Cr += discrete_laplacian(d_mob_del_CrCr[lft], d_mob_del_CrCr[mid], d_mob_del_CrCr[rgt],
 		                                   d_conc_Cr_del[lft],  d_conc_Cr_del[mid],  d_conc_Cr_del[rgt], dx);
@@ -615,27 +676,37 @@ __global__ void chemical_convolution_Cr_kernel(fp_t* d_conc_Cr_gam,
 		                                   d_conc_Nb_lav[lft],  d_conc_Nb_lav[mid],  d_conc_Nb_lav[rgt], dx);
 		divDgradU_Cr += discrete_laplacian(d_mob_lav_CrNb[bot], d_mob_lav_CrNb[mid], d_mob_lav_CrNb[top],
 		                                   d_conc_Nb_lav[bot],  d_conc_Nb_lav[mid],  d_conc_Nb_lav[top], dy);
-        */
+
+		// TKR5p305, term 7
+        divDgradU_Cr += discrete_laplacian(d_mob_phi_del_Cr[lft], d_mob_phi_del_Cr[mid], d_mob_phi_del_Cr[rgt],
+                                           d_phi_del[lft], d_phi_del[mid], d_phi_del[rgt], dx);
+		// TKR5p305, term 8
+        divDgradU_Cr += discrete_laplacian(d_mob_phi_lav_Cr[lft], d_mob_phi_lav_Cr[mid], d_mob_phi_lav_Cr[rgt],
+                                           d_phi_lav[lft], d_phi_lav[mid], d_phi_lav[rgt], dx);
 		/* record value */
 		d_conc_Cr_new[idx] = divDgradU_Cr;
 	}
 }
 
 __global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam,
-        fp_t* d_conc_Nb_gam,
-        fp_t* d_conc_Cr_del,
-        fp_t* d_conc_Nb_del,
-        fp_t* d_conc_Cr_lav,
-        fp_t* d_conc_Nb_lav,
-        fp_t* d_mob_gam_NbCr,
-        fp_t* d_mob_gam_NbNb,
-        fp_t* d_mob_del_NbCr,
-        fp_t* d_mob_del_NbNb,
-        fp_t* d_mob_lav_NbCr,
-        fp_t* d_mob_lav_NbNb,
-        fp_t* d_conc_Nb_new,
-        const int nx, const int ny, const int nm,
-        const fp_t dx, const fp_t dy)
+                                               fp_t* d_conc_Nb_gam,
+                                               fp_t* d_conc_Cr_del,
+                                               fp_t* d_conc_Nb_del,
+                                               fp_t* d_conc_Cr_lav,
+                                               fp_t* d_conc_Nb_lav,
+                                               fp_t* d_mob_gam_NbCr,
+                                               fp_t* d_mob_gam_NbNb,
+                                               fp_t* d_mob_del_NbCr,
+                                               fp_t* d_mob_del_NbNb,
+                                               fp_t* d_mob_lav_NbCr,
+                                               fp_t* d_mob_lav_NbNb,
+                                               fp_t* d_mob_phi_del_Nb,
+                                               fp_t* d_mob_phi_lav_Nb,
+                                               fp_t* d_phi_del,
+                                               fp_t* d_phi_lav,
+                                               fp_t* d_conc_Nb_new,
+                                               const int nx, const int ny, const int nm,
+                                               const fp_t dx, const fp_t dy)
 {
 	/* determine indices on which to operate */
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -666,7 +737,6 @@ __global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam,
 		                                   d_conc_Nb_gam[lft],  d_conc_Nb_gam[mid],  d_conc_Nb_gam[rgt], dx);
 		divDgradU_Nb += discrete_laplacian(d_mob_gam_NbNb[bot], d_mob_gam_NbNb[mid], d_mob_gam_NbNb[top],
 		                                   d_conc_Nb_gam[bot],  d_conc_Nb_gam[mid],  d_conc_Nb_gam[top], dy);
-        /*
 		// TKR5p305, term 3
 		divDgradU_Nb += discrete_laplacian(d_mob_del_NbCr[lft], d_mob_del_NbCr[mid], d_mob_del_NbCr[rgt],
 		                                   d_conc_Cr_del[lft],  d_conc_Cr_del[mid],  d_conc_Cr_del[rgt], dx);
@@ -687,7 +757,13 @@ __global__ void chemical_convolution_Nb_kernel(fp_t* d_conc_Cr_gam,
 		                                   d_conc_Nb_lav[lft],  d_conc_Nb_lav[mid],  d_conc_Nb_lav[rgt], dx);
 		divDgradU_Nb += discrete_laplacian(d_mob_lav_NbNb[bot], d_mob_lav_NbNb[mid], d_mob_lav_NbNb[top],
 		                                   d_conc_Nb_lav[bot],  d_conc_Nb_lav[mid],  d_conc_Nb_lav[top], dy);
-        */
+
+		// TKR5p305, term 7
+        divDgradU_Nb += discrete_laplacian(d_mob_phi_del_Nb[lft], d_mob_phi_del_Nb[mid], d_mob_phi_del_Nb[rgt],
+                                           d_phi_del[lft], d_phi_del[mid], d_phi_del[rgt], dx);
+		// TKR5p305, term 8
+        divDgradU_Nb += discrete_laplacian(d_mob_phi_lav_Nb[lft], d_mob_phi_lav_Nb[mid], d_mob_phi_lav_Nb[rgt],
+                                           d_phi_lav[lft], d_phi_lav[mid], d_phi_lav[rgt], dx);
 		/* record value */
 		d_conc_Nb_new[idx] = divDgradU_Nb;
 	}
@@ -723,6 +799,8 @@ void device_laplacian(struct CudaData* dev,
 	 dev->mob_gam_CrCr, dev->mob_gam_CrNb,
 	 dev->mob_del_CrCr, dev->mob_del_CrNb,
 	 dev->mob_lav_CrCr, dev->mob_lav_CrNb,
+     dev->mob_phi_del_Cr, dev->mob_phi_lav_Cr,
+     dev->phi_del_old, dev->phi_lav_old,
 	 dev->conc_Cr_new,
 	 nx, ny, nm,
 	 dx, dy);
@@ -734,6 +812,8 @@ void device_laplacian(struct CudaData* dev,
 	 dev->mob_gam_NbCr, dev->mob_gam_NbNb,
 	 dev->mob_del_NbCr, dev->mob_del_NbNb,
 	 dev->mob_lav_NbCr, dev->mob_lav_NbNb,
+     dev->mob_phi_del_Nb, dev->mob_phi_lav_Nb,
+     dev->phi_del_old, dev->phi_lav_old,
 	 dev->conc_Nb_new,
 	 nx, ny, nm,
 	 dx, dy);

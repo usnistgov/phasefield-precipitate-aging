@@ -76,6 +76,7 @@ __device__ double d_M_CrCr(double XCR, double XNB);
 __device__ double d_M_CrNb(double XCR, double XNB);
 __device__ double d_M_NbCr(double XCR, double XNB);
 __device__ double d_M_NbNb(double XCR, double XNB);
+__device__ double d_D_norm();
 
 #endif
 

@@ -706,3 +706,12 @@ double M_NbNb(double XCR, double XNB)
 	return M_NbNb_result;
 
 }
+
+double D_norm()
+{
+
+	double D_norm_result;
+	D_norm_result = 3.8524998642962576e-14;
+	return D_norm_result;
+
+}
