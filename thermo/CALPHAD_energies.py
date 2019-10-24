@@ -361,6 +361,29 @@ M_CrNb = Vm * (-M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * X
 M_NbNb = Vm * ( M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2)
 M_NbCr = M_CrNb # M is symmetric
 
+# === Diffusivity ===
+
+D_CrCr = (3. / (  1. / (M_CrCr * p_d2Ggam_dxCrCr + M_CrNb * p_d2Ggam_dxCrNb)
+                + 1. / (M_CrCr * p_d2Gdel_dxCrCr + M_CrNb * p_d2Gdel_dxCrNb)
+                + 1. / (M_CrCr * p_d2Glav_dxCrCr + M_CrNb * p_d2Glav_dxCrNb))
+).subs({XCR: 0.3, XNB: 0.02})
+D_CrNb = (3. / (  1. / (M_CrCr * p_d2Ggam_dxNbCr + M_CrNb * p_d2Ggam_dxNbNb)
+                + 1. / (M_CrCr * p_d2Gdel_dxNbCr + M_CrNb * p_d2Gdel_dxNbNb)
+                + 1. / (M_CrCr * p_d2Glav_dxNbCr + M_CrNb * p_d2Glav_dxNbNb))
+).subs({XCR: 0.3, XNB: 0.02})
+D_NbCr = (3. / (  1. / (M_NbCr * p_d2Ggam_dxCrCr + M_NbNb * p_d2Ggam_dxCrNb)
+                + 1. / (M_NbCr * p_d2Gdel_dxCrCr + M_NbNb * p_d2Gdel_dxCrNb)
+                + 1. / (M_NbCr * p_d2Glav_dxCrCr + M_NbNb * p_d2Glav_dxCrNb))
+).subs({XCR: 0.3, XNB: 0.02})
+D_NbNb = (3. / (  1. / (M_NbCr * p_d2Ggam_dxNbCr + M_NbNb * p_d2Ggam_dxNbNb)
+                + 1. / (M_NbCr * p_d2Gdel_dxNbCr + M_NbNb * p_d2Gdel_dxNbNb)
+                + 1. / (M_NbCr * p_d2Glav_dxNbCr + M_NbNb * p_d2Glav_dxNbNb))
+).subs({XCR: 0.3, XNB: 0.02})
+
+Dbar = Matrix([[D_CrCr, D_CrNb],[D_NbCr, D_NbNb]])
+pprint(Dbar)
+Dnorm = Dbar.norm()
+
 # Generate numerically efficient C-code
 
 codegen(
@@ -439,7 +462,8 @@ codegen(
         ("M_Nb", M_Nb),
         ("M_Ni", M_Ni),
         ("M_CrCr", M_CrCr), ("M_CrNb", M_CrNb),
-        ("M_NbCr", M_NbCr), ("M_NbNb", M_NbNb)
+        ("M_NbCr", M_NbCr), ("M_NbNb", M_NbNb),
+        ("D_norm", Dnorm)
     ],
     language="C",
     prefix="parabola625",

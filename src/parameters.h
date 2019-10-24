@@ -26,7 +26,8 @@ const double bell[NC] = {150e-9, 50e-9}; // est. between 80-200 nm from SEM
 
 // Choose numerical diffusivity to lock chemical and transformational timescales
 //                      delta      Laves
-const fp_t Lmob[NP]  = {4e-8,      4e-8};      // numerical mobility (m^2/(Ns))
+const fp_t Lmob[NP]  = {D_norm() / (ifce_width * ifce_width * RT() / Vm()),  // numerical mobility (m^2/(Ns))
+                        D_norm() / (ifce_width * ifce_width * RT() / Vm())}; // Ref: TKR5p315
 const fp_t sigma[NP] = {s_delta(), s_laves()}; // interfacial energy (J/m^2)
 const fp_t alpha = 1.07e11;                    // three-phase coexistence coefficient (J/m^3)
 
