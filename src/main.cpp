@@ -95,6 +95,7 @@ int main(int argc, char* argv[])
 		filename[outfile.length()]='\0';
 
 		// generate test problem
+
 		MMSP::generate(dim, filename);
 
 		delete [] filename;
@@ -275,12 +276,17 @@ int main(int argc, char* argv[])
 			}
 
 			// initialize GPU
-			init_cuda(&host, nx, ny, nm, kappa, omega, Lmob, &dev);
+			fp_t xCr0, xNb0;
+			system_composition(grid, xCr0, xNb0);
+
+			MMSP::set_diffusion_matrix(xCr0, xNb0, D_Cr, D_Nb, Lmob, 1);
+
+			init_cuda(&host, nx, ny, nm, kappa, omega, Lmob, D_Cr, D_Nb, &dev);
 			device_init_prng(&dev, nx, ny, nm, bx, by);
 
 			// determine timestep
 			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
-			fp_t dtDiffusionLimited = MMSP::timestep(grid);
+			fp_t dtDiffusionLimited = MMSP::timestep(grid, D_Cr, D_Nb);
 			double round_dt = 0.0;
 			double roundoff = 4e6;
 			while (round_dt < 1e-20) {
@@ -313,9 +319,11 @@ int main(int argc, char* argv[])
 
 					fictitious_boundaries(&dev, nx, ny, nm, bx, by);
 
+					/*
 					device_mobilities(&dev, nx, ny, nm, bx, by);
 
 					mobility_boundaries(&dev, nx, ny, nm, bx, by);
+					*/
 
 					device_laplacian(&dev, nx, ny, nm, bx, by, dx(grid, 0), dx(grid, 1));
 
@@ -379,7 +387,7 @@ int main(int argc, char* argv[])
 							gridN[NC+1]    = host.phi_lav_new[j][i];
 						}
 
-						dtDiffusionLimited = MMSP::timestep(grid);
+						dtDiffusionLimited = MMSP::timestep(grid, D_Cr, D_Nb);
 						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
 							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least "
 							          << dt / (LinStab * dtDiffusionLimited) << std::endl;

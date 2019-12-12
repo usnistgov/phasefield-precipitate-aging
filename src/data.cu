@@ -10,6 +10,7 @@
 void init_cuda(struct HostData* host,
                const int nx, const int ny, const int nm,
                const fp_t* kappa, const fp_t* omega, const fp_t* Lmob,
+			   const fp_t* D_Cr, const fp_t* D_Nb,
                struct CudaData* dev)
 {
 	/* allocate memory on device */
@@ -45,6 +46,7 @@ void init_cuda(struct HostData* host,
 
 	checkCuda(cudaMalloc((void**) &(dev->conc_Ni), nx * ny * sizeof(fp_t)));
 
+	/*
 	checkCuda(cudaMalloc((void**) &(dev->mob_gam_CrCr), nx * ny * sizeof(fp_t)));
 	checkCuda(cudaMalloc((void**) &(dev->mob_gam_CrNb), nx * ny * sizeof(fp_t)));
 	checkCuda(cudaMalloc((void**) &(dev->mob_gam_NbCr), nx * ny * sizeof(fp_t)));
@@ -63,9 +65,14 @@ void init_cuda(struct HostData* host,
 	checkCuda(cudaMalloc((void**) &(dev->mob_lav_NbNb), nx * ny * sizeof(fp_t)));
 	checkCuda(cudaMalloc((void**) &(dev->mob_phi_lav_Cr), nx * ny * sizeof(fp_t)));
 	checkCuda(cudaMalloc((void**) &(dev->mob_phi_lav_Nb), nx * ny * sizeof(fp_t)));
+	*/
 
 	/* transfer mask to protected memory on GPU */
 	checkCuda(cudaMemcpyToSymbol(d_mask, host->mask_lap[0], nm * nm * sizeof(fp_t)));
+
+	/* transfer diffusion matrix to protected memory on GPU */
+	checkCuda(cudaMemcpyToSymbol(d_DCr, D_Cr, NC * sizeof(fp_t)));
+	checkCuda(cudaMemcpyToSymbol(d_DNb, D_Nb, NC * sizeof(fp_t)));
 
 	/* transfer mobility data to protected memory on GPU */
 	checkCuda(cudaMemcpyToSymbol(d_Kapp, kappa, NP * sizeof(fp_t)));
@@ -111,14 +118,19 @@ void free_cuda(struct CudaData* dev)
 	checkCuda(cudaFree(dev->phi));
 
 	checkCuda(cudaFree(dev->conc_Cr_gam));
+	/*
 	checkCuda(cudaFree(dev->conc_Cr_del));
 	checkCuda(cudaFree(dev->conc_Cr_lav));
+	*/
 	checkCuda(cudaFree(dev->conc_Nb_gam));
+	/*
 	checkCuda(cudaFree(dev->conc_Nb_del));
 	checkCuda(cudaFree(dev->conc_Nb_lav));
+	*/
 
 	checkCuda(cudaFree(dev->conc_Ni));
 
+	/*
 	checkCuda(cudaFree(dev->mob_gam_CrCr));
 	checkCuda(cudaFree(dev->mob_gam_CrNb));
 	checkCuda(cudaFree(dev->mob_gam_NbCr));
@@ -138,6 +150,7 @@ void free_cuda(struct CudaData* dev)
 	checkCuda(cudaFree(dev->mob_phi_del_Nb));
 	checkCuda(cudaFree(dev->mob_phi_lav_Cr));
 	checkCuda(cudaFree(dev->mob_phi_lav_Nb));
+	*/
 }
 
 void read_out_result(struct CudaData* dev, struct HostData* host,

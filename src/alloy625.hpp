@@ -84,8 +84,12 @@ void molfrac(const fp_t& wCr, const fp_t& wNb, fp_t& xCr, fp_t& xNb)
 
 	xCr = nCr / N;
 	xNb = nNb / N;
-
 }
+
+/**
+   \brief Initialize diffusivity and phase mobility arrays
+*/
+void set_diffusion_matrix(const fp_t xCr0, const fp_t xNb0, fp_t* DCr, fp_t* DNb, fp_t* Lmob, int verbose);
 
 /**
  \brief Initialize domain with flat composition field

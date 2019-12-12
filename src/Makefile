@@ -17,7 +17,7 @@ PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
 CXX = g++
 INCLUDES = -I. -I../thermo -I$(MMSP_PATH)/include -I$(CUDA_HDR_PATH) $(PLTFLAGS)
 CXXFOPTS = -funroll-loops -ffast-math -fopenmp
-CXXFLAGS = -O3 -Wall -std=c++11 $(CXXFOPTS) $(INCLUDES)
+CXXFLAGS = -O2 -Wall -std=c++11 $(CXXFOPTS) $(INCLUDES)
 
 NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \

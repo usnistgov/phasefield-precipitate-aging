@@ -36,12 +36,95 @@
 #include "parameters.h"
 #include "phasefrac.h"
 
+// Host diffusivity arrays
+fp_t D_Cr[NC] = {0}; // populated in main.cpp
+fp_t D_Nb[NC] = {0};
+
+// Host mobility array
+fp_t Lmob[NP] = {0}; // populated in main.cpp
+
 namespace MMSP
 {
 
-fp_t timestep(const GRID2D& grid)
+template<int dim, class T>
+void system_composition(MMSP::grid<dim, MMSP::vector<T> > const& grid, fp_t& xCr0, fp_t& xNb0)
 {
-	fp_t dt = 1.0;
+	double xCr = 0.0;
+	double xNb = 0.0;
+	unsigned N = MMSP::nodes(grid);
+
+	for (unsigned n = 0; n < N; n++) {
+		MMSP::vector<T>& GridN = grid(n);
+		xCr += GridN[0];
+		xNb += GridN[1];
+	}
+
+	#ifdef MPI_VERSION
+	MPI_Request reqs[3];
+	MPI_Status stat[3];
+
+	double myCr(xCr);
+	double myNb(xNb);
+	unsigned myN(N);
+
+	MPI_Allreduce(&myCr, &xCr, 1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD, reqs[0]);
+	MPI_Allreduce(&myNb, &xNb, 1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD, reqs[1]);
+	MPI_Allreduce(&myN,  &N,   1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD, reqs[2]);
+	MPI_Wait(reqs, 3, stat);
+	#endif
+
+	xCr0 = xCr / N;
+	xNb0 = xNb / N;
+}
+
+void set_diffusion_matrix(const fp_t xCr0, const fp_t xNb0, fp_t* DCr, fp_t* DNb, fp_t* L_mob, int verbose)
+{
+	assert(DCr != NULL);
+	assert(DNb != NULL);
+	assert(L_mob != NULL);
+
+	int rank = 0;
+	#ifdef MPI_VERSION
+	rank = MPI::COMM_WORLD.Get_rank();
+	#endif
+
+	DCr[0] = M_CrCr(xCr0, xNb0) * d2g_gam_dxCrCr() + M_CrNb(xCr0, xNb0) * d2g_gam_dxCrNb();
+	DCr[1] = M_CrCr(xCr0, xNb0) * d2g_gam_dxNbCr() + M_CrNb(xCr0, xNb0) * d2g_gam_dxNbNb();
+
+	DNb[0] = M_NbCr(xCr0, xNb0) * d2g_gam_dxCrCr() + M_NbNb(xCr0, xNb0) * d2g_gam_dxCrNb();
+	DNb[1] = M_NbCr(xCr0, xNb0) * d2g_gam_dxNbCr() + M_NbNb(xCr0, xNb0) * d2g_gam_dxNbNb();
+
+	if (rank == 0 && verbose) {
+		printf("Diffusion matrix is [%10.4g %10.4g]\n", DCr[0], DCr[1]);
+		printf("                    [%10.4g %10.4g]\n", DNb[0], DNb[1]);
+	}
+
+	const fp_t Dmin = std::min(std::fabs(DCr[0]), std::fabs(DNb[1]));
+	L_mob[0] = MobStab * Dmin / (ifce_width * ifce_width * RT() / Vm()); // numerical mobility (m^2/(Ns))
+	L_mob[1] = Lmob[0];                                                  // Ref: TKR5p315
+
+	if (rank == 0 && verbose) {
+		printf("Phase mobility is [%10.4g %10.4g]\n", Lmob[0], Lmob[1]);
+	}
+
+}
+
+double timestep(const GRID2D& grid, const fp_t* DCr, const fp_t* DNb)
+{
+	const fp_t D[4] = {DCr[0], DCr[1], DNb[0], DNb[1]};
+	double dt = (meshres * meshres) / (4.0 * *(std::max_element(D, D + 4)));
+
+	#ifdef MPI_VERSION
+	double mydt(dt);
+	MPI::COMM_WORLD.Allreduce(&mydt, &dt, 1, MPI_DOUBLE, MPI_MIN);
+	#endif
+
+	return dt;
+}
+
+double timestep(const GRID2D& grid)
+{
+	double dt = 1.0;
 
 	#ifdef _OPENMP
 	#pragma omp parallel for reduction(min:dt)
@@ -58,12 +141,13 @@ fp_t timestep(const GRID2D& grid)
 		const fp_t mNbCr = M_NbCr(xCr, xNb);
 		const fp_t mNbNb = M_NbNb(xCr, xNb);
 
-		const fp_t D[12] = {
+		const fp_t D[4] = {
 			// D_gam
 			std::fabs(pGam * (mCrCr * d2g_gam_dxCrCr() + mCrNb * d2g_gam_dxCrNb())), // D11
 			std::fabs(pGam * (mCrCr * d2g_gam_dxNbCr() + mCrNb * d2g_gam_dxNbNb())), // D12
 			std::fabs(pGam * (mNbCr * d2g_gam_dxCrCr() + mNbNb * d2g_gam_dxCrNb())), // D21
-			std::fabs(pGam * (mNbCr * d2g_gam_dxNbCr() + mNbNb * d2g_gam_dxNbNb())), // D22
+			std::fabs(pGam * (mNbCr * d2g_gam_dxNbCr() + mNbNb * d2g_gam_dxNbNb()))  // D22
+			/*
 			// D_del
 			std::fabs(pDel * (mCrCr * d2g_del_dxCrCr() + mCrNb * d2g_del_dxCrNb())), // D11
 			std::fabs(pDel * (mCrCr * d2g_del_dxNbCr() + mCrNb * d2g_del_dxNbNb())), // D12
@@ -74,12 +158,18 @@ fp_t timestep(const GRID2D& grid)
 			std::fabs(pLav * (mCrCr * d2g_lav_dxNbCr() + mCrNb * d2g_lav_dxNbNb())), // D12
 			std::fabs(pLav * (mNbCr * d2g_lav_dxCrCr() + mNbNb * d2g_lav_dxCrNb())), // D21
 			std::fabs(pLav * (mNbCr * d2g_lav_dxNbCr() + mNbNb * d2g_lav_dxNbNb()))  // D22
+			*/
 		};
 
-		const fp_t local_dt = (meshres * meshres) / (4.0 * *(std::max_element(D, D + 12)));
+		const double local_dt = (meshres * meshres) / (4.0 * *(std::max_element(D, D + 4)));
 
 		dt = std::min(local_dt, dt);
 	}
+
+	#ifdef MPI_VERSION
+	double mydt(dt);
+	MPI::COMM_WORLD.Allreduce(&mydt, &dt, 1, MPI_DOUBLE, MPI_MIN);
+	#endif
 
 	return dt;
 }
@@ -468,7 +558,7 @@ void generate(int dim, const char* filename)
 		const fp_t mCrCr = M_CrCr(xCr0, xNb0);
 		const fp_t mCrNb = M_CrNb(xCr0, xNb0);
 		const fp_t mNbNb = M_NbNb(xCr0, xNb0);
-		printf("Mobility matrix is %10.4g %10.4g\n                    %10.4g %10.4g\n", mCrCr, mCrNb, mCrNb, mNbNb);
+		printf("Mobility matrix is [%10.4g %10.4g]\n                   [%10.4g %10.4g]\n", mCrCr, mCrNb, mCrNb, mNbNb);
 
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 
@@ -486,11 +576,13 @@ void generate(int dim, const char* filename)
 
 		ghostswap(initGrid);
 
+		set_diffusion_matrix(xCr0, xNb0, D_Cr, D_Nb, Lmob, 0);
+
 		vector<double> summary = summarize_fields(initGrid);
 		const double energy = summarize_energy(initGrid);
 
 		const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
-		fp_t dtDiffusionLimited = MMSP::timestep(initGrid);
+		fp_t dtDiffusionLimited = MMSP::timestep(initGrid, D_Cr, D_Nb);
 		double round_dt = 0.0;
 		double roundoff = 4e6;
 		while (round_dt < 1e-20) {

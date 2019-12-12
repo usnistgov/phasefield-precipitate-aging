@@ -32,10 +32,15 @@ cudaError_t checkCuda(cudaError_t result)
 // Convolution mask array on the GPU, allocated in protected memory
 __constant__ fp_t d_mask[MAX_MASK_W * MAX_MASK_H];
 
+// Diffusion matrix arrays on the GPU, allocated in protected memory
+__constant__ fp_t d_DCr[NC];
+__constant__ fp_t d_DNb[NC];
+
 // Kinetic parameter arrays on the GPU, allocated in protected memory
 __constant__ fp_t d_Kapp[NP];
 __constant__ fp_t d_Omeg[NP];
 __constant__ fp_t d_Lmob[NP];
+
 
 float nTiles(int domain_size, int tile_loc, int mask_size)
 {
@@ -170,6 +175,7 @@ void device_fictitious(struct CudaData* dev,
 	cudaEventRecord(dev->ev_C, dev->str_C);
 }
 
+/*
 __global__ void mobility_Cr_kernel(fp_t* d_conc_Cr,
                                    fp_t* d_conc_Nb,
                                    fp_t* d_phi_del,
@@ -192,7 +198,7 @@ __global__ void mobility_Cr_kernel(fp_t* d_conc_Cr,
                                    const int ny,
                                    const int nm)
 {
-	/* determine indices on which to operate */
+	// determine indices on which to operate
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 	const int idx = nx * y + x;
@@ -253,7 +259,7 @@ __global__ void mobility_Nb_kernel(fp_t* d_conc_Cr,
                                    const int ny,
                                    const int nm)
 {
-	/* determine indices on which to operate */
+	// determine indices on which to operate
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 	const int idx = nx * y + x;
@@ -296,7 +302,7 @@ void device_mobilities(struct CudaData* dev,
                        const int nx, const int ny, const int nm,
                        const int bx, const int by)
 {
-	/* divide matrices into blocks of bx * by threads */
+  // divide matrices into blocks of bx * by threads
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
@@ -352,6 +358,7 @@ void device_mobilities(struct CudaData* dev,
 	cudaEventRecord(dev->ev_A, dev->str_A);
 	cudaEventRecord(dev->ev_B, dev->str_B);
 }
+*/
 
 __global__ void boundary_kernel(fp_t* d_field,
                                 const int nx,
@@ -418,6 +425,7 @@ void device_boundaries(struct CudaData* dev,
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->conc_Cr_lav, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->conc_Nb_lav, nx, ny, nm);
 
+    /*
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_A>>> (dev->mob_gam_CrCr, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_gam_CrNb, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_gam_NbCr, nx, ny, nm);
@@ -437,6 +445,7 @@ void device_boundaries(struct CudaData* dev,
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_B>>> (dev->mob_phi_del_Nb, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_C>>> (dev->mob_phi_lav_Cr, nx, ny, nm);
 	boundary_kernel<<< num_tiles, tile_size, 0, dev->str_D>>> (dev->mob_phi_lav_Nb, nx, ny, nm);
+    */
 
 	cudaEventRecord(dev->ev_A, dev->str_A);
 	cudaEventRecord(dev->ev_B, dev->str_B);
@@ -473,11 +482,12 @@ void fictitious_boundaries(struct CudaData* dev,
 	cudaEventRecord(dev->ev_D, dev->str_D);
 }
 
+/*
 void mobility_boundaries(struct CudaData* dev,
                          const int nx, const int ny, const int nm,
                          const int bx, const int by)
 {
-	/* divide matrices into blocks of bx * by threads */
+	// divide matrices into blocks of bx * by threads
 	dim3 tile_size(bx, by, 1);
 	dim3 num_tiles(nTiles(nx, tile_size.x, nm),
 	               nTiles(ny, tile_size.y, nm),
@@ -512,6 +522,7 @@ void mobility_boundaries(struct CudaData* dev,
 	cudaEventRecord(dev->ev_C, dev->str_C);
 	cudaEventRecord(dev->ev_D, dev->str_D);
 }
+*/
 
 void device_laplacian_boundaries(struct CudaData* dev,
                                  const int nx, const int ny, const int nm,
@@ -786,12 +797,19 @@ void device_laplacian(struct CudaData* dev,
 	cudaEventSynchronize(dev->ev_C);
 	cudaEventSynchronize(dev->ev_D);
 
-	convolution_kernel<<< num_tiles, tile_size, buf_size, dev->str_A>>>
+    convolution_kernel<<< num_tiles, tile_size, buf_size, dev->str_A>>>
 	(dev->phi_del_old, dev->phi_del_new, nx, ny, nm);
 
 	convolution_kernel<<< num_tiles, tile_size, buf_size, dev->str_B>>>
 	(dev->phi_lav_old, dev->phi_lav_new, nx, ny, nm);
 
+    convolution_kernel<<< num_tiles, tile_size, buf_size, dev->str_C>>>
+	(dev->conc_Cr_gam, dev->conc_Cr_new, nx, ny, nm);
+
+    convolution_kernel<<< num_tiles, tile_size, buf_size, dev->str_D>>>
+	(dev->conc_Nb_gam, dev->conc_Nb_new, nx, ny, nm);
+
+    /*
 	chemical_convolution_Cr_kernel<<< num_tiles, tile_size, 0, dev->str_C>>>
 	(dev->conc_Cr_gam, dev->conc_Nb_gam,
 	 dev->conc_Cr_del, dev->conc_Nb_del,
@@ -817,6 +835,7 @@ void device_laplacian(struct CudaData* dev,
 	 dev->conc_Nb_new,
 	 nx, ny, nm,
 	 dx, dy);
+    */
 
 	cudaEventRecord(dev->ev_A, dev->str_A);
 	cudaEventRecord(dev->ev_B, dev->str_B);
@@ -826,16 +845,26 @@ void device_laplacian(struct CudaData* dev,
 
 __device__ void composition_kernel(const fp_t& d_conc_Cr_old,
                                    const fp_t& d_conc_Nb_old,
+
                                    fp_t& d_conc_Cr_new,
                                    fp_t& d_conc_Nb_new,
                                    const fp_t dt)
 {
 	/* Cahn-Hilliard equations of motion for composition */
+	/*
 	const fp_t divDgradU_Cr = d_conc_Cr_new;
 	const fp_t divDgradU_Nb = d_conc_Nb_new;
 
 	d_conc_Cr_new = d_conc_Cr_old + dt * divDgradU_Cr;
 	d_conc_Nb_new = d_conc_Nb_old + dt * divDgradU_Nb;
+    */
+
+	const fp_t lapCr = d_conc_Cr_new;
+	const fp_t lapNb = d_conc_Nb_new;
+
+	d_conc_Cr_new = d_conc_Cr_old + dt * (d_DCr[0] * lapCr + d_DCr[1] * lapNb);
+	d_conc_Nb_new = d_conc_Nb_old + dt * (d_DNb[0] * lapCr + d_DNb[1] * lapNb);
+
 }
 
 __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,

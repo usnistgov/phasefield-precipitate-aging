@@ -74,6 +74,7 @@ struct CudaData {
 	fp_t* conc_Nb_del;
 	fp_t* conc_Nb_lav;
 
+	/*
 	fp_t* mob_gam_CrCr;
 	fp_t* mob_gam_CrNb;
 	fp_t* mob_gam_NbCr;
@@ -93,6 +94,7 @@ struct CudaData {
 	fp_t* mob_phi_del_Nb;
 	fp_t* mob_phi_lav_Cr;
 	fp_t* mob_phi_lav_Nb;
+	*/
 };
 
 /** \cond SuppressGuard */
