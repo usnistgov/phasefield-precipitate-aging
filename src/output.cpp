@@ -87,7 +87,7 @@ void print_progress(const int step, const int steps)
 	}
 }
 
-void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const int step)
+void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const uint64_t step)
 {
 	FILE* output;
 	char name[FILENAME_MAX];
@@ -95,7 +95,7 @@ void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_
 	int i, j;
 
 	// generate the filename
-	sprintf(num, "%07i", step);
+	sprintf(num, "%07lu", step);
 	strcpy(name, "spinodal.");
 	strcat(name, num);
 	strcat(name, ".csv");
@@ -153,7 +153,7 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
                      fp_t** phi_del, fp_t** phi_lav,
                      const int nx, const int ny, const int nm,
                      const fp_t deltax,
-                     const int step, const fp_t dt, const char* filename)
+                     const uint64_t step, const fp_t dt, const char* filename)
 {
 	plt::backend("Agg");
 
@@ -200,12 +200,13 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	num_kw["vmax"] = 1.;
 
 	char timearr[FILENAME_MAX] = {0};
-	sprintf(timearr, "$t=%7.3f\\ \\mathrm{s}$\n", dt * step);
+	sprintf(timearr, "$t=%.3f\\ \\mathrm{s}$\n", dt * step);
 	plt::suptitle(std::string(timearr));
 
 	const long nrows = 3;
 	const long ncols = 5;
 
+	// subplot2grid(shape=(nrows, ncols), loc=(row, col), rowspan=1, colspan=1, fig=None, **kwargs)
 	plt::subplot2grid(nrows, ncols, 0, 0, 1, ncols - 1);
 	mat = plt::imshow(&(p_gam[0]), h, w, colors, str_kw, num_kw);
 	plt::title("$\\phi^{\\gamma}$");
@@ -240,6 +241,107 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	*/
 	str_kw["label"] = "$\\phi^{\\mathrm{\\delta}}$";
 	plt::plot(d, p_del_bar, str_kw);
+	str_kw["label"] = "$\\phi^{\\mathrm{\\lambda}}$";
+	plt::plot(d, p_lav_bar, str_kw);
+
+	plt::legend();
+
+	plt::save(filename);
+	plt::close();
+
+	return 0;
+}
+
+int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
+                     fp_t** phi_del, fp_t** phi_lav,
+                     fp_t** nrg_den,
+                     fp_t** gam_Cr, fp_t** gam_Nb,
+                     const int nx, const int ny, const int nm,
+                     const fp_t deltax,
+                     const uint64_t step, const fp_t dt, const char* filename)
+{
+	#ifdef MPI_VERSION
+	std::cerr << "Error: cannot write images in parallel." << std::endl;
+	MPI::Abort(EXIT_FAILURE);
+	#endif
+
+	plt::backend("Agg");
+
+	int w = nx - nm/2;
+	int h = ny - nm/2;
+
+	std::vector<float> d(w);
+	std::vector<float> f(w);
+
+	std::vector<float> c_Cr_bar(w);
+	std::vector<float> c_Nb_bar(w);
+
+	std::vector<float> c_Cr_gam(w);
+	std::vector<float> c_Nb_gam(w);
+
+	std::vector<float> p_del_bar(w);
+	std::vector<float> p_lav_bar(w);
+
+	for (int i = 0; i < w; ++i) {
+		d.at(i) = 1e6 * deltax * i;
+		int j = h/2;
+		if (nrg_den != NULL)
+			f.at(i) = nrg_den[j+nm/2][i+nm/2];
+		else
+			f.at(i) = 0;
+
+		c_Cr_bar.at(i) = conc_Cr[j+nm/2][i+nm/2];
+		c_Nb_bar.at(i) = conc_Nb[j+nm/2][i+nm/2];
+
+		c_Cr_gam.at(i) = gam_Cr[j+nm/2][i+nm/2];
+		c_Nb_gam.at(i) = gam_Nb[j+nm/2][i+nm/2];
+
+		p_del_bar.at(i) = phi_del[j+nm/2][i+nm/2];
+		p_lav_bar.at(i) = phi_lav[j+nm/2][i+nm/2];
+	}
+
+	const long nrows = 2;
+	const long ncols = 1;
+
+	figure(3000, 2400, 200);
+
+
+	char timearr[FILENAME_MAX] = {0};
+	sprintf(timearr, "$t=%.3f\\ \\mathrm{s}$\n", dt * step);
+	plt::suptitle(std::string(timearr));
+
+	// subplot2grid(shape=(nrows, ncols), loc=(row, col), rowspan=1, colspan=1, fig=None, **kwargs)
+	plt::subplot2grid(nrows, ncols, 0, 0, 1, 1);
+	plt::xlim(0., 1e6 * deltax * nx);
+	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
+	plt::ylabel("$\\mathcal{F}(Y=0)\\ /\\ [\\mathrm{J/m^3}]$");
+
+	plt::plot(d, f);
+
+	plt::subplot2grid(nrows, ncols, nrows-1, 0, 1, 1);
+	plt::xlim(0., 1e6 * deltax * nx);
+	plt::ylim(0., 1.);
+	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
+	plt::ylabel("$x_{\\mathrm{Ni}}(Y=0)$");
+
+	std::map<std::string, std::string> str_kw;
+	str_kw["label"] = "$x_{\\mathrm{Nb}}$";
+	plt::plot(d, c_Nb_bar, str_kw);
+	str_kw.clear();
+	str_kw["linestyle"] = ":";
+	plt::plot(d, c_Nb_gam, str_kw);
+	str_kw.clear();
+
+	str_kw["label"] = "$x_{\\mathrm{Cr}}$";
+	plt::plot(d, c_Cr_bar, str_kw);
+	str_kw.clear();
+	str_kw["linestyle"] = ":";
+	plt::plot(d, c_Cr_gam, str_kw);
+	str_kw.clear();
+
+	str_kw["label"] = "$\\phi^{\\mathrm{\\delta}}$";
+	plt::plot(d, p_del_bar, str_kw);
+
 	str_kw["label"] = "$\\phi^{\\mathrm{\\lambda}}$";
 	plt::plot(d, p_lav_bar, str_kw);
 

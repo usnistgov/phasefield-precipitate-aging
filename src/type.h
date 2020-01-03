@@ -29,18 +29,25 @@ struct HostData {
 	fp_t** mask_lap;
 	fp_t** conc_Ni;
 	fp_t** phi;
+	fp_t** nrg_den;
 
 	fp_t** conc_Cr_old;
 	fp_t** conc_Cr_new;
+	fp_t** conc_Cr_lap;
+	fp_t** conc_Cr_gam;
 
 	fp_t** conc_Nb_old;
 	fp_t** conc_Nb_new;
+	fp_t** conc_Nb_lap;
+	fp_t** conc_Nb_gam;
 
 	fp_t** phi_del_old;
 	fp_t** phi_del_new;
+	fp_t** phi_del_lap;
 
 	fp_t** phi_lav_old;
 	fp_t** phi_lav_new;
+	fp_t** phi_lav_lap;
 };
 
 /**

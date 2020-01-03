@@ -524,7 +524,7 @@ void generate(int dim, const char* filename)
 	if (dim == 2) {
 		#ifdef PLANAR
 		const int Nx = 768;
-		const int Ny =  32;
+		const int Ny =  17;
 		#else
 		/*
 		const int Nx = 4000;
@@ -576,10 +576,59 @@ void generate(int dim, const char* filename)
 
 		ghostswap(initGrid);
 
+		// write initial condition image
+		const int nm = 3;
+
+		// initialize memory
+
+		fp_t** xCr = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** xNb = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** gamCr = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** gamNb = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** pDel = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** pLav = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+		fp_t** nrg = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
+
+		xCr[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		xNb[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		gamCr[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		gamNb[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		pDel[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		pLav[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+		nrg[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
+
+		for (int i = 1; i < Ny + 2; i++) {
+			xCr[i] = &(xCr[0])[(Nx + 2) * i];
+			xNb[i] = &(xNb[0])[(Nx + 2) * i];
+			gamCr[i] = &(gamCr[0])[(Nx + 2) * i];
+			gamNb[i] = &(gamNb[0])[(Nx + 2) * i];
+			pDel[i] = &(pDel[0])[(Nx + 2) * i];
+			pLav[i] = &(pLav[0])[(Nx + 2) * i];
+			nrg[i] = &(nrg[0])[(Nx + 2) * i];
+		}
+
+		#ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
+		for (int n = 0; n < nodes(initGrid); n++) {
+			vector<int> x = position(initGrid, n);
+			const int i = x[0] - g0(initGrid, 0) + 1;
+			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
+			xCr[j][i] = initGrid(n)[0];
+			xNb[j][i] = initGrid(n)[1];
+			pDel[j][i] = p(initGrid(n)[NC]);
+			pLav[j][i] = p(initGrid(n)[NC+1]);
+
+			double pGam = 1.0 - pDel[j][i] - pLav[j][i];
+			double INV_DET = inv_fict_det(pDel[j][i], pGam, pLav[j][i]);
+			gamCr[j][i] = fict_gam_Cr(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
+			gamNb[j][i] = fict_gam_Nb(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
+		}
+
 		set_diffusion_matrix(xCr0, xNb0, D_Cr, D_Nb, Lmob, 0);
 
 		vector<double> summary = summarize_fields(initGrid);
-		const double energy = summarize_energy(initGrid);
+		const double energy = summarize_energy(initGrid, nrg);
 
 		const double dtTransformLimited = (meshres * meshres) / (std::pow(2.0, dim) * Lmob[0] * kappa[0]);
 		fp_t dtDiffusionLimited = MMSP::timestep(initGrid, D_Cr, D_Nb);
@@ -611,55 +660,25 @@ void generate(int dim, const char* filename)
 
 		output(initGrid, filename);
 
-		// write initial condition image
-
-		fp_t** xCr = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
-		fp_t** xNb = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
-		fp_t** pDel = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
-		fp_t** pLav = (fp_t**)calloc((Nx + 2), sizeof(fp_t*));
-		xCr[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
-		xNb[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
-		pDel[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
-		pLav[0] = (fp_t*)calloc((Nx + 2) * (Ny + 2), sizeof(fp_t));
-
-		for (int i = 1; i < Ny + 2; i++) {
-			xCr[i] = &(xCr[0])[(Nx + 2) * i];
-			xNb[i] = &(xNb[0])[(Nx + 2) * i];
-			pDel[i] = &(pDel[0])[(Nx + 2) * i];
-			pLav[i] = &(pLav[0])[(Nx + 2) * i];
-		}
-
-		#ifdef _OPENMP
-		#pragma omp parallel for
-		#endif
-		for (int n = 0; n < nodes(initGrid); n++) {
-			vector<int> x = position(initGrid, n);
-			const int i = x[0] - g0(initGrid, 0) + 1;
-			const int j = x[1] - g0(initGrid, 1) + 1; // offset required for proper imshow result
-			xCr[j][i] = initGrid(n)[0];
-			xNb[j][i] = initGrid(n)[1];
-			pDel[j][i] = initGrid(n)[NC];
-			pLav[j][i] = initGrid(n)[NC+1];
-		}
-
+		const int step = 0;
 		std::string imgname(filename);
 		imgname.replace(imgname.find("dat"), 3, "png");
-
-		#ifdef MPI_VERSION
-		std::cerr << "Error: cannot write images in parallel." << std::endl;
-		Abort(EXIT_FAILURE);
-		#endif
-		const int nm = 3, step = 0;
-		write_matplotlib(xCr, xNb, pDel, pLav, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
+		write_matplotlib(xCr, xNb, pDel, pLav, nrg, gamCr, gamNb, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
 
 		free(xCr[0]);
 		free(xNb[0]);
+		free(gamCr[0]);
+		free(gamNb[0]);
 		free(pDel[0]);
 		free(pLav[0]);
+		free(nrg[0]);
 		free(xCr);
 		free(xNb);
+		free(gamCr);
+		free(gamNb);
 		free(pDel);
 		free(pLav);
+		free(nrg);
 
 	} else {
 		std::cerr << "Error: " << dim << "-dimensional grids unsupported." << std::endl;
@@ -796,7 +815,7 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim, MMSP::vector<T> > const& G
 }
 
 template<int dim, class T>
-double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
+double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID, fp_t** nrg_dens)
 {
 	#ifdef MPI_VERSION
 	MPI_Request reqs;
@@ -823,6 +842,12 @@ double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID)
 			const T gradSq = (gradPhi * gradPhi); // vector inner product
 
 			myEnergy += dV * kappa[i] * gradSq; // gradient contributes to energy
+		}
+
+		if (nrg_dens != NULL) {
+			const int i = x[0] - MMSP::g0(GRID, 0) + 1; // nm / 2;
+			const int j = x[1] - MMSP::g0(GRID, 1) + 1; // nm / 2;
+			nrg_dens[j][i] = myEnergy;
 		}
 
 		#ifdef _OPENMP

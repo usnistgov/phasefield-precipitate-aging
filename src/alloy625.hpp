@@ -187,7 +187,7 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim, MMSP::vector<T> > const& G
  Integrate free energy over the whole grid to make sure it decreases with time
 */
 template<int dim, typename T>
-double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID);
+double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID, fp_t** nrg_dens);
 
 /**
    \brief Compute interface width

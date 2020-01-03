@@ -294,8 +294,7 @@ int main(int argc, char* argv[])
 				round_dt = std::floor(roundoff * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / roundoff;
 			}
 			const double dt = round_dt;
-			const uint64_t img_interval = std::min(increment, (uint64_t)(0.05 / dt));
-			const uint64_t nrg_interval = img_interval;
+			const uint64_t io_interval = std::min(increment, (uint64_t)(0.05 / dt));
 			#ifdef NUCLEATION
 			const uint64_t nuc_interval = (uint64_t)(0.0001 / dt);
 			#endif
@@ -347,33 +346,10 @@ int main(int argc, char* argv[])
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
 
-					const bool img_step = ((j+1) % img_interval == 0 || (j+1) == steps);
-					if (img_step) {
+					const bool io_step = ((j+1) % io_interval == 0 || (j+1) == steps);
+					if (io_step) {
 						device_dataviz(&dev, &host, nx, ny, nm, bx, by);
 
-						std::stringstream imgname;
-						int n = imgname.str().length();
-						for (int l = 0; n < length; l++) {
-							imgname.str("");
-							imgname << base;
-							for (int k = 0; k < l; k++) imgname << 0;
-							imgname << j+1 << ".png";
-							n = imgname.str().length();
-						}
-
-						#ifdef MPI_VERSION
-						std::cerr << "Error: cannot write images in parallel." << std::endl;
-						MMSP::Abort(EXIT_FAILURE);
-						#endif
-
-						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
-						                 host.phi_del_new, host.phi_lav_new,
-						                 nx, ny, nm, MMSP::dx(grid),
-						                 j+1, dt, imgname.str().c_str());
-					}
-
-					const bool nrg_step = ((j+1) % nrg_interval == 0 || (j+1) == steps);
-					if (nrg_step) {
 						read_out_result(&dev, &host, nx, ny);
 
 						for (int n = 0; n < MMSP::nodes(grid); n++) {
@@ -385,36 +361,56 @@ int main(int argc, char* argv[])
 							gridN[1]       = host.conc_Nb_new[j][i];
 							gridN[NC]      = host.phi_del_new[j][i];
 							gridN[NC+1]    = host.phi_lav_new[j][i];
+
+							// Write fictitious compositions
+							double pDel = p(gridN[NC]);
+							double pLav = p(gridN[NC+1]);
+							double pGam = 1.0 - pDel - pLav;
+							double XCR = gridN[0];
+							double XNB = gridN[1];
+
+							double INV_DET = inv_fict_det(pDel, pGam, pLav);
+							host.conc_Cr_gam[j][i] = fict_gam_Cr(INV_DET, XCR, XNB, pDel, pGam, pLav);
+							host.conc_Nb_gam[j][i] = fict_gam_Nb(INV_DET, XCR, XNB, pDel, pGam, pLav);
 						}
+
+						ghostswap(grid);
+
+						// Log compositions, phase fractions
+
+						MMSP::vector<double> summary = summarize_fields(grid);
+						const double energy = summarize_energy(grid, host.nrg_den);
+
+						if (rank == 0) {
+							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
+							        dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+							fflush(cfile);
+						}
+
+						// Write image
+
+						std::stringstream imgname;
+						int n = imgname.str().length();
+						for (int l = 0; n < length; l++) {
+							imgname.str("");
+							imgname << base;
+							for (int k = 0; k < l; k++) imgname << 0;
+							imgname << j+1 << ".png";
+							n = imgname.str().length();
+						}
+
+						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
+						                 host.phi_del_new, host.phi_lav_new,
+										 host.nrg_den,
+										 host.conc_Cr_gam, host.conc_Nb_gam,
+						                 nx, ny, nm, MMSP::dx(grid),
+						                 j+1, dt, imgname.str().c_str());
 
 						dtDiffusionLimited = MMSP::timestep(grid, D_Cr, D_Nb);
 						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
 							std::cout << "ERROR: Timestep is too large! Decrease by a factor of at least "
 							          << dt / (LinStab * dtDiffusionLimited) << std::endl;
 							std::exit(EXIT_FAILURE);
-						}
-
-						std::stringstream outstr;
-						int n = outstr.str().length();
-						for (int j = 0; n < length; j++) {
-							outstr.str("");
-							outstr << base;
-							for (int k = 0; k < j; k++) outstr << 0;
-							outstr << i + increment << suffix;
-							n = outstr.str().length();
-						}
-
-						// Log compositions, phase fractions
-
-						ghostswap(grid);
-
-						MMSP::vector<double> summary = summarize_fields(grid);
-						const double energy = summarize_energy(grid);
-
-						if (rank == 0) {
-							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
-							        dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
-							fflush(cfile);
 						}
 					}
 					// === Finish Architecture-Specific Kernel ===
