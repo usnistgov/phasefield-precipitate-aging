@@ -180,11 +180,16 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t&
 	 * corresponding to enriched IN625 per DICTRA simulations (mole fraction)
 	 */
 
+	#ifdef PLANAR
+	double xCrE = 0.3125;
+	double xNbE = 0.1575;
+	#else
 	std::uniform_real_distribution<double> enrichCrDist(enrich_min_Cr(), enrich_max_Cr());
 	std::uniform_real_distribution<double> enrichNbDist(enrich_min_Nb(), enrich_max_Nb());
 
 	double xCrE = enrichCrDist(mtrand);
 	double xNbE = enrichNbDist(mtrand);
+	#endif
 
 	#ifdef MPI_VERSION
 	MPI::COMM_WORLD.Barrier();
@@ -242,8 +247,8 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp
 
 	// Initialize matrix (gamma phase): bell curve along x-axis for Cr and Nb composition
 	const int Nx = g1(grid, 0) - g0(grid, 0);
-	const double a = -Nx * meshres / 2;
-	const double b =  Nx * meshres / 2;
+	const double a = -Nx * meshres / 3;
+	const double b =  Nx * meshres / 3;
 
 	vector<int> x(2, 0);
 	for (x[1] = y0(grid); x[1] < y1(grid); x[1]++) {
@@ -251,8 +256,8 @@ void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp
 			const double pos = dx(grid, 0) * x[0];
 			const double matrixCr = bell_curve(a, b, bell[0], pos, xCrM, xCrE);
 			const double matrixNb = bell_curve(a, b, bell[1], pos, xNbM, xNbE);
-			grid(x)[0] = matrixCr;
-			grid(x)[1] = matrixNb;
+			grid(x)[0] = std::min(1.0, std::max(0.0, matrixCr));
+			grid(x)[1] = std::min(1.0, std::max(0.0, matrixNb));
 		}
 	}
 
@@ -445,8 +450,8 @@ void seed_pair(GRID2D& grid,
 	const fp_t n_gam = dV / vFccNi;
 
 	// Embed a delta particle
-	x[0] = -16;
-	x[1] = (g1(grid, 1) - g0(grid, 1)) / 8;
+	x[0] =-(g1(grid, 0) - g0(grid, 0)) / 5;
+	x[1] = 0;
 	xCr = grid(x)[0];
 	xNb = grid(x)[1];
 	const fp_t pDel = p(grid(x)[NC]);
@@ -523,7 +528,7 @@ void generate(int dim, const char* filename)
 
 	if (dim == 2) {
 		#ifdef PLANAR
-		const int Nx = 768;
+		const int Nx = 768 * 0.5e-9 / meshres;
 		const int Ny =  17;
 		#else
 		/*
@@ -545,7 +550,7 @@ void generate(int dim, const char* filename)
 				b1(initGrid, d) = Neumann;
 		}
 
-		fp_t xCr0, xNb0;
+		fp_t xCr0 = 0.0, xNb0 = 0.0;
 
 		#ifdef PLANAR
 		init_flat_composition(initGrid, mtrand, xCr0, xNb0);
@@ -554,11 +559,13 @@ void generate(int dim, const char* filename)
 		#endif
 
 		// === Sanity Check ===
+		/*
 		printf("System composition is %10.4g Cr, %10.4g Nb\n", xCr0, xNb0);
 		const fp_t mCrCr = M_CrCr(xCr0, xNb0);
 		const fp_t mCrNb = M_CrNb(xCr0, xNb0);
 		const fp_t mNbNb = M_NbNb(xCr0, xNb0);
 		printf("Mobility matrix is [%10.4g %10.4g]\n                   [%10.4g %10.4g]\n", mCrCr, mCrNb, mCrNb, mNbNb);
+		*/
 
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 
@@ -663,7 +670,7 @@ void generate(int dim, const char* filename)
 		const int step = 0;
 		std::string imgname(filename);
 		imgname.replace(imgname.find("dat"), 3, "png");
-		write_matplotlib(xCr, xNb, pDel, pLav, nrg, gamCr, gamNb, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
+		write_matplotlib(xCr, xNb, pDel, pLav, Nx, Ny, nm, meshres, step, dt, imgname.c_str());
 
 		free(xCr[0]);
 		free(xNb[0]);

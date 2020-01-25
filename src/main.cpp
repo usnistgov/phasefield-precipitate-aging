@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
 			std::cout << "The command\n\n";
 			std::cout << "    " << PROGRAM << " --help\n\n";
 			std::cout << "generates this help message and exits.  ";
-			std::cout << "The \"--example\" option can be used to gen-\nerate a relevant test grid, e.g.\n\n";
+			std::cout << "The \"--example\" option can be used to generate a relevant test grid, e.g.\n\n";
 			std::cout << "    " << PROGRAM << " --example 3\n\n";
 			std::cout << "generates an example test problem on a grid of dimension 3 and writes this to the \n";
 			std::cout << "file named \"example\", while\n\n";
@@ -401,8 +401,6 @@ int main(int argc, char* argv[])
 
 						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
 						                 host.phi_del_new, host.phi_lav_new,
-										 host.nrg_den,
-										 host.conc_Cr_gam, host.conc_Nb_gam,
 						                 nx, ny, nm, MMSP::dx(grid),
 						                 j+1, dt, imgname.str().c_str());
 

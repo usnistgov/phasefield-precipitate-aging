@@ -18,10 +18,11 @@ else:
     dt = 0.1
     t = dt * np.arange(0, len(delta))
 
-
     fig, ax = plt.subplots(2, 1, sharex=True)
 
     ax[0].set_title(imgtitl, fontsize=20)
+    ax[0].set_xlim([0, 600])
+    ax[0].set_ylim([0, 0.75])
     ax[0].set_xlabel("$t$", fontsize=20)
     ax[0].set_ylabel("$\phi$", rotation = 0, fontsize=20, labelpad=20)
     ax[0].plot(t, delta, label="$\delta$")
@@ -30,7 +31,8 @@ else:
 
     ax[1].set_xlabel("$t$", fontsize=20)
     ax[1].set_ylabel("$\mathcal{F}$", rotation = 0, fontsize=20, labelpad=20)
-    ax[1].plot(t, f, "-k")
+    # ax[1].set_ylim([0, 0.75])
+    ax[1].semilogy(t, f, "-k")
 
     plt.savefig(imgname, dpi=400, bbox_inches="tight")
     plt.close()
