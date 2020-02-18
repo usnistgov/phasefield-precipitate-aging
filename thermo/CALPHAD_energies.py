@@ -59,7 +59,7 @@ import numpy as np
 
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
-from sympy import Eq, Matrix, diff, expand, init_printing, factor, fraction, pprint, symbols
+from sympy import Eq, Matrix, N, diff, expand, init_printing, factor, fraction, pprint, symbols
 from sympy.abc import x, r, y, z, L
 from sympy.core.numbers import pi
 from sympy.functions.elementary.exponential import exp, log
@@ -362,27 +362,35 @@ M_NbNb = Vm * ( M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2)
 M_NbCr = M_CrNb # M is symmetric
 
 # === Diffusivity ===
-
+xCr0 = 0.30
+xNb0 = 0.02
 D_CrCr = (3. / (  1. / (M_CrCr * p_d2Ggam_dxCrCr + M_CrNb * p_d2Ggam_dxCrNb)
                 + 1. / (M_CrCr * p_d2Gdel_dxCrCr + M_CrNb * p_d2Gdel_dxCrNb)
                 + 1. / (M_CrCr * p_d2Glav_dxCrCr + M_CrNb * p_d2Glav_dxCrNb))
-).subs({XCR: 0.3, XNB: 0.02})
+).subs({XCR: xCr0, XNB: xNb0})
 D_CrNb = (3. / (  1. / (M_CrCr * p_d2Ggam_dxNbCr + M_CrNb * p_d2Ggam_dxNbNb)
                 + 1. / (M_CrCr * p_d2Gdel_dxNbCr + M_CrNb * p_d2Gdel_dxNbNb)
                 + 1. / (M_CrCr * p_d2Glav_dxNbCr + M_CrNb * p_d2Glav_dxNbNb))
-).subs({XCR: 0.3, XNB: 0.02})
+).subs({XCR: xCr0, XNB: xNb0})
 D_NbCr = (3. / (  1. / (M_NbCr * p_d2Ggam_dxCrCr + M_NbNb * p_d2Ggam_dxCrNb)
                 + 1. / (M_NbCr * p_d2Gdel_dxCrCr + M_NbNb * p_d2Gdel_dxCrNb)
                 + 1. / (M_NbCr * p_d2Glav_dxCrCr + M_NbNb * p_d2Glav_dxCrNb))
-).subs({XCR: 0.3, XNB: 0.02})
+).subs({XCR: xCr0, XNB: xNb0})
 D_NbNb = (3. / (  1. / (M_NbCr * p_d2Ggam_dxNbCr + M_NbNb * p_d2Ggam_dxNbNb)
                 + 1. / (M_NbCr * p_d2Gdel_dxNbCr + M_NbNb * p_d2Gdel_dxNbNb)
                 + 1. / (M_NbCr * p_d2Glav_dxNbCr + M_NbNb * p_d2Glav_dxNbNb))
-).subs({XCR: 0.3, XNB: 0.02})
+).subs({XCR: xCr0, XNB: xNb0})
 
 Dbar = Matrix([[D_CrCr, D_CrNb],[D_NbCr, D_NbNb]])
-pprint(Dbar)
 Dnorm = Dbar.norm()
+print("Diffusivity at ({0}, {1}):".format(xCr0, xNb0))
+pprint(Dbar)
+print("Norm: {0}".format(Dnorm))
+print("Eigenvectors & values:")
+eigvec = Dbar.eigenvects()
+for eig in eigvec:
+    valu, mult, vect = eig
+    pprint((vect, valu))
 
 # Generate numerically efficient C-code
 
