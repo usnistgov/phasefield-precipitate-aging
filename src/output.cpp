@@ -254,7 +254,7 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 
 int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
                      fp_t** phi_del, fp_t** phi_lav,
-                     fp_t** nrg_den,
+                     fp_t** chem_nrg, fp_t** grad_nrg,
                      fp_t** gam_Cr, fp_t** gam_Nb,
                      const int nx, const int ny, const int nm,
                      const fp_t deltax,
@@ -272,6 +272,8 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 
 	std::vector<float> d(w);
 	std::vector<float> f(w);
+	std::vector<float> fchem(w);
+	std::vector<float> fgrad(w);
 
 	std::vector<float> c_Cr_bar(w);
 	std::vector<float> c_Nb_bar(w);
@@ -285,10 +287,15 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	for (int i = 0; i < w; ++i) {
 		d.at(i) = 1e6 * deltax * i;
 		int j = h/2;
-		if (nrg_den != NULL)
-			f.at(i) = nrg_den[j+nm/2][i+nm/2];
-		else
+		if (chem_nrg != NULL) {
+			fchem.at(i) = chem_nrg[j+nm/2][i+nm/2];
+			fgrad.at(i) = grad_nrg[j+nm/2][i+nm/2];
+			f.at(i) = chem_nrg[j+nm/2][i+nm/2] + grad_nrg[j+nm/2][i+nm/2];
+		} else {
+			fchem.at(i) = 0;
+			fgrad.at(i) = 0;
 			f.at(i) = 0;
+		}
 
 		c_Cr_bar.at(i) = conc_Cr[j+nm/2][i+nm/2];
 		c_Nb_bar.at(i) = conc_Nb[j+nm/2][i+nm/2];
@@ -316,7 +323,16 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
 	plt::ylabel("$\\mathcal{F}(Y=0)\\ /\\ [\\mathrm{J/m^3}]$");
 
-	plt::plot(d, f);
+	std::map<std::string, std::string> str_kw;
+	str_kw["label"] = "$f$";
+	plt::plot(d, f, str_kw);
+	str_kw["label"] = "$f_{\\mathrm{chem}}$";
+	plt::plot(d, fchem, str_kw);
+	str_kw["label"] = "$f_{\\mathrm{grad}}$";
+	plt::plot(d, fgrad, str_kw);
+	str_kw.clear();
+
+	plt::legend();
 
 	plt::subplot2grid(nrows, ncols, nrows-1, 0, 1, 1);
 	plt::xlim(0., 1e6 * deltax * nx);
@@ -324,7 +340,6 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
 	plt::ylabel("$x_{\\mathrm{Ni}}(Y=0)$");
 
-	std::map<std::string, std::string> str_kw;
 	str_kw["label"] = "$x_{\\mathrm{Nb}}$";
 	plt::plot(d, c_Nb_bar, str_kw);
 	str_kw.clear();

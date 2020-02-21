@@ -37,7 +37,8 @@ void make_arrays(struct HostData* host,
 
 	host->phi         = (fp_t**)calloc(nx, sizeof(fp_t*));
 
-	host->nrg_den     = (fp_t**)calloc(nx, sizeof(fp_t*));
+	host->chem_nrg     = (fp_t**)calloc(nx, sizeof(fp_t*));
+	host->grad_nrg     = (fp_t**)calloc(nx, sizeof(fp_t*));
 
 	host->mask_lap = (fp_t**)calloc(nm, sizeof(fp_t*));
 
@@ -61,7 +62,8 @@ void make_arrays(struct HostData* host,
 
 	(host->phi)[0]         = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 
-	(host->nrg_den)[0]     = (fp_t*)calloc(nx * ny, sizeof(fp_t));
+	(host->chem_nrg)[0]     = (fp_t*)calloc(nx * ny, sizeof(fp_t));
+	(host->grad_nrg)[0]     = (fp_t*)calloc(nx * ny, sizeof(fp_t));
 
 	(host->mask_lap)[0] = (fp_t*)calloc(nm * nm, sizeof(fp_t));
 
@@ -85,7 +87,8 @@ void make_arrays(struct HostData* host,
 		(host->phi_lav_lap)[i] = &(host->phi_lav_lap[0])[nx * i];
 		(host->phi)[i]         = &(host->phi[0]        )[nx * i];
 
-		(host->nrg_den)[i]     = &(host->nrg_den[0]    )[nx * i];
+		(host->chem_nrg)[i]    = &(host->chem_nrg[0]    )[nx * i];
+		(host->grad_nrg)[i]    = &(host->chem_nrg[0]    )[nx * i];
 	}
 
 	for (i = 1; i < nm; i++) {
@@ -117,7 +120,8 @@ void free_arrays(struct HostData* host)
 
 	free((host->phi)[0]);
 
-	free((host->nrg_den)[0]);
+	free((host->chem_nrg)[0]);
+	free((host->grad_nrg)[0]);
 
 	free((host->mask_lap)[0]);
 
@@ -143,7 +147,8 @@ void free_arrays(struct HostData* host)
 
 	free(host->phi);
 
-	free(host->nrg_den);
+	free(host->chem_nrg);
+	free(host->grad_nrg);
 
 	free(host->mask_lap);
 }

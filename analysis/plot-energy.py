@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from matplotlib import use as mplBackEnd
+mplBackEnd("Agg")
+
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,7 +34,7 @@ else:
 
     ax[1].set_xlabel("$t$", fontsize=20)
     ax[1].set_ylabel("$\mathcal{F}$", rotation = 0, fontsize=20, labelpad=20)
-    # ax[1].set_ylim([0, 0.75])
+    ax[1].set_ylim([1e-7, 2.5e-6])
     ax[1].semilogy(t, f, "-k")
 
     plt.savefig(imgname, dpi=400, bbox_inches="tight")

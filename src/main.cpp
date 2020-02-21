@@ -294,7 +294,7 @@ int main(int argc, char* argv[])
 				round_dt = std::floor(roundoff * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / roundoff;
 			}
 			const double dt = round_dt;
-			const uint64_t io_interval = std::min(increment, (uint64_t)(0.05 / dt));
+			const uint64_t io_interval = std::min(increment, (uint64_t)(1.0 / dt));
 			#ifdef NUCLEATION
 			const uint64_t nuc_interval = (uint64_t)(0.0001 / dt);
 			#endif
@@ -379,7 +379,7 @@ int main(int argc, char* argv[])
 						// Log compositions, phase fractions
 
 						MMSP::vector<double> summary = summarize_fields(grid);
-						const double energy = summarize_energy(grid, host.nrg_den);
+						const double energy = summarize_energy(grid, host.chem_nrg, host.grad_nrg);
 
 						if (rank == 0) {
 							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
@@ -401,6 +401,8 @@ int main(int argc, char* argv[])
 
 						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
 						                 host.phi_del_new, host.phi_lav_new,
+										 host.chem_nrg, host.grad_nrg,
+										 host.conc_Cr_gam, host.conc_Nb_gam,
 						                 nx, ny, nm, MMSP::dx(grid),
 						                 j+1, dt, imgname.str().c_str());
 

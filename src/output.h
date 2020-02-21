@@ -58,7 +58,7 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 */
 int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
                      fp_t** phi_del, fp_t** phi_lav,
-                     fp_t** nrg_den,
+                     fp_t** chem_nrg, fp_t** grad_nrg,
                      fp_t** gam_Cr, fp_t** gam_Nb,
                      const int nx, const int ny, const int nm,
                      const fp_t deltax,

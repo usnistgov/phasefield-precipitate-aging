@@ -29,7 +29,9 @@ struct HostData {
 	fp_t** mask_lap;
 	fp_t** conc_Ni;
 	fp_t** phi;
-	fp_t** nrg_den;
+
+	fp_t** chem_nrg;
+	fp_t** grad_nrg;
 
 	fp_t** conc_Cr_old;
 	fp_t** conc_Cr_new;

@@ -102,6 +102,21 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t&
 void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0);
 
 /**
+   \brief Initialize domain at equilibrium with a broad interface
+*/
+void init_tanh(GRID2D& grid, fp_t& xCr0, fp_t& xNb0, int index);
+/**
+   \brief Initialize domain with 50-50 delta and gamma at equilibrium with a broad interface
+*/
+void init_tanh_delta(GRID2D& grid, fp_t& xCr0, fp_t& xNb0);
+
+/**
+   \brief Initialize domain with 50-50 laves and gamma at equilibrium with a broad interface
+*/
+void init_tanh_laves(GRID2D& grid, fp_t& xCr0, fp_t& xNb0);
+
+
+/**
  \brief Embed particle at specified position
  Set <b>O</b>rder <b>P</b>arameter and <b>C</b>omposition fields.
  See TKR5p271.
@@ -187,7 +202,7 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim, MMSP::vector<T> > const& G
  Integrate free energy over the whole grid to make sure it decreases with time
 */
 template<int dim, typename T>
-double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID, fp_t** nrg_dens);
+double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID, fp_t** chem_nrg, fp_t** grad_nrg);
 
 /**
    \brief Compute interface width

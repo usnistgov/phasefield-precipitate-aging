@@ -11,10 +11,10 @@
 
 // === Discretization Parameters ===
 
-const double meshres = 0.035e-9;     // grid spacing, Δx (m); max. is 2.5 Å
+const double meshres = 0.3125e-9;    // grid spacing, Δx (m); max. is 2.5 Å
 const double ifce_width = 2.5e-9;    // interface thickness, 2λ (m), TKR5p274
 const fp_t LinStab = 0.02;           // threshold of linear (von Neumann) stability, Co (dimensionless)
-const fp_t MobStab = 5e-3;           // stability factor for diffusion control
+const fp_t MobStab = 1.0;            // stability factor for diffusion control
 const fp_t precip_stabilizer = 2.;   // 1.5 Rc = R0, the root of the curve; fitting parameter
 const fp_t lattice_const = 0.352e-9; // lattice spacing of FCC nickel (m)
 const fp_t vFccNi = lattice_const * lattice_const * lattice_const / 4.; // Volume of an FCC Ni atom
@@ -35,7 +35,7 @@ const fp_t width_factor = 2.2; // when "interface" is [0.1,0.9]; 2.94 if [0.05,0
 const fp_t kappa[NP] = {3. * sigma[0]* ifce_width / width_factor,
                         3. * sigma[1]* ifce_width / width_factor
                        }; // gradient energy coefficient (J/m)
-const fp_t omega[NP] = {18. * omega[0] / kappa[0],
-                        18. * omega[1] / kappa[1]
+const fp_t omega[NP] = {18. * sigma[0] * sigma[0] / kappa[0],
+                        18. * sigma[1] * sigma[1] / kappa[1]
                        };
 #endif
