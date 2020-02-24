@@ -379,7 +379,7 @@ void seed_solitaire_laves(GRID2D& grid,
 	}
 }
 
-void seed_planar_delta(GRID2D& grid, const int w_precip)
+void seed_planar(GRID2D& grid, const fp_t& w_precip, const int index)
 {
 	fp_t xCr = 0.0, xNb = 0.0;
 	for (int n=0; n<nodes(grid); n++) {
@@ -389,7 +389,9 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 	xCr /= nodes(grid);
 	xNb /= nodes(grid);
 
-	const fp_t R_precip = meshres * w_precip;
+	const fp_t preCr = (index == NC) ? xe_del_Cr() : xe_lav_Cr();
+	const fp_t preNb = (index == NC) ? xe_del_Nb() : xe_lav_Nb();
+
 	const fp_t inflation = 0.5;
 
 	vector<int> x(2, 0);
@@ -398,39 +400,22 @@ void seed_planar_delta(GRID2D& grid, const int w_precip)
 			// Smoothly interpolate through the interface, TKR5p276
 			vector<fp_t>& GridN = grid(x);
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
-			const fp_t phi = tanh_interp(r - R_precip, inflation * ifce_width);
-			GridN[NC] = phi;
-			GridN[0] = p(phi) * xe_del_Cr() + p(1.0 - phi) * xCr;
-			GridN[1] = p(phi) * xe_del_Nb() + p(1.0 - phi) * xNb;
+			const fp_t phi = tanh_interp(r - w_precip, inflation * ifce_width);
+			GridN[0] = p(phi) * preCr + p(1.0 - phi) * xCr;
+			GridN[1] = p(phi) * preNb + p(1.0 - phi) * xNb;
+			GridN[index] = phi;
 		}
 	}
 }
 
-void seed_planar_laves(GRID2D& grid, const int w_precip)
+void seed_planar_delta(GRID2D& grid, const fp_t& w_precip)
 {
-	fp_t xCr = 0.0, xNb = 0.0;
-	for (int n=0; n<nodes(grid); n++) {
-		xCr += grid(n)[0];
-		xNb += grid(n)[1];
-	}
-	xCr /= nodes(grid);
-	xNb /= nodes(grid);
+	seed_planar(grid, w_precip, NC);
+}
 
-	const fp_t R_precip = meshres * w_precip;
-	const fp_t inflation = 0.5;
-
-	vector<int> x(2, 0);
-	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
-		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
-			// Smoothly interpolate through the interface, TKR5p276
-			vector<fp_t>& GridN = grid(x);
-			const fp_t r = meshres * (x[0] - g0(grid, 0));
-			const fp_t phi = tanh_interp(r - R_precip, inflation * ifce_width);
-			GridN[NC+1] = phi;
-			GridN[0] = p(phi) * xe_lav_Cr() + p(1.0 - phi) * xCr;
-			GridN[1] = p(phi) * xe_lav_Nb() + p(1.0 - phi) * xNb;
-		}
-	}
+void seed_planar_laves(GRID2D& grid, const fp_t w_precip)
+{
+	seed_planar(grid, w_precip, NC+1);
 }
 
 void init_tanh(GRID2D& grid, fp_t& xCr0, fp_t& xNb0, int index)
@@ -564,11 +549,8 @@ void generate(int dim, const char* filename)
 	mtrand.seed(seed);
 
 	if (dim == 2) {
-		#if defined(PLANAR)
-		const int Nx = 768 * 0.5e-9 / meshres;
-		const int Ny =  17;
-		#elif defined(TANH)
-		const int Nx = 1536 * 0.5e-9 / meshres;
+		#if defined(PLANAR) or defined(TANH)
+		const int Nx = 3.0e-6 / meshres;
 		const int Ny =  17;
 		#else
 		/*
@@ -614,7 +596,7 @@ void generate(int dim, const char* filename)
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 
 		#ifdef PLANAR
-		const int w_precip = 9 * ifce_width / meshres;
+		const fp_t w_precip = 250e-9 / meshres;
 		seed_planar_delta(initGrid, w_precip);
 		#elif defined(TANH)
 		// no op

@@ -151,9 +151,19 @@ void seed_solitaire_laves(GRID2D& grid,
                           const fp_t dt);
 
 /**
- \brief Insert a slab of delta phase at the left border
+   \brief Insert a slab of secondary phase at the left boundary
 */
-void embed_planar_delta(GRID2D& grid, const int w_precip);
+void seed_planar(GRID2D& grid, const fp_t& w_precip, const int index);
+
+/**
+ \brief Insert a slab of delta phase at the left boundary
+*/
+void seed_planar_delta(GRID2D& grid, const fp_t& w_precip);
+
+/**
+   \brief Insert a slab of laves phase at the left boundary
+*/
+void seed_planar_laves(GRID2D& grid, const fp_t& w_precip);
 
 /**
  \brief Insert one particle of each secondary phase

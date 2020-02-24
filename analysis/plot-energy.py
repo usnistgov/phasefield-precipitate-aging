@@ -24,8 +24,8 @@ else:
     fig, ax = plt.subplots(2, 1, sharex=True)
 
     ax[0].set_title(imgtitl, fontsize=20)
-    ax[0].set_xlim([0, 600])
-    ax[0].set_ylim([0, 0.75])
+    # ax[0].set_xlim([0, 600])
+    # ax[0].set_ylim([0, 0.75])
     ax[0].set_xlabel("$t$", fontsize=20)
     ax[0].set_ylabel("$\phi$", rotation = 0, fontsize=20, labelpad=20)
     ax[0].plot(t, delta, label="$\delta$")
@@ -34,7 +34,7 @@ else:
 
     ax[1].set_xlabel("$t$", fontsize=20)
     ax[1].set_ylabel("$\mathcal{F}$", rotation = 0, fontsize=20, labelpad=20)
-    ax[1].set_ylim([1e-7, 2.5e-6])
+    # ax[1].set_ylim([1e-7, 2.5e-6])
     ax[1].semilogy(t, f, "-k")
 
     plt.savefig(imgname, dpi=400, bbox_inches="tight")

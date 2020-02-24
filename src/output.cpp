@@ -267,8 +267,8 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 
 	plt::backend("Agg");
 
-	int w = nx - nm/2;
-	int h = ny - nm/2;
+	int w = nx - nm;
+	int h = ny - nm;
 
 	std::vector<float> d(w);
 	std::vector<float> f(w);
