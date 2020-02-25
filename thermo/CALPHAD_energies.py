@@ -120,15 +120,6 @@ def draw_bisector(weightA, weightB):
     return xPrime, yPrime
 
 
-# triangle bounding three-phase coexistence
-X0 = [
-    simX(xe_gam_Nb, xe_gam_Cr),
-    simX(xe_del_Nb, xe_del_Cr),
-    simX(xe_lav_Nb, xe_lav_Cr),
-    simX(xe_gam_Nb, xe_gam_Cr),
-]
-Y0 = [simY(xe_gam_Cr), simY(xe_del_Cr), simY(xe_lav_Cr), simY(xe_gam_Cr)]
-
 # Make sublattice -> system substitutions
 g_gamma = inVm * g_gamma.subs(
     {

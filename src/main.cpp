@@ -34,38 +34,31 @@ int main(int argc, char* argv[])
 			std::cout << PROGRAM << ": " << MESSAGE << "\n\n";
 			std::cout << "Valid command lines have the form:\n\n";
 			std::cout << "    " << PROGRAM << " ";
-			std::cout << "[--help] [--example dimension [outfile]] [infile [outfile] steps [increment]]\n\n";
+			std::cout << "[--help] [--init dimension [outfile]] [infile [outfile] runtime [increment]]\n\n";
 			std::cout << "A few examples of using the command line follow.\n\n";
 			std::cout << "The command\n\n";
 			std::cout << "    " << PROGRAM << " --help\n\n";
 			std::cout << "generates this help message and exits.  ";
-			std::cout << "The \"--example\" option can be used to generate a relevant test grid, e.g.\n\n";
-			std::cout << "    " << PROGRAM << " --example 3\n\n";
-			std::cout << "generates an example test problem on a grid of dimension 3 and writes this to the \n";
-			std::cout << "file named \"example\", while\n\n";
-			std::cout << "    " << PROGRAM << " --example 2 start\n\n";
-			std::cout << "generates an example test problem on a grid of dimension 2 and writes this to the \n";
-			std::cout << "file named \"start\".\n\n";
-			std::cout << "    " << PROGRAM << " start 1000\n\n";
-			std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
-			std::cout << "The final grid is written to a file named \"start.1000\".\n\n";
-			std::cout << "    " << PROGRAM << " start final 1000\n\n";
-			std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
-			std::cout << "The final grid is written to a file named \"final.1000\".\n\n";
-			std::cout << "    " << PROGRAM << " start 1000 100\n\n";
-			std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
-			std::cout << "The grid is then written to a file every 100 time steps.  ";
-			std::cout << "The resulting files are \nnamed \"start.0100\", \"start.0200\", ... \"start.1000\".\n\n";
-			std::cout << "    " << PROGRAM << " start final 1000 100\n\n";
-			std::cout << "reads the grid contained within \"start\" and runs a simulation for 1000 time steps.\n";
-			std::cout << "The grid is then written to a file every 100 time steps.  ";
-			std::cout << "The resulting files are \nnamed \"final.0100\", \"final.0200\", ... \"final.1000\".\n\n";
+			std::cout << "The \"--init\" option can be used to generate a relevant test grid, e.g.\n\n";
+			std::cout << "    " << PROGRAM << " --init 2\n\n";
+			std::cout << "generates an initial condition on a grid of dimension 3 and writes this to the \n";
+			std::cout << "file named \"init\", while\n\n";
+			std::cout << "    " << PROGRAM << " --init 2 start.dat\n\n";
+			std::cout << "generates an initial condition on a grid of dimension 2 and writes this to the \n";
+			std::cout << "file named \"start.dat\".\n\n";
+			std::cout << "    " << PROGRAM << " start.dat 1000\n\n";
+			std::cout << "reads the grid contained within \"start.dat\" and runs a simulation for 1000 seconds.\n";
+			std::cout << "The final grid is written to a file named \"start.1000.0000.dat\".\n\n";
+			std::cout << "    " << PROGRAM << " start.dat 1000 100\n\n";
+			std::cout << "reads the grid contained within \"start.dat\" and runs a simulation for 1000 seconds.\n";
+			std::cout << "The grid is then written to a file every 100 seconds.  ";
+			std::cout << "The resulting files are \nnamed \"start.0100.0000.dat\", \"start.0200.0000.dat\", ... \"start.1000.0000.dat\".\n\n";
 		}
 		MMSP::Abort(EXIT_SUCCESS);
 	}
 
-	// generate example grid
-	else if (std::string(argv[1]) == std::string("--example")) {
+	// generate init grid
+	else if (std::string(argv[1]) == std::string("--init")) {
 		// check argument list
 		if (argc<3 or argc>4) {
 			std::cout << PROGRAM << ": bad argument list.  Use\n\n";
@@ -76,7 +69,7 @@ int main(int argc, char* argv[])
 
 		// check problem dimension
 		if (std::string(argv[2]).find_first_not_of("0123456789") != std::string::npos) {
-			std::cout << PROGRAM << ": example grid must have integral dimension.  Use\n\n";
+			std::cout << PROGRAM << ": init grid must have integral dimension.  Use\n\n";
 			std::cout << "    " << PROGRAM << " --help\n\n";
 			std::cout << "to generate help message.\n\n";
 			MMSP::Abort(EXIT_FAILURE);
@@ -86,7 +79,7 @@ int main(int argc, char* argv[])
 
 		// set output file name
 		std::string outfile;
-		if (argc < 4) outfile = "example";
+		if (argc < 4) outfile = "init";
 		else outfile = argv[3];
 
 		char* filename = new char[outfile.length()+1];
@@ -111,39 +104,37 @@ int main(int argc, char* argv[])
 			MMSP::Abort(EXIT_FAILURE);
 		}
 
-		uint64_t steps;
-		uint64_t increment;
-		std::string outfile;
+		double sim_start  = 0;
+		double sim_finish = 0;
+		double sim_step   = 0;
+		std::string outfile = "";
 
-		if (std::string(argv[2]).find_first_not_of("0123456789") == std::string::npos) {
+		if (std::string(argv[2]).find_first_not_of("0123456789.") == std::string::npos) {
 			// set output file name
 			outfile = argv[1];
 
-			// must have integral number of time steps
-			if (std::string(argv[2]).find_first_not_of("0123456789") != std::string::npos) {
-				std::cout << PROGRAM << ": number of time steps must have integral value.  Use\n\n";
+			if (std::string(argv[2]).find_first_not_of("0123456789.") != std::string::npos) {
+				std::cout << PROGRAM << ": runtime (sec) must be a positive number.  Use\n\n";
 				std::cout << "    " << PROGRAM << " --help\n\n";
 				std::cout << "to generate help message.\n\n";
 				MMSP::Abort(EXIT_FAILURE);
 			}
 
-			steps = atol(argv[2]);
-			increment = steps;
+			sim_finish = atof(argv[2]);
+			sim_step = sim_finish;
 
 			if (argc > 3) {
-				// must have integral output increment
-				if (std::string(argv[3]).find_first_not_of("0123456789") != std::string::npos) {
-					std::cout << PROGRAM << ": output increment must have integral value.  Use\n\n";
+				if (std::string(argv[3]).find_first_not_of("0123456789.") != std::string::npos) {
+					std::cout << PROGRAM << ": output increment (sec) must be a positive number.  Use\n\n";
 					std::cout << "    " << PROGRAM << " --help\n\n";
 					std::cout << "to generate help message.\n\n";
 					MMSP::Abort(EXIT_FAILURE);
 				}
 
-				increment = atol(argv[3]);
+				sim_step = atof(argv[3]);
 
-				// output increment must be smaller than number of steps
-				if (increment > steps) {
-					std::cout << PROGRAM << ": output increment must be smaller than number of time steps.  Use\n\n";
+				if (sim_step > sim_finish) {
+					std::cout << PROGRAM << ": output increment must be smaller than runtime.  Use\n\n";
 					std::cout << "    " << PROGRAM << " --help\n\n";
 					std::cout << "to generate help message.\n\n";
 					MMSP::Abort(EXIT_FAILURE);
@@ -156,30 +147,27 @@ int main(int argc, char* argv[])
 			outfile = argv[2];
 
 			// set number of time steps
-			if (std::string(argv[3]).find_first_not_of("0123456789") != std::string::npos) {
-				// must have integral number of time steps
-				std::cout << PROGRAM << ": number of time steps must have integral value.  Use\n\n";
+			if (std::string(argv[3]).find_first_not_of("0123456789.") != std::string::npos) {
+				std::cout << PROGRAM << ": runtime (sec) must be a positive number.  Use\n\n";
 				std::cout << "    " << PROGRAM << " --help\n\n";
 				std::cout << "to generate help message.\n\n";
 				MMSP::Abort(EXIT_FAILURE);
 			}
 
-			steps = atol(argv[3]);
-			increment = steps;
+			sim_finish = atof(argv[3]);
+			sim_step = sim_finish;
 
 			if (argc > 4) {
-				// must have integral output increment
 				if (std::string(argv[4]).find_first_not_of("0123456789") != std::string::npos) {
-					std::cout << PROGRAM << ": output increment must have integral value.  Use\n\n";
+					std::cout << PROGRAM << ": output increment (sec) must be a positive number.  Use\n\n";
 					std::cout << "    " << PROGRAM << " --help\n\n";
 					std::cout << "to generate help message.\n\n";
 					MMSP::Abort(EXIT_FAILURE);
 				}
 
-				increment = atol(argv[4]);
+				sim_step = atof(argv[4]);
 
-				// output increment must be smaller than number of steps
-				if (increment > steps) {
+				if (sim_step > sim_finish) {
 					std::cout << PROGRAM << ": output increment must be smaller than number of time steps.  Use\n\n";
 					std::cout << "    " << PROGRAM << " --help\n\n";
 					std::cout << "to generate help message.\n\n";
@@ -210,42 +198,26 @@ int main(int argc, char* argv[])
 		input >> dim;
 		input.close();
 
-		// set output file basename
-		uint64_t iterations_start(0);
+		// get starting time
 		if (outfile.find_first_of(".") != outfile.find_last_of(".")) {
 			std::string number = outfile.substr(outfile.find_first_of(".") + 1, outfile.find_last_of(".") - 1);
-			iterations_start = atoi(number.c_str());
+			sim_start = atof(number.c_str());
 		}
-		std::string base;
-		if (outfile.find(".", outfile.find_first_of(".") + 1) == std::string::npos) // only one dot found
-			base = outfile.substr(0, outfile.find_last_of(".")) + ".";
-		else {
-			int last_dot = outfile.find_last_of(".");
-			int prev_dot = outfile.rfind('.', last_dot - 1);
-			std::string number = outfile.substr(prev_dot + 1, last_dot - prev_dot - 1);
-			bool isNumeric(true);
-			for (unsigned int i = 0; i < number.size(); ++i) {
-				if (!isdigit(number[i])) isNumeric = false;
-			}
-			if (isNumeric)
-				base = outfile.substr(0, outfile.rfind(".", outfile.find_last_of(".") - 1)) + ".";
-			else base = outfile.substr(0, outfile.find_last_of(".")) + ".";
-		}
+
+		// set output file basename
+		std::string base = outfile.substr(0, outfile.find_first_of(".")) + ".";
 
 		// set output file suffix
 		std::string suffix = "";
 		if (outfile.find_last_of(".") != std::string::npos)
 			suffix = outfile.substr(outfile.find_last_of("."), std::string::npos);
 
-		// set output filename length
-		int length = base.length() + suffix.length();
-		if (1) {
-			std::stringstream slength;
-			slength << steps;
-			length += slength.str().length();
-		}
-
 		if (dim == 2) {
+			// setup logging
+			FILE* cfile = NULL;
+			if (rank == 0)
+				cfile = fopen("c.log", "a"); // existing log will be appended
+
 			// construct grid object
 			GRID2D grid(argv[1]);
 
@@ -294,22 +266,21 @@ int main(int argc, char* argv[])
 				round_dt = std::floor(roundoff * LinStab * std::min(dtTransformLimited, dtDiffusionLimited)) / roundoff;
 			}
 			const double dt = round_dt;
-			const uint64_t io_interval = std::min(increment, (uint64_t)(1.0 / dt));
+
+			// set intervals for checkpoint I/O and nucleation
+			const uint64_t io_interval = std::min(uint64_t(sim_step / dt), uint64_t(1.0 / dt));
 			#ifdef NUCLEATION
 			const uint64_t nuc_interval = (uint64_t)(0.0001 / dt);
 			#endif
 
-			// setup logging
-			FILE* cfile = NULL;
-
-			if (rank == 0)
-				cfile = fopen("c.log", "a"); // existing log will be appended
-
 			// perform computation
-			for (uint64_t i = iterations_start; i < steps; i += increment) {
+			for (double sim_time = sim_start; sim_time < sim_finish; sim_time += sim_step) {
 				/* start update() */
-				for (uint64_t j = i; j < i + increment; j++) {
-					print_progress(j - i, increment);
+				// convert times to steps (for integer arithmetic)
+				const uint64_t kernel_start = sim_time / dt;
+				const uint64_t kernel_finish = std::min(sim_time + sim_step, sim_finish) / dt;
+				for (uint64_t kernel_time = kernel_start; kernel_time < kernel_finish; kernel_time++) {
+					print_progress(kernel_time - kernel_start, kernel_finish);
 
 					// === Start Architecture-Specific Kernel ===
 					device_boundaries(&dev, nx, ny, nm, bx, by);
@@ -331,7 +302,7 @@ int main(int argc, char* argv[])
 					device_evolution(&dev, nx, ny, nm, bx, by, alpha, dt);
 
 					#ifdef NUCLEATION
-					const bool nuc_step = (j % nuc_interval == 0);
+					const bool nuc_step = (kernel_time % nuc_interval == 0);
 					if (nuc_step) {
 						device_nucleation(&dev, nx, ny, nm, bx, by,
 						                  sigma[0], sigma[1],
@@ -346,7 +317,8 @@ int main(int argc, char* argv[])
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
 
-					const bool io_step = ((j+1) % io_interval == 0 || (j+1) == steps);
+					const bool io_step = (  (kernel_time+1) % io_interval == 0
+										 || (kernel_time+1) == kernel_finish);
 					if (io_step) {
 						device_dataviz(&dev, &host, nx, ny, nm, bx, by);
 
@@ -383,20 +355,20 @@ int main(int argc, char* argv[])
 
 						if (rank == 0) {
 							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
-							        dt * (j+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+							        dt * (kernel_time+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 							fflush(cfile);
 						}
 
 						// Write image
+						char imgname[FILENAME_MAX] = {0};
+						for (size_t i = 0; i < base.length(); i++)
+							imgname[i] = base[i];
 
-						std::stringstream imgname;
-						int n = imgname.str().length();
-						for (int l = 0; n < length; l++) {
-							imgname.str("");
-							imgname << base;
-							for (int k = 0; k < l; k++) imgname << 0;
-							imgname << j+1 << ".png";
-							n = imgname.str().length();
+						int namelength = base.length() + sprintf(imgname+base.length(), "%09.4f.png", dt * (kernel_time + 1));
+						if (namelength >= FILENAME_MAX) {
+							if (rank == 0)
+								std::cerr << "Error: Filename " << imgname << " is too long!" << std::endl;
+							MMSP::Abort(EXIT_FAILURE);
 						}
 
 						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
@@ -404,7 +376,7 @@ int main(int argc, char* argv[])
 										 host.chem_nrg, host.grad_nrg,
 										 host.conc_Cr_gam, host.conc_Nb_gam,
 						                 nx, ny, nm, MMSP::dx(grid),
-						                 j+1, dt, imgname.str().c_str());
+						                 kernel_time+1, dt, imgname);
 
 						dtDiffusionLimited = MMSP::timestep(grid, D_Cr, D_Nb);
 						if (LinStab * dtDiffusionLimited < 0.2 * dt) {
@@ -416,23 +388,20 @@ int main(int argc, char* argv[])
 					// === Finish Architecture-Specific Kernel ===
 				}
 
-				std::stringstream outstr;
-				int n = outstr.str().length();
-				for (int j = 0; n < length; j++) {
-					outstr.str("");
-					outstr << base;
-					for (int k = 0; k < j; k++) outstr << 0;
-					outstr << i + increment << suffix;
-					n = outstr.str().length();
+				// Write image
+				char filename[FILENAME_MAX] = {0};
+				for (size_t i = 0; i < base.length(); i++)
+					filename[i] = base[i];
+				int namelength = base.length() + sprintf(filename + base.length(), "%09.4f%s", sim_time + sim_step, suffix.c_str());
+				if (namelength >= FILENAME_MAX) {
+					if (rank == 0)
+						std::cerr << "Error: Filename " << filename << " is too long!" << std::endl;
+					MMSP::Abort(EXIT_FAILURE);
 				}
-
-				char filename[FILENAME_MAX] = {}; // initialize null characters
-				for (unsigned int j=0; j<outstr.str().length(); j++)
-					filename[j]=outstr.str()[j];
 
 				MMSP::output(grid, filename);
 
-				print_progress(increment, increment);
+				print_progress(kernel_finish, kernel_finish);
 				/* finish update() */
 			}
 

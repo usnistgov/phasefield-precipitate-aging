@@ -13,7 +13,7 @@ init_printing()
 bell_f = A * (exp(-0.5 * (x / sigma) ** 2) - 1) + xe
 bell_F = integrate(bell_f, x)
 bell_a = simplify(bell_F.subs(x, b) - bell_F.subs(x, a)) / (b - a)
-coeff = simplify(solve(Eq(x0, bell_a), A))[0]
+coeff  = simplify(solve(Eq(x0, bell_a), A)[0])
 bell_f = simplify(bell_f.subs(A, coeff))
 
 codegen(
