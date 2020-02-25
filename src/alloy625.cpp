@@ -94,13 +94,15 @@ void set_diffusion_matrix(const fp_t xCr0, const fp_t xNb0, fp_t* DCr, fp_t* DNb
 	DNb[0] = M_NbCr(xCr0, xNb0) * d2g_gam_dxCrCr() + M_NbNb(xCr0, xNb0) * d2g_gam_dxCrNb();
 	DNb[1] = M_NbCr(xCr0, xNb0) * d2g_gam_dxNbCr() + M_NbNb(xCr0, xNb0) * d2g_gam_dxNbNb();
 
+	const fp_t Dnorm = std::sqrt(DCr[0]*DCr[0] + DCr[1]*DCr[1] + DNb[0]*DNb[0] + DNb[1]*DNb[1]);
+
 	if (rank == 0 && verbose) {
 		printf("Diffusion matrix is [%10.4g %10.4g]\n", DCr[0], DCr[1]);
 		printf("                    [%10.4g %10.4g]\n", DNb[0], DNb[1]);
+		printf("Frobenius norm is %10.4g\n", Dnorm);
 	}
 
-	const fp_t Dmin = std::min(std::fabs(DCr[0]), std::fabs(DNb[1]));
-	L_mob[0] = MobStab * Dmin / (ifce_width * ifce_width * RT() / Vm()); // numerical mobility (m^2/(Ns))
+	L_mob[0] = MobStab * Dnorm / (ifce_width * ifce_width * RT() / Vm()); // numerical mobility (m^2/(Ns))
 	L_mob[1] = Lmob[0];                                                  // Ref: TKR5p315
 
 	if (rank == 0 && verbose) {
@@ -550,7 +552,7 @@ void generate(int dim, const char* filename)
 
 	if (dim == 2) {
 		#if defined(PLANAR) or defined(TANH)
-		const int Nx = 3.0e-6 / meshres;
+		const int Nx = 1.0e-6 / meshres;
 		const int Ny =  17;
 		#else
 		/*
@@ -596,7 +598,7 @@ void generate(int dim, const char* filename)
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 
 		#ifdef PLANAR
-		const fp_t w_precip = 250e-9 / meshres;
+		const fp_t w_precip = 125e-9;
 		seed_planar_delta(initGrid, w_precip);
 		#elif defined(TANH)
 		// no op
