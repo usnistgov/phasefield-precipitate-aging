@@ -98,7 +98,7 @@ g_laves = parse_expr(str(model.ast))
 XCR, XNB = symbols("XCR XNB")
 
 # Define lever rule equations
-# Ref: TKR4p161, 172; TKR5p266, 272, 293
+## Ref: TKR4p161, 172; TKR5p266, 272, 293
 xo, yo = symbols("xo yo")
 xb, yb = symbols("xb yb")
 xc, yc = symbols("xc yc")
@@ -261,7 +261,7 @@ fict_lav_Cr = factor(expand(gcd * fict_lav_Cr)) * INV_DET
 fict_lav_Nb = factor(expand(gcd * fict_lav_Nb)) * INV_DET
 
 # ============ COMPOSITION SHIFTS ============
-# Ref: TKR5p219
+## Ref: TKR5p219
 
 r_del, r_lav = symbols("r_del, r_lav")
 
@@ -316,9 +316,9 @@ dx_r_del_Nb = xr[3]
 dx_r_lav_Cr = xr[4]
 dx_r_lav_Nb = xr[5]
 
-# === Atomic Mobilities in FCC Ni ===
-# Mobility of (1) in pure (2), from `NIST-nifcc-mob.TDB`
-## TKR5p286 and 316
+# === Activation Energies in FCC Ni [J/mol] ===
+# Motion of species (1) in pure (2), from `NIST-nifcc-mob.TDB`
+## Ref: TKR5p286, TKR5p316
 
 Q_Cr_Cr   = -235000 - 82.0 * temp
 Q_Cr_Nb   = -287000 - 64.4 * temp
@@ -338,12 +338,15 @@ Q_Cr = XCR * Q_Cr_Cr + XNB * Q_Cr_Nb + (1 - XCR - XNB) * Q_Cr_Ni + XCR * (1 - XC
 Q_Nb = XCR * Q_Nb_Cr + XNB * Q_Nb_Nb + (1 - XCR - XNB) * Q_Nb_Ni
 Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + (1 - XCR - XNB) * Q_Ni_Ni + XCR * (1 - XCR - XNB) * Q_Ni_CrNi
 
+# === Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ===
+## Ref: TKR5p286, TKR5p316
+
 M_Cr = exp(Q_Cr / RT) / RT
 M_Nb = exp(Q_Nb / RT) / RT
 M_Ni = exp(Q_Ni / RT) / RT
 
-# === Chemical Mobilities in FCC Ni ===
-## TKR5p292 and 311-312
+# === Chemical Mobilities in FCC Ni [# m⁵/Js] ===
+## Ref: TKR5p292, TKR5p311-312
 
 phi_del, phi_lav = symbols("phi_del, phi_lav")
 
@@ -352,25 +355,15 @@ M_CrNb = Vm * (-M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * X
 M_NbNb = Vm * ( M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2)
 M_NbCr = M_CrNb # M is symmetric
 
-# === Diffusivity ===
+# === Diffusivity in FCC Ni [m²/s] ===
+
 xCr0 = 0.30
 xNb0 = 0.02
-D_CrCr = (3. / (  1. / (M_CrCr * p_d2Ggam_dxCrCr + M_CrNb * p_d2Ggam_dxCrNb)
-                + 1. / (M_CrCr * p_d2Gdel_dxCrCr + M_CrNb * p_d2Gdel_dxCrNb)
-                + 1. / (M_CrCr * p_d2Glav_dxCrCr + M_CrNb * p_d2Glav_dxCrNb))
-).subs({XCR: xCr0, XNB: xNb0})
-D_CrNb = (3. / (  1. / (M_CrCr * p_d2Ggam_dxNbCr + M_CrNb * p_d2Ggam_dxNbNb)
-                + 1. / (M_CrCr * p_d2Gdel_dxNbCr + M_CrNb * p_d2Gdel_dxNbNb)
-                + 1. / (M_CrCr * p_d2Glav_dxNbCr + M_CrNb * p_d2Glav_dxNbNb))
-).subs({XCR: xCr0, XNB: xNb0})
-D_NbCr = (3. / (  1. / (M_NbCr * p_d2Ggam_dxCrCr + M_NbNb * p_d2Ggam_dxCrNb)
-                + 1. / (M_NbCr * p_d2Gdel_dxCrCr + M_NbNb * p_d2Gdel_dxCrNb)
-                + 1. / (M_NbCr * p_d2Glav_dxCrCr + M_NbNb * p_d2Glav_dxCrNb))
-).subs({XCR: xCr0, XNB: xNb0})
-D_NbNb = (3. / (  1. / (M_NbCr * p_d2Ggam_dxNbCr + M_NbNb * p_d2Ggam_dxNbNb)
-                + 1. / (M_NbCr * p_d2Gdel_dxNbCr + M_NbNb * p_d2Gdel_dxNbNb)
-                + 1. / (M_NbCr * p_d2Glav_dxNbCr + M_NbNb * p_d2Glav_dxNbNb))
-).subs({XCR: xCr0, XNB: xNb0})
+
+D_CrCr = (M_CrCr * p_d2Ggam_dxCrCr + M_CrNb * p_d2Ggam_dxCrNb).subs({XCR: xCr0, XNB: xNb0})
+D_CrNb = (M_CrCr * p_d2Ggam_dxNbCr + M_CrNb * p_d2Ggam_dxNbNb).subs({XCR: xCr0, XNB: xNb0})
+D_NbCr = (M_NbCr * p_d2Ggam_dxCrCr + M_NbNb * p_d2Ggam_dxCrNb).subs({XCR: xCr0, XNB: xNb0})
+D_NbNb = (M_NbCr * p_d2Ggam_dxNbCr + M_NbNb * p_d2Ggam_dxNbNb).subs({XCR: xCr0, XNB: xNb0})
 
 Dbar = Matrix([[D_CrCr, D_CrNb],[D_NbCr, D_NbNb]])
 Dnorm = Dbar.norm()

@@ -103,7 +103,7 @@ void set_diffusion_matrix(const fp_t xCr0, const fp_t xNb0, fp_t* DCr, fp_t* DNb
 	}
 
 	L_mob[0] = MobStab * Dnorm / (ifce_width * ifce_width * RT() / Vm()); // numerical mobility (m^2/(Ns))
-	L_mob[1] = Lmob[0];                                                  // Ref: TKR5p315
+	L_mob[1] = Lmob[0];                                                   // Ref: TKR5p315
 
 	if (rank == 0 && verbose) {
 		printf("Phase mobility is [%10.4g %10.4g]\n", Lmob[0], Lmob[1]);

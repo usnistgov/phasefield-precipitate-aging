@@ -644,7 +644,7 @@ double M_NbNb(double XCR, double XNB) {
 double D_norm() {
 
    double D_norm_result;
-   D_norm_result = 3.8524998642962576e-14;
+   D_norm_result = 1.7736897272019775e-14;
    return D_norm_result;
 
 }
