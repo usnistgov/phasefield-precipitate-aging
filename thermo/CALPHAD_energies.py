@@ -96,6 +96,7 @@ g_laves = parse_expr(str(model.ast))
 
 # Declare sublattice variables used in Pycalphad expressions
 XCR, XNB = symbols("XCR XNB")
+XNI = 1 - XCR - XNB
 
 # Define lever rule equations
 ## Ref: TKR4p161, 172; TKR5p266, 272, 293
@@ -346,35 +347,51 @@ M_Nb = exp(Q_Nb / RT) / RT
 M_Ni = exp(Q_Ni / RT) / RT
 
 # === Chemical Mobilities in FCC Ni [# m⁵/Js] ===
-## Ref: TKR5p292, TKR5p311-312
+## Ref: TKR5p292, TKR5p311-312, TKR5p330
 
-phi_del, phi_lav = symbols("phi_del, phi_lav")
+M_CrCr = Vm * ( M_Cr * (1 - XCR)**2    + M_Nb * XCR * XNB       + M_Ni * XCR * XNI)
+M_CrNb = Vm * (-M_Cr * (1 - XCR) * XCR - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNI)
+M_CrNi = Vm * (-M_Cr * (1 - XCR) * XCR + M_Nb * XCR * XNB       - M_Ni * XCR * (1 - XNI))
+M_NbCr = Vm * (-M_Cr * (1 - XCR) * XNB - M_Nb * XNB * (1 - XNB) - M_Ni * XNB * (1 - XNI))
+M_NbNb = Vm * ( M_Cr * XCR * XNB       + M_Nb * (1 - XNB)**2    + M_Ni * XNB * XNI)
+M_NbNi = Vm * ( M_Cr * XCR * XNB       - M_Nb * XNB * (1 - XNB) - M_Ni * XNB * (1 - XNI))
+M_NiCr = Vm * (-M_Cr * (1 - XCR) * XNI + M_Nb * XNB * XNI       - M_Ni * XNI * (1 - XNI))
+M_NiNb = Vm * ( M_Cr * XCR * XNI       - M_Nb * (1 - XNB) * XNI - M_Ni * XNI * (1 - XNI))
+M_NiNi = Vm * ( M_Cr * XCR * XNI       + M_Nb * XNB * XNI       + M_Ni * (1 - XNI)**2)
 
-M_CrCr = Vm * ( M_Cr * (1 - XCR)**2    + M_Nb * XCR**2          + M_Ni * XCR**2)
-M_CrNb = Vm * (-M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB)
-M_NbNb = Vm * ( M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2)
-M_NbCr = M_CrNb # M is symmetric
+M = Matrix([[M_CrCr, M_CrNb, M_CrNi],
+            [M_NbCr, M_NbNb, M_NbNi],
+            [M_NiCr, M_NiNb, M_NiNi],])
 
-# === Diffusivity in FCC Ni [m²/s] ===
 
 xCr0 = 0.30
 xNb0 = 0.02
 
-D_CrCr = (M_CrCr * p_d2Ggam_dxCrCr + M_CrNb * p_d2Ggam_dxCrNb).subs({XCR: xCr0, XNB: xNb0})
-D_CrNb = (M_CrCr * p_d2Ggam_dxNbCr + M_CrNb * p_d2Ggam_dxNbNb).subs({XCR: xCr0, XNB: xNb0})
-D_NbCr = (M_NbCr * p_d2Ggam_dxCrCr + M_NbNb * p_d2Ggam_dxCrNb).subs({XCR: xCr0, XNB: xNb0})
-D_NbNb = (M_NbCr * p_d2Ggam_dxNbCr + M_NbNb * p_d2Ggam_dxNbNb).subs({XCR: xCr0, XNB: xNb0})
+print("Mobility at ({0}, {1}):".format(xCr0, xNb0))
+Mbar = M.subs({XCR: xCr0, XNB: xNb0})
+pprint(Mbar)
+print("")
 
-Dbar = Matrix([[D_CrCr, D_CrNb],[D_NbCr, D_NbNb]])
-Dnorm = Dbar.norm()
+# === Diffusivity in FCC Ni [m²/s] ===
+## Ref: TKR5p330 (Boettinger's Method, D=PMP⁺)
+
+P = Matrix([[1 - XCR, -XCR, -XCR],
+            [-XNB, 1 - XNB, -XNB],
+            [-XNI, -XNI, 1 - XNI]])
+
+D = P * M * P.T
+
 print("Diffusivity at ({0}, {1}):".format(xCr0, xNb0))
-pprint(Dbar)
-print("Norm: {0}".format(Dnorm))
-print("Eigenvectors & values:")
-eigvec = Dbar.eigenvects()
-for eig in eigvec:
-    valu, mult, vect = eig
-    pprint((vect, valu))
+pprint(D.subs({XCR: xCr0, XNB: xNb0}))
+print("")
+
+D_Cr = D.row(0)
+D_CrCr = D_Cr[0]
+D_CrNb = D_Cr[1]
+
+D_Nb = D.row(1)
+D_NbCr = D_Nb[0]
+D_NbNb = D_Nb[1]
 
 # Generate numerically efficient C-code
 
@@ -455,7 +472,9 @@ codegen(
         ("M_Ni", M_Ni),
         ("M_CrCr", M_CrCr), ("M_CrNb", M_CrNb),
         ("M_NbCr", M_NbCr), ("M_NbNb", M_NbNb),
-        ("D_norm", Dnorm)
+        # Diffusivities
+        ("D_CrCr", D_CrCr), ("D_CrNb", D_CrNb),
+        ("D_NbCr", D_NbCr), ("D_NbNb", D_NbNb)
     ],
     language="C",
     prefix="parabola625",

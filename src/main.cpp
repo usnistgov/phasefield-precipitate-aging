@@ -279,6 +279,8 @@ int main(int argc, char* argv[])
 				// convert times to steps (for integer arithmetic)
 				const uint64_t kernel_start = sim_time / dt;
 				const uint64_t kernel_finish = std::min(sim_time + sim_step, sim_finish) / dt;
+				char cstr[8192];
+
 				for (uint64_t kernel_time = kernel_start; kernel_time < kernel_finish; kernel_time++) {
 					print_progress(kernel_time - kernel_start, kernel_finish);
 
@@ -354,9 +356,8 @@ int main(int argc, char* argv[])
 						const double energy = summarize_energy(grid, host.chem_nrg, host.grad_nrg);
 
 						if (rank == 0) {
-							fprintf(cfile, "%10g %9g %9g %12g %12g %12g %12g\n",
+							sprintf(cstr, "%10g %9g %9g %12g %12g %12g %12g\n",
 							        dt * (kernel_time+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
-							fflush(cfile);
 						}
 
 						// Write image
@@ -385,6 +386,7 @@ int main(int argc, char* argv[])
 							std::exit(EXIT_FAILURE);
 						}
 					}
+					fprintf(cfile, "%s", cstr);
 					// === Finish Architecture-Specific Kernel ===
 				}
 

@@ -88,33 +88,29 @@ void set_diffusion_matrix(const fp_t xCr0, const fp_t xNb0, fp_t* DCr, fp_t* DNb
 	rank = MPI::COMM_WORLD.Get_rank();
 	#endif
 
-	DCr[0] = M_CrCr(xCr0, xNb0) * d2g_gam_dxCrCr() + M_CrNb(xCr0, xNb0) * d2g_gam_dxCrNb();
-	DCr[1] = M_CrCr(xCr0, xNb0) * d2g_gam_dxNbCr() + M_CrNb(xCr0, xNb0) * d2g_gam_dxNbNb();
+	DCr[0] = D_CrCr(xCr0, xNb0);
+	DCr[1] = D_CrNb(xCr0, xNb0);
 
-	DNb[0] = M_NbCr(xCr0, xNb0) * d2g_gam_dxCrCr() + M_NbNb(xCr0, xNb0) * d2g_gam_dxCrNb();
-	DNb[1] = M_NbCr(xCr0, xNb0) * d2g_gam_dxNbCr() + M_NbNb(xCr0, xNb0) * d2g_gam_dxNbNb();
-
-	const fp_t Dnorm = std::sqrt(DCr[0]*DCr[0] + DCr[1]*DCr[1] + DNb[0]*DNb[0] + DNb[1]*DNb[1]);
+	DNb[0] = D_NbCr(xCr0, xNb0);
+	DNb[1] = D_NbNb(xCr0, xNb0);
 
 	if (rank == 0 && verbose) {
-		printf("Diffusion matrix is [%10.4g %10.4g]\n", DCr[0], DCr[1]);
-		printf("                    [%10.4g %10.4g]\n", DNb[0], DNb[1]);
-		printf("Frobenius norm is %10.4g\n", Dnorm);
+		printf("Diffusion matrix is ⎡%10.4g %10.4g⎤\n", DCr[0], DCr[1]);
+		printf("                    ⎣%10.4g %10.4g⎦\n", DNb[0], DNb[1]);
 	}
 
+	const fp_t Dnorm = std::sqrt(DCr[0]*DCr[0] + DNb[1]*DNb[1]);
 	L_mob[0] = MobStab * Dnorm / (ifce_width * ifce_width * RT() / Vm()); // numerical mobility (m^2/(Ns))
 	L_mob[1] = Lmob[0];                                                   // Ref: TKR5p315
 
 	if (rank == 0 && verbose) {
 		printf("Phase mobility is [%10.4g %10.4g]\n", Lmob[0], Lmob[1]);
 	}
-
 }
 
 double timestep(const GRID2D& grid, const fp_t* DCr, const fp_t* DNb)
 {
-	const fp_t D[4] = {DCr[0], DCr[1], DNb[0], DNb[1]};
-	double dt = (meshres * meshres) / (4.0 * *(std::max_element(D, D + 4)));
+	double dt = (meshres * meshres) / (4.0 * std::max(DCr[0], DNb[1]));
 
 	#ifdef MPI_VERSION
 	double mydt(dt);
@@ -552,7 +548,7 @@ void generate(int dim, const char* filename)
 
 	if (dim == 2) {
 		#if defined(PLANAR) or defined(TANH)
-		const int Nx = 1.0e-6 / meshres;
+		const int Nx = 1.0e-8 / meshres;
 		const int Ny =  17;
 		#else
 		/*
@@ -598,7 +594,7 @@ void generate(int dim, const char* filename)
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 
 		#ifdef PLANAR
-		const fp_t w_precip = 125e-9;
+		const fp_t w_precip = meshres * (g1(initGrid, 0) - g0(initGrid, 0)) / 6;
 		seed_planar_delta(initGrid, w_precip);
 		#elif defined(TANH)
 		// no op

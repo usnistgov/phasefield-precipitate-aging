@@ -76,7 +76,10 @@ double M_CrCr(double XCR, double XNB);
 double M_CrNb(double XCR, double XNB);
 double M_NbCr(double XCR, double XNB);
 double M_NbNb(double XCR, double XNB);
-double D_norm();
+double D_CrCr(double XCR, double XNB);
+double D_CrNb(double XCR, double XNB);
+double D_NbCr(double XCR, double XNB);
+double D_NbNb(double XCR, double XNB);
 
 #endif
 
