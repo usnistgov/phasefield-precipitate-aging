@@ -70,7 +70,7 @@ double d2g_lav_dxCrNb();
 double d2g_lav_dxNbCr();
 double d2g_lav_dxNbNb();
 double M_Cr(double XCR, double XNB);
-double M_Nb(double XNB);
+double M_Nb(double XCR, double XNB);
 double M_Ni(double XCR, double XNB);
 double M_CrCr(double XCR, double XNB);
 double M_CrNb(double XCR, double XNB);

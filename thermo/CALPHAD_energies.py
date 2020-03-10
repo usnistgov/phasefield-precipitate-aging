@@ -326,18 +326,20 @@ Q_Cr_Nb   = -287000 - 64.4 * temp
 Q_Cr_Ni   = -287000 - 64.4 * temp
 Q_Cr_CrNi = -68000
 
-Q_Nb_Cr   = -255333 + RT * log(7.6071E-5)
-Q_Nb_Nb   = -274328 + RT * log(8.6440E-5)
-Q_Nb_Ni   = -255333 + RT * log(7.6071e-5)
+Q_Nb_Cr   = -260955 + RT * log(1.1300e-4)
+Q_Nb_Nb   = -102570 + RT * log(1.2200e-5)
+Q_Nb_Ni   = -260955 + RT * log(1.1300e-4)
+Q_Nb_NbNi = -332498
 
 Q_Ni_Cr   = -235000 - 82.0 * temp
-Q_Ni_Nb   = -287000 + RT * log(1.0E-4)
+Q_Ni_Nb   = -287060 + RT * log(1.0e-4)
 Q_Ni_Ni   = -287000 - 69.8 * temp
 Q_Ni_CrNi = -81000
+Q_Ni_NbNi = -4207044
 
-Q_Cr = XCR * Q_Cr_Cr + XNB * Q_Cr_Nb + (1 - XCR - XNB) * Q_Cr_Ni + XCR * (1 - XCR - XNB) * Q_Cr_CrNi
-Q_Nb = XCR * Q_Nb_Cr + XNB * Q_Nb_Nb + (1 - XCR - XNB) * Q_Nb_Ni
-Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + (1 - XCR - XNB) * Q_Ni_Ni + XCR * (1 - XCR - XNB) * Q_Ni_CrNi
+Q_Cr = XCR * Q_Cr_Cr + XNB * Q_Cr_Nb + XNI * Q_Cr_Ni + XCR * XNI * Q_Cr_CrNi
+Q_Nb = XCR * Q_Nb_Cr + XNB * Q_Nb_Nb + XNI * Q_Nb_Ni + XNB * XNI * Q_Nb_NbNi
+Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + XNI * Q_Ni_Ni + XCR * XNI * Q_Ni_CrNi  + XNB * XNI * Q_Ni_NbNi
 
 # === Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ===
 ## Ref: TKR5p286, TKR5p316
@@ -349,20 +351,24 @@ M_Ni = exp(Q_Ni / RT) / RT
 # === Chemical Mobilities in FCC Ni [# m⁵/Js] ===
 ## Ref: TKR5p292, TKR5p311-312, TKR5p330
 
-M_CrCr = Vm * ( M_Cr * (1 - XCR)**2    + M_Nb * XCR * XNB       + M_Ni * XCR * XNI)
-M_CrNb = Vm * (-M_Cr * (1 - XCR) * XCR - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNI)
-M_CrNi = Vm * (-M_Cr * (1 - XCR) * XCR + M_Nb * XCR * XNB       - M_Ni * XCR * (1 - XNI))
-M_NbCr = Vm * (-M_Cr * (1 - XCR) * XNB - M_Nb * XNB * (1 - XNB) - M_Ni * XNB * (1 - XNI))
-M_NbNb = Vm * ( M_Cr * XCR * XNB       + M_Nb * (1 - XNB)**2    + M_Ni * XNB * XNI)
-M_NbNi = Vm * ( M_Cr * XCR * XNB       - M_Nb * XNB * (1 - XNB) - M_Ni * XNB * (1 - XNI))
-M_NiCr = Vm * (-M_Cr * (1 - XCR) * XNI + M_Nb * XNB * XNI       - M_Ni * XNI * (1 - XNI))
-M_NiNb = Vm * ( M_Cr * XCR * XNI       - M_Nb * (1 - XNB) * XNI - M_Ni * XNI * (1 - XNI))
-M_NiNi = Vm * ( M_Cr * XCR * XNI       + M_Nb * XNB * XNI       + M_Ni * (1 - XNI)**2)
+M_CrCr = ( M_Cr * (1 - XCR)**2    + M_Nb * XCR * XNB       + M_Ni * XCR * XNI)
+M_CrNb = (-M_Cr * (1 - XCR) * XCR - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNI)
+M_CrNi = (-M_Cr * (1 - XCR) * XCR + M_Nb * XCR * XNB       - M_Ni * XCR * (1 - XNI))
+M_NbCr = (-M_Cr * (1 - XCR) * XNB - M_Nb * XNB * (1 - XNB) - M_Ni * XNB * (1 - XNI))
+M_NbNb = ( M_Cr * XCR * XNB       + M_Nb * (1 - XNB)**2    + M_Ni * XNB * XNI)
+M_NbNi = ( M_Cr * XCR * XNB       - M_Nb * XNB * (1 - XNB) - M_Ni * XNB * (1 - XNI))
+M_NiCr = (-M_Cr * (1 - XCR) * XNI + M_Nb * XNB * XNI       - M_Ni * XNI * (1 - XNI))
+M_NiNb = ( M_Cr * XCR * XNI       - M_Nb * (1 - XNB) * XNI - M_Ni * XNI * (1 - XNI))
+M_NiNi = ( M_Cr * XCR * XNI       + M_Nb * XNB * XNI       + M_Ni * (1 - XNI)**2)
 
-M = Matrix([[M_CrCr, M_CrNb, M_CrNi],
-            [M_NbCr, M_NbNb, M_NbNi],
-            [M_NiCr, M_NiNb, M_NiNi],])
+#M = Matrix([[M_CrCr, M_CrNb, M_CrNi],
+#            [M_NbCr, M_NbNb, M_NbNi],
+#            [M_NiCr, M_NiNb, M_NiNi],])
 
+# For DICTRA comparisons ("L0kj") -- Lattice Frame
+M = Matrix([[XCR * M_Cr, 0, 0],
+            [0, XNB * M_Nb, 0],
+            [0, 0, XNI * M_Ni]])
 
 xCr0 = 0.30
 xNb0 = 0.02
@@ -375,23 +381,25 @@ print("")
 # === Diffusivity in FCC Ni [m²/s] ===
 ## Ref: TKR5p330 (Boettinger's Method, D=PMP⁺)
 
-P = Matrix([[1 - XCR, -XCR, -XCR],
-            [-XNB, 1 - XNB, -XNB],
-            [-XNI, -XNI, 1 - XNI]])
+P = Matrix([[1 - XCR,    -XCR,    -XCR],
+            [   -XNB, 1 - XNB,    -XNB],
+            [   -XNI,    -XNI, 1 - XNI]])
 
-D = P * M * P.T
+J = P * M * P.T
+
+# print("Flux at ({0}, {1}):".format(xCr0, xNb0))
+# pprint(J.subs({XCR: xCr0, XNB: xNb0}))
+# print("")
+
+J_CrCr, J_CrNb, J_CrNi = J.row(0)
+J_NbCr, J_NbNb, J_NbNi = J.row(1)
+
+D = Matrix([[Vm * J_CrCr * p_d2Ggam_dxCrCr, Vm * J_CrNb * p_d2Ggam_dxCrNb],
+            [Vm * J_NbCr * p_d2Ggam_dxNbCr, Vm * J_NbNb * p_d2Ggam_dxNbNb]])
 
 print("Diffusivity at ({0}, {1}):".format(xCr0, xNb0))
 pprint(D.subs({XCR: xCr0, XNB: xNb0}))
 print("")
-
-D_Cr = D.row(0)
-D_CrCr = D_Cr[0]
-D_CrNb = D_Cr[1]
-
-D_Nb = D.row(1)
-D_NbCr = D_Nb[0]
-D_NbNb = D_Nb[1]
 
 # Generate numerically efficient C-code
 
@@ -473,8 +481,8 @@ codegen(
         ("M_CrCr", M_CrCr), ("M_CrNb", M_CrNb),
         ("M_NbCr", M_NbCr), ("M_NbNb", M_NbNb),
         # Diffusivities
-        ("D_CrCr", D_CrCr), ("D_CrNb", D_CrNb),
-        ("D_NbCr", D_NbCr), ("D_NbNb", D_NbNb)
+        ("D_CrCr", J_CrCr), ("D_CrNb", J_CrNb),
+        ("D_NbCr", J_NbCr), ("D_NbNb", J_NbNb)
     ],
     language="C",
     prefix="parabola625",
