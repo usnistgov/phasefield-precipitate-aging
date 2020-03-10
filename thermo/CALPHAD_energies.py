@@ -59,8 +59,8 @@ import numpy as np
 
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
-from sympy import Eq, Matrix, N, diff, expand, init_printing, factor, fraction, pprint, symbols
-from sympy.abc import x, r, y, z, L
+from sympy import Eq, Matrix, diff, expand, init_printing, factor, fraction, pprint, symbols
+from sympy.abc import L, r, x, y, z
 from sympy.core.numbers import pi
 from sympy.functions.elementary.exponential import exp, log
 from sympy.functions.elementary.trigonometric import tanh
@@ -344,62 +344,72 @@ Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + XNI * Q_Ni_Ni + XCR * XNI * Q_Ni_CrNi  + 
 # === Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ===
 ## Ref: TKR5p286, TKR5p316
 
-M_Cr = exp(Q_Cr / RT) / RT
-M_Nb = exp(Q_Nb / RT) / RT
-M_Ni = exp(Q_Ni / RT) / RT
+L0_Cr = XCR * exp(Q_Cr / RT) / RT
+L0_Nb = XNB * exp(Q_Nb / RT) / RT
+L0_Ni = XNI * exp(Q_Ni / RT) / RT
 
 # === Chemical Mobilities in FCC Ni [# m⁵/Js] ===
 ## Ref: TKR5p292, TKR5p311-312, TKR5p330
 
-M_CrCr = ( M_Cr * (1 - XCR)**2    + M_Nb * XCR * XNB       + M_Ni * XCR * XNI)
-M_CrNb = (-M_Cr * (1 - XCR) * XCR - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNI)
-M_CrNi = (-M_Cr * (1 - XCR) * XCR + M_Nb * XCR * XNB       - M_Ni * XCR * (1 - XNI))
-M_NbCr = (-M_Cr * (1 - XCR) * XNB - M_Nb * XNB * (1 - XNB) - M_Ni * XNB * (1 - XNI))
-M_NbNb = ( M_Cr * XCR * XNB       + M_Nb * (1 - XNB)**2    + M_Ni * XNB * XNI)
-M_NbNi = ( M_Cr * XCR * XNB       - M_Nb * XNB * (1 - XNB) - M_Ni * XNB * (1 - XNI))
-M_NiCr = (-M_Cr * (1 - XCR) * XNI + M_Nb * XNB * XNI       - M_Ni * XNI * (1 - XNI))
-M_NiNb = ( M_Cr * XCR * XNI       - M_Nb * (1 - XNB) * XNI - M_Ni * XNI * (1 - XNI))
-M_NiNi = ( M_Cr * XCR * XNI       + M_Nb * XNB * XNI       + M_Ni * (1 - XNI)**2)
+M_CrCr = ( L0_Cr * (1 - XCR)**2    + L0_Nb * XCR * XNB       + L0_Ni * XCR * XNI)
+M_CrNb = (-L0_Cr * (1 - XCR) * XCR - L0_Nb * XCR * (1 - XNB) + L0_Ni * XCR * XNI)
+M_CrNi = (-L0_Cr * (1 - XCR) * XCR + L0_Nb * XCR * XNB       - L0_Ni * XCR * (1 - XNI))
+M_NbCr = (-L0_Cr * (1 - XCR) * XNB - L0_Nb * XNB * (1 - XNB) - L0_Ni * XNB * (1 - XNI))
+M_NbNb = ( L0_Cr * XCR * XNB       + L0_Nb * (1 - XNB)**2    + L0_Ni * XNB * XNI)
+M_NbNi = ( L0_Cr * XCR * XNB       - L0_Nb * XNB * (1 - XNB) - L0_Ni * XNB * (1 - XNI))
+M_NiCr = (-L0_Cr * (1 - XCR) * XNI + L0_Nb * XNB * XNI       - L0_Ni * XNI * (1 - XNI))
+M_NiNb = ( L0_Cr * XCR * XNI       - L0_Nb * (1 - XNB) * XNI - L0_Ni * XNI * (1 - XNI))
+M_NiNi = ( L0_Cr * XCR * XNI       + L0_Nb * XNB * XNI       + L0_Ni * (1 - XNI)**2)
 
-#M = Matrix([[M_CrCr, M_CrNb, M_CrNi],
-#            [M_NbCr, M_NbNb, M_NbNi],
-#            [M_NiCr, M_NiNb, M_NiNi],])
+M = Matrix([[M_CrCr, M_CrNb, M_CrNi],
+            [M_NbCr, M_NbNb, M_NbNi],
+            [M_NiCr, M_NiNb, M_NiNi],])
 
 # For DICTRA comparisons ("L0kj") -- Lattice Frame
-M = Matrix([[XCR * M_Cr, 0, 0],
-            [0, XNB * M_Nb, 0],
-            [0, 0, XNI * M_Ni]])
+L0 = Matrix([[L0_Cr, 0, 0],
+             [0, L0_Nb, 0],
+             [0, 0, L0_Ni]])
 
 xCr0 = 0.30
 xNb0 = 0.02
 
-print("Mobility at ({0}, {1}):".format(xCr0, xNb0))
-Mbar = M.subs({XCR: xCr0, XNB: xNb0})
-pprint(Mbar)
+print("Atomic mobility at ({0}, {1}):\n".format(xCr0, xNb0))
+pprint(L0.subs({XCR: xCr0, XNB: xNb0}))
 print("")
+
+P = Matrix([[1 - XCR,    -XCR,    -XCR],
+            [   -XNB, 1 - XNB,    -XNB]])
+#           [   -XNI,    -XNI, 1 - XNI]])
+
+M = P * L0 * P.T
+
+# print("Chemical mobility at ({0}, {1}):\n".format(xCr0, xNb0))
+# pprint(M.subs({XCR: xCr0, XNB: xNb0}))
+# print("")
+
+M_CrCr, M_CrNb = M.row(0)
+M_NbCr, M_NbNb = M.row(1)
 
 # === Diffusivity in FCC Ni [m²/s] ===
 ## Ref: TKR5p330 (Boettinger's Method, D=PMP⁺)
 
-P = Matrix([[1 - XCR,    -XCR,    -XCR],
-            [   -XNB, 1 - XNB,    -XNB],
-            [   -XNI,    -XNI, 1 - XNI]])
+# Generate second derivatives of CALPHAD landscape
+g_d2Ggam_dxCrCr = diff(g_gamma, XCR, XCR)
+g_d2Ggam_dxCrNb = diff(g_gamma, XCR, XNB)
+g_d2Ggam_dxNbCr = diff(g_gamma, XNB, XCR)
+g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB)
 
-J = P * M * P.T
+D = Vm * Matrix([[(M_CrCr * g_d2Ggam_dxCrCr + M_CrNb * g_d2Ggam_dxCrNb),
+                  (M_CrCr * g_d2Ggam_dxNbCr + M_CrNb * g_d2Ggam_dxNbNb)],
+                 [(M_NbCr * g_d2Ggam_dxCrCr + M_NbNb * g_d2Ggam_dxCrNb),
+                  (M_NbCr * g_d2Ggam_dxNbCr + M_NbNb * g_d2Ggam_dxNbNb)]])
 
-# print("Flux at ({0}, {1}):".format(xCr0, xNb0))
-# pprint(J.subs({XCR: xCr0, XNB: xNb0}))
-# print("")
-
-J_CrCr, J_CrNb, J_CrNi = J.row(0)
-J_NbCr, J_NbNb, J_NbNi = J.row(1)
-
-D = Matrix([[Vm * J_CrCr * p_d2Ggam_dxCrCr, Vm * J_CrNb * p_d2Ggam_dxCrNb],
-            [Vm * J_NbCr * p_d2Ggam_dxNbCr, Vm * J_NbNb * p_d2Ggam_dxNbNb]])
-
-print("Diffusivity at ({0}, {1}):".format(xCr0, xNb0))
+print("Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
 pprint(D.subs({XCR: xCr0, XNB: xNb0}))
 print("")
+
+D_CrCr, D_CrNb = D.row(0)
+D_NbCr, D_NbNb = D.row(1)
 
 # Generate numerically efficient C-code
 
@@ -475,14 +485,14 @@ codegen(
         ("d2g_lav_dxNbCr", p_d2Glav_dxNbCr),
         ("d2g_lav_dxNbNb", p_d2Glav_dxNbNb),
         # Mobilities
-        ("M_Cr", M_Cr),
-        ("M_Nb", M_Nb),
-        ("M_Ni", M_Ni),
+        ("L0_Cr", L0_Cr),
+        ("L0_Nb", L0_Nb),
+        ("L0_Ni", L0_Ni),
         ("M_CrCr", M_CrCr), ("M_CrNb", M_CrNb),
         ("M_NbCr", M_NbCr), ("M_NbNb", M_NbNb),
         # Diffusivities
-        ("D_CrCr", J_CrCr), ("D_CrNb", J_CrNb),
-        ("D_NbCr", J_NbCr), ("D_NbNb", J_NbNb)
+        ("D_CrCr", D_CrCr), ("D_CrNb", D_CrNb),
+        ("D_NbCr", D_NbCr), ("D_NbNb", D_NbNb)
     ],
     language="C",
     prefix="parabola625",
