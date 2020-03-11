@@ -267,7 +267,9 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 
 	plt::backend("Agg");
 
-	int w = nx - nm;
+	int L = nx - nm;
+	int dL = std::max(1, nx / 1024);
+	int w = std::min(L, 1024);
 	int h = ny - nm;
 
 	std::vector<float> d(w);
@@ -284,34 +286,34 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	std::vector<float> p_del_bar(w);
 	std::vector<float> p_lav_bar(w);
 
-	for (int i = 0; i < w; ++i) {
-		d.at(i) = 1e6 * deltax * i;
-		int j = h/2;
+	const int j = h/2;
+	for (int k = 0; k < w && k*dL < L; ++k) {
+		const int i = k * dL;
+		d.at(k) = 1e6 * deltax * i;
 		if (chem_nrg != NULL) {
-			fchem.at(i) = chem_nrg[j+nm/2][i+nm/2];
-			fgrad.at(i) = grad_nrg[j+nm/2][i+nm/2];
-			f.at(i) = chem_nrg[j+nm/2][i+nm/2] + grad_nrg[j+nm/2][i+nm/2];
+			fchem.at(k) = chem_nrg[j+nm/2][i+nm/2];
+			fgrad.at(k) = grad_nrg[j+nm/2][i+nm/2];
+			f.at(k) = chem_nrg[j+nm/2][i+nm/2] + grad_nrg[j+nm/2][i+nm/2];
 		} else {
-			fchem.at(i) = 0;
-			fgrad.at(i) = 0;
-			f.at(i) = 0;
+			fchem.at(k) = 0;
+			fgrad.at(k) = 0;
+			f.at(k) = 0;
 		}
 
-		c_Cr_bar.at(i) = conc_Cr[j+nm/2][i+nm/2];
-		c_Nb_bar.at(i) = conc_Nb[j+nm/2][i+nm/2];
+		c_Cr_bar.at(k) = conc_Cr[j+nm/2][i+nm/2];
+		c_Nb_bar.at(k) = conc_Nb[j+nm/2][i+nm/2];
 
-		c_Cr_gam.at(i) = gam_Cr[j+nm/2][i+nm/2];
-		c_Nb_gam.at(i) = gam_Nb[j+nm/2][i+nm/2];
+		c_Cr_gam.at(k) = gam_Cr[j+nm/2][i+nm/2];
+		c_Nb_gam.at(k) = gam_Nb[j+nm/2][i+nm/2];
 
-		p_del_bar.at(i) = phi_del[j+nm/2][i+nm/2];
-		p_lav_bar.at(i) = phi_lav[j+nm/2][i+nm/2];
+		p_del_bar.at(k) = phi_del[j+nm/2][i+nm/2];
+		p_lav_bar.at(k) = phi_lav[j+nm/2][i+nm/2];
 	}
 
 	const long nrows = 2;
 	const long ncols = 1;
 
 	figure(3000, 2400, 200);
-
 
 	char timearr[FILENAME_MAX] = {0};
 	sprintf(timearr, "$t=%.3f\\ \\mathrm{s}$\n", dt * step);

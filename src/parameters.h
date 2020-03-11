@@ -12,7 +12,7 @@
 // === Discretization Parameters ===
 
 #if defined(PLANAR) or defined(TANH)
-const fp_t meshres = 1.0e-12;    // grid spacing, Δx (m)
+const fp_t meshres = 1.0e-9;    // grid spacing, Δx (m)
 const fp_t ifce_width = 20e-9;   // interface thickness, 2λ (m)
 #else
 const fp_t meshres = 0.3125e-9;  // grid spacing, Δx (m); max. is 2.5 Å

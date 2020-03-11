@@ -380,8 +380,8 @@ pprint(L0.subs({XCR: xCr0, XNB: xNb0}))
 print("")
 
 P = Matrix([[1 - XCR,    -XCR,    -XCR],
-            [   -XNB, 1 - XNB,    -XNB]])
-#           [   -XNI,    -XNI, 1 - XNI]])
+            [   -XNB, 1 - XNB,    -XNB],
+            [   -XNI,    -XNI, 1 - XNI]])
 
 M = P * L0 * P.T
 
@@ -389,8 +389,9 @@ print("Chemical mobility at ({0}, {1}):\n".format(xCr0, xNb0))
 pprint(M.subs({XCR: xCr0, XNB: xNb0}))
 print("")
 
-M_CrCr, M_CrNb = M.row(0)
-M_NbCr, M_NbNb = M.row(1)
+M_CrCr, M_CrNb, M_CrNi = M.row(0)
+M_NbCr, M_NbNb, M_NbNi = M.row(1)
+M_NiCr, M_NiNb, M_NiNi = M.row(2)
 
 # *** Diffusivity in FCC Ni [m²/s] ***
 ## Ref: TKR5p330 (Boettinger's Method, D=PMP⁺)

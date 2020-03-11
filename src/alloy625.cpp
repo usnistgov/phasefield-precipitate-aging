@@ -548,8 +548,8 @@ void generate(int dim, const char* filename)
 
 	if (dim == 2) {
 		#if defined(PLANAR) or defined(TANH)
-		const int Nx = 1.0e-8 / meshres;
-		const int Ny =  17;
+		const int Nx = 1.0e-6 / meshres;
+		const int Ny = 17;
 		#else
 		/*
 		const int Nx = 4000;
@@ -594,7 +594,11 @@ void generate(int dim, const char* filename)
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 
 		#ifdef PLANAR
-		const fp_t w_precip = meshres * (g1(initGrid, 0) - g0(initGrid, 0)) / 6;
+		const fp_t w_precip = meshres * (g1(initGrid, 0) - g0(initGrid, 0)) / 8;
+		if (w_precip < ifce_width) {
+			std::cerr << "Error: Precipitate slab is thinner than the interface, and will dissolve." << std::endl;
+			MMSP::Abort(EXIT_FAILURE);
+		}
 		seed_planar_delta(initGrid, w_precip);
 		#elif defined(TANH)
 		// no op
