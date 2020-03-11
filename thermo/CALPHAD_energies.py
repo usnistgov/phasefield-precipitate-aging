@@ -154,18 +154,34 @@ g_laves = inVm * g_laves.subs(
 
 # Generate paraboloid expressions (2nd-order Taylor series approximations)
 
+# Generate second derivatives of CALPHAD landscape
+g_d2Ggam_dxCrCr = diff(g_gamma, XCR, XCR)
+g_d2Ggam_dxCrNb = diff(g_gamma, XCR, XNB)
+g_d2Ggam_dxNbCr = g_d2Ggam_dxCrNb
+g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB)
+
+g_d2Gdel_dxCrCr = diff(g_delta, XCR, XCR)
+g_d2Gdel_dxCrNb = diff(g_delta, XCR, XNB)
+g_d2Gdel_dxNbCr = g_d2Gdel_dxCrNb
+g_d2Gdel_dxNbNb = diff(g_delta, XNB, XNB)
+
+g_d2Glav_dxCrCr = diff(g_laves, XCR, XCR)
+g_d2Glav_dxCrNb = diff(g_laves, XCR, XNB)
+g_d2Glav_dxNbCr = g_d2Glav_dxCrNb
+g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB)
+
 # Curvatures
-PC_gam_CrCr = diff(g_gamma, XCR, XCR).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_CrNb = diff(g_gamma, XCR, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_NbNb = diff(g_gamma, XNB, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_CrCr = g_d2Ggam_dxCrCr.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_CrNb = g_d2Ggam_dxCrNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_NbNb = g_d2Ggam_dxNbNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
 
-PC_del_CrCr = diff(g_delta, XCR, XCR).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
-PC_del_CrNb = diff(g_delta, XCR, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
-PC_del_NbNb = diff(g_delta, XNB, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PC_del_CrCr = g_d2Gdel_dxCrCr.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PC_del_CrNb = g_d2Gdel_dxCrNb.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PC_del_NbNb = g_d2Gdel_dxNbNb.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
 
-PC_lav_CrCr = diff(g_laves, XCR, XCR).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
-PC_lav_CrNb = diff(g_laves, XCR, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
-PC_lav_NbNb = diff(g_laves, XNB, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
+PC_lav_CrCr = g_d2Glav_dxCrCr.subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
+PC_lav_CrNb = g_d2Glav_dxCrNb.subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
+PC_lav_NbNb = g_d2Glav_dxNbNb.subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
 
 # Expressions
 p_gamma = (
@@ -317,8 +333,14 @@ dx_r_del_Nb = xr[3]
 dx_r_lav_Cr = xr[4]
 dx_r_lav_Nb = xr[5]
 
-# === Activation Energies in FCC Ni [J/mol] ===
-# Motion of species (1) in pure (2), from `NIST-nifcc-mob.TDB`
+
+# === Diffusivity ===
+
+xCr0 = 0.30
+xNb0 = 0.02
+
+# *** Activation Energies in FCC Ni [J/mol] ***
+# Motion of species (1) in pure (2), transcribed from `Ni-Nb-Cr_fcc_mob.tdb`
 ## Ref: TKR5p286, TKR5p316
 
 Q_Cr_Cr   = -235000 - 82.0 * temp
@@ -341,37 +363,17 @@ Q_Cr = XCR * Q_Cr_Cr + XNB * Q_Cr_Nb + XNI * Q_Cr_Ni + XCR * XNI * Q_Cr_CrNi
 Q_Nb = XCR * Q_Nb_Cr + XNB * Q_Nb_Nb + XNI * Q_Nb_Ni + XNB * XNI * Q_Nb_NbNi
 Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + XNI * Q_Ni_Ni + XCR * XNI * Q_Ni_CrNi  + XNB * XNI * Q_Ni_NbNi
 
-# === Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ===
+# *** Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ***
 ## Ref: TKR5p286, TKR5p316
 
 L0_Cr = XCR * exp(Q_Cr / RT) / RT
 L0_Nb = XNB * exp(Q_Nb / RT) / RT
 L0_Ni = XNI * exp(Q_Ni / RT) / RT
 
-# === Chemical Mobilities in FCC Ni [# m⁵/Js] ===
-## Ref: TKR5p292, TKR5p311-312, TKR5p330
-
-M_CrCr = ( L0_Cr * (1 - XCR)**2    + L0_Nb * XCR * XNB       + L0_Ni * XCR * XNI)
-M_CrNb = (-L0_Cr * (1 - XCR) * XCR - L0_Nb * XCR * (1 - XNB) + L0_Ni * XCR * XNI)
-M_CrNi = (-L0_Cr * (1 - XCR) * XCR + L0_Nb * XCR * XNB       - L0_Ni * XCR * (1 - XNI))
-M_NbCr = (-L0_Cr * (1 - XCR) * XNB - L0_Nb * XNB * (1 - XNB) - L0_Ni * XNB * (1 - XNI))
-M_NbNb = ( L0_Cr * XCR * XNB       + L0_Nb * (1 - XNB)**2    + L0_Ni * XNB * XNI)
-M_NbNi = ( L0_Cr * XCR * XNB       - L0_Nb * XNB * (1 - XNB) - L0_Ni * XNB * (1 - XNI))
-M_NiCr = (-L0_Cr * (1 - XCR) * XNI + L0_Nb * XNB * XNI       - L0_Ni * XNI * (1 - XNI))
-M_NiNb = ( L0_Cr * XCR * XNI       - L0_Nb * (1 - XNB) * XNI - L0_Ni * XNI * (1 - XNI))
-M_NiNi = ( L0_Cr * XCR * XNI       + L0_Nb * XNB * XNI       + L0_Ni * (1 - XNI)**2)
-
-M = Matrix([[M_CrCr, M_CrNb, M_CrNi],
-            [M_NbCr, M_NbNb, M_NbNi],
-            [M_NiCr, M_NiNb, M_NiNi],])
-
 # For DICTRA comparisons ("L0kj") -- Lattice Frame
 L0 = Matrix([[L0_Cr, 0, 0],
              [0, L0_Nb, 0],
              [0, 0, L0_Ni]])
-
-xCr0 = 0.30
-xNb0 = 0.02
 
 print("Atomic mobility at ({0}, {1}):\n".format(xCr0, xNb0))
 pprint(L0.subs({XCR: xCr0, XNB: xNb0}))
@@ -383,21 +385,15 @@ P = Matrix([[1 - XCR,    -XCR,    -XCR],
 
 M = P * L0 * P.T
 
-# print("Chemical mobility at ({0}, {1}):\n".format(xCr0, xNb0))
-# pprint(M.subs({XCR: xCr0, XNB: xNb0}))
-# print("")
+print("Chemical mobility at ({0}, {1}):\n".format(xCr0, xNb0))
+pprint(M.subs({XCR: xCr0, XNB: xNb0}))
+print("")
 
 M_CrCr, M_CrNb = M.row(0)
 M_NbCr, M_NbNb = M.row(1)
 
-# === Diffusivity in FCC Ni [m²/s] ===
+# *** Diffusivity in FCC Ni [m²/s] ***
 ## Ref: TKR5p330 (Boettinger's Method, D=PMP⁺)
-
-# Generate second derivatives of CALPHAD landscape
-g_d2Ggam_dxCrCr = diff(g_gamma, XCR, XCR)
-g_d2Ggam_dxCrNb = diff(g_gamma, XCR, XNB)
-g_d2Ggam_dxNbCr = diff(g_gamma, XNB, XCR)
-g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB)
 
 D = Vm * Matrix([[(M_CrCr * g_d2Ggam_dxCrCr + M_CrNb * g_d2Ggam_dxCrNb),
                   (M_CrCr * g_d2Ggam_dxNbCr + M_CrNb * g_d2Ggam_dxNbNb)],
@@ -411,7 +407,7 @@ print("")
 D_CrCr, D_CrNb = D.row(0)
 D_NbCr, D_NbNb = D.row(1)
 
-# Generate numerically efficient C-code
+# === Export C source code ===
 
 codegen(
     [  # Interpolator
