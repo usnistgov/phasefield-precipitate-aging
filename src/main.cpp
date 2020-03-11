@@ -268,18 +268,19 @@ int main(int argc, char* argv[])
 			const double dt = round_dt;
 
 			// set intervals for checkpoint I/O and nucleation
-			const uint64_t io_interval = std::min(uint64_t(sim_step / dt), uint64_t(1.0 / dt));
+			const uint64_t io_interval = std::min(uint64_t(sim_step / dt), uint64_t(5.0 / dt));
 			#ifdef NUCLEATION
 			const uint64_t nuc_interval = (uint64_t)(0.0001 / dt);
 			#endif
 
 			// perform computation
+			std::vector<std::string> cstr;
 			for (double sim_time = sim_start; sim_time < sim_finish; sim_time += sim_step) {
 				/* start update() */
 				// convert times to steps (for integer arithmetic)
 				const uint64_t kernel_start = sim_time / dt;
 				const uint64_t kernel_finish = std::min(sim_time + sim_step, sim_finish) / dt;
-				char cstr[8192];
+				char cbuf[8192];
 
 				for (uint64_t kernel_time = kernel_start; kernel_time < kernel_finish; kernel_time++) {
 					print_progress(kernel_time - kernel_start, kernel_finish);
@@ -319,8 +320,7 @@ int main(int argc, char* argv[])
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
 
-					const bool io_step = (  (kernel_time+1) % io_interval == 0
-										 || (kernel_time+1) == kernel_finish);
+					const bool io_step = (kernel_time+1) % io_interval == 0;
 					if (io_step) {
 						device_dataviz(&dev, &host, nx, ny, nm, bx, by);
 
@@ -356,8 +356,9 @@ int main(int argc, char* argv[])
 						const double energy = summarize_energy(grid, host.chem_nrg, host.grad_nrg);
 
 						if (rank == 0) {
-							sprintf(cstr, "%10g %9g %9g %12g %12g %12g %12g\n",
+							sprintf(cbuf, "%10g %9g %9g %12g %12g %12g %12g\n",
 							        dt * (kernel_time+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+							cstr.push_back(std::string(cbuf));
 						}
 
 						// Write image
@@ -386,9 +387,13 @@ int main(int argc, char* argv[])
 							std::exit(EXIT_FAILURE);
 						}
 					}
-					fprintf(cfile, "%s", cstr);
 					// === Finish Architecture-Specific Kernel ===
 				}
+
+				for (size_t i = 0; i < cstr.size(); i++)
+					fprintf(cfile, "%s", cstr[i].c_str());
+				fflush(cfile);
+				cstr.clear();
 
 				// Write image
 				char filename[FILENAME_MAX] = {0};
