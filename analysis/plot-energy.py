@@ -14,18 +14,13 @@ else:
     imgname = sys.argv[2]
     imgtitl = imgname.replace(".png", "")
 
-    delta, lam, f = np.genfromtxt(
-        datname, skip_header=1, skip_footer=0, usecols=(4, 5, 6), unpack=True, dtype=float
+    t, delta, lam, f = np.genfromtxt(
+        datname, skip_header=1, skip_footer=0, usecols=(0, 4, 5, 6), unpack=True, dtype=float
     )
 
-    dt = 0.1
-    t = dt * np.arange(0, len(delta))
-
-    fig, ax = plt.subplots(2, 1, sharex=True)
+    fig, ax = plt.subplots(2, 1, sharex=True, sharey=False)
 
     ax[0].set_title(imgtitl, fontsize=20)
-    # ax[0].set_xlim([0, 600])
-    # ax[0].set_ylim([0, 0.75])
     ax[0].set_xlabel("$t$", fontsize=20)
     ax[0].set_ylabel("$\phi$", rotation = 0, fontsize=20, labelpad=20)
     ax[0].plot(t, delta, label="$\delta$")
@@ -34,8 +29,7 @@ else:
 
     ax[1].set_xlabel("$t$", fontsize=20)
     ax[1].set_ylabel("$\mathcal{F}$", rotation = 0, fontsize=20, labelpad=20)
-    # ax[1].set_ylim([1e-7, 2.5e-6])
-    ax[1].semilogy(t, f, "-k")
+    ax[1].plot(t, f, "-k")
 
     plt.savefig(imgname, dpi=400, bbox_inches="tight")
     plt.close()
