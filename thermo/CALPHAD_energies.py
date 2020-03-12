@@ -95,8 +95,7 @@ g_laves = parse_expr(str(model.ast))
 
 
 # Declare sublattice variables used in Pycalphad expressions
-XCR, XNB = symbols("XCR XNB")
-XNI = 1 - XCR - XNB
+XCR, XNB, XNI = symbols("XCR XNB XNI")
 
 # Define lever rule equations
 ## Ref: TKR4p161, 172; TKR5p266, 272, 293
@@ -126,7 +125,7 @@ g_gamma = inVm * g_gamma.subs(
     {
         symbols("FCC_A10CR"): XCR,
         symbols("FCC_A10NB"): XNB,
-        symbols("FCC_A10NI"): 1 - XCR - XNB,
+        symbols("FCC_A10NI"): XNI,
         symbols("FCC_A11VA"): 1,
         symbols("T"): temp,
     }
@@ -155,10 +154,24 @@ g_laves = inVm * g_laves.subs(
 # Generate paraboloid expressions (2nd-order Taylor series approximations)
 
 # Generate second derivatives of CALPHAD landscape
+g_d2Ggam_dxCrNi = diff(g_gamma, XCR, XNI).subs(XNI, 1 - XCR - XNB)
+g_d2Ggam_dxNbNi = diff(g_gamma, XNB, XNI).subs(XNI, 1 - XCR - XNB)
+g_d2Ggam_dxNiNi = diff(g_gamma, XNI, XNI).subs(XNI, 1 - XCR - XNB)
+g_d2Ggam_dxNiNb = g_d2Ggam_dxNbNi
+g_d2Ggam_dxNiCr = g_d2Ggam_dxCrNi
+
+g_gamma = g_gamma.subs(XNI, 1 - XCR - XNB)
+XNI = 1 - XCR - XNB
+
 g_d2Ggam_dxCrCr = diff(g_gamma, XCR, XCR)
 g_d2Ggam_dxCrNb = diff(g_gamma, XCR, XNB)
 g_d2Ggam_dxNbCr = g_d2Ggam_dxCrNb
 g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB)
+"""
+g_d2Ggam_dxCrNi = -g_d2Ggam_dxCrCr - g_d2Ggam_dxCrNb
+g_d2Ggam_dxNbNi = -g_d2Ggam_dxNbCr - g_d2Ggam_dxNbNb
+g_d2Ggam_dxNiNi = -g_d2Ggam_dxCrNi - g_d2Ggam_dxNbNi
+"""
 
 g_d2Gdel_dxCrCr = diff(g_delta, XCR, XCR)
 g_d2Gdel_dxCrNb = diff(g_delta, XCR, XNB)
@@ -396,17 +409,22 @@ M_NiCr, M_NiNb, M_NiNi = M.row(2)
 # *** Diffusivity in FCC Ni [m²/s] ***
 ## Ref: TKR5p330 (Boettinger's Method, D=PMP⁺)
 
-D = Vm * Matrix([[(M_CrCr * g_d2Ggam_dxCrCr + M_CrNb * g_d2Ggam_dxCrNb),
-                  (M_CrCr * g_d2Ggam_dxNbCr + M_CrNb * g_d2Ggam_dxNbNb)],
-                 [(M_NbCr * g_d2Ggam_dxCrCr + M_NbNb * g_d2Ggam_dxCrNb),
-                  (M_NbCr * g_d2Ggam_dxNbCr + M_NbNb * g_d2Ggam_dxNbNb)]])
+D = Vm * Matrix([[M_CrCr * g_d2Ggam_dxCrCr + M_CrNb * g_d2Ggam_dxCrNb + M_CrNi * g_d2Ggam_dxCrNi,
+                  M_CrCr * g_d2Ggam_dxNbCr + M_CrNb * g_d2Ggam_dxNbNb + M_CrNi * g_d2Ggam_dxNbNi,
+                  M_CrCr * g_d2Ggam_dxNiCr + M_CrNb * g_d2Ggam_dxNiNb + M_CrNi * g_d2Ggam_dxNiNi],
+                 [M_NbCr * g_d2Ggam_dxCrCr + M_NbNb * g_d2Ggam_dxCrNb + M_NbNi * g_d2Ggam_dxCrNi,
+                  M_NbCr * g_d2Ggam_dxNbCr + M_NbNb * g_d2Ggam_dxNbNb + M_NbNi * g_d2Ggam_dxNbNi,
+                  M_NbCr * g_d2Ggam_dxNiCr + M_NbNb * g_d2Ggam_dxNiNb + M_NbNi * g_d2Ggam_dxNiNi],
+                 [M_NiCr * g_d2Ggam_dxCrCr + M_NiNb * g_d2Ggam_dxCrNb + M_NiNi * g_d2Ggam_dxCrNi,
+                  M_NiCr * g_d2Ggam_dxNbCr + M_NiNb * g_d2Ggam_dxNbNb + M_NiNi * g_d2Ggam_dxNbNi,
+                  M_NiCr * g_d2Ggam_dxNiCr + M_NiNb * g_d2Ggam_dxNiNb + M_NiNi * g_d2Ggam_dxNiNi]])
 
 print("Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
 pprint(D.subs({XCR: xCr0, XNB: xNb0}))
 print("")
 
-D_CrCr, D_CrNb = D.row(0)
-D_NbCr, D_NbNb = D.row(1)
+D_CrCr, D_CrNb, D_CrNi = D.row(0)
+D_NbCr, D_NbNb, D_NbNi = D.row(1)
 
 # === Export C source code ===
 

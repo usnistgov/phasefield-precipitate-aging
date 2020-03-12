@@ -19,7 +19,7 @@ const fp_t meshres = 0.3125e-9;  // grid spacing, Δx (m); max. is 2.5 Å
 const fp_t ifce_width = 2.5e-9;  // interface thickness, 2λ (m), TKR5p274
 #endif
 const fp_t LinStab = 2.0e-2;     // threshold of linear (von Neumann) stability, Co (dimensionless)
-const fp_t MobStab = 1.0e-2;     // stability factor for diffusion control
+const fp_t MobStab = 1.0;     // stability factor for diffusion control
 
 // === Materials Parameters ===
 
