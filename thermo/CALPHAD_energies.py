@@ -151,27 +151,43 @@ g_laves = inVm * g_laves.subs(
     }
 )
 
-# Generate paraboloid expressions (2nd-order Taylor series approximations)
+# Extract thermodynamic properties from CALPHAD landscape
 
-# Generate second derivatives of CALPHAD landscape
-g_d2Ggam_dxCrNi = diff(g_gamma, XCR, XNI).subs(XNI, 1 - XCR - XNB)
-g_d2Ggam_dxNbNi = diff(g_gamma, XNB, XNI).subs(XNI, 1 - XCR - XNB)
-g_d2Ggam_dxNiNi = diff(g_gamma, XNI, XNI).subs(XNI, 1 - XCR - XNB)
-g_d2Ggam_dxNiNb = g_d2Ggam_dxNbNi
-g_d2Ggam_dxNiCr = g_d2Ggam_dxCrNi
+G_g = Vm * g_gamma
+
+g_dGgam_dxCr = diff(G_g, XCR)
+g_dGgam_dxNb = diff(G_g, XNB)
+g_dGgam_dxNi = diff(G_g, XNI)
+
+mu_Cr = G_g      - XNB  * g_dGgam_dxNb + (1 - XCR) * g_dGgam_dxCr
+mu_Nb = G_g + (1 - XNB) * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
+mu_Ni = G_g      - XNB  * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
+
+duCr_dxCr = diff(mu_Cr, XCR).subs(XNI, 1 - XCR - XNB)
+duCr_dxNb = diff(mu_Cr, XNB).subs(XNI, 1 - XCR - XNB)
+duCr_dxNi = diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB)
+
+duNb_dxCr = diff(mu_Nb, XCR).subs(XNI, 1 - XCR - XNB)
+duNb_dxNb = diff(mu_Nb, XNB).subs(XNI, 1 - XCR - XNB)
+duNb_dxNi = diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB)
+
+duNi_dxCr = diff(mu_Ni, XCR).subs(XNI, 1 - XCR - XNB)
+duNi_dxNb = diff(mu_Ni, XNB).subs(XNI, 1 - XCR - XNB)
+duNi_dxNi = diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB)
 
 g_gamma = g_gamma.subs(XNI, 1 - XCR - XNB)
+G_g = Vm * g_gamma
+g_dGgam_dxCr = g_dGgam_dxCr.subs(XNI, 1 - XCR - XNB)
+g_dGgam_dxNb = g_dGgam_dxNb.subs(XNI, 1 - XCR - XNB)
+g_dGgam_dxNi = g_dGgam_dxNi.subs(XNI, 1 - XCR - XNB)
+mu_Cr = mu_Cr.subs(XNI, 1 - XCR - XNB)
+mu_Nb = mu_Nb.subs(XNI, 1 - XCR - XNB)
+mu_Ni = mu_Ni.subs(XNI, 1 - XCR - XNB)
+
 XNI = 1 - XCR - XNB
 
-g_d2Ggam_dxCrCr = diff(g_gamma, XCR, XCR)
-g_d2Ggam_dxCrNb = diff(g_gamma, XCR, XNB)
-g_d2Ggam_dxNbCr = g_d2Ggam_dxCrNb
-g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB)
-"""
-g_d2Ggam_dxCrNi = -g_d2Ggam_dxCrCr - g_d2Ggam_dxCrNb
-g_d2Ggam_dxNbNi = -g_d2Ggam_dxNbCr - g_d2Ggam_dxNbNb
-g_d2Ggam_dxNiNi = -g_d2Ggam_dxCrNi - g_d2Ggam_dxNbNi
-"""
+
+# Generate paraboloid expressions (2nd-order Taylor series approximations)
 
 g_d2Gdel_dxCrCr = diff(g_delta, XCR, XCR)
 g_d2Gdel_dxCrNb = diff(g_delta, XCR, XNB)
@@ -184,9 +200,9 @@ g_d2Glav_dxNbCr = g_d2Glav_dxCrNb
 g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB)
 
 # Curvatures
-PC_gam_CrCr = g_d2Ggam_dxCrCr.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_CrNb = g_d2Ggam_dxCrNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_NbNb = g_d2Ggam_dxNbNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_CrCr = duCr_dxCr.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_CrNb = duNb_dxCr.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_NbNb = duNb_dxNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
 
 PC_del_CrCr = g_d2Gdel_dxCrCr.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
 PC_del_CrNb = g_d2Gdel_dxCrNb.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
@@ -352,6 +368,29 @@ dx_r_lav_Nb = xr[5]
 xCr0 = 0.30
 xNb0 = 0.02
 
+# *** Sanity Checks ***
+
+print("Free energy at ({0}, {1}):\n".format(xCr0, xNb0))
+print("G={0:12g} J/mol".format(G_g.subs({XCR: xCr0, XNB: xNb0})))
+print("")
+
+muCrPyC = mu_Cr.subs({XCR: xCr0, XNB: xNb0})
+muNbPyC = mu_Nb.subs({XCR: xCr0, XNB: xNb0})
+muNiPyC = mu_Ni.subs({XCR: xCr0, XNB: xNb0})
+muCrTC = -48499.753
+muNbTC = -162987.63
+muNiTC = -62416.931
+muCrErr = 100 * (muCrTC - muCrPyC) / muCrTC
+muNbErr = 100 * (muNbTC - muNbPyC) / muNbTC
+muNiErr = 100 * (muNiTC - muNiPyC) / muNiTC
+
+print("Chemical potentials at ({0}, {1}):\n".format(xCr0, xNb0))
+print("CR: {0:.3f} J/mol (cf. {1:.3f}): {2:.2f}% error".format(muCrPyC, muCrTC, muCrErr))
+print("NB: {0:.2f} J/mol (cf. {1:.2f}): {2:.2f}% error".format(muNbPyC, muNbTC, muNbErr))
+print("NI: {0:.3f} J/mol (cf. {1:.3f}): {2:.2f}% error".format(muNiPyC, muNiTC, muNiErr))
+print("")
+
+
 # *** Activation Energies in FCC Ni [J/mol] ***
 # Motion of species (1) in pure (2), transcribed from `Ni-Nb-Cr_fcc_mob.tdb`
 ## Ref: TKR5p286, TKR5p316
@@ -388,9 +427,12 @@ L0 = Matrix([[L0_Cr, 0, 0],
              [0, L0_Nb, 0],
              [0, 0, L0_Ni]])
 
-print("Atomic mobility at ({0}, {1}):\n".format(xCr0, xNb0))
+print("L0=xM at ({0}, {1}):\n".format(xCr0, xNb0))
 pprint(L0.subs({XCR: xCr0, XNB: xNb0}))
 print("")
+
+"""
+## Ref: TKR5p330 (Boettinger's Method, M=PLP⁺)
 
 P = Matrix([[1 - XCR,    -XCR,    -XCR],
             [   -XNB, 1 - XNB,    -XNB],
@@ -398,33 +440,54 @@ P = Matrix([[1 - XCR,    -XCR,    -XCR],
 
 M = P * L0 * P.T
 
-print("Chemical mobility at ({0}, {1}):\n".format(xCr0, xNb0))
-pprint(M.subs({XCR: xCr0, XNB: xNb0}))
-print("")
-
 M_CrCr, M_CrNb, M_CrNi = M.row(0)
 M_NbCr, M_NbNb, M_NbNi = M.row(1)
 M_NiCr, M_NiNb, M_NiNi = M.row(2)
+"""
 
 # *** Diffusivity in FCC Ni [m²/s] ***
-## Ref: TKR5p330 (Boettinger's Method, D=PMP⁺)
+## Ref: TKR5p333 (Campbell's method)
 
-D = Vm * Matrix([[M_CrCr * g_d2Ggam_dxCrCr + M_CrNb * g_d2Ggam_dxCrNb + M_CrNi * g_d2Ggam_dxCrNi,
-                  M_CrCr * g_d2Ggam_dxNbCr + M_CrNb * g_d2Ggam_dxNbNb + M_CrNi * g_d2Ggam_dxNbNi,
-                  M_CrCr * g_d2Ggam_dxNiCr + M_CrNb * g_d2Ggam_dxNiNb + M_CrNi * g_d2Ggam_dxNiNi],
-                 [M_NbCr * g_d2Ggam_dxCrCr + M_NbNb * g_d2Ggam_dxCrNb + M_NbNi * g_d2Ggam_dxCrNi,
-                  M_NbCr * g_d2Ggam_dxNbCr + M_NbNb * g_d2Ggam_dxNbNb + M_NbNi * g_d2Ggam_dxNbNi,
-                  M_NbCr * g_d2Ggam_dxNiCr + M_NbNb * g_d2Ggam_dxNiNb + M_NbNi * g_d2Ggam_dxNiNi],
-                 [M_NiCr * g_d2Ggam_dxCrCr + M_NiNb * g_d2Ggam_dxCrNb + M_NiNi * g_d2Ggam_dxCrNi,
-                  M_NiCr * g_d2Ggam_dxNbCr + M_NiNb * g_d2Ggam_dxNbNb + M_NiNi * g_d2Ggam_dxNbNi,
-                  M_NiCr * g_d2Ggam_dxNiCr + M_NiNb * g_d2Ggam_dxNiNb + M_NiNi * g_d2Ggam_dxNiNi]])
+D_CrCr = (1 - XCR) * L0_Cr * duCr_dxCr      - XCR  * L0_Nb * duNb_dxCr      - XCR  * L0_Ni * duNi_dxCr
+D_CrNb = (1 - XCR) * L0_Cr * duCr_dxNb      - XCR  * L0_Nb * duNb_dxNb      - XCR  * L0_Ni * duNi_dxNi
+D_CrNi = (1 - XCR) * L0_Cr * duCr_dxNi      - XCR  * L0_Nb * duNb_dxNi      - XCR  * L0_Ni * duNi_dxNi
+
+D_NbCr =    - XNB  * L0_Cr * duCr_dxCr + (1 - XNB) * L0_Nb * duNb_dxCr      - XNB  * L0_Ni * duNi_dxCr
+D_NbNb =    - XNB  * L0_Cr * duCr_dxNb + (1 - XNB) * L0_Nb * duNb_dxNb      - XNB  * L0_Ni * duNi_dxNb
+D_NbNi =    - XNB  * L0_Cr * duCr_dxNi + (1 - XNB) * L0_Nb * duNb_dxNi      - XNB  * L0_Ni * duNi_dxNi
+
+D_NiCr =    - XNI  * L0_Cr * duCr_dxCr      - XNI  * L0_Nb * duNb_dxCr + (1 - XNI) * L0_Ni * duNi_dxCr
+D_NiNb =    - XNI  * L0_Cr * duCr_dxNb      - XNI  * L0_Nb * duNb_dxNb + (1 - XNI) * L0_Ni * duNi_dxNb
+D_NiNi =    - XNI  * L0_Cr * duCr_dxNi      - XNI  * L0_Nb * duNb_dxNi + (1 - XNI) * L0_Ni * duNi_dxNi
+
+D = Matrix([[D_CrCr, D_CrNb, D_CrNi],
+            [D_NbCr, D_NbNb, D_NbNi],
+            [D_NiCr, D_NiNb, D_NiNi]])
 
 print("Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
 pprint(D.subs({XCR: xCr0, XNB: xNb0}))
 print("")
 
-D_CrCr, D_CrNb, D_CrNi = D.row(0)
-D_NbCr, D_NbNb, D_NbNi = D.row(1)
+# From C. Campbell, 2020-03-10 via Thermo-Calc
+R = Matrix([[ 2.85167e-17, 1.16207e-17, 4.74808e-18],
+            [-4.28244e-18, 1.56459e-16,-3.88918e-17],
+            [-2.42343e-17,-1.68080e-16, 3.41437e-17]])
+
+print("Reference Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
+pprint(R)
+print("")
+
+"""
+# $D^n_{kj} = D_{kj} - D_{kn}$
+
+Dr =  Matrix([[D_CrCr - D_CrNi, D_CrNb - D_CrNi],
+              [D_NbCr - D_NbNi, D_NbNb - D_NbNi],
+              [D_NiCr - D_NiNi, D_NiNb - D_NiNi]])
+
+print("Reduced Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
+pprint(Dr.subs({XCR: xCr0, XNB: xNb0}))
+print("")
+"""
 
 # === Export C source code ===
 
@@ -503,11 +566,9 @@ codegen(
         ("L0_Cr", L0_Cr),
         ("L0_Nb", L0_Nb),
         ("L0_Ni", L0_Ni),
-        ("M_CrCr", M_CrCr), ("M_CrNb", M_CrNb),
-        ("M_NbCr", M_NbCr), ("M_NbNb", M_NbNb),
         # Diffusivities
-        ("D_CrCr", D_CrCr), ("D_CrNb", D_CrNb),
-        ("D_NbCr", D_NbCr), ("D_NbNb", D_NbNb)
+        ("D_CrCr", D_CrCr - D_CrNi), ("D_CrNb", D_CrNb - D_CrNi),
+        ("D_NbCr", D_NbCr - D_NbNi), ("D_NbNb", D_NbNb - D_NbNi)
     ],
     language="C",
     prefix="parabola625",
