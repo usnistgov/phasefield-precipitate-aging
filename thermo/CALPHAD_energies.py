@@ -163,6 +163,21 @@ mu_Cr = G_g      - XNB  * g_dGgam_dxNb + (1 - XCR) * g_dGgam_dxCr
 mu_Nb = G_g + (1 - XNB) * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
 mu_Ni = G_g      - XNB  * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
 
+# Simple Curvatures
+duCr_dxCr = diff(G_g, XCR, XCR).subs(XNI, 1 - XCR - XNB)
+duCr_dxNb = diff(G_g, XCR, XNB).subs(XNI, 1 - XCR - XNB)
+duCr_dxNi = diff(G_g, XCR, XNI).subs(XNI, 1 - XCR - XNB)
+
+duNb_dxCr = diff(G_g, XNB, XCR).subs(XNI, 1 - XCR - XNB)
+duNb_dxNb = diff(G_g, XNB, XNB).subs(XNI, 1 - XCR - XNB)
+duNb_dxNi = diff(G_g, XNB, XNI).subs(XNI, 1 - XCR - XNB)
+
+duNi_dxCr = diff(G_g, XNI, XCR).subs(XNI, 1 - XCR - XNB)
+duNi_dxNb = diff(G_g, XNI, XNB).subs(XNI, 1 - XCR - XNB)
+duNi_dxNi = diff(G_g, XNI, XNI).subs(XNI, 1 - XCR - XNB)
+
+"""
+# Derivatives of Chemical Potentials
 duCr_dxCr = diff(mu_Cr, XCR).subs(XNI, 1 - XCR - XNB)
 duCr_dxNb = diff(mu_Cr, XNB).subs(XNI, 1 - XCR - XNB)
 duCr_dxNi = diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB)
@@ -174,6 +189,9 @@ duNb_dxNi = diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB)
 duNi_dxCr = diff(mu_Ni, XCR).subs(XNI, 1 - XCR - XNB)
 duNi_dxNb = diff(mu_Ni, XNB).subs(XNI, 1 - XCR - XNB)
 duNi_dxNi = diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB)
+"""
+
+# Redefine without solvent species (Ni)
 
 g_gamma = g_gamma.subs(XNI, 1 - XCR - XNB)
 G_g = Vm * g_gamma
@@ -385,9 +403,9 @@ muNbErr = 100 * (muNbTC - muNbPyC) / muNbTC
 muNiErr = 100 * (muNiTC - muNiPyC) / muNiTC
 
 print("Chemical potentials at ({0}, {1}):\n".format(xCr0, xNb0))
-print("CR: {0:.3f} J/mol (cf. {1:.3f}): {2:.2f}% error".format(muCrPyC, muCrTC, muCrErr))
-print("NB: {0:.2f} J/mol (cf. {1:.2f}): {2:.2f}% error".format(muNbPyC, muNbTC, muNbErr))
-print("NI: {0:.3f} J/mol (cf. {1:.3f}): {2:.2f}% error".format(muNiPyC, muNiTC, muNiErr))
+print("CR: {0:.3f} J/mol (cf. {1:.3f}: {2:.2f}% error)".format(muCrPyC, muCrTC, muCrErr))
+print("NB: {0:.2f} J/mol (cf. {1:.2f}: {2:.2f}% error)".format(muNbPyC, muNbTC, muNbErr))
+print("NI: {0:.3f} J/mol (cf. {1:.3f}: {2:.2f}% error)".format(muNiPyC, muNiTC, muNiErr))
 print("")
 
 
@@ -418,9 +436,13 @@ Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + XNI * Q_Ni_Ni + XCR * XNI * Q_Ni_CrNi  + 
 # *** Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ***
 ## Ref: TKR5p286, TKR5p316
 
-L0_Cr = XCR * exp(Q_Cr / RT) / RT
-L0_Nb = XNB * exp(Q_Nb / RT) / RT
-L0_Ni = XNI * exp(Q_Ni / RT) / RT
+M_Cr = exp(Q_Cr / RT) / RT
+M_Nb = exp(Q_Nb / RT) / RT
+M_Ni = exp(Q_Ni / RT) / RT
+
+L0_Cr = XCR * M_Cr
+L0_Nb = XNB * M_Nb
+L0_Ni = XNI * M_Ni
 
 # For DICTRA comparisons ("L0kj") -- Lattice Frame
 L0 = Matrix([[L0_Cr, 0, 0],
@@ -432,24 +454,20 @@ pprint(L0.subs({XCR: xCr0, XNB: xNb0}))
 print("")
 
 """
-## Ref: TKR5p330 (Boettinger's Method, M=PLP⁺)
+C = Matrix([[duCr_dxCr, duCr_dxNb, duCr_dxNi],
+            [duNb_dxCr, duNb_dxNb, duNb_dxNi],
+            [duNi_dxCr, duNi_dxNi, duNi_dxNi]])
 
-P = Matrix([[1 - XCR,    -XCR,    -XCR],
-            [   -XNB, 1 - XNB,    -XNB],
-            [   -XNI,    -XNI, 1 - XNI]])
-
-M = P * L0 * P.T
-
-M_CrCr, M_CrNb, M_CrNi = M.row(0)
-M_NbCr, M_NbNb, M_NbNi = M.row(1)
-M_NiCr, M_NiNb, M_NiNi = M.row(2)
+print("Curvatures at ({0}, {1}):\n".format(xCr0, xNb0))
+pprint(C.subs({XCR: xCr0, XNB: xNb0}))
+print("")
 """
 
 # *** Diffusivity in FCC Ni [m²/s] ***
 ## Ref: TKR5p333 (Campbell's method)
 
 D_CrCr = (1 - XCR) * L0_Cr * duCr_dxCr      - XCR  * L0_Nb * duNb_dxCr      - XCR  * L0_Ni * duNi_dxCr
-D_CrNb = (1 - XCR) * L0_Cr * duCr_dxNb      - XCR  * L0_Nb * duNb_dxNb      - XCR  * L0_Ni * duNi_dxNi
+D_CrNb = (1 - XCR) * L0_Cr * duCr_dxNb      - XCR  * L0_Nb * duNb_dxNb      - XCR  * L0_Ni * duNi_dxNb
 D_CrNi = (1 - XCR) * L0_Cr * duCr_dxNi      - XCR  * L0_Nb * duNb_dxNi      - XCR  * L0_Ni * duNi_dxNi
 
 D_NbCr =    - XNB  * L0_Cr * duCr_dxCr + (1 - XNB) * L0_Nb * duNb_dxCr      - XNB  * L0_Ni * duNi_dxCr
@@ -460,22 +478,63 @@ D_NiCr =    - XNI  * L0_Cr * duCr_dxCr      - XNI  * L0_Nb * duNb_dxCr + (1 - XN
 D_NiNb =    - XNI  * L0_Cr * duCr_dxNb      - XNI  * L0_Nb * duNb_dxNb + (1 - XNI) * L0_Ni * duNi_dxNb
 D_NiNi =    - XNI  * L0_Cr * duCr_dxNi      - XNI  * L0_Nb * duNb_dxNi + (1 - XNI) * L0_Ni * duNi_dxNi
 
-D = Matrix([[D_CrCr, D_CrNb, D_CrNi],
-            [D_NbCr, D_NbNb, D_NbNi],
-            [D_NiCr, D_NiNb, D_NiNi]])
+DCC = D_CrCr.subs({XCR: xCr0, XNB: xNb0})
+DCN = D_CrNb.subs({XCR: xCr0, XNB: xNb0})
+DCn = D_CrNi.subs({XCR: xCr0, XNB: xNb0})
+
+DNC = D_NbCr.subs({XCR: xCr0, XNB: xNb0})
+DNN = D_NbNb.subs({XCR: xCr0, XNB: xNb0})
+DNn = D_NbNi.subs({XCR: xCr0, XNB: xNb0})
+
+DnC = D_NiCr.subs({XCR: xCr0, XNB: xNb0})
+DnN = D_NiNb.subs({XCR: xCr0, XNB: xNb0})
+Dnn = D_NiNi.subs({XCR: xCr0, XNB: xNb0})
 
 print("Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
-pprint(D.subs({XCR: xCr0, XNB: xNb0}))
+print("⎡{0:13.3g} {1:13.3g} {2:13.3g}⎤".format(DCC, DCN, DCn))
+print("⎢                                         ⎥")
+print("⎢{0:13.3g} {1:13.3g} {2:13.3g}⎥".format(DNC, DNN, DNn))
+print("⎢                                         ⎥")
+print("⎣{0:13.3g} {1:13.3g} {2:13.3g}⎦".format(DnC, DnN, Dnn))
 print("")
 
 # From C. Campbell, 2020-03-10 via Thermo-Calc
-R = Matrix([[ 2.85167e-17, 1.16207e-17, 4.74808e-18],
-            [-4.28244e-18, 1.56459e-16,-3.88918e-17],
-            [-2.42343e-17,-1.68080e-16, 3.41437e-17]])
+TC_CrCr = 2.85167e-17
+TC_CrNb = 1.16207e-17
+TC_CrNi = 4.74808e-18
+TC_NbCr = -4.28244e-18
+TC_NbNb = 1.56459e-16
+TC_NbNi = -3.88918e-17
+TC_NiCr = -2.42343e-17
+TC_NiNb = -1.68080e-16
+TC_NiNi = 3.41437e-17
 
 print("Reference Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
-pprint(R)
+print("⎡{0:13.3g} {1:13.3g} {2:13.3g}⎤".format(TC_CrCr, TC_CrNb, TC_CrNi))
+print("⎢                                         ⎥")
+print("⎢{0:13.3g} {1:13.3g} {2:13.3g}⎥".format(TC_NbCr, TC_NbNb, TC_NbNi))
+print("⎢                                         ⎥")
+print("⎣{0:13.3g} {1:13.3g} {2:13.3g}⎦".format(TC_NiCr, TC_NiNb, TC_NiNi))
 print("")
+
+DE_CrCr = 100 * (DCC - TC_CrCr) / TC_CrCr
+DE_CrNb = 100 * (DCN - TC_CrNb) / TC_CrNb
+DE_CrNi = 100 * (DCn - TC_CrNi) / TC_CrNb
+DE_NbCr = 100 * (DNC - TC_NbCr) / TC_NbCr
+DE_NbNb = 100 * (DNN - TC_NbNb) / TC_NbNb
+DE_NbNi = 100 * (DNn - TC_NbNi) / TC_NbNi
+DE_NiCr = 100 * (DnC - TC_NiCr) / TC_NiCr
+DE_NiNb = 100 * (DnN - TC_NiNb) / TC_NiNb
+DE_NiNi = 100 * (Dnn - TC_NiNi) / TC_NiNi
+
+print("Diffusivity Error at ({0}, {1}):\n".format(xCr0, xNb0))
+print("⎡{0:10.2f}% {1:10.2f}% {2:10.2f}%⎤".format(DE_CrCr, DE_CrNb, DE_CrNi))
+print("⎢                                   ⎥")
+print("⎢{0:10.2f}% {1:10.2f}% {2:10.2f}%⎥".format(DE_NbCr, DE_NbNb, DE_NbNi))
+print("⎢                                   ⎥")
+print("⎣{0:10.2f}% {1:10.2f}% {2:10.2f}%⎦".format(DE_NiCr, DE_NiNb, DE_NiNi))
+print("")
+
 
 """
 # $D^n_{kj} = D_{kj} - D_{kn}$
