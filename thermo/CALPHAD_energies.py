@@ -163,21 +163,24 @@ mu_Cr = G_g      - XNB  * g_dGgam_dxNb + (1 - XCR) * g_dGgam_dxCr
 mu_Nb = G_g + (1 - XNB) * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
 mu_Ni = G_g      - XNB  * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
 
-# Simple Curvatures
-duCr_dxCr = diff(G_g, XCR, XCR).subs(XNI, 1 - XCR - XNB)
-duCr_dxNb = diff(G_g, XCR, XNB).subs(XNI, 1 - XCR - XNB)
-duCr_dxNi = diff(G_g, XCR, XNI).subs(XNI, 1 - XCR - XNB)
-
-duNb_dxCr = diff(G_g, XNB, XCR).subs(XNI, 1 - XCR - XNB)
-duNb_dxNb = diff(G_g, XNB, XNB).subs(XNI, 1 - XCR - XNB)
-duNb_dxNi = diff(G_g, XNB, XNI).subs(XNI, 1 - XCR - XNB)
-
-duNi_dxCr = diff(G_g, XNI, XCR).subs(XNI, 1 - XCR - XNB)
-duNi_dxNb = diff(G_g, XNI, XNB).subs(XNI, 1 - XCR - XNB)
-duNi_dxNi = diff(G_g, XNI, XNI).subs(XNI, 1 - XCR - XNB)
-
-"""
 # Derivatives of Chemical Potentials
+
+g_d2Ggam_dxCrCr = diff(g_gamma, XCR, XCR).subs(XNI, 1 - XCR - XNB)
+g_d2Ggam_dxCrNb = diff(g_gamma, XCR, XNB).subs(XNI, 1 - XCR - XNB)
+g_d2Ggam_dxNbCr = diff(g_gamma, XNB, XCR).subs(XNI, 1 - XCR - XNB)
+g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB).subs(XNI, 1 - XCR - XNB)
+
+g_d2Gdel_dxCrCr = diff(g_delta, XCR, XCR).subs(XNI, 1 - XCR - XNB)
+g_d2Gdel_dxCrNb = diff(g_delta, XCR, XNB).subs(XNI, 1 - XCR - XNB)
+g_d2Gdel_dxNbCr = g_d2Gdel_dxCrNb
+g_d2Gdel_dxNbNb = diff(g_delta, XNB, XNB).subs(XNI, 1 - XCR - XNB)
+
+g_d2Glav_dxCrCr = diff(g_laves, XCR, XCR).subs(XNI, 1 - XCR - XNB)
+g_d2Glav_dxCrNb = diff(g_laves, XCR, XNB).subs(XNI, 1 - XCR - XNB)
+g_d2Glav_dxNbCr = g_d2Glav_dxCrNb
+g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB).subs(XNI, 1 - XCR - XNB)
+
+## Equivalent to expressions in terms of curvatures, Ref: TKR5p337
 duCr_dxCr = diff(mu_Cr, XCR).subs(XNI, 1 - XCR - XNB)
 duCr_dxNb = diff(mu_Cr, XNB).subs(XNI, 1 - XCR - XNB)
 duCr_dxNi = diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB)
@@ -189,7 +192,6 @@ duNb_dxNi = diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB)
 duNi_dxCr = diff(mu_Ni, XCR).subs(XNI, 1 - XCR - XNB)
 duNi_dxNb = diff(mu_Ni, XNB).subs(XNI, 1 - XCR - XNB)
 duNi_dxNi = diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB)
-"""
 
 # Redefine without solvent species (Ni)
 
@@ -207,20 +209,10 @@ XNI = 1 - XCR - XNB
 
 # Generate paraboloid expressions (2nd-order Taylor series approximations)
 
-g_d2Gdel_dxCrCr = diff(g_delta, XCR, XCR)
-g_d2Gdel_dxCrNb = diff(g_delta, XCR, XNB)
-g_d2Gdel_dxNbCr = g_d2Gdel_dxCrNb
-g_d2Gdel_dxNbNb = diff(g_delta, XNB, XNB)
-
-g_d2Glav_dxCrCr = diff(g_laves, XCR, XCR)
-g_d2Glav_dxCrNb = diff(g_laves, XCR, XNB)
-g_d2Glav_dxNbCr = g_d2Glav_dxCrNb
-g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB)
-
 # Curvatures
-PC_gam_CrCr = duCr_dxCr.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_CrNb = duNb_dxCr.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_NbNb = duNb_dxNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_CrCr = g_d2Ggam_dxCrCr.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_CrNb = g_d2Ggam_dxCrNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_NbNb = g_d2Ggam_dxNbNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
 
 PC_del_CrCr = g_d2Gdel_dxCrCr.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
 PC_del_CrNb = g_d2Gdel_dxCrNb.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
@@ -453,19 +445,6 @@ print("L0=xM at ({0}, {1}):\n".format(xCr0, xNb0))
 pprint(L0.subs({XCR: xCr0, XNB: xNb0}))
 print("")
 
-"""
-C = Matrix([[duCr_dxCr, duCr_dxNb, duCr_dxNi],
-            [duNb_dxCr, duNb_dxNb, duNb_dxNi],
-            [duNi_dxCr, duNi_dxNi, duNi_dxNi]])
-
-print("Curvatures at ({0}, {1}):\n".format(xCr0, xNb0))
-pprint(C.subs({XCR: xCr0, XNB: xNb0}))
-print("")
-"""
-
-# *** Diffusivity in FCC Ni [m²/s] ***
-## Ref: TKR5p333 (Campbell's method)
-
 D_CrCr = (1 - XCR) * L0_Cr * duCr_dxCr      - XCR  * L0_Nb * duNb_dxCr      - XCR  * L0_Ni * duNi_dxCr
 D_CrNb = (1 - XCR) * L0_Cr * duCr_dxNb      - XCR  * L0_Nb * duNb_dxNb      - XCR  * L0_Ni * duNi_dxNb
 D_CrNi = (1 - XCR) * L0_Cr * duCr_dxNi      - XCR  * L0_Nb * duNb_dxNi      - XCR  * L0_Ni * duNi_dxNi
@@ -528,25 +507,33 @@ DE_NiNb = 100 * (DnN - TC_NiNb) / TC_NiNb
 DE_NiNi = 100 * (Dnn - TC_NiNi) / TC_NiNi
 
 print("Diffusivity Error at ({0}, {1}):\n".format(xCr0, xNb0))
-print("⎡{0:10.2f}% {1:10.2f}% {2:10.2f}%⎤".format(DE_CrCr, DE_CrNb, DE_CrNi))
-print("⎢                                   ⎥")
-print("⎢{0:10.2f}% {1:10.2f}% {2:10.2f}%⎥".format(DE_NbCr, DE_NbNb, DE_NbNi))
-print("⎢                                   ⎥")
-print("⎣{0:10.2f}% {1:10.2f}% {2:10.2f}%⎦".format(DE_NiCr, DE_NiNb, DE_NiNi))
+print("⎡{0:12.0f}% {1:12.0f}% {2:12.0f}%⎤".format(DE_CrCr, DE_CrNb, DE_CrNi))
+print("⎢                                         ⎥")
+print("⎢{0:12.0f}% {1:12.0f}% {2:12.0f}%⎥".format(DE_NbCr, DE_NbNb, DE_NbNi))
+print("⎢                                         ⎥")
+print("⎣{0:12.0f}% {1:12.0f}% {2:12.0f}%⎦".format(DE_NiCr, DE_NiNb, DE_NiNi))
 print("")
 
 
-"""
+# Reduced Diffusivity (2✕2)
 # $D^n_{kj} = D_{kj} - D_{kn}$
 
-Dr =  Matrix([[D_CrCr - D_CrNi, D_CrNb - D_CrNi],
-              [D_NbCr - D_NbNi, D_NbNb - D_NbNi],
-              [D_NiCr - D_NiNi, D_NiNb - D_NiNi]])
+D_CrCr = D_CrCr - D_CrNi
+D_CrNb = D_CrNb - D_CrNi
 
-print("Reduced Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
-pprint(Dr.subs({XCR: xCr0, XNB: xNb0}))
+D_NbCr = D_NbCr - D_NbNi
+D_NbNb = D_NbNb - D_NbNi
+
+print("Reduced Diffusivity (2✕2) at ({0}, {1}):\n".format(xCr0, xNb0))
+print("⎡{0:13.3g} {1:13.3g}⎤".format(D_CrCr.subs({XCR: xCr0, XNB: xNb0}), D_CrNb.subs({XCR: xCr0, XNB: xNb0})))
+print("⎢                           ⎥")
+print("⎣{0:13.3g} {1:13.3g}⎦".format(D_NbCr.subs({XCR: xCr0, XNB: xNb0}), D_NbNb.subs({XCR: xCr0, XNB: xNb0})))
 print("")
-"""
+
+# Dkj (reduced n=NI)
+# k / j CR             NB
+# CR   +2.37686E-17   +6.87264E-18
+# NB   +3.46093E-17   +1.95351E-16
 
 # === Export C source code ===
 
@@ -625,9 +612,9 @@ codegen(
         ("L0_Cr", L0_Cr),
         ("L0_Nb", L0_Nb),
         ("L0_Ni", L0_Ni),
-        # Diffusivities
-        ("D_CrCr", D_CrCr - D_CrNi), ("D_CrNb", D_CrNb - D_CrNi),
-        ("D_NbCr", D_NbCr - D_NbNi), ("D_NbNb", D_NbNb - D_NbNi)
+        # Reduced Diffusivities
+        ("D_CrCr", D_CrCr), ("D_CrNb", D_CrNb),
+        ("D_NbCr", D_NbCr), ("D_NbNb", D_NbNb)
     ],
     language="C",
     prefix="parabola625",
