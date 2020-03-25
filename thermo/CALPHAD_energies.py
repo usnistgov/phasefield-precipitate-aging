@@ -59,7 +59,7 @@ import numpy as np
 
 # Thermodynamics and computer-algebra libraries
 from pycalphad import Database, calculate, Model
-from sympy import Eq, Matrix, diff, expand, init_printing, factor, fraction, pprint, symbols
+from sympy import Eq, Matrix, S, diff, expand, init_printing, factor, fraction, pprint, symbols
 from sympy.abc import L, r, x, y, z
 from sympy.core.numbers import pi
 from sympy.functions.elementary.exponential import exp, log
@@ -180,18 +180,23 @@ g_d2Glav_dxCrNb = diff(g_laves, XCR, XNB).subs(XNI, 1 - XCR - XNB)
 g_d2Glav_dxNbCr = g_d2Glav_dxCrNb
 g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB).subs(XNI, 1 - XCR - XNB)
 
-## Equivalent to expressions in terms of curvatures, Ref: TKR5p337
-duCr_dxCr = diff(mu_Cr, XCR).subs(XNI, 1 - XCR - XNB)
-duCr_dxNb = diff(mu_Cr, XNB).subs(XNI, 1 - XCR - XNB)
-duCr_dxNi = diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB)
+# Since Ni is the *solvent*, we subtract it off
 
-duNb_dxCr = diff(mu_Nb, XCR).subs(XNI, 1 - XCR - XNB)
-duNb_dxNb = diff(mu_Nb, XNB).subs(XNI, 1 - XCR - XNB)
-duNb_dxNi = diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB)
+solvent = diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB)
+duCr_dxCr = diff(mu_Cr, XCR).subs(XNI, 1 - XCR - XNB) - solvent
+duCr_dxNb = diff(mu_Cr, XNB).subs(XNI, 1 - XCR - XNB) - solvent
+duCr_dxNi = diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB) - solvent
 
-duNi_dxCr = diff(mu_Ni, XCR).subs(XNI, 1 - XCR - XNB)
-duNi_dxNb = diff(mu_Ni, XNB).subs(XNI, 1 - XCR - XNB)
-duNi_dxNi = diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB)
+solvent = diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB)
+duNb_dxCr = diff(mu_Nb, XCR).subs(XNI, 1 - XCR - XNB) - solvent
+duNb_dxNb = diff(mu_Nb, XNB).subs(XNI, 1 - XCR - XNB) - solvent
+duNb_dxNi = diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB) - solvent
+
+solvent = diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB)
+duNi_dxCr = diff(mu_Ni, XCR).subs(XNI, 1 - XCR - XNB) - solvent
+duNi_dxNb = diff(mu_Ni, XNB).subs(XNI, 1 - XCR - XNB) - solvent
+duNi_dxNi = diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB) - solvent
+
 
 # Redefine without solvent species (Ni)
 
@@ -387,9 +392,11 @@ print("")
 muCrPyC = mu_Cr.subs({XCR: xCr0, XNB: xNb0})
 muNbPyC = mu_Nb.subs({XCR: xCr0, XNB: xNb0})
 muNiPyC = mu_Ni.subs({XCR: xCr0, XNB: xNb0})
+
 muCrTC = -48499.753
 muNbTC = -162987.63
 muNiTC = -62416.931
+
 muCrErr = 100 * (muCrTC - muCrPyC) / muCrTC
 muNbErr = 100 * (muNbTC - muNbPyC) / muNbTC
 muNiErr = 100 * (muNiTC - muNiPyC) / muNiTC
@@ -400,6 +407,13 @@ print("NB: {0:.2f} J/mol (cf. {1:.2f}: {2:.2f}% error)".format(muNbPyC, muNbTC, 
 print("NI: {0:.3f} J/mol (cf. {1:.3f}: {2:.2f}% error)".format(muNiPyC, muNiTC, muNiErr))
 print("")
 
+print("∂μ/∂x at ({0}, {1}):\n".format(xCr0, xNb0))
+print("⎡{0:13.3f} {1:13.3f}             {2}⎤".format(duCr_dxCr.subs({XCR: xCr0, XNB: xNb0}), duCr_dxNb.subs({XCR: xCr0, XNB: xNb0}), duCr_dxNi.subs({XCR: xCr0, XNB: xNb0})))
+print("⎢                                         ⎥")
+print("⎢{0:13.3f} {1:13.3f}             {2}⎥".format(duNb_dxCr.subs({XCR: xCr0, XNB: xNb0}), duNb_dxNb.subs({XCR: xCr0, XNB: xNb0}), duNb_dxNi.subs({XCR: xCr0, XNB: xNb0})))
+print("⎢                                         ⎥")
+print("⎣{0:13.3f} {1:13.3f}             {2}⎦".format(duNi_dxCr.subs({XCR: xCr0, XNB: xNb0}), duNi_dxNb.subs({XCR: xCr0, XNB: xNb0}), duNi_dxNi.subs({XCR: xCr0, XNB: xNb0})))
+print("")
 
 # *** Activation Energies in FCC Ni [J/mol] ***
 # Motion of species (1) in pure (2), transcribed from `Ni-Nb-Cr_fcc_mob.tdb`
@@ -423,7 +437,7 @@ Q_Ni_NbNi = -4207044
 
 Q_Cr = XCR * Q_Cr_Cr + XNB * Q_Cr_Nb + XNI * Q_Cr_Ni + XCR * XNI * Q_Cr_CrNi
 Q_Nb = XCR * Q_Nb_Cr + XNB * Q_Nb_Nb + XNI * Q_Nb_Ni + XNB * XNI * Q_Nb_NbNi
-Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + XNI * Q_Ni_Ni + XCR * XNI * Q_Ni_CrNi  + XNB * XNI * Q_Ni_NbNi
+Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + XNI * Q_Ni_Ni + XCR * XNI * Q_Ni_CrNi + XNB * XNI * Q_Ni_NbNi
 
 # *** Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ***
 ## Ref: TKR5p286, TKR5p316
@@ -432,30 +446,33 @@ M_Cr = exp(Q_Cr / RT) / RT
 M_Nb = exp(Q_Nb / RT) / RT
 M_Ni = exp(Q_Ni / RT) / RT
 
+# For DICTRA comparisons ("L0kj") -- Lattice Frame
+
 L0_Cr = XCR * M_Cr
 L0_Nb = XNB * M_Nb
 L0_Ni = XNI * M_Ni
 
-# For DICTRA comparisons ("L0kj") -- Lattice Frame
-L0 = Matrix([[L0_Cr, 0, 0],
-             [0, L0_Nb, 0],
-             [0, 0, L0_Ni]])
-
+"""
 print("L0=xM at ({0}, {1}):\n".format(xCr0, xNb0))
-pprint(L0.subs({XCR: xCr0, XNB: xNb0}))
+print("⎡{0:13.3g}             0             0⎤".format(L0_Cr.subs({XCR: xCr0, XNB: xNb0})))
+print("⎢                                         ⎥")
+print("⎢            0 {0:13.3g}             0⎥".format(L0_Nb.subs({XCR: xCr0, XNB: xNb0})))
+print("⎢                                         ⎥")
+print("⎣            0             0 {0:13.3g}⎦".format(L0_Ni.subs({XCR: xCr0, XNB: xNb0})))
 print("")
+"""
 
-D_CrCr = (1 - XCR) * L0_Cr * duCr_dxCr      - XCR  * L0_Nb * duNb_dxCr      - XCR  * L0_Ni * duNi_dxCr
-D_CrNb = (1 - XCR) * L0_Cr * duCr_dxNb      - XCR  * L0_Nb * duNb_dxNb      - XCR  * L0_Ni * duNi_dxNb
-D_CrNi = (1 - XCR) * L0_Cr * duCr_dxNi      - XCR  * L0_Nb * duNb_dxNi      - XCR  * L0_Ni * duNi_dxNi
+D_CrCr = (1 - XCR) * L0_Cr * duCr_dxCr      - XCR  * L0_Nb * duCr_dxNb      - XCR  * L0_Ni * duCr_dxNi
+D_CrNb = (1 - XCR) * L0_Cr * duNb_dxCr      - XCR  * L0_Nb * duNb_dxNb      - XCR  * L0_Ni * duNb_dxNi
+D_CrNi = (1 - XCR) * L0_Cr * duNi_dxCr      - XCR  * L0_Nb * duNi_dxNb      - XCR  * L0_Ni * duNi_dxNi
 
-D_NbCr =    - XNB  * L0_Cr * duCr_dxCr + (1 - XNB) * L0_Nb * duNb_dxCr      - XNB  * L0_Ni * duNi_dxCr
-D_NbNb =    - XNB  * L0_Cr * duCr_dxNb + (1 - XNB) * L0_Nb * duNb_dxNb      - XNB  * L0_Ni * duNi_dxNb
-D_NbNi =    - XNB  * L0_Cr * duCr_dxNi + (1 - XNB) * L0_Nb * duNb_dxNi      - XNB  * L0_Ni * duNi_dxNi
+D_NbCr =    - XNB  * L0_Cr * duCr_dxCr + (1 - XNB) * L0_Nb * duCr_dxNb      - XNB  * L0_Ni * duCr_dxNi
+D_NbNb =    - XNB  * L0_Cr * duNb_dxCr + (1 - XNB) * L0_Nb * duNb_dxNb      - XNB  * L0_Ni * duNb_dxNi
+D_NbNi =    - XNB  * L0_Cr * duNi_dxCr + (1 - XNB) * L0_Nb * duNi_dxNb      - XNB  * L0_Ni * duNi_dxNi
 
-D_NiCr =    - XNI  * L0_Cr * duCr_dxCr      - XNI  * L0_Nb * duNb_dxCr + (1 - XNI) * L0_Ni * duNi_dxCr
-D_NiNb =    - XNI  * L0_Cr * duCr_dxNb      - XNI  * L0_Nb * duNb_dxNb + (1 - XNI) * L0_Ni * duNi_dxNb
-D_NiNi =    - XNI  * L0_Cr * duCr_dxNi      - XNI  * L0_Nb * duNb_dxNi + (1 - XNI) * L0_Ni * duNi_dxNi
+D_NiCr =    - XNI  * L0_Cr * duCr_dxCr      - XNI  * L0_Nb * duCr_dxNb + (1 - XNI) * L0_Ni * duCr_dxNi
+D_NiNb =    - XNI  * L0_Cr * duNb_dxCr      - XNI  * L0_Nb * duNb_dxNb + (1 - XNI) * L0_Ni * duNb_dxNi
+D_NiNi =    - XNI  * L0_Cr * duNi_dxCr      - XNI  * L0_Nb * duNi_dxNb + (1 - XNI) * L0_Ni * duNi_dxNi
 
 DCC = D_CrCr.subs({XCR: xCr0, XNB: xNb0})
 DCN = D_CrNb.subs({XCR: xCr0, XNB: xNb0})
@@ -481,9 +498,11 @@ print("")
 TC_CrCr = 2.85167e-17
 TC_CrNb = 1.16207e-17
 TC_CrNi = 4.74808e-18
+
 TC_NbCr = -4.28244e-18
 TC_NbNb = 1.56459e-16
 TC_NbNi = -3.88918e-17
+
 TC_NiCr = -2.42343e-17
 TC_NiNb = -1.68080e-16
 TC_NiNi = 3.41437e-17
@@ -499,19 +518,21 @@ print("")
 DE_CrCr = 100 * (DCC - TC_CrCr) / TC_CrCr
 DE_CrNb = 100 * (DCN - TC_CrNb) / TC_CrNb
 DE_CrNi = 100 * (DCn - TC_CrNi) / TC_CrNb
+
 DE_NbCr = 100 * (DNC - TC_NbCr) / TC_NbCr
 DE_NbNb = 100 * (DNN - TC_NbNb) / TC_NbNb
 DE_NbNi = 100 * (DNn - TC_NbNi) / TC_NbNi
+
 DE_NiCr = 100 * (DnC - TC_NiCr) / TC_NiCr
 DE_NiNb = 100 * (DnN - TC_NiNb) / TC_NiNb
 DE_NiNi = 100 * (Dnn - TC_NiNi) / TC_NiNi
 
 print("Diffusivity Error at ({0}, {1}):\n".format(xCr0, xNb0))
-print("⎡{0:12.0f}% {1:12.0f}% {2:12.0f}%⎤".format(DE_CrCr, DE_CrNb, DE_CrNi))
+print("⎡{0:12.2f}% {1:12.2f}% {2:12.2f}%⎤".format(DE_CrCr, DE_CrNb, DE_CrNi))
 print("⎢                                         ⎥")
-print("⎢{0:12.0f}% {1:12.0f}% {2:12.0f}%⎥".format(DE_NbCr, DE_NbNb, DE_NbNi))
+print("⎢{0:12.2f}% {1:12.2f}% {2:12.2f}%⎥".format(DE_NbCr, DE_NbNb, DE_NbNi))
 print("⎢                                         ⎥")
-print("⎣{0:12.0f}% {1:12.0f}% {2:12.0f}%⎦".format(DE_NiCr, DE_NiNb, DE_NiNi))
+print("⎣{0:12.2f}% {1:12.2f}% {2:12.2f}%⎦".format(DE_NiCr, DE_NiNb, DE_NiNi))
 print("")
 
 
@@ -524,11 +545,13 @@ D_CrNb = D_CrNb - D_CrNi
 D_NbCr = D_NbCr - D_NbNi
 D_NbNb = D_NbNb - D_NbNi
 
+"""
 print("Reduced Diffusivity (2✕2) at ({0}, {1}):\n".format(xCr0, xNb0))
 print("⎡{0:13.3g} {1:13.3g}⎤".format(D_CrCr.subs({XCR: xCr0, XNB: xNb0}), D_CrNb.subs({XCR: xCr0, XNB: xNb0})))
 print("⎢                           ⎥")
 print("⎣{0:13.3g} {1:13.3g}⎦".format(D_NbCr.subs({XCR: xCr0, XNB: xNb0}), D_NbNb.subs({XCR: xCr0, XNB: xNb0})))
 print("")
+"""
 
 # Dkj (reduced n=NI)
 # k / j CR             NB
