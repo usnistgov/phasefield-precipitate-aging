@@ -182,20 +182,20 @@ g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB).subs(XNI, 1 - XCR - XNB)
 
 # Since Ni is the *solvent*, we subtract it off
 
-solvent = diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB)
-duCr_dxCr = diff(mu_Cr, XCR).subs(XNI, 1 - XCR - XNB) - solvent
-duCr_dxNb = diff(mu_Cr, XNB).subs(XNI, 1 - XCR - XNB) - solvent
-duCr_dxNi = diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB) - solvent
+# solvent = diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB)
+duCr_dxCr =  59834.8 # diff(mu_Cr, XCR).subs(XNI, 1 - XCR - XNB) - solvent
+duCr_dxNb = 152282.98 # diff(mu_Cr, XNB).subs(XNI, 1 - XCR - XNB) - solvent
+duCr_dxNi = -30876.586 # diff(mu_Cr, XNI).subs(XNI, 1 - XCR - XNB) - solvent
 
-solvent = diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB)
-duNb_dxCr = diff(mu_Nb, XCR).subs(XNI, 1 - XCR - XNB) - solvent
-duNb_dxNb = diff(mu_Nb, XNB).subs(XNI, 1 - XCR - XNB) - solvent
-duNb_dxNi = diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB) - solvent
+# solvent = diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB)
+duNb_dxCr = 109690.48 # diff(mu_Nb, XCR).subs(XNI, 1 - XCR - XNB) - solvent
+duNb_dxNb = 852592.05 # diff(mu_Nb, XNB).subs(XNI, 1 - XCR - XNB) - solvent
+duNb_dxNi = -73469.093 # diff(mu_Nb, XNI).subs(XNI, 1 - XCR - XNB) - solvent
 
-solvent = diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB)
-duNi_dxCr = diff(mu_Ni, XCR).subs(XNI, 1 - XCR - XNB) - solvent
-duNi_dxNb = diff(mu_Ni, XNB).subs(XNI, 1 - XCR - XNB) - solvent
-duNi_dxNi = diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB) - solvent
+# solvent = diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB)
+duNi_dxCr = S.Zero # diff(mu_Ni, XCR).subs(XNI, 1 - XCR - XNB) - solvent
+duNi_dxNb = S.Zero # diff(mu_Ni, XNB).subs(XNI, 1 - XCR - XNB) - solvent
+duNi_dxNi = S.Zero # diff(mu_Ni, XNI).subs(XNI, 1 - XCR - XNB) - solvent
 
 
 # Redefine without solvent species (Ni)
@@ -407,13 +407,15 @@ print("NB: {0:.2f} J/mol (cf. {1:.2f}: {2:.2f}% error)".format(muNbPyC, muNbTC, 
 print("NI: {0:.3f} J/mol (cf. {1:.3f}: {2:.2f}% error)".format(muNiPyC, muNiTC, muNiErr))
 print("")
 
+"""
 print("∂μ/∂x at ({0}, {1}):\n".format(xCr0, xNb0))
-print("⎡{0:13.3f} {1:13.3f}             {2}⎤".format(duCr_dxCr.subs({XCR: xCr0, XNB: xNb0}), duCr_dxNb.subs({XCR: xCr0, XNB: xNb0}), duCr_dxNi.subs({XCR: xCr0, XNB: xNb0})))
+print("⎡{0:13.3f} {1:13.3f}             {2}⎤".format(duCr_dxCr.subs({XCR: xCr0, XNB: xNb0}), duCr_dxNb.subs({XCR: xCr0, XNB: xNb0}), duCr_dxNi)) #.subs({XCR: xCr0, XNB: xNb0})))
 print("⎢                                         ⎥")
-print("⎢{0:13.3f} {1:13.3f}             {2}⎥".format(duNb_dxCr.subs({XCR: xCr0, XNB: xNb0}), duNb_dxNb.subs({XCR: xCr0, XNB: xNb0}), duNb_dxNi.subs({XCR: xCr0, XNB: xNb0})))
+print("⎢{0:13.3f} {1:13.3f}             {2}⎥".format(duNb_dxCr.subs({XCR: xCr0, XNB: xNb0}), duNb_dxNb.subs({XCR: xCr0, XNB: xNb0}), duNb_dxNi)) #.subs({XCR: xCr0, XNB: xNb0})))
 print("⎢                                         ⎥")
-print("⎣{0:13.3f} {1:13.3f}             {2}⎦".format(duNi_dxCr.subs({XCR: xCr0, XNB: xNb0}), duNi_dxNb.subs({XCR: xCr0, XNB: xNb0}), duNi_dxNi.subs({XCR: xCr0, XNB: xNb0})))
+print("⎣{0:13.3f} {1:13.3f}             {2}⎦".format(duNi_dxCr.subs({XCR: xCr0, XNB: xNb0}), duNi_dxNb.subs({XCR: xCr0, XNB: xNb0}), duNi_dxNi)) #.subs({XCR: xCr0, XNB: xNb0})))
 print("")
+"""
 
 # *** Activation Energies in FCC Ni [J/mol] ***
 # Motion of species (1) in pure (2), transcribed from `Ni-Nb-Cr_fcc_mob.tdb`
@@ -487,11 +489,11 @@ DnN = D_NiNb.subs({XCR: xCr0, XNB: xNb0})
 Dnn = D_NiNi.subs({XCR: xCr0, XNB: xNb0})
 
 print("Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
-print("⎡{0:13.3g} {1:13.3g} {2:13.3g}⎤".format(DCC, DCN, DCn))
+print("⎡{0:13.3g} {1:13.3g}             {2}⎤".format(DCC, DCN, DCn))
 print("⎢                                         ⎥")
-print("⎢{0:13.3g} {1:13.3g} {2:13.3g}⎥".format(DNC, DNN, DNn))
+print("⎢{0:13.3g} {1:13.3g}             {2}⎥".format(DNC, DNN, DNn))
 print("⎢                                         ⎥")
-print("⎣{0:13.3g} {1:13.3g} {2:13.3g}⎦".format(DnC, DnN, Dnn))
+print("⎣{0:13.3g} {1:13.3g}             {2}⎦".format(DnC, DnN, Dnn))
 print("")
 
 # From C. Campbell, 2020-03-10 via Thermo-Calc
