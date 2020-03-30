@@ -44,7 +44,7 @@
 #      * $y_\mathrm{Ni}'' = 1 - \frac{4}{3}x_\mathrm{Cr}$
 #      * Constraints: $x_\mathrm{Nb}\leq\frac{1}{4}$
 #                     $x_\mathrm{Cr}\leq\frac{3}{4}$
-4#
+#
 # - Laves: eliminate Nb from the first (Cr) sublattice,
 #      $\mathrm{(\mathbf{Cr}, Ni)_2(Cr, \mathbf{Nb})_1}$
 #      * $y_\mathrm{Cr}'  = 1 - \frac{3}{2}x_\mathrm{Ni}$
@@ -54,38 +54,43 @@
 #      * Constraints: $0\leq x_\mathrm{Ni}\leq\frac{2}{3}$
 #                     $0\leq x_\mathrm{Nb}\leq\frac{1}{3}$
 
-# Numerical libraries
+# Numerical and CAS libraries
 import numpy as np
-
-# Thermodynamics and computer-algebra libraries
-from pycalphad import Database, calculate, Model
-from sympy import Eq, Matrix, S, diff, expand, init_printing, factor, fraction, pprint, symbols
+from sympy import Eq, Matrix, S
+from sympy import diff, expand, factor, fraction, symbols
 from sympy.abc import L, r, x, y, z
 from sympy.core.numbers import pi
 from sympy.functions.elementary.exponential import exp, log
 from sympy.functions.elementary.trigonometric import tanh
-from sympy.parsing.sympy_parser import parse_expr
 from sympy.solvers import solve, solve_linear_system
+
+# I/O libraries
+from sympy.parsing.sympy_parser import parse_expr
+from sympy import init_printing, pprint
 from sympy.utilities.codegen import codegen
 init_printing()
 
-# Thermodynamic information
+# Thermodynamics libraries
+from pycalphad import Database, calculate, Model
 from pycalphad import Database, Model
+
+# Global variables and shared functions
 from constants import *
 
-# Declare sublattice variables used in Pycalphad expressions
-XCR, XNB, XNI = symbols("XCR XNB XNI")
-
-xCr0 = 0.30
-xNb0 = 0.02
-xNi0 = 1 - xCr0 - xNb0
-
-XEQ = {XCR: xe_gam_Cr, XNB: xe_gam_Nb, XNI: xe_gam_Ni}
-X0 = {XCR: xCr0, XNB: xNb0, XNI: xNi0}
-
+# Declare phase-field functions for consistent reuse
 interpolator = x ** 3 * (6.0 * x ** 2 - 15.0 * x + 10.0)
 dinterpdx = 30.0 * x ** 2 * (1.0 - x) ** 2
 interfaceProfile = (1 - tanh(z)) / 2
+
+# Declare sublattice variables used in Pycalphad expressions
+XCR, XNB = symbols("XCR XNB")
+XNI = 1 - XCR - XNB
+
+xCr0 = 0.30
+xNb0 = 0.02
+
+XEQ = {XCR: xe_gam_Cr, XNB: xe_gam_Nb}
+X0 = {XCR: xCr0, XNB: xNb0}
 
 # Read CALPHAD database from disk, specify phases and elements of interest
 tdb = Database("Du_Cr-Nb-Ni_simple.tdb")
@@ -150,8 +155,8 @@ g_delta = inVm * g_delta.subs(
 
 g_laves = inVm * g_laves.subs(
     {
-        symbols("C14_LAVES0CR"): 1 - fr3by2 * (1 - XCR - XNB),
-        symbols("C14_LAVES0NI"): fr3by2 * (1 - XCR - XNB),
+        symbols("C14_LAVES0CR"): 1 - fr3by2 * XNI,
+        symbols("C14_LAVES0NI"): fr3by2 * XNI,
         symbols("C14_LAVES1CR"): 1 - 3 * XNB,
         symbols("C14_LAVES1NB"): 3 * XNB,
         symbols("T"): temp,
@@ -164,92 +169,45 @@ G_g = Vm * g_gamma
 
 g_dGgam_dxCr = diff(G_g, XCR)
 g_dGgam_dxNb = diff(G_g, XNB)
-g_dGgam_dxNi = diff(G_g, XNI)
 
 mu_Cr = G_g      - XNB  * g_dGgam_dxNb + (1 - XCR) * g_dGgam_dxCr
 mu_Nb = G_g + (1 - XNB) * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
 mu_Ni = G_g      - XNB  * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
 
-# Derivatives of Chemical Potentials
+# Curvatures of the CALPHAD Free Energy Surfaces
 
-g_d2Ggam_dxCrCr = diff(g_gamma, XCR, XCR).subs(XNI, 1 - XCR - XNB)
-g_d2Ggam_dxCrNb = diff(g_gamma, XCR, XNB).subs(XNI, 1 - XCR - XNB)
-g_d2Ggam_dxNbCr = diff(g_gamma, XNB, XCR).subs(XNI, 1 - XCR - XNB)
-g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB).subs(XNI, 1 - XCR - XNB)
+g_d2Ggam_dxCrCr = diff(g_gamma, XCR, XCR)
+g_d2Ggam_dxCrNb = diff(g_gamma, XCR, XNB)
+g_d2Ggam_dxNbCr = diff(g_gamma, XNB, XCR)
+g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB)
 
-g_d2Gdel_dxCrCr = diff(g_delta, XCR, XCR).subs(XNI, 1 - XCR - XNB)
-g_d2Gdel_dxCrNb = diff(g_delta, XCR, XNB).subs(XNI, 1 - XCR - XNB)
+g_d2Gdel_dxCrCr = diff(g_delta, XCR, XCR)
+g_d2Gdel_dxCrNb = diff(g_delta, XCR, XNB)
 g_d2Gdel_dxNbCr = g_d2Gdel_dxCrNb
-g_d2Gdel_dxNbNb = diff(g_delta, XNB, XNB).subs(XNI, 1 - XCR - XNB)
+g_d2Gdel_dxNbNb = diff(g_delta, XNB, XNB)
 
-g_d2Glav_dxCrCr = diff(g_laves, XCR, XCR).subs(XNI, 1 - XCR - XNB)
-g_d2Glav_dxCrNb = diff(g_laves, XCR, XNB).subs(XNI, 1 - XCR - XNB)
+g_d2Glav_dxCrCr = diff(g_laves, XCR, XCR)
+g_d2Glav_dxCrNb = diff(g_laves, XCR, XNB)
 g_d2Glav_dxNbCr = g_d2Glav_dxCrNb
-g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB).subs(XNI, 1 - XCR - XNB)
+g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB)
 
-# Derivatives of μ from Thermo-Calc
+# Derivatives of μ from SymPy
+## N.B.: Since Ni is dependent, duX_dxNi ≡ 0
+duCr_dxCr = diff(mu_Cr, XCR).subs(X0)
+duCr_dxNb = diff(mu_Cr, XNB).subs(X0)
 
-duCr_dxCr =  59834.8
-duCr_dxNb = 109690.48
-duCr_dxNi = 0
+duNb_dxCr = diff(mu_Nb, XCR).subs(X0)
+duNb_dxNb = diff(mu_Nb, XNB).subs(X0)
 
-duNb_dxCr = 152282.98
-duNb_dxNb = 852592.05
-duNb_dxNi = 0
-
-duNi_dxCr = -30876.586
-duNi_dxNb = -73469.093
-duNi_dxNi = 0
-
-"""
-# Derivatives of μ from Thermo-Calc
-# N.B.: Since Ni is the *solvent*, we subtract it off
-
-solvent_Cr = diff(mu_Ni, XCR).subs(XEQ)
-solvent_Nb = diff(mu_Ni, XNB).subs(XEQ)
-solvent_Ni = diff(mu_Ni, XNI).subs(XEQ)
-
-duCr_dxCr = diff(mu_Cr, XCR).subs(XEQ) - solvent_Cr
-duCr_dxNb = diff(mu_Cr, XNB).subs(XEQ) - solvent_Nb
-duCr_dxNi = diff(mu_Cr, XNI).subs(XEQ) - solvent_Ni
-
-duNb_dxCr = diff(mu_Nb, XCR).subs(XEQ) - solvent_Cr
-duNb_dxNb = diff(mu_Nb, XNB).subs(XEQ) - solvent_Nb
-duNb_dxNi = diff(mu_Nb, XNI).subs(XEQ) - solvent_Ni
-
-duNi_dxCr = diff(mu_Ni, XCR).subs(XEQ) - solvent_Cr
-duNi_dxNb = diff(mu_Ni, XNB).subs(XEQ) - solvent_Nb
-duNi_dxNi = diff(mu_Ni, XNI).subs(XEQ) - solvent_Ni
-"""
-
-"""
-du_dx = Matrix([[duCr_dxCr - duNi_dxCr, duCr_dxNb - duNi_dxCr, duCr_dxNi - duNi_dxCr],
-                [duNb_dxCr - duNi_dxNb, duNb_dxNb - duNi_dxNb, duNb_dxNi - duNi_dxNb],
-                [duNi_dxCr - duNi_dxNi, duNi_dxNb - duNi_dxNi, duNi_dxNi - duNi_dxNi]])
-
-pprint(du_dx)
-"""
-
-# Redefine without solvent species (Ni)
-
-g_gamma = g_gamma.subs(XNI, 1 - XCR - XNB)
-G_g = Vm * g_gamma
-g_dGgam_dxCr = g_dGgam_dxCr.subs(XNI, 1 - XCR - XNB)
-g_dGgam_dxNb = g_dGgam_dxNb.subs(XNI, 1 - XCR - XNB)
-g_dGgam_dxNi = g_dGgam_dxNi.subs(XNI, 1 - XCR - XNB)
-mu_Cr = mu_Cr.subs(XNI, 1 - XCR - XNB)
-mu_Nb = mu_Nb.subs(XNI, 1 - XCR - XNB)
-mu_Ni = mu_Ni.subs(XNI, 1 - XCR - XNB)
-
-XNI = 1 - XCR - XNB
-
+duNi_dxCr = diff(mu_Ni, XCR).subs(X0)
+duNi_dxNb = diff(mu_Ni, XNB).subs(X0)
 
 # Generate paraboloid expressions (2nd-order Taylor series approximations)
 
 # Curvatures
-PC_gam_CrCr = g_d2Ggam_dxCrCr.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_CrNb = g_d2Ggam_dxCrNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_NbNb = g_d2Ggam_dxNbNb.subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_CrCr = g_d2Ggam_dxCrCr.subs(XEQ)
+PC_gam_CrNb = g_d2Ggam_dxCrNb.subs(XEQ)
+PC_gam_NbNb = g_d2Ggam_dxNbNb.subs(XEQ)
 
 PC_del_CrCr = g_d2Gdel_dxCrCr.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
 PC_del_CrNb = g_d2Gdel_dxCrNb.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
@@ -412,38 +370,6 @@ dx_r_lav_Nb = xr[5]
 
 # === Diffusivity ===
 
-# *** Sanity Checks ***
-
-print("Free energy at ({0}, {1}):\n".format(xCr0, xNb0))
-print("G={0:12g} J/mol".format(G_g.subs({XCR: xCr0, XNB: xNb0})))
-print("")
-
-muCrPyC = mu_Cr.subs({XCR: xCr0, XNB: xNb0})
-muNbPyC = mu_Nb.subs({XCR: xCr0, XNB: xNb0})
-muNiPyC = mu_Ni.subs({XCR: xCr0, XNB: xNb0})
-
-muCrTC = -48499.753
-muNbTC = -162987.63
-muNiTC = -62416.931
-
-muCrErr = 100 * (muCrTC - muCrPyC) / muCrTC
-muNbErr = 100 * (muNbTC - muNbPyC) / muNbTC
-muNiErr = 100 * (muNiTC - muNiPyC) / muNiTC
-
-print("Chemical potentials at ({0}, {1}):\n".format(xCr0, xNb0))
-print("CR: {0:.3f} J/mol (cf. {1:.3f}: {2:.2f}% error)".format(muCrPyC, muCrTC, muCrErr))
-print("NB: {0:.2f} J/mol (cf. {1:.2f}: {2:.2f}% error)".format(muNbPyC, muNbTC, muNbErr))
-print("NI: {0:.3f} J/mol (cf. {1:.3f}: {2:.2f}% error)".format(muNiPyC, muNiTC, muNiErr))
-print("")
-
-print("∂μ/∂x at ({0}, {1}):\n".format(xCr0, xNb0))
-print("⎡{0:13.3f} {1:13.3f} {2:13.3f}⎤".format(duCr_dxCr, duCr_dxNb, duCr_dxNi)) #))
-print("⎢                                         ⎥")
-print("⎢{0:13.3f} {1:13.3f} {2:13.3f}⎥".format(duNb_dxCr, duNb_dxNb, duNb_dxNi)) #))
-print("⎢                                         ⎥")
-print("⎣{0:13.3f} {1:13.3f} {2:13.3f}⎦".format(duNi_dxCr, duNi_dxNb, duNi_dxNi)) #))
-print("")
-
 # *** Activation Energies in FCC Ni [J/mol] ***
 # Motion of species (1) in pure (2), transcribed from `Ni-Nb-Cr_fcc_mob.tdb`
 ## Ref: TKR5p286, TKR5p316
@@ -493,16 +419,6 @@ L1_NiCr =    - XNI  * L0_Cr
 L1_NiNb =    - XNI  * L0_Nb
 L1_NiNi = (1 - XNI) * L0_Ni
 
-"""
-print("L' at ({0}, {1}):\n".format(xCr0, xNb0))
-print("⎡{0:13.3g} {1:13.3g} {2:13.3g}⎤".format(L1_CrCr.subs(X0), L1_CrNb.subs(X0), L1_CrNi.subs(X0)))
-print("⎢                                         ⎥")
-print("⎢{0:13.3g} {1:13.3g} {2:13.3g}⎥".format(L1_NbCr.subs(X0), L1_NbNb.subs(X0), L1_NbNi.subs(X0)))
-print("⎢                                         ⎥")
-print("⎣{0:13.3g} {1:13.3g} {2:13.3g}⎦".format(L1_NiCr.subs(X0), L1_NiNb.subs(X0), L1_NiNi.subs(X0)))
-print("")
-"""
-
 ## Ref: TKR5p340
 
 D_CrCr = L1_CrCr * duCr_dxCr + L1_CrNb * duNb_dxCr + L1_CrNi * duNi_dxCr
@@ -512,43 +428,17 @@ D_NbCr = L1_NbCr * duCr_dxCr + L1_NbNb * duNb_dxCr + L1_NbNi * duNi_dxCr
 D_NbNb = L1_NbCr * duCr_dxNb + L1_NbNb * duNb_dxNb + L1_NbNi * duNi_dxNb
 
 
-DCC = D_CrCr.subs({XCR: xCr0, XNB: xNb0})
-DCN = D_CrNb.subs({XCR: xCr0, XNB: xNb0})
+DCC = D_CrCr.subs(X0)
+DCN = D_CrNb.subs(X0)
 
-DNC = D_NbCr.subs({XCR: xCr0, XNB: xNb0})
-DNN = D_NbNb.subs({XCR: xCr0, XNB: xNb0})
+DNC = D_NbCr.subs(X0)
+DNN = D_NbNb.subs(X0)
 
 print("Reduced Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
 print("⎡{0:13.3g} {1:13.3g}⎤".format(DCC, DCN))
 print("⎢                           ⎥")
 print("⎣{0:13.3g} {1:13.3g}⎦".format(DNC, DNN))
 print("")
-
-# From C. Campbell, 2020-03-10 via Thermo-Calc
-TC_CrCr = 1.718e-17
-TC_CrNb = -8.79e-18
-
-TC_NbCr = 3.42e-17
-TC_NbNb = 1.94e-16
-
-print("Reference Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
-print("⎡{0:13.3g} {1:13.3g}⎤".format(TC_CrCr, TC_CrNb))
-print("⎢                             ⎥")
-print("⎣{0:13.3g} {1:13.3g}⎦".format(TC_NbCr, TC_NbNb))
-print("")
-
-DE_CrCr = 100 * (DCC - TC_CrCr) / TC_CrCr
-DE_CrNb = 100 * (DCN - TC_CrNb) / TC_CrNb
-
-DE_NbCr = 100 * (DNC - TC_NbCr) / TC_NbCr
-DE_NbNb = 100 * (DNN - TC_NbNb) / TC_NbNb
-
-print("Diffusivity Error at ({0}, {1}):\n".format(xCr0, xNb0))
-print("⎡{0:12.2f}% {1:12.2f}%⎤".format(DE_CrCr, DE_CrNb))
-print("⎢                            ⎥")
-print("⎣{0:12.2f}% {1:12.2f}%⎦".format(DE_NbCr, DE_NbNb))
-print("")
-
 
 # === Export C source code ===
 
@@ -623,11 +513,11 @@ codegen(
         ("d2g_lav_dxCrNb", p_d2Glav_dxCrNb),
         ("d2g_lav_dxNbCr", p_d2Glav_dxNbCr),
         ("d2g_lav_dxNbNb", p_d2Glav_dxNbNb),
-        # Mobilities
-        ("L0_Cr", L0_Cr),
-        ("L0_Nb", L0_Nb),
-        ("L0_Ni", L0_Ni),
-        # Reduced Diffusivities
+        # Chemical Potentials
+        ("mu_Cr", mu_Cr),
+        ("mu_Nb", mu_Nb),
+        ("mu_Ni", mu_Ni),
+        # Diffusivities
         ("D_CrCr", D_CrCr), ("D_CrNb", D_CrNb),
         ("D_NbCr", D_NbCr), ("D_NbNb", D_NbNb)
     ],
