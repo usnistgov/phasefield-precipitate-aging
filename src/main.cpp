@@ -251,7 +251,7 @@ int main(int argc, char* argv[])
 			fp_t xCr0, xNb0;
 			system_composition(grid, xCr0, xNb0);
 
-			MMSP::set_diffusion_matrix(xCr0, xNb0, D_Cr, D_Nb, Lmob, 1);
+			MMSP::set_diffusion_matrix(0.30, 0.02, D_Cr, D_Nb, Lmob, 1);
 
 			init_cuda(&host, nx, ny, nm, kappa, omega, Lmob, D_Cr, D_Nb, &dev);
 			device_init_prng(&dev, nx, ny, nm, bx, by);
