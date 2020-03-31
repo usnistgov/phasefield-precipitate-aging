@@ -514,12 +514,12 @@ codegen(
         ("d2g_lav_dxNbCr", p_d2Glav_dxNbCr),
         ("d2g_lav_dxNbNb", p_d2Glav_dxNbNb),
         # Chemical Potentials
-        ("mu_Cr", mu_Cr),
-        ("mu_Nb", mu_Nb),
-        ("mu_Ni", mu_Ni),
+        ("mu_Cr", inVm * mu_Cr),
+        ("mu_Nb", inVm * mu_Nb),
+        ("mu_Ni", inVm * mu_Ni),
         # Diffusivities
-        ("D_CrCr", D_CrCr), ("D_CrNb", D_CrNb),
-        ("D_NbCr", D_NbCr), ("D_NbNb", D_NbNb)
+        ("D_CrCr", inVm * D_CrCr), ("D_CrNb", inVm * D_CrNb),
+        ("D_NbCr", inVm * D_NbCr), ("D_NbNb", inVm * D_NbNb)
     ],
     language="C",
     prefix="parabola625",
