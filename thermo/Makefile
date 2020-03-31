@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -O3 -Wall
+CXXFLAGS = -O3 -Wall -std=c++11
 INCLUDES = -I. -I../src -I$(CUDA_HDR_PATH)
 OBJS = enrichment.o nucleation.o parabola625.o enrichment.so parabola625.so
 

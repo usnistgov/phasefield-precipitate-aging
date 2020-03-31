@@ -21,7 +21,7 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 		printf("Warning: unable to open parameter file 'params.txt'. Marching with default values.\n");
 		fflush(stdout);
 	} else {
-		char buffer[FILENAME_MAX];
+		char buffer[FILENAME_MAX] = {0};
 		char* pch;
 		int ibx=0, iby=0, isc=0;
 
@@ -69,7 +69,7 @@ void print_progress(const int step, const int steps)
 	time_t rawtime;
 
 	if (step==0) {
-		char timestring[FILENAME_MAX] = {'\0'};
+		char timestring[FILENAME_MAX] = {0};
 		struct tm* timeinfo;
 		tstart = time(NULL);
 		time( &rawtime );
@@ -90,8 +90,8 @@ void print_progress(const int step, const int steps)
 void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const uint64_t step)
 {
 	FILE* output;
-	char name[FILENAME_MAX];
-	char num[20];
+	char name[FILENAME_MAX] = {0};
+	char num[20] = {0};
 	int i, j;
 
 	// generate the filename

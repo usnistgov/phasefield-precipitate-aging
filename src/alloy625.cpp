@@ -131,20 +131,15 @@ double timestep(const GRID2D& grid)
 		vector<fp_t>& GridN = grid(n);
 		const fp_t xCr = GridN[0];
 		const fp_t xNb = GridN[1];
-		const fp_t pDel = p(GridN[NC]);
-		const fp_t pLav = p(GridN[NC+1]);
-		const fp_t pGam = 1.0 - pDel - pLav;
-		const fp_t mCrCr = M_CrCr(xCr, xNb);
-		const fp_t mCrNb = M_CrNb(xCr, xNb);
-		const fp_t mNbCr = M_NbCr(xCr, xNb);
-		const fp_t mNbNb = M_NbNb(xCr, xNb);
+
+		const fp_t dCrCr = D_CrCr(xCr, xNb);
+		const fp_t dCrNb = D_CrNb(xCr, xNb);
+		const fp_t dNbCr = D_NbCr(xCr, xNb);
+		const fp_t dNbNb = D_NbNb(xCr, xNb);
 
 		const fp_t D[4] = {
 			// D_gam
-			std::fabs(pGam * (mCrCr * d2g_gam_dxCrCr() + mCrNb * d2g_gam_dxCrNb())), // D11
-			std::fabs(pGam * (mCrCr * d2g_gam_dxNbCr() + mCrNb * d2g_gam_dxNbNb())), // D12
-			std::fabs(pGam * (mNbCr * d2g_gam_dxCrCr() + mNbNb * d2g_gam_dxCrNb())), // D21
-			std::fabs(pGam * (mNbCr * d2g_gam_dxNbCr() + mNbNb * d2g_gam_dxNbNb()))  // D22
+			dCrCr, dCrNb, dNbCr, dNbNb
 			/*
 			// D_del
 			std::fabs(pDel * (mCrCr * d2g_del_dxCrCr() + mCrNb * d2g_del_dxCrNb())), // D11
@@ -315,13 +310,12 @@ void seed_solitaire_delta(GRID2D& grid,
 
 	xCr = grid(x)[0];
 	xNb = grid(x)[1];
-	const fp_t pDel = p(grid(x)[NC]);
 
 	nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 	nucleation_probability_sphere(xCr, xNb,
 	                              dG_chem,
-	                              pDel * (M_CrCr(xCr, xNb) * d2g_del_dxCrCr() + M_CrNb(xCr, xNb) * d2g_del_dxCrNb()),
-	                              pDel * (M_NbCr(xCr, xNb) * d2g_del_dxNbCr() + M_NbNb(xCr, xNb) * d2g_del_dxNbNb()),
+	                              D_CrCr(xCr, xNb),
+	                              D_NbNb(xCr, xNb),
 	                              sigma_del,
 	                              Vatom,
 	                              n_gam,
@@ -354,13 +348,12 @@ void seed_solitaire_laves(GRID2D& grid,
 
 	xCr = grid(x)[0];
 	xNb = grid(x)[1];
-	const fp_t pLav = p(grid(x)[NC + 1]);
 
 	nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 	nucleation_probability_sphere(xCr, xNb,
 	                              dG_chem,
-	                              pLav * (M_CrCr(xCr, xNb) * d2g_lav_dxCrCr() + M_CrNb(xCr, xNb) * d2g_lav_dxCrNb()),
-	                              pLav * (M_NbCr(xCr, xNb) * d2g_lav_dxNbCr() + M_NbNb(xCr, xNb) * d2g_lav_dxNbNb()),
+	                              D_CrCr(xCr, xNb),
+	                              D_NbNb(xCr, xNb),
 	                              sigma_lav,
 	                              Vatom,
 	                              n_gam,
@@ -474,14 +467,12 @@ void seed_pair(GRID2D& grid,
 	x[1] = 0;
 	xCr = grid(x)[0];
 	xNb = grid(x)[1];
-	const fp_t pDel = p(grid(x)[NC]);
-	const fp_t pLav = p(grid(x)[NC + 1]);
 
 	nucleation_driving_force_delta(xCr, xNb, &dG_chem);
 	nucleation_probability_sphere(xCr, xNb,
 	                              dG_chem,
-	                              pDel * (M_CrCr(xCr, xNb) * d2g_del_dxCrCr() + M_CrNb(xCr, xNb) * d2g_del_dxCrNb()),
-	                              pDel * (M_NbCr(xCr, xNb) * d2g_del_dxNbCr() + M_NbNb(xCr, xNb) * d2g_del_dxNbNb()),
+	                              D_CrCr(xCr, xNb),
+	                              D_NbNb(xCr, xNb),
 	                              sigma_del,
 	                              vFccNi,
 	                              n_gam,
@@ -507,8 +498,8 @@ void seed_pair(GRID2D& grid,
 	nucleation_driving_force_laves(xCr, xNb, &dG_chem);
 	nucleation_probability_sphere(xCr, xNb,
 	                              dG_chem,
-	                              pLav * (M_CrCr(xCr, xNb) * d2g_lav_dxCrCr() + M_CrNb(xCr, xNb) * d2g_lav_dxCrNb()),
-	                              pLav * (M_NbCr(xCr, xNb) * d2g_lav_dxNbCr() + M_NbNb(xCr, xNb) * d2g_lav_dxNbNb()),
+	                              D_CrCr(xCr, xNb),
+                                  D_NbNb(xCr, xNb),
 	                              sigma_lav,
 	                              vFccNi,
 	                              n_gam,
@@ -583,13 +574,6 @@ void generate(int dim, const char* filename)
 		#endif
 
 		// === Sanity Check ===
-		/*
-		printf("System composition is %10.4g Cr, %10.4g Nb\n", xCr0, xNb0);
-		const fp_t mCrCr = M_CrCr(xCr0, xNb0);
-		const fp_t mCrNb = M_CrNb(xCr0, xNb0);
-		const fp_t mNbNb = M_NbNb(xCr0, xNb0);
-		printf("Mobility matrix is [%10.4g %10.4g]\n                   [%10.4g %10.4g]\n", mCrCr, mCrNb, mCrNb, mNbNb);
-		*/
 
 		const double del_frac = estimate_fraction_del(xCr0, xNb0);
 

@@ -15,7 +15,7 @@ PLT_LNK = -lpython$(PYVER)
 PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
 
 CXX = g++
-INCLUDES = -I. -I../thermo -I$(MMSP_PATH)/include -I$(CUDA_HDR_PATH) $(PLTFLAGS)
+INCLUDES = -I. -I../thermo -I$(MMSP_PATH)/include -I$(CUDA_HDR_PATH) -I$(GSL_PATH) $(PLTFLAGS)
 CXXFOPTS = -funroll-loops -ffast-math -fopenmp
 CXXFLAGS = -O3 -Wall -std=c++11 $(CXXFOPTS) $(INCLUDES)
 
@@ -23,7 +23,7 @@ NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
              $(INCLUDES) --compiler-options="$(CXXFLAGS)"
 
-LINKS = -lcuda -lcurand -lgsl -lgslcblas -lm $(PLT_LNK) -lz
+LINKS = -L$(GSL_LIB) -lcuda -lcurand -lgsl -lgslcblas -lm $(PLT_LNK) -lz
 
 OBJS = data_cu.o discretization_cu.o nucleation_cu.o parabola625_cu.o \
        enrichment_c.o nucleation_c.o parabola625_c.o \
