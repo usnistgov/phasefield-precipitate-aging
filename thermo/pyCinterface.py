@@ -118,34 +118,22 @@ d2g_lav_dxCrNb.restype = c_double
 d2g_lav_dxNbCr.restype = c_double
 d2g_lav_dxNbNb.restype = c_double
 
-## Mobility
+## Diffusivity
 
-M_Cr = p625.M_Cr
-M_Nb = p625.M_Nb
-M_Ni = p625.M_Ni
+D_CrCr = p625.D_CrCr
+D_CrNb = p625.D_CrNb
+D_NbCr = p625.D_NbCr
+D_NbNb = p625.D_NbNb
 
-M_Cr.argtypes = [c_double, c_double]
-M_Nb.argtypes = [c_double]
-M_Ni.argtypes = [c_double, c_double]
+D_CrCr.argtypes = [c_double, c_double]
+D_CrNb.argtypes = [c_double, c_double]
+D_NbCr.argtypes = [c_double, c_double]
+D_NbNb.argtypes = [c_double, c_double]
 
-M_Cr.restype = c_double
-M_Nb.restype = c_double
-M_Ni.restype = c_double
-
-M_CrCr = p625.M_CrCr
-M_CrNb = p625.M_CrNb
-M_NbCr = p625.M_NbCr
-M_NbNb = p625.M_NbNb
-
-M_CrCr.argtypes = [c_double, c_double]
-M_CrNb.argtypes = [c_double, c_double]
-M_NbCr.argtypes = [c_double, c_double]
-M_NbNb.argtypes = [c_double, c_double]
-
-M_CrCr.restype = c_double
-M_CrNb.restype = c_double
-M_NbCr.restype = c_double
-M_NbNb.restype = c_double
+D_CrCr.restype = c_double
+D_CrNb.restype = c_double
+D_NbCr.restype = c_double
+D_NbNb.restype = c_double
 
 ## Gaussian Enrichment
 
