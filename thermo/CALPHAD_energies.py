@@ -108,30 +108,6 @@ species = list(set([i for c in tdb.phases["C14_LAVES"].constituents for i in c])
 model = Model(tdb, species, "C14_LAVES")
 g_laves = parse_expr(str(model.ast))
 
-
-# Define lever rule equations
-## Ref: TKR4p161, 172; TKR5p266, 272, 293
-xo, yo = symbols("xo yo")
-xb, yb = symbols("xb yb")
-xc, yc = symbols("xc yc")
-xd, yd = symbols("xd yd")
-
-levers = solve_linear_system(
-    Matrix(
-        ((yo - yb, xb - xo, xb * yo - xo * yb), (yc - yd, xd - xc, xd * yc - xc * yd))
-    ),
-    x,
-    y,
-)
-
-def draw_bisector(weightA, weightB):
-    bNb = (weightA * xe_del_Nb + weightB * xe_lav_Nb) / (weightA + weightB)
-    bCr = (weightA * xe_del_Cr + weightB * xe_lav_Cr) / (weightA + weightB)
-    xPrime = [simX(xe_gam_Nb, xe_gam_Cr), simX(bNb, bCr)]
-    yPrime = [simY(xe_gam_Cr), simY(bCr)]
-    return xPrime, yPrime
-
-
 # Make sublattice -> system substitutions
 g_gamma = inVm * g_gamma.subs(
     {
@@ -193,14 +169,14 @@ g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB)
 
 # Derivatives of μ from SymPy
 ## N.B.: Since Ni is dependent, duX_dxNi ≡ 0
-duCr_dxCr = diff(mu_Cr, XCR).subs(X0)
-duCr_dxNb = diff(mu_Cr, XNB).subs(X0)
+duCr_dxCr = diff(mu_Cr, XCR)
+duCr_dxNb = diff(mu_Cr, XNB)
 
-duNb_dxCr = diff(mu_Nb, XCR).subs(X0)
-duNb_dxNb = diff(mu_Nb, XNB).subs(X0)
+duNb_dxCr = diff(mu_Nb, XCR)
+duNb_dxNb = diff(mu_Nb, XNB)
 
-duNi_dxCr = diff(mu_Ni, XCR).subs(X0)
-duNi_dxNb = diff(mu_Ni, XNB).subs(X0)
+duNi_dxCr = diff(mu_Ni, XCR)
+duNi_dxNb = diff(mu_Ni, XNB)
 
 # Generate paraboloid expressions (2nd-order Taylor series approximations)
 
@@ -261,6 +237,112 @@ p_d2Glav_dxCrCr = diff(p_laves, XCR, XCR)
 p_d2Glav_dxCrNb = diff(p_laves, XCR, XNB)
 p_d2Glav_dxNbCr = diff(p_laves, XNB, XCR)
 p_d2Glav_dxNbNb = diff(p_laves, XNB, XNB)
+
+# Chemical potentials of paraboloid landscape
+p_mu_Cr = Vm * (p_gamma      - XNB  * p_dGgam_dxNb + (1 - XCR) * p_dGgam_dxCr)
+p_mu_Nb = Vm * (p_gamma + (1 - XNB) * p_dGgam_dxNb      - XCR  * p_dGgam_dxCr)
+p_mu_Ni = Vm * (p_gamma      - XNB  * p_dGgam_dxNb      - XCR  * p_dGgam_dxCr)
+
+# Derivatives of μ from SymPy
+## N.B.: Since Ni is dependent, duX_dxNi ≡ 0
+p_duCr_dxCr = diff(p_mu_Cr, XCR)
+p_duCr_dxNb = diff(p_mu_Cr, XNB)
+
+p_duNb_dxCr = diff(p_mu_Nb, XCR)
+p_duNb_dxNb = diff(p_mu_Nb, XNB)
+
+p_duNi_dxCr = diff(p_mu_Ni, XCR)
+p_duNi_dxNb = diff(p_mu_Ni, XNB)
+
+# === Diffusivity ===
+
+# *** Activation Energies in FCC Ni [J/mol] ***
+# Motion of species (1) in pure (2), transcribed from `Ni-Nb-Cr_fcc_mob.tdb`
+## Ref: TKR5p286, TKR5p316
+
+Q_Cr_Cr   = -235000 - 82.0 * temp
+Q_Cr_Nb   = -287000 - 64.4 * temp
+Q_Cr_Ni   = -287000 - 64.4 * temp
+Q_Cr_CrNi = -68000
+
+Q_Nb_Cr   = -260955 + RT * log(1.1300e-4)
+Q_Nb_Nb   = -102570 + RT * log(1.2200e-5)
+Q_Nb_Ni   = -260955 + RT * log(1.1300e-4)
+Q_Nb_NbNi = -332498
+
+Q_Ni_Cr   = -235000 - 82.0 * temp
+Q_Ni_Nb   = -287060 + RT * log(1.0e-4)
+Q_Ni_Ni   = -287000 - 69.8 * temp
+Q_Ni_CrNi = -81000
+Q_Ni_NbNi = -4207044
+
+Q_Cr = XCR * Q_Cr_Cr + XNB * Q_Cr_Nb + XNI * Q_Cr_Ni + XCR * XNI * Q_Cr_CrNi
+Q_Nb = XCR * Q_Nb_Cr + XNB * Q_Nb_Nb + XNI * Q_Nb_Ni + XNB * XNI * Q_Nb_NbNi
+Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + XNI * Q_Ni_Ni + XCR * XNI * Q_Ni_CrNi + XNB * XNI * Q_Ni_NbNi
+
+# *** Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ***
+## Ref: TKR5p286, TKR5p316
+
+M_Cr = exp(Q_Cr / RT) / RT
+M_Nb = exp(Q_Nb / RT) / RT
+M_Ni = exp(Q_Ni / RT) / RT
+
+# For DICTRA comparisons ("L0kj") -- Lattice Frame
+
+L0_Cr = XCR * M_Cr
+L0_Nb = XNB * M_Nb
+L0_Ni = XNI * M_Ni
+
+L1_CrCr = (1 - XCR) * L0_Cr
+L1_CrNb =    - XCR  * L0_Nb
+L1_CrNi =    - XCR  * L0_Ni
+
+L1_NbCr =    - XNB  * L0_Cr
+L1_NbNb = (1 - XNB) * L0_Nb
+L1_NbNi =    - XNB  * L0_Ni
+
+L1_NiCr =    - XNI  * L0_Cr
+L1_NiNb =    - XNI  * L0_Nb
+L1_NiNi = (1 - XNI) * L0_Ni
+
+## Ref: TKR5p340
+
+# D from CALPHAD landscape
+D_CrCr = L1_CrCr * duCr_dxCr + L1_CrNb * duNb_dxCr + L1_CrNi * duNi_dxCr
+D_CrNb = L1_CrCr * duCr_dxNb + L1_CrNb * duNb_dxNb + L1_CrNi * duNi_dxNb
+
+D_NbCr = L1_NbCr * duCr_dxCr + L1_NbNb * duNb_dxCr + L1_NbNi * duNi_dxCr
+D_NbNb = L1_NbCr * duCr_dxNb + L1_NbNb * duNb_dxNb + L1_NbNi * duNi_dxNb
+
+DCC = D_CrCr.subs(X0)
+DCN = D_CrNb.subs(X0)
+
+DNC = D_NbCr.subs(X0)
+DNN = D_NbNb.subs(X0)
+
+# D from paraboloid landscape
+p_D_CrCr = L1_CrCr * p_duCr_dxCr + L1_CrNb * p_duNb_dxCr + L1_CrNi * p_duNi_dxCr
+p_D_CrNb = L1_CrCr * p_duCr_dxNb + L1_CrNb * p_duNb_dxNb + L1_CrNi * p_duNi_dxNb
+
+p_D_NbCr = L1_NbCr * p_duCr_dxCr + L1_NbNb * p_duNb_dxCr + L1_NbNi * p_duNi_dxCr
+p_D_NbNb = L1_NbCr * p_duCr_dxNb + L1_NbNb * p_duNb_dxNb + L1_NbNi * p_duNi_dxNb
+
+pDCC = p_D_CrCr.subs(X0)
+pDCN = p_D_CrNb.subs(X0)
+
+pDNC = p_D_NbCr.subs(X0)
+pDNN = p_D_NbNb.subs(X0)
+
+print("Reduced Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
+print("⎡{0:13.3g} {1:13.3g}⎤ m²/s".format(DCC, DCN))
+print("⎢                           ⎥")
+print("⎣{0:13.3g} {1:13.3g}⎦".format(DNC, DNN))
+print("")
+print("Paraboloid Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
+print("⎡{0:13.3g} {1:13.3g}⎤ m²/s".format(pDCC, pDCN))
+print("⎢                           ⎥")
+print("⎣{0:13.3g} {1:13.3g}⎦".format(pDNC, pDNN))
+print("")
 
 # ========= FICTITIOUS COMPOSITIONS ==========
 # Derivation: TKR4p181
@@ -367,78 +449,27 @@ dx_r_del_Nb = xr[3]
 dx_r_lav_Cr = xr[4]
 dx_r_lav_Nb = xr[5]
 
+# Define lever rule equations
+## Ref: TKR4p161, 172; TKR5p266, 272, 293
+xo, yo = symbols("xo yo")
+xb, yb = symbols("xb yb")
+xc, yc = symbols("xc yc")
+xd, yd = symbols("xd yd")
 
-# === Diffusivity ===
+levers = solve_linear_system(
+    Matrix(
+        ((yo - yb, xb - xo, xb * yo - xo * yb), (yc - yd, xd - xc, xd * yc - xc * yd))
+    ),
+    x,
+    y,
+)
 
-# *** Activation Energies in FCC Ni [J/mol] ***
-# Motion of species (1) in pure (2), transcribed from `Ni-Nb-Cr_fcc_mob.tdb`
-## Ref: TKR5p286, TKR5p316
-
-Q_Cr_Cr   = -235000 - 82.0 * temp
-Q_Cr_Nb   = -287000 - 64.4 * temp
-Q_Cr_Ni   = -287000 - 64.4 * temp
-Q_Cr_CrNi = -68000
-
-Q_Nb_Cr   = -260955 + RT * log(1.1300e-4)
-Q_Nb_Nb   = -102570 + RT * log(1.2200e-5)
-Q_Nb_Ni   = -260955 + RT * log(1.1300e-4)
-Q_Nb_NbNi = -332498
-
-Q_Ni_Cr   = -235000 - 82.0 * temp
-Q_Ni_Nb   = -287060 + RT * log(1.0e-4)
-Q_Ni_Ni   = -287000 - 69.8 * temp
-Q_Ni_CrNi = -81000
-Q_Ni_NbNi = -4207044
-
-Q_Cr = XCR * Q_Cr_Cr + XNB * Q_Cr_Nb + XNI * Q_Cr_Ni + XCR * XNI * Q_Cr_CrNi
-Q_Nb = XCR * Q_Nb_Cr + XNB * Q_Nb_Nb + XNI * Q_Nb_Ni + XNB * XNI * Q_Nb_NbNi
-Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + XNI * Q_Ni_Ni + XCR * XNI * Q_Ni_CrNi + XNB * XNI * Q_Ni_NbNi
-
-# *** Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ***
-## Ref: TKR5p286, TKR5p316
-
-M_Cr = exp(Q_Cr / RT) / RT
-M_Nb = exp(Q_Nb / RT) / RT
-M_Ni = exp(Q_Ni / RT) / RT
-
-# For DICTRA comparisons ("L0kj") -- Lattice Frame
-
-L0_Cr = XCR * M_Cr
-L0_Nb = XNB * M_Nb
-L0_Ni = XNI * M_Ni
-
-L1_CrCr = (1 - XCR) * L0_Cr
-L1_CrNb =    - XCR  * L0_Nb
-L1_CrNi =    - XCR  * L0_Ni
-
-L1_NbCr =    - XNB  * L0_Cr
-L1_NbNb = (1 - XNB) * L0_Nb
-L1_NbNi =    - XNB  * L0_Ni
-
-L1_NiCr =    - XNI  * L0_Cr
-L1_NiNb =    - XNI  * L0_Nb
-L1_NiNi = (1 - XNI) * L0_Ni
-
-## Ref: TKR5p340
-
-D_CrCr = L1_CrCr * duCr_dxCr + L1_CrNb * duNb_dxCr + L1_CrNi * duNi_dxCr
-D_CrNb = L1_CrCr * duCr_dxNb + L1_CrNb * duNb_dxNb + L1_CrNi * duNi_dxNb
-
-D_NbCr = L1_NbCr * duCr_dxCr + L1_NbNb * duNb_dxCr + L1_NbNi * duNi_dxCr
-D_NbNb = L1_NbCr * duCr_dxNb + L1_NbNb * duNb_dxNb + L1_NbNi * duNi_dxNb
-
-
-DCC = D_CrCr.subs(X0)
-DCN = D_CrNb.subs(X0)
-
-DNC = D_NbCr.subs(X0)
-DNN = D_NbNb.subs(X0)
-
-print("Reduced Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
-print("⎡{0:13.3g} {1:13.3g}⎤".format(DCC, DCN))
-print("⎢                           ⎥")
-print("⎣{0:13.3g} {1:13.3g}⎦".format(DNC, DNN))
-print("")
+def draw_bisector(weightA, weightB):
+    bNb = (weightA * xe_del_Nb + weightB * xe_lav_Nb) / (weightA + weightB)
+    bCr = (weightA * xe_del_Cr + weightB * xe_lav_Cr) / (weightA + weightB)
+    xPrime = [simX(xe_gam_Nb, xe_gam_Cr), simX(bNb, bCr)]
+    yPrime = [simY(xe_gam_Cr), simY(bCr)]
+    return xPrime, yPrime
 
 # === Export C source code ===
 
