@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import warnings
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
@@ -79,7 +80,6 @@ f.suptitle("Diffusion Constants",fontsize=14)
 
 n=0
 for ax in axarr.reshape(-1):
-    # levels = np.logspace(np.log2(xmin), np.log2(xmax), num=ncon, base=2.0)
     ax.set_title(Titles[n], fontsize=10)
     ax.set_xlim(xspan)
     ax.set_ylim(yspan)
@@ -89,10 +89,12 @@ for ax in axarr.reshape(-1):
         ax.plot(XG[a], YG[a], ":w", linewidth=0.5)
     ax.plot(XS, YS, "k", linewidth=0.5)
     ax.plot(X0, Y0, "k", linewidth=0.5)
-    # ax.tricontourf(p, q, z[n]-datmin[n]+xmin, levels, cmap=plt.cm.get_cmap("coolwarm"), norm=LogNorm())
     lvl = ax.tricontourf(p, q, z[n], cmap = plt.cm.get_cmap("coolwarm"))
     cax = plt.colorbar(lvl, ax = ax)
-    lvl = ax.tricontour(p, q, z[n], colors='k', linewidths=0.5, levels=[0.0])
+    with warnings.catch_warnings():
+        # If there is no zero-level set, that's great! Ignore the warning.
+        warnings.simplefilter("ignore")
+        lvl = ax.tricontour(p, q, z[n], colors='k', linewidths=0.5, levels=[0.0])
     n += 1
 
 f.savefig("../diagrams/diffusivity.png", dpi=400, bbox_inches="tight")
