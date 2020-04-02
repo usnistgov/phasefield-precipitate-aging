@@ -549,8 +549,8 @@ codegen(
         ("mu_Nb", inVm * mu_Nb),
         ("mu_Ni", inVm * mu_Ni),
         # Diffusivities
-        ("D_CrCr", inVm * D_CrCr), ("D_CrNb", inVm * D_CrNb),
-        ("D_NbCr", inVm * D_NbCr), ("D_NbNb", inVm * D_NbNb)
+        ("D_CrCr", inVm * p_D_CrCr), ("D_CrNb", inVm * p_D_CrNb),
+        ("D_NbCr", inVm * p_D_NbCr), ("D_NbNb", inVm * p_D_NbNb)
     ],
     language="C",
     prefix="parabola625",
