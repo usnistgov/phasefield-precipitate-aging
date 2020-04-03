@@ -8,8 +8,8 @@
 
 CXX = g++
 NVCXX = nvcc
-PYMAJ = 3
-PYVER = 3.6
+PYMAJ = 2
+PYVER = 2.7
 
 INCLUDES = -I. \
            -I./matplotlib-cpp \
@@ -28,6 +28,7 @@ NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
 
 LINKS = -L$(HOME)/.conda/envs/py$(PYMAJ)/lib \
         -L$(CUDA_HDR_PATH)/../lib \
+        -L$(GSL_LIB) \
         -lcuda \
         -lcurand \
         -lgsl \

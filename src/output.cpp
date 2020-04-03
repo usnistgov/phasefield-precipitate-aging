@@ -319,7 +319,6 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	sprintf(timearr, "$t=%.3f\\ \\mathrm{s}$\n", dt * step);
 	plt::suptitle(std::string(timearr));
 
-	// subplot2grid(shape=(nrows, ncols), loc=(row, col), rowspan=1, colspan=1, fig=None, **kwargs)
 	plt::subplot2grid(nrows, ncols, 0, 0, 1, 1);
 	plt::xlim(0., 1e6 * deltax * nx);
 	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
