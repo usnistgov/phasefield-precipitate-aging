@@ -6,24 +6,35 @@
 #       CUDA_HDR_PATH - directory containing curand_kernel.h
 #       MMSP_PATH     - root directory of cloned MMSP repository
 
-PYVER = 2.7
-PLT_SRC = -I./matplotlib-cpp
-PLT_LIB = -I/usr/include/python$(PYVER) \
-          -I/usr/include/x86_64-linux-gnu/python$(PYVER) \
-          -I/usr/lib/python$(PYVER)/dist-packages/numpy/core/include
-PLT_LNK = -lpython$(PYVER)
-PLTFLAGS = $(PLT_SRC) $(PLT_LIB)
-
 CXX = g++
-INCLUDES = -I. -I../thermo -I$(MMSP_PATH)/include -I$(CUDA_HDR_PATH) -I$(GSL_PATH) $(PLTFLAGS)
+NVCXX = nvcc
+PYMAJ = 3
+PYVER = 3.6
+
+INCLUDES = -I. \
+           -I./matplotlib-cpp \
+           -I../thermo \
+           -I$(MMSP_PATH)/include \
+           -I$(CUDA_HDR_PATH) \
+           -I$(GSL_PATH) \
+           -I$(HOME)/.conda/envs/py$(PYMAJ)/include/python$(PYVER)
+
 CXXFOPTS = -funroll-loops -ffast-math -fopenmp
+
 CXXFLAGS = -O3 -Wall -std=c++11 $(CXXFOPTS) $(INCLUDES)
 
-NVCXX = nvcc
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
              $(INCLUDES) --compiler-options="$(CXXFLAGS)"
 
-LINKS = -L$(GSL_LIB) -lcuda -lcurand -lgsl -lgslcblas -lm $(PLT_LNK) -lz
+LINKS = -L$(HOME)/.conda/envs/py$(PYMAJ)/lib \
+        -L$(CUDA_HDR_PATH)/../lib \
+        -lcuda \
+        -lcurand \
+        -lgsl \
+        -lgslcblas \
+        -lm \
+        -lpython$(PYVER) \
+        -lz
 
 OBJS = data_cu.o discretization_cu.o nucleation_cu.o parabola625_cu.o \
        enrichment_c.o nucleation_c.o parabola625_c.o \
