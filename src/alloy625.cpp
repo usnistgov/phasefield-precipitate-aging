@@ -95,11 +95,11 @@ void set_diffusion_matrix(const fp_t xCr0, const fp_t xNb0, fp_t* DCr, fp_t* DNb
 	DNb[1] = D_NbNb(xCr0, xNb0);
 
 	if (rank == 0 && verbose) {
-      printf("Diffusion matrix is ⎡%10.4g %10.4g⎤ m²/s\n",  Vm() *DCr[0], Vm() * DCr[1]);
-      printf("                    ⎣%10.4g %10.4g⎦\n",       Vm() * DNb[0], Vm() * DNb[1]);
+		printf("Diffusion matrix is ⎡%10.4g %10.4g⎤ m²/s\n",  DCr[0], DCr[1]);
+		printf("                    ⎣%10.4g %10.4g⎦\n",       DNb[0], DNb[1]);
 	}
 
-	const fp_t Dnorm = std::sqrt(DCr[0]*DCr[0] + DNb[1]*DNb[1]);
+	const fp_t Dnorm = std::sqrt(DCr[0] * DCr[0] + DNb[1] * DNb[1]);
 	L_mob[0] = MobStab * Dnorm / (ifce_width * ifce_width * RT() / Vm()); // numerical mobility (m^2/(Ns))
 	L_mob[1] = Lmob[0];                                                   // Ref: TKR5p315
 
@@ -270,7 +270,7 @@ void embed_OPC(GRID2D& grid,
 	const fp_t R_depletion_Nb = R_precip * sqrt(1.0 + (par_xe_Nb - xNb) / (xNb - xe_gam_Nb()));
 	*/
 	const int R = int(//std::max(std::max(R_depletion_Cr, R_depletion_Nb),
-	                           R_precip + 4 * ifce_width / meshres);
+	                  R_precip + 4 * ifce_width / meshres);
 
 	for (int i = -R; i < R + 1; i++) {
 		for (int j = -R; j < R + 1; j++) {
@@ -373,7 +373,7 @@ void seed_solitaire_laves(GRID2D& grid,
 void seed_planar(GRID2D& grid, const fp_t& w_precip, const int index)
 {
 	fp_t xCr = 0.0, xNb = 0.0;
-	for (int n=0; n<nodes(grid); n++) {
+	for (int n = 0; n < nodes(grid); n++) {
 		xCr += grid(n)[0];
 		xNb += grid(n)[1];
 	}
@@ -406,7 +406,7 @@ void seed_planar_delta(GRID2D& grid, const fp_t& w_precip)
 
 void seed_planar_laves(GRID2D& grid, const fp_t w_precip)
 {
-	seed_planar(grid, w_precip, NC+1);
+	seed_planar(grid, w_precip, NC + 1);
 }
 
 void init_tanh(GRID2D& grid, fp_t& xCr0, fp_t& xNb0, int index)
@@ -433,7 +433,7 @@ void init_tanh(GRID2D& grid, fp_t& xCr0, fp_t& xNb0, int index)
 			GridN[0] = p(phi) * xCrPre + p(1.0 - phi) * xCrMat;
 			GridN[1] = p(phi) * xNbPre + p(1.0 - phi) * xNbMat;
 			GridN[NC ]  = 0.0;
-			GridN[NC+1] = 0.0;
+			GridN[NC + 1] = 0.0;
 			GridN[index] = phi;
 		}
 	}
@@ -446,7 +446,7 @@ void init_tanh_delta(GRID2D& grid, fp_t& xCr0, fp_t& xNb0)
 
 void init_tanh_laves(GRID2D& grid, fp_t& xCr0, fp_t& xNb0)
 {
-	init_tanh(grid, xCr0, xNb0, NC+1);
+	init_tanh(grid, xCr0, xNb0, NC + 1);
 }
 
 void seed_pair(GRID2D& grid,
@@ -463,7 +463,7 @@ void seed_pair(GRID2D& grid,
 	const fp_t n_gam = dV / vFccNi;
 
 	// Embed a delta particle
-	x[0] =-(g1(grid, 0) - g0(grid, 0)) / 5;
+	x[0] = -(g1(grid, 0) - g0(grid, 0)) / 5;
 	x[1] = 0;
 	xCr = grid(x)[0];
 	xNb = grid(x)[1];
@@ -477,7 +477,7 @@ void seed_pair(GRID2D& grid,
 	                              vFccNi,
 	                              n_gam,
 	                              dV,
-								  dt,
+	                              dt,
 	                              &R_star,
 	                              &P_nuc);
 	if (R_star > 0.) {
@@ -499,12 +499,12 @@ void seed_pair(GRID2D& grid,
 	nucleation_probability_sphere(xCr, xNb,
 	                              dG_chem,
 	                              D_CrCr(xCr, xNb),
-                                  D_NbNb(xCr, xNb),
+	                              D_NbNb(xCr, xNb),
 	                              sigma_lav,
 	                              vFccNi,
 	                              n_gam,
 	                              dV,
-								  dt,
+	                              dt,
 	                              &R_star,
 	                              &P_nuc);
 	if (R_star > 0.) {
@@ -589,7 +589,7 @@ void generate(int dim, const char* filename)
 		#elif defined(PAIR)
 		const fp_t nuc_dt = 1.0e-3;
 		seed_pair(initGrid, s_delta(), s_laves(), lattice_const, ifce_width, meshres, nuc_dt);
-        #elif !defined(NUCLEATION)
+		#elif !defined(NUCLEATION)
 		const fp_t nuc_dt = 1.0e-3;
 		seed_solitaire_delta(initGrid, s_delta(), lattice_const,
 		                     ifce_width, meshres, nuc_dt);
@@ -641,7 +641,7 @@ void generate(int dim, const char* filename)
 			xCr[j][i] = initGrid(n)[0];
 			xNb[j][i] = initGrid(n)[1];
 			pDel[j][i] = p(initGrid(n)[NC]);
-			pLav[j][i] = p(initGrid(n)[NC+1]);
+			pLav[j][i] = p(initGrid(n)[NC + 1]);
 
 			double pGam = 1.0 - pDel[j][i] - pLav[j][i];
 			double INV_DET = inv_fict_det(pDel[j][i], pGam, pLav[j][i]);
@@ -667,14 +667,14 @@ void generate(int dim, const char* filename)
 			const double lCr = fict_lav_Cr(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
 			const double lNb = fict_lav_Nb(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
 			fprintf(csv, "%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g\n",
-					meshres * (i + x0(initGrid)),
-					xCr[j][i], xNb[j][i],
-					pDel[j][i], pGam, pLav[j][i],
-					gamCr[j][i], gamNb[j][i],
-					dCr, dNb,
-					lCr, lNb,
-					chem_nrg[j][i],
-					grad_nrg[j][i]);
+			        meshres * (i + x0(initGrid)),
+			        xCr[j][i], xNb[j][i],
+			        pDel[j][i], pGam, pLav[j][i],
+			        gamCr[j][i], gamNb[j][i],
+			        dCr, dNb,
+			        lCr, lNb,
+			        chem_nrg[j][i],
+			        grad_nrg[j][i]);
 		}
 		fclose(csv);
 		#endif
@@ -775,8 +775,8 @@ T gibbs(const MMSP::vector<T>& v)
 		phiSq[i] = v[NC + i] * v[NC + i];
 
 	T g  = pGam * g_gam(gam_Cr, gam_Nb);
-	  g += pDel * g_del(del_Cr, del_Nb);
-	  g += pLav * g_lav(lav_Cr, lav_Nb);
+	g += pDel * g_del(del_Cr, del_Nb);
+	g += pLav * g_lav(lav_Cr, lav_Nb);
 
 	for (int i = 0; i < NP; i++)
 		g += omega[i] * phiSq[i] * pow(1.0 - v[NC + i], 2);

@@ -141,14 +141,18 @@ g_laves = inVm * g_laves.subs(
 
 # Extract thermodynamic properties from CALPHAD landscape
 
-G_g = Vm * g_gamma
+g_dGgam_dxCr = diff(g_gamma, XCR)
+g_dGgam_dxNb = diff(g_gamma, XNB)
 
-g_dGgam_dxCr = diff(G_g, XCR)
-g_dGgam_dxNb = diff(G_g, XNB)
+mu_Cr = Vm * (g_gamma      - XNB  * g_dGgam_dxNb + (1 - XCR) * g_dGgam_dxCr)
+mu_Nb = Vm * (g_gamma + (1 - XNB) * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr)
+mu_Ni = Vm * (g_gamma      - XNB  * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr)
 
-mu_Cr = G_g      - XNB  * g_dGgam_dxNb + (1 - XCR) * g_dGgam_dxCr
-mu_Nb = G_g + (1 - XNB) * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
-mu_Ni = G_g      - XNB  * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr
+g_dGdel_dxCr = diff(g_delta, XCR)
+g_dGdel_dxNb = diff(g_delta, XNB)
+
+g_dGlav_dxCr = diff(g_laves, XCR)
+g_dGlav_dxNb = diff(g_laves, XNB)
 
 # Curvatures of the CALPHAD Free Energy Surfaces
 
@@ -159,12 +163,12 @@ g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB)
 
 g_d2Gdel_dxCrCr = diff(g_delta, XCR, XCR)
 g_d2Gdel_dxCrNb = diff(g_delta, XCR, XNB)
-g_d2Gdel_dxNbCr = g_d2Gdel_dxCrNb
+g_d2Gdel_dxNbCr = diff(g_delta, XNB, XCR)
 g_d2Gdel_dxNbNb = diff(g_delta, XNB, XNB)
 
 g_d2Glav_dxCrCr = diff(g_laves, XCR, XCR)
 g_d2Glav_dxCrNb = diff(g_laves, XCR, XNB)
-g_d2Glav_dxNbCr = g_d2Glav_dxCrNb
+g_d2Glav_dxNbCr = diff(g_laves, XNB, XCR)
 g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB)
 
 # Derivatives of μ from SymPy
@@ -518,13 +522,20 @@ codegen(
         ("s_delta", s_delta),
         ("s_laves", s_laves),
         # Gibbs energies
-        ("CALPHAD_gam", g_gamma),
-        ("CALPHAD_del", g_delta),
-        ("CALPHAD_lav", g_laves),
+        ("GCAL_gam", g_gamma),
+        ("GCAL_del", g_delta),
+        ("GCAL_lav", g_laves),
         ("g_gam", p_gamma),
         ("g_del", p_delta),
         ("g_lav", p_laves),
         # First derivatives
+        ("dGCAL_gam_dxCr", g_dGgam_dxCr),
+        ("dGCAL_gam_dxNb", g_dGgam_dxNb),
+        ("dGCAL_del_dxCr", g_dGdel_dxCr),
+        ("dGCAL_del_dxNb", g_dGdel_dxNb),
+        ("dGCAL_lav_dxCr", g_dGlav_dxCr),
+        ("dGCAL_lav_dxNb", g_dGlav_dxNb),
+        #
         ("dg_gam_dxCr", p_dGgam_dxCr),
         ("dg_gam_dxNb", p_dGgam_dxNb),
         ("dg_del_dxCr", p_dGdel_dxCr),
@@ -532,6 +543,19 @@ codegen(
         ("dg_lav_dxCr", p_dGlav_dxCr),
         ("dg_lav_dxNb", p_dGlav_dxNb),
         # Second derivatives
+        ("d2GCAL_gam_dxCrCr", g_d2Ggam_dxCrCr),
+        ("d2GCAL_gam_dxCrNb", g_d2Ggam_dxCrNb),
+        ("d2GCAL_gam_dxNbCr", g_d2Ggam_dxNbCr),
+        ("d2GCAL_gam_dxNbNb", g_d2Ggam_dxNbNb),
+        ("d2GCAL_del_dxCrCr", g_d2Gdel_dxCrCr),
+        ("d2GCAL_del_dxCrNb", g_d2Gdel_dxCrNb),
+        ("d2GCAL_del_dxNbCr", g_d2Gdel_dxNbCr),
+        ("d2GCAL_del_dxNbNb", g_d2Gdel_dxNbNb),
+        ("d2GCAL_lav_dxCrCr", g_d2Glav_dxCrCr),
+        ("d2GCAL_lav_dxCrNb", g_d2Glav_dxCrNb),
+        ("d2GCAL_lav_dxNbCr", g_d2Glav_dxNbCr),
+        ("d2GCAL_lav_dxNbNb", g_d2Glav_dxNbNb),
+        #
         ("d2g_gam_dxCrCr", p_d2Ggam_dxCrCr),
         ("d2g_gam_dxCrNb", p_d2Ggam_dxCrNb),
         ("d2g_gam_dxNbCr", p_d2Ggam_dxNbCr),
@@ -545,12 +569,12 @@ codegen(
         ("d2g_lav_dxNbCr", p_d2Glav_dxNbCr),
         ("d2g_lav_dxNbNb", p_d2Glav_dxNbNb),
         # Chemical Potentials
-        ("mu_Cr", inVm * mu_Cr),
-        ("mu_Nb", inVm * mu_Nb),
-        ("mu_Ni", inVm * mu_Ni),
+        ("mu_Cr", mu_Cr),
+        ("mu_Nb", mu_Nb),
+        ("mu_Ni", mu_Ni),
         # Diffusivities
-        ("D_CrCr", inVm * p_D_CrCr), ("D_CrNb", inVm * p_D_CrNb),
-        ("D_NbCr", inVm * p_D_NbCr), ("D_NbNb", inVm * p_D_NbNb)
+        ("D_CrCr", p_D_CrCr), ("D_CrNb", p_D_CrNb),
+        ("D_NbCr", p_D_NbCr), ("D_NbNb", p_D_NbNb)
     ],
     language="C",
     prefix="parabola625",
