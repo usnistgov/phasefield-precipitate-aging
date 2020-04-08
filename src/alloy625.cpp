@@ -95,8 +95,8 @@ void set_diffusion_matrix(const fp_t xCr0, const fp_t xNb0, fp_t* DCr, fp_t* DNb
 	DNb[1] = D_NbNb(xCr0, xNb0);
 
 	if (rank == 0 && verbose) {
-		printf("Diffusion matrix is ⎡%10.4g %10.4g⎤ m²/s\n",  DCr[0], DCr[1]);
-		printf("                    ⎣%10.4g %10.4g⎦\n",       DNb[0], DNb[1]);
+		printf("Diffusion matrix is ⎡%10.4g %10.4g⎤ m²/s\n", DCr[0], DCr[1]);
+		printf("                    ⎣%10.4g %10.4g⎦\n",      DNb[0], DNb[1]);
 	}
 
 	const fp_t Dnorm = std::sqrt(DCr[0] * DCr[0] + DNb[1] * DNb[1]);

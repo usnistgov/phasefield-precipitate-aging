@@ -13,13 +13,13 @@
 
 #if defined(PLANAR) or defined(TANH)
 const fp_t meshres = 1.0e-9;    // grid spacing, Δx (m)
-const fp_t ifce_width = 20e-9;   // interface thickness, 2λ (m)
+const fp_t ifce_width = 20e-9;  // interface thickness, 2λ (m)
 #else
-const fp_t meshres = 0.3125e-9;  // grid spacing, Δx (m); max. is 2.5 Å
-const fp_t ifce_width = 2.5e-9;  // interface thickness, 2λ (m), TKR5p274
+const fp_t meshres = 0.3125e-9; // grid spacing, Δx (m); max. is 2.5 Å
+const fp_t ifce_width = 2.5e-9; // interface thickness, 2λ (m), TKR5p274
 #endif
-const fp_t LinStab = 2.0e-2;     // threshold of linear (von Neumann) stability, Co (dimensionless)
-const fp_t MobStab = 1.0;     // stability factor for diffusion control
+const fp_t LinStab = 2.0e-2;    // threshold of linear (von Neumann) stability, Co (dimensionless)
+const fp_t MobStab = 1.0e-3;    // stability factor for diffusion control
 
 // === Materials Parameters ===
 
@@ -40,8 +40,8 @@ const fp_t alpha = 1.07e11;                    // three-phase coexistence coeffi
 // Derivation: TKR5p287 -- after Kim, Kim & Suzuki, *Phys. Rev. E* **60** (1999) 7186--7197.
 
 const fp_t width_factor = 2.2; // when "interface" is [0.1,0.9]; 2.94 if [0.05,0.95]
-const fp_t kappa[NP] = {3. * sigma[0]* ifce_width / width_factor,
-                        3. * sigma[1]* ifce_width / width_factor
+const fp_t kappa[NP] = {3. * sigma[0] * ifce_width / width_factor,
+                        3. * sigma[1] * ifce_width / width_factor
                        }; // gradient energy coefficient (J/m)
 const fp_t omega[NP] = {18. * sigma[0] * sigma[0] / kappa[0],
                         18. * sigma[1] * sigma[1] / kappa[1]
