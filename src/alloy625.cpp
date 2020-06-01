@@ -784,7 +784,7 @@ T gibbs(const MMSP::vector<T>& v)
 	// Trijunction penalty
 	for (int i = 0; i < NP - 1; i++)
 		for (int j = i + 1; j < NP; j++)
-			g += 2.0 * alpha * phiSq[i] * phiSq[j];
+			g += 2.0 * Omega * phiSq[i] * phiSq[j];
 
 	return g;
 }

@@ -1,16 +1,18 @@
-CXX = g++
-CXXFLAGS = -O3 -Wall -std=c++11
-INCLUDES = -I. -I../src -I$(CUDA_HDR_PATH)
+CFLAGS = -O3 -Wall
 OBJS = enrichment.o nucleation.o parabola625.o enrichment.so parabola625.so
 
 all: check-nucleation
 .PHONY: all
 
-debug: CXXFLAGS += -O0 -g
+debug: CFLAGS += -O0 -g
 debug: check-nucleation $(OBJS)
 
-profile: CXXFLAGS += -O1 -pg
+profile: CFLAGS += -O1 -pg
 profile: $(OBJS)
+
+CXX = g++
+CXXFLAGS = ${CFLAGS} -std=c++11
+INCLUDES = -I. -I../src -I$(CUDA_HDR_PATH)
 
 # === Executables ===
 
@@ -34,7 +36,7 @@ enrichment.o: enrichment.c enrichment.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 enrichment.so: enrichment.c enrichment.c
-	gcc $(CXXFLAGS) -shared -fPIC $< -o $@
+	gcc $(CFLAGS) -shared -fPIC $< -o $@
 
 nucleation.o: nucleation.c nucleation.h parabola625.c
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
@@ -43,7 +45,7 @@ parabola625.o: parabola625.c
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 parabola625.so: parabola625.c
-	gcc $(CXXFLAGS) -shared -fPIC $< -o $@
+	gcc $(CFLAGS) -shared -fPIC $< -o $@
 
 # === Extras ===
 
