@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
 	#ifdef MPI_VERSION
 	rank = MPI::COMM_WORLD.Get_rank();
 	#endif
-	srand(time(NULL)+rank);
+	srand(time(NULL) + rank);
 
 	// print help message and exit
 	if (std::string(argv[1]) == std::string("--help")) {
@@ -82,10 +82,10 @@ int main(int argc, char* argv[])
 		if (argc < 4) outfile = "init";
 		else outfile = argv[3];
 
-		char* filename = new char[outfile.length()+1];
-		for (unsigned int i=0; i<outfile.length(); i++)
+		char* filename = new char[outfile.length() + 1];
+		for (unsigned int i = 0; i < outfile.length(); i++)
 			filename[i] = outfile[i];
-		filename[outfile.length()]='\0';
+		filename[outfile.length()] = '\0';
 
 		// generate test problem
 
@@ -244,7 +244,7 @@ int main(int argc, char* argv[])
 				host.conc_Cr_old[j][i] = gridN[0];
 				host.conc_Nb_old[j][i] = gridN[1];
 				host.phi_del_old[j][i] = gridN[NC];
-				host.phi_lav_old[j][i] = gridN[NC+1];
+				host.phi_lav_old[j][i] = gridN[NC + 1];
 			}
 
 			// initialize GPU
@@ -257,7 +257,7 @@ int main(int argc, char* argv[])
 			device_init_prng(&dev, nx, ny, nm, bx, by);
 
 			// determine timestep
-			const double dtTransformLimited = (meshres*meshres) / (2.0 * dim * Lmob[0]*kappa[0]);
+			const double dtTransformLimited = (meshres * meshres) / (2.0 * dim * Lmob[0] * kappa[0]);
 			fp_t dtDiffusionLimited = MMSP::timestep(grid, D_Cr, D_Nb);
 			double round_dt = 0.0;
 			double roundoff = 4e6;
@@ -302,7 +302,7 @@ int main(int argc, char* argv[])
 
 					device_laplacian_boundaries(&dev, nx, ny, nm, bx, by);
 
-					device_evolution(&dev, nx, ny, nm, bx, by, alpha, dt);
+					device_evolution(&dev, nx, ny, nm, bx, by, Omega, dt);
 
 					#ifdef NUCLEATION
 					const bool nuc_step = (kernel_time % nuc_interval == 0);
@@ -320,7 +320,7 @@ int main(int argc, char* argv[])
 					swap_pointers_1D(&(dev.phi_del_old), &(dev.phi_del_new));
 					swap_pointers_1D(&(dev.phi_lav_old), &(dev.phi_lav_new));
 
-					const bool io_step = (kernel_time+1) % io_interval == 0;
+					const bool io_step = (kernel_time + 1) % io_interval == 0;
 					if (io_step) {
 						device_dataviz(&dev, &host, nx, ny, nm, bx, by);
 
@@ -334,11 +334,11 @@ int main(int argc, char* argv[])
 							gridN[0]       = host.conc_Cr_new[j][i];
 							gridN[1]       = host.conc_Nb_new[j][i];
 							gridN[NC]      = host.phi_del_new[j][i];
-							gridN[NC+1]    = host.phi_lav_new[j][i];
+							gridN[NC + 1]    = host.phi_lav_new[j][i];
 
 							// Write fictitious compositions
 							double pDel = p(gridN[NC]);
-							double pLav = p(gridN[NC+1]);
+							double pLav = p(gridN[NC + 1]);
 							double pGam = 1.0 - pDel - pLav;
 							double XCR = gridN[0];
 							double XNB = gridN[1];
@@ -357,7 +357,7 @@ int main(int argc, char* argv[])
 
 						if (rank == 0) {
 							sprintf(cbuf, "%10g %9g %9g %12g %12g %12g %12g\n",
-							        dt * (kernel_time+1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
+							        dt * (kernel_time + 1), summary[0], summary[1], summary[2], summary[3], summary[4], energy);
 							cstr.push_back(std::string(cbuf));
 						}
 
@@ -366,7 +366,7 @@ int main(int argc, char* argv[])
 						for (size_t i = 0; i < base.length(); i++)
 							imgname[i] = base[i];
 
-						int namelength = base.length() + sprintf(imgname+base.length(), "%09.4f.png", dt * (kernel_time + 1));
+						int namelength = base.length() + sprintf(imgname + base.length(), "%09.4f.png", dt * (kernel_time + 1));
 						if (namelength >= FILENAME_MAX) {
 							if (rank == 0)
 								std::cerr << "Error: Filename " << imgname << " is too long!" << std::endl;
@@ -375,10 +375,10 @@ int main(int argc, char* argv[])
 
 						write_matplotlib(host.conc_Cr_new, host.conc_Nb_new,
 						                 host.phi_del_new, host.phi_lav_new,
-										 host.chem_nrg, host.grad_nrg,
-										 host.conc_Cr_gam, host.conc_Nb_gam,
+						                 host.chem_nrg, host.grad_nrg,
+						                 host.conc_Cr_gam, host.conc_Nb_gam,
 						                 nx, ny, nm, MMSP::dx(grid),
-						                 kernel_time+1, dt, imgname);
+						                 kernel_time + 1, dt, imgname);
 
 						dtDiffusionLimited = MMSP::timestep(grid, D_Cr, D_Nb);
 						if (LinStab * dtDiffusionLimited < 0.2 * dt) {

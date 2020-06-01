@@ -8,8 +8,8 @@
 
 CXX = g++
 NVCXX = nvcc
-PYMAJ = 2
-PYVER = 2.7
+PYMAJ = 3
+PYVER = 3.6m
 
 INCLUDES = -I. \
            -I./matplotlib-cpp \
