@@ -21,10 +21,11 @@ INCLUDES = -I. \
 
 CXXFOPTS = -funroll-loops -ffast-math -fopenmp
 
-CXXFLAGS = -O3 -Wall -std=c++11 $(CXXFOPTS) $(INCLUDES)
+CFLAGS = -O3 -Wall $(CXXFOPTS) $(INCLUDES)
+CXXFLAGS = $(CFLAGS) -std=c++11
 
 NVCXXFLAGS = -std=c++11 -D_FORCE_INLINES -Wno-deprecated-gpu-targets \
-             $(INCLUDES) --compiler-options="$(CXXFLAGS)"
+             $(INCLUDES) --compiler-options="$(CFLAGS)"
 
 LINKS = -L$(HOME)/.conda/envs/py$(PYMAJ)/lib \
         -L$(CUDA_HDR_PATH)/../lib \
