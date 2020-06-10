@@ -283,13 +283,13 @@ void embed_OPC(GRID2D& grid,
 
 			const fp_t r = sqrt(fp_t(i * i + j * j)); // distance to seed center
 			const fp_t z = meshres * (r - R_precip);
-			const fp_t inflation = 0.5;
 
 			// Smoothly interpolate through the interface , TKR5p276
-			const fp_t phi = tanh_interp(z, inflation * ifce_width);
+			const fp_t phi = tanh_interp(z, ifce_width / 2);
+            const fp_t pgam = 1.0 - p(phi);
 			GridY[pid] = phi;
-			GridY[0] = p(phi) * par_xe_Cr + p(1.0 - phi) * xCr;
-			GridY[1] = p(phi) * par_xe_Nb + p(1.0 - phi) * xNb;
+			GridY[0] = p(phi) * par_xe_Cr + pgam * xCr;
+			GridY[1] = p(phi) * par_xe_Nb + pgam * xNb;
 		}
 	}
 }
@@ -383,17 +383,16 @@ void seed_planar(GRID2D& grid, const fp_t& w_precip, const int index)
 	const fp_t preCr = (index == NC) ? xe_del_Cr() : xe_lav_Cr();
 	const fp_t preNb = (index == NC) ? xe_del_Nb() : xe_lav_Nb();
 
-	const fp_t inflation = 0.5;
-
 	vector<int> x(2, 0);
 	for (x[1] = x0(grid, 1); x[1] < x1(grid, 1); x[1]++) {
 		for (x[0] = x0(grid, 0); x[0] < x1(grid, 0); x[0]++) {
 			// Smoothly interpolate through the interface, TKR5p276
 			vector<fp_t>& GridN = grid(x);
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
-			const fp_t phi = tanh_interp(r - w_precip, inflation * ifce_width);
-			GridN[0] = p(phi) * preCr + p(1.0 - phi) * xCr;
-			GridN[1] = p(phi) * preNb + p(1.0 - phi) * xNb;
+			const fp_t phi = tanh_interp(r - w_precip, ifce_width / 2);
+            const fp_t pgam = 1.0 - p(phi);
+			GridN[0] = p(phi) * preCr + pgam * xCr;
+			GridN[1] = p(phi) * preNb + pgam * xNb;
 			GridN[index] = phi;
 		}
 	}
@@ -430,8 +429,9 @@ void init_tanh(GRID2D& grid, fp_t& xCr0, fp_t& xNb0, int index)
 			vector<fp_t>& GridN = grid(x);
 			const fp_t r = meshres * (x[0] - g0(grid, 0));
 			const fp_t phi = tanh_interp(r - L, w);
-			GridN[0] = p(phi) * xCrPre + p(1.0 - phi) * xCrMat;
-			GridN[1] = p(phi) * xNbPre + p(1.0 - phi) * xNbMat;
+            const fp_t pgam = 1.0 - p(phi);
+			GridN[0] = p(phi) * xCrPre + pgam * xCrMat;
+			GridN[1] = p(phi) * xNbPre + pgam * xNbMat;
 			GridN[NC ]  = 0.0;
 			GridN[NC + 1] = 0.0;
 			GridN[index] = phi;
@@ -539,7 +539,7 @@ void generate(int dim, const char* filename)
 
 	if (dim == 2) {
 		#if defined(PLANAR) or defined(TANH)
-		const int Nx = 1.0e-6 / meshres;
+		const int Nx = 5.0e-7 / meshres;
 		const int Ny = 17;
 		#else
 		/*
