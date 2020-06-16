@@ -76,42 +76,16 @@ def printdict(d):
         print("  {0:2s}: {1:6.4f}".format(key, d[key]))
     print("")
 
-"""
-print("Mean composition of ASTM AM IN625 (mol frac)")
 astm = {}
 for key in wmin.keys():
     astm[key] = 0.5 * (wmin[key] + wmax[key])
+
+"""
+print("Mean composition of ASTM AM IN625 (mol frac)")
 printdict(molfrac(astm))
 """
 
-"""
-print("\nTernary (Cr+Mo)-Nb-Ni Analogue (mol frac)")
-tern = {"Cr": 0.5 * (20 + 23),
-        "Mo": 0.5 * (8 + 10),
-        "Nb": 0.5 * (3.15 + 4.15),
-        "Ni": 0.5 * (68.85 + 62.85)
-}
-printdict(molfrac(tern))
-"""
-
-"""
-print("\nDICTRA Solid (mol frac)")
-dctr = {"Cr": 13.6,
-        "Mo": 13.9,
-        "Nb": 23.5,
-        "Ni": 49.0
-}
-printdict(weightfrac(dctr))
-"""
-
-"""
-print("\nEnriched (Cr+Mo)-Nb-Ni Analogue (mol frac)")
-enrc = {"Cr": dctr["Cr"] + dctr["Mo"],
-        "Nb": 23.5,
-        "Ni": 49.0
-}
-printdict(weightfrac(enrc))
-"""
+astmol = molfrac(astm)
 
 print("DICTRA Solid from paper (wt)")
 dctr = {"Cr": .15,
@@ -125,15 +99,32 @@ printdict(dctr)
 print("DICTRA Solid from paper (mol)")
 printdict(molfrac(dctr))
 
+
 print("DICTRA Enriched from paper (wt)")
-dctr = {"Cr": .11,
+enrc = {"Cr": .11,
         "Fe": .003,
         "Mo": .25,
         "Nb": .21,
         "Ni": 1-.11-.003-.25-.21
 }
-printdict(dctr)
+printdict(enrc)
 
-print("DICTRA Solid from paper (mol)")
-printdict(molfrac(dctr))
+print("DICTRA Enriched from paper (mol)")
+printdict(molfrac(enrc))
+
+
+print("Ternary Nominal (mol)")
+nmnl = {"Cr": astmol["Cr"] + astmol["Mo"],
+        "Nb": astmol["Nb"],
+        "Ni": 1-astmol["Cr"]-astmol["Mo"]-astmol["Nb"]
+}
+printdict(nmnl)
+
+
+print("Ternary Enriched (mol)")
+enrc = {"Cr": .36,
+        "Nb": .21,
+        "Ni": 1-.36-.21
+}
+printdict(molfrac(enrc))
 
