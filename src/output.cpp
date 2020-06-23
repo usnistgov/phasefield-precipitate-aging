@@ -286,6 +286,8 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	std::vector<float> p_del_bar(w);
 	std::vector<float> p_lav_bar(w);
 
+    fp_t dmin=0.0, dmax=1.0;
+
 	const int j = h/2;
 	for (int k = 0; k < w && k*dL < L; ++k) {
 		const int i = k * dL;
@@ -302,12 +304,18 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 
 		c_Cr_bar.at(k) = conc_Cr[j+nm/2][i+nm/2];
 		c_Nb_bar.at(k) = conc_Nb[j+nm/2][i+nm/2];
+        dmin = std::min(dmin, fp_t(std::min(c_Cr_bar.at(k), c_Nb_bar.at(k))));
+        dmax = std::max(dmax, fp_t(std::max(c_Cr_bar.at(k), c_Nb_bar.at(k))));
 
 		c_Cr_gam.at(k) = gam_Cr[j+nm/2][i+nm/2];
 		c_Nb_gam.at(k) = gam_Nb[j+nm/2][i+nm/2];
+        dmin = std::min(dmin, fp_t(std::min(c_Cr_gam.at(k), c_Nb_gam.at(k))));
+        dmax = std::max(dmax, fp_t(std::max(c_Cr_gam.at(k), c_Nb_gam.at(k))));
 
 		p_del_bar.at(k) = phi_del[j+nm/2][i+nm/2];
 		p_lav_bar.at(k) = phi_lav[j+nm/2][i+nm/2];
+        dmin = std::min(dmin, fp_t(std::min(p_del_bar.at(k), p_lav_bar.at(k))));
+        dmax = std::max(dmax, fp_t(std::max(p_del_bar.at(k), p_lav_bar.at(k))));
 	}
 
 	const long nrows = 2;
@@ -337,14 +345,15 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 
 	plt::subplot2grid(nrows, ncols, nrows-1, 0, 1, 1);
 	plt::xlim(0., 1e6 * deltax * nx);
-	plt::ylim(0., 1.);
+	plt::ylim(dmin, dmax);
 	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
-	plt::ylabel("$x_{\\mathrm{Ni}}(Y=0)$");
+	plt::ylabel("$x, \\phi\\ (Y=0)$");
 
 	str_kw["label"] = "$x_{\\mathrm{Nb}}$";
 	plt::plot(d, c_Nb_bar, str_kw);
 	str_kw.clear();
 	str_kw["linestyle"] = ":";
+	str_kw["label"] = "$x^{\\gamma}_{\\mathrm{Nb}}$";
 	plt::plot(d, c_Nb_gam, str_kw);
 	str_kw.clear();
 
@@ -352,6 +361,7 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	plt::plot(d, c_Cr_bar, str_kw);
 	str_kw.clear();
 	str_kw["linestyle"] = ":";
+	str_kw["label"] = "$x^{\\gamma}_{\\mathrm{Cr}}$";
 	plt::plot(d, c_Cr_gam, str_kw);
 	str_kw.clear();
 

@@ -354,8 +354,6 @@ gamCr, gamNb = symbols("gamCr, gamNb")
 delCr, delNb = symbols("delCr, delNb")
 lavCr, lavNb = symbols("lavCr, lavNb")
 pGam, pDel, pLav = symbols("pGam, pDel, pLav")
-INV_DET = symbols("INV_DET")
-gcd = 1.0e-60
 
 ficGdCr = p_dGgam_dxCr.subs({XCR: gamCr, XNB: gamNb})
 ficGdNb = p_dGgam_dxNb.subs({XCR: gamCr, XNB: gamNb})
@@ -379,23 +377,12 @@ fictitious = solve(ficEqns, ficVars, dict=True)
 
 # Note: denominator is the determinant, identical by
 # definition. So, we separate it to save some FLOPs.
-fict_gam_Cr, determinant = fraction(fictitious[0][gamCr])
-fict_gam_Nb, determinant = fraction(fictitious[0][gamNb])
-fict_del_Cr, determinant = fraction(fictitious[0][delCr])
-fict_del_Nb, determinant = fraction(fictitious[0][delNb])
-fict_lav_Cr, determinant = fraction(fictitious[0][lavCr])
-fict_lav_Nb, determinant = fraction(fictitious[0][lavNb])
-
-inv_fict_det = 1.0 / (factor(expand(gcd * determinant)))
-
-fict_gam_Cr = factor(expand(gcd * fict_gam_Cr)) * INV_DET
-fict_gam_Nb = factor(expand(gcd * fict_gam_Nb)) * INV_DET
-
-fict_del_Cr = factor(expand(gcd * fict_del_Cr)) * INV_DET
-fict_del_Nb = factor(expand(gcd * fict_del_Nb)) * INV_DET
-
-fict_lav_Cr = factor(expand(gcd * fict_lav_Cr)) * INV_DET
-fict_lav_Nb = factor(expand(gcd * fict_lav_Nb)) * INV_DET
+fict_gam_Cr = factor(expand(fictitious[0][gamCr]))
+fict_gam_Nb = factor(expand(fictitious[0][gamNb]))
+fict_del_Cr = factor(expand(fictitious[0][delCr]))
+fict_del_Nb = factor(expand(fictitious[0][delNb]))
+fict_lav_Cr = factor(expand(fictitious[0][lavCr]))
+fict_lav_Nb = factor(expand(fictitious[0][lavNb]))
 
 # ============ COMPOSITION SHIFTS ============
 ## Ref: TKR5p219
@@ -511,7 +498,6 @@ codegen(
         ("xr_lav_Cr", xe_lav_Cr + dx_r_lav_Cr),
         ("xr_lav_Nb", xe_lav_Nb + dx_r_lav_Nb),
         # Fictitious compositions
-        ("inv_fict_det", inv_fict_det),
         ("fict_gam_Cr", fict_gam_Cr),
         ("fict_gam_Nb", fict_gam_Nb),
         ("fict_del_Cr", fict_del_Cr),

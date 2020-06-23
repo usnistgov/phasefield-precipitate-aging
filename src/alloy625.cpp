@@ -644,9 +644,8 @@ void generate(int dim, const char* filename)
 			pLav[j][i] = p(initGrid(n)[NC + 1]);
 
 			double pGam = 1.0 - pDel[j][i] - pLav[j][i];
-			double INV_DET = inv_fict_det(pDel[j][i], pGam, pLav[j][i]);
-			gamCr[j][i] = fict_gam_Cr(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
-			gamNb[j][i] = fict_gam_Nb(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
+			gamCr[j][i] = fict_gam_Cr(xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
+			gamNb[j][i] = fict_gam_Nb(xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
 		}
 
 		set_diffusion_matrix(0.30, 0.02, D_Cr, D_Nb, Lmob, 0);
@@ -661,11 +660,10 @@ void generate(int dim, const char* filename)
 		const int j = 0.5 * ylength(initGrid);
 		for (int i = 1; i < xlength(initGrid) - 1; i++) {
 			double pGam = 1.0 - pDel[j][i] - pLav[j][i];
-			double INV_DET = inv_fict_det(pDel[j][i], pGam, pLav[j][i]);
-			const double dCr = fict_del_Cr(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
-			const double dNb = fict_del_Nb(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
-			const double lCr = fict_lav_Cr(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
-			const double lNb = fict_lav_Nb(INV_DET, xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
+			const double dCr = fict_del_Cr(xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
+			const double dNb = fict_del_Nb(xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
+			const double lCr = fict_lav_Cr(xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
+			const double lNb = fict_lav_Nb(xCr[j][i], xNb[j][i], pDel[j][i], pGam, pLav[j][i]);
 			fprintf(csv, "%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g\n",
 			        meshres * (i + x0(initGrid)),
 			        xCr[j][i], xNb[j][i],
@@ -761,13 +759,12 @@ T gibbs(const MMSP::vector<T>& v)
 	const T pLav = p(v[NC + 1]);
 
 	const T pGam = 1.0 - pDel - pLav;
-	const T inv_det = inv_fict_det(pDel, pGam, pLav);
-	const T gam_Cr = fict_gam_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
-	const T gam_Nb = fict_gam_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
-	const T del_Cr = fict_del_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
-	const T del_Nb = fict_del_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
-	const T lav_Cr = fict_lav_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
-	const T lav_Nb = fict_lav_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+	const T gam_Cr = fict_gam_Cr(xCr, xNb, pDel, pGam, pLav);
+	const T gam_Nb = fict_gam_Nb(xCr, xNb, pDel, pGam, pLav);
+	const T del_Cr = fict_del_Cr(xCr, xNb, pDel, pGam, pLav);
+	const T del_Nb = fict_del_Nb(xCr, xNb, pDel, pGam, pLav);
+	const T lav_Cr = fict_lav_Cr(xCr, xNb, pDel, pGam, pLav);
+	const T lav_Nb = fict_lav_Nb(xCr, xNb, pDel, pGam, pLav);
 
 	MMSP::vector<T> phiSq(NP);
 

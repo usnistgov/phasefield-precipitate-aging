@@ -68,9 +68,8 @@ __global__ void fictitious_gam_kernel(fp_t* d_conc_Cr,
 		const fp_t pDel = d_p(d_phi_del[idx]);
 		const fp_t pLav = d_p(d_phi_lav[idx]);
 		const fp_t pGam = 1.0 - pDel - pLav;
-		const fp_t inv_det = d_inv_fict_det(pDel, pGam, pLav);
-		d_conc_Cr_gam[idx] = d_fict_gam_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
-		d_conc_Nb_gam[idx] = d_fict_gam_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+		d_conc_Cr_gam[idx] = d_fict_gam_Cr(xCr, xNb, pDel, pGam, pLav);
+		d_conc_Nb_gam[idx] = d_fict_gam_Nb(xCr, xNb, pDel, pGam, pLav);
 	}
 }
 
@@ -95,9 +94,8 @@ __global__ void fictitious_del_kernel(fp_t* d_conc_Cr,
 		const fp_t pDel = d_p(d_phi_del[idx]);
 		const fp_t pLav = d_p(d_phi_lav[idx]);
 		const fp_t pGam = 1.0 - pDel - pLav;
-		const fp_t inv_det = d_inv_fict_det(pDel, pGam, pLav);
-		d_conc_Cr_del[idx] = d_fict_del_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
-		d_conc_Nb_del[idx] = d_fict_del_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+		d_conc_Cr_del[idx] = d_fict_del_Cr(xCr, xNb, pDel, pGam, pLav);
+		d_conc_Nb_del[idx] = d_fict_del_Nb(xCr, xNb, pDel, pGam, pLav);
 	}
 }
 
@@ -122,9 +120,8 @@ __global__ void fictitious_lav_kernel(fp_t* d_conc_Cr,
 		const fp_t pDel = d_p(d_phi_del[idx]);
 		const fp_t pLav = d_p(d_phi_lav[idx]);
 		const fp_t pGam = 1.0 - pDel - pLav;
-		const fp_t inv_det = d_inv_fict_det(pDel, pGam, pLav);
-		d_conc_Cr_lav[idx] = d_fict_lav_Cr(inv_det, xCr, xNb, pDel, pGam, pLav);
-		d_conc_Nb_lav[idx] = d_fict_lav_Nb(inv_det, xCr, xNb, pDel, pGam, pLav);
+		d_conc_Cr_lav[idx] = d_fict_lav_Cr(xCr, xNb, pDel, pGam, pLav);
+		d_conc_Nb_lav[idx] = d_fict_lav_Nb(xCr, xNb, pDel, pGam, pLav);
 	}
 }
 
@@ -891,7 +888,6 @@ __global__ void cahn_hilliard_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
                              fp_t& phi_del_new,
-                             const fp_t inv_fict_det,
                              const fp_t pDel,        const fp_t pLav,
                              const fp_t dgGdxCr,     const fp_t dgGdxNb,
                              const fp_t gam_Cr,      const fp_t gam_Nb,
@@ -901,8 +897,8 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 	// Derivation: TKR5p281, Eqn. (14)
 
 	const fp_t pGam = 1.0 - pDel - pLav;
-	const fp_t del_Cr = d_fict_del_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
-	const fp_t del_Nb = d_fict_del_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
+	const fp_t del_Cr = d_fict_del_Cr(conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
+	const fp_t del_Nb = d_fict_del_Nb(conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
 	const fp_t del_nrg = d_g_del(del_Cr, del_Nb);
 
 	const fp_t grand_potential = gam_nrg - del_nrg - dgGdxCr * (gam_Cr - del_Cr) - dgGdxNb * (gam_Nb - del_Nb);
@@ -920,7 +916,6 @@ __device__ void delta_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
                              const fp_t& phi_del_old, const fp_t& phi_lav_old,
                              fp_t& phi_lav_new,
-                             const fp_t inv_fict_det,
                              const fp_t pDel,        const fp_t pLav,
                              const fp_t dgGdxCr,     const fp_t dgGdxNb,
                              const fp_t gam_Cr,      const fp_t gam_Nb,
@@ -930,8 +925,8 @@ __device__ void laves_kernel(const fp_t& conc_Cr_old, const fp_t& conc_Nb_old,
 	// Derivation: TKR5p281, Eqn. (14)
 
 	const fp_t pGam = 1.0 - pDel - pLav;
-	const fp_t lav_Cr = d_fict_lav_Cr(inv_fict_det, conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
-	const fp_t lav_Nb = d_fict_lav_Nb(inv_fict_det, conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
+	const fp_t lav_Cr = d_fict_lav_Cr(conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
+	const fp_t lav_Nb = d_fict_lav_Nb(conc_Cr_old, conc_Nb_old, pDel, pGam, pLav);
 	const fp_t lav_nrg = d_g_lav(lav_Cr, lav_Nb);
 
 	const fp_t grand_potential = gam_nrg - lav_nrg - dgGdxCr * (gam_Cr - lav_Cr) - dgGdxNb * (gam_Nb - lav_Nb);
@@ -963,9 +958,8 @@ __global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 		const fp_t pDel = d_p(d_phi_del_old[idx]);
 		const fp_t pLav = d_p(d_phi_lav_old[idx]);
 		const fp_t pGam = 1.0 - pDel - pLav;
-		const fp_t inv_fict_det = d_inv_fict_det(pDel, pGam, pLav);
-		const fp_t gam_Cr = d_fict_gam_Cr(inv_fict_det, d_conc_Cr_old[idx], d_conc_Nb_old[idx], pDel, pGam, pLav);
-		const fp_t gam_Nb = d_fict_gam_Nb(inv_fict_det, d_conc_Cr_old[idx], d_conc_Nb_old[idx], pDel, pGam, pLav);
+		const fp_t gam_Cr = d_fict_gam_Cr(d_conc_Cr_old[idx], d_conc_Nb_old[idx], pDel, pGam, pLav);
+		const fp_t gam_Nb = d_fict_gam_Nb(d_conc_Cr_old[idx], d_conc_Nb_old[idx], pDel, pGam, pLav);
 
 		/* pure phase energy */
 		const fp_t gam_nrg = d_g_gam(gam_Cr, gam_Nb);
@@ -976,11 +970,11 @@ __global__ void allen_cahn_kernel(fp_t* d_conc_Cr_old, fp_t* d_conc_Nb_old,
 
 		/* Allen-Cahn equations of motion for phase */
 		delta_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
-		             d_phi_del_new[idx], inv_fict_det, pDel, pLav, dgGdxCr, dgGdxNb,
+		             d_phi_del_new[idx], pDel, pLav, dgGdxCr, dgGdxNb,
 		             gam_Cr, gam_Nb, gam_nrg, alpha, dt);
 
 		laves_kernel(d_conc_Cr_old[idx], d_conc_Nb_old[idx], d_phi_del_old[idx], d_phi_lav_old[idx],
-		             d_phi_lav_new[idx], inv_fict_det, pDel, pLav, dgGdxCr, dgGdxNb,
+		             d_phi_lav_new[idx], pDel, pLav, dgGdxCr, dgGdxNb,
 		             gam_Cr, gam_Nb, gam_nrg, alpha, dt);
 	}
 }

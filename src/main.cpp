@@ -343,9 +343,8 @@ int main(int argc, char* argv[])
 							double XCR = gridN[0];
 							double XNB = gridN[1];
 
-							double INV_DET = inv_fict_det(pDel, pGam, pLav);
-							host.conc_Cr_gam[j][i] = fict_gam_Cr(INV_DET, XCR, XNB, pDel, pGam, pLav);
-							host.conc_Nb_gam[j][i] = fict_gam_Nb(INV_DET, XCR, XNB, pDel, pGam, pLav);
+							host.conc_Cr_gam[j][i] = fict_gam_Cr(XCR, XNB, pDel, pGam, pLav);
+							host.conc_Nb_gam[j][i] = fict_gam_Nb(XCR, XNB, pDel, pGam, pLav);
 						}
 
 						ghostswap(grid);

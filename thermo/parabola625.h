@@ -1,5 +1,5 @@
 /******************************************************************************
- *                       Code generated with sympy 1.4                        *
+ *                      Code generated with sympy 1.5.1                       *
  *                                                                            *
  *              See http://www.sympy.org/ for more information.               *
  *                                                                            *
@@ -36,13 +36,12 @@ double xr_del_Cr(double r_del, double r_lav);
 double xr_del_Nb(double r_del, double r_lav);
 double xr_lav_Cr(double r_del, double r_lav);
 double xr_lav_Nb(double r_del, double r_lav);
-double inv_fict_det(double pDel, double pGam, double pLav);
-double fict_gam_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_gam_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_del_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_del_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_lav_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_lav_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_gam_Cr(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_gam_Nb(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_del_Cr(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_del_Nb(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_lav_Cr(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_lav_Nb(double XCR, double XNB, double pDel, double pGam, double pLav);
 double s_delta();
 double s_laves();
 double GCAL_gam(double XCR, double XNB);
