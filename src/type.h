@@ -30,17 +30,26 @@ struct HostData {
 	fp_t** conc_Ni;
 	fp_t** phi;
 
+	fp_t** chem_nrg;
+	fp_t** grad_nrg;
+
 	fp_t** conc_Cr_old;
 	fp_t** conc_Cr_new;
+	fp_t** conc_Cr_lap;
+	fp_t** conc_Cr_gam;
 
 	fp_t** conc_Nb_old;
 	fp_t** conc_Nb_new;
+	fp_t** conc_Nb_lap;
+	fp_t** conc_Nb_gam;
 
 	fp_t** phi_del_old;
 	fp_t** phi_del_new;
+	fp_t** phi_del_lap;
 
 	fp_t** phi_lav_old;
 	fp_t** phi_lav_new;
+	fp_t** phi_lav_lap;
 };
 
 /**
@@ -74,6 +83,7 @@ struct CudaData {
 	fp_t* conc_Nb_del;
 	fp_t* conc_Nb_lav;
 
+	/*
 	fp_t* mob_gam_CrCr;
 	fp_t* mob_gam_CrNb;
 	fp_t* mob_gam_NbCr;
@@ -88,6 +98,12 @@ struct CudaData {
 	fp_t* mob_lav_CrNb;
 	fp_t* mob_lav_NbCr;
 	fp_t* mob_lav_NbNb;
+
+	fp_t* mob_phi_del_Cr;
+	fp_t* mob_phi_del_Nb;
+	fp_t* mob_phi_lav_Cr;
+	fp_t* mob_phi_lav_Nb;
+	*/
 };
 
 /** \cond SuppressGuard */

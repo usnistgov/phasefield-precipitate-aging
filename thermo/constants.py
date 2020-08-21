@@ -130,3 +130,12 @@ for a in arange(0, 1, 0.1):
     # x1--x3: lines of constant x1=1-a
     XG.append([simX(0, a), simX(a, 0)])
     YG.append([simY(a), simY(0)])
+
+# triangle bounding three-phase coexistence
+X0 = [
+    simX(xe_gam_Nb, xe_gam_Cr),
+    simX(xe_del_Nb, xe_del_Cr),
+    simX(xe_lav_Nb, xe_lav_Cr),
+    simX(xe_gam_Nb, xe_gam_Cr),
+]
+Y0 = [simY(xe_gam_Cr), simY(xe_del_Cr), simY(xe_lav_Cr), simY(xe_gam_Cr)]

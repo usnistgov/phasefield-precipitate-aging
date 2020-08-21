@@ -8,6 +8,7 @@
 #define _OUTPUT_H_
 /** \endcond */
 
+#include <iso646.h>
 #include "type.h"
 
 /**
@@ -32,7 +33,7 @@ void print_progress(const int step, const int steps);
 /**
  \brief Writes scalar composition field to diffusion.???????.csv
 */
-void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const int step);
+void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const uint64_t step);
 
 /**
  \brief Dummy to initialize future object
@@ -50,7 +51,18 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
                      fp_t** phi_del, fp_t** phi_lav,
                      const int nx, const int ny, const int nm,
                      const fp_t deltax,
-                     const int step, const fp_t dt, const char* filename);
+                     const uint64_t step, const fp_t dt, const char* filename);
+
+/**
+   \brief Writes scalar debugging info to PNG using matplotlib-cpp
+*/
+int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
+                     fp_t** phi_del, fp_t** phi_lav,
+                     fp_t** chem_nrg, fp_t** grad_nrg,
+                     fp_t** gam_Cr, fp_t** gam_Nb,
+                     const int nx, const int ny, const int nm,
+                     const fp_t deltax,
+                     const uint64_t step, const fp_t dt, const char* filename);
 
 /** \cond SuppressGuard */
 #endif /* _OUTPUT_H_ */

@@ -25,6 +25,7 @@
 *.vti
 src/*.?
 thermo/*.?
+thermo/__pycache__
 
 # simulation executables
 alloy625

@@ -1,7 +1,15 @@
 # Phase field precipitate aging model
 
 Phase field model for precipitate aging in ternary analogues to Ni-based
-superalloys. Please cite using the following DOI:
+superalloys. This is WORK IN PROGRESS with unresolved performance,
+implementation, and design flaws. It is posted publicly as the output of a
+long-term, ongoing, federally funded research project, for reference and
+differential analysis only.
+
+## Citation
+
+This work has not yet been published in a refereed journal. If you would like to
+refer to it in a publication of your own, please cite using the following DOI:
 
 [![DOI](https://zenodo.org/badge/80764108.svg)](https://zenodo.org/badge/latestdoi/80764108)
 

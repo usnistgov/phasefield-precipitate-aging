@@ -21,7 +21,7 @@ void param_parser(int* bx, int* by, int* code, int* nm)
 		printf("Warning: unable to open parameter file 'params.txt'. Marching with default values.\n");
 		fflush(stdout);
 	} else {
-		char buffer[FILENAME_MAX];
+		char buffer[FILENAME_MAX] = {0};
 		char* pch;
 		int ibx=0, iby=0, isc=0;
 
@@ -69,7 +69,7 @@ void print_progress(const int step, const int steps)
 	time_t rawtime;
 
 	if (step==0) {
-		char timestring[FILENAME_MAX] = {'\0'};
+		char timestring[FILENAME_MAX] = {0};
 		struct tm* timeinfo;
 		tstart = time(NULL);
 		time( &rawtime );
@@ -87,15 +87,15 @@ void print_progress(const int step, const int steps)
 	}
 }
 
-void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const int step)
+void write_csv(fp_t** conc, const int nx, const int ny, const fp_t dx, const fp_t dy, const uint64_t step)
 {
 	FILE* output;
-	char name[FILENAME_MAX];
-	char num[20];
+	char name[FILENAME_MAX] = {0};
+	char num[20] = {0};
 	int i, j;
 
 	// generate the filename
-	sprintf(num, "%07i", step);
+	sprintf(num, "%07lu", step);
 	strcpy(name, "spinodal.");
 	strcat(name, num);
 	strcat(name, ".csv");
@@ -153,7 +153,7 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
                      fp_t** phi_del, fp_t** phi_lav,
                      const int nx, const int ny, const int nm,
                      const fp_t deltax,
-                     const int step, const fp_t dt, const char* filename)
+                     const uint64_t step, const fp_t dt, const char* filename)
 {
 	plt::backend("Agg");
 
@@ -200,12 +200,13 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	num_kw["vmax"] = 1.;
 
 	char timearr[FILENAME_MAX] = {0};
-	sprintf(timearr, "$t=%7.3f\\ \\mathrm{s}$\n", dt * step);
+	sprintf(timearr, "$t=%.3f\\ \\mathrm{s}$\n", dt * step);
 	plt::suptitle(std::string(timearr));
 
 	const long nrows = 3;
 	const long ncols = 5;
 
+	// subplot2grid(shape=(nrows, ncols), loc=(row, col), rowspan=1, colspan=1, fig=None, **kwargs)
 	plt::subplot2grid(nrows, ncols, 0, 0, 1, ncols - 1);
 	mat = plt::imshow(&(p_gam[0]), h, w, colors, str_kw, num_kw);
 	plt::title("$\\phi^{\\gamma}$");
@@ -240,6 +241,133 @@ int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
 	*/
 	str_kw["label"] = "$\\phi^{\\mathrm{\\delta}}$";
 	plt::plot(d, p_del_bar, str_kw);
+	str_kw["label"] = "$\\phi^{\\mathrm{\\lambda}}$";
+	plt::plot(d, p_lav_bar, str_kw);
+
+	plt::legend();
+
+	plt::save(filename);
+	plt::close();
+
+	return 0;
+}
+
+int write_matplotlib(fp_t** conc_Cr, fp_t** conc_Nb,
+                     fp_t** phi_del, fp_t** phi_lav,
+                     fp_t** chem_nrg, fp_t** grad_nrg,
+                     fp_t** gam_Cr, fp_t** gam_Nb,
+                     const int nx, const int ny, const int nm,
+                     const fp_t deltax,
+                     const uint64_t step, const fp_t dt, const char* filename)
+{
+	#ifdef MPI_VERSION
+	std::cerr << "Error: cannot write images in parallel." << std::endl;
+	MPI::Abort(EXIT_FAILURE);
+	#endif
+
+	plt::backend("Agg");
+
+	int L = nx - nm;
+	int dL = std::max(1, nx / 1024);
+	int w = std::min(L, 1024);
+	int h = ny - nm;
+
+	std::vector<float> d(w);
+	std::vector<float> f(w);
+	std::vector<float> fchem(w);
+	std::vector<float> fgrad(w);
+
+	std::vector<float> c_Cr_bar(w);
+	std::vector<float> c_Nb_bar(w);
+
+	std::vector<float> c_Cr_gam(w);
+	std::vector<float> c_Nb_gam(w);
+
+	std::vector<float> p_del_bar(w);
+	std::vector<float> p_lav_bar(w);
+
+    fp_t dmin=0.0, dmax=1.0;
+
+	const int j = h/2;
+	for (int k = 0; k < w && k*dL < L; ++k) {
+		const int i = k * dL;
+		d.at(k) = 1e6 * deltax * i;
+		if (chem_nrg != NULL) {
+			fchem.at(k) = chem_nrg[j+nm/2][i+nm/2];
+			fgrad.at(k) = grad_nrg[j+nm/2][i+nm/2];
+			f.at(k) = chem_nrg[j+nm/2][i+nm/2] + grad_nrg[j+nm/2][i+nm/2];
+		} else {
+			fchem.at(k) = 0;
+			fgrad.at(k) = 0;
+			f.at(k) = 0;
+		}
+
+		c_Cr_bar.at(k) = conc_Cr[j+nm/2][i+nm/2];
+		c_Nb_bar.at(k) = conc_Nb[j+nm/2][i+nm/2];
+        dmin = std::min(dmin, fp_t(std::min(c_Cr_bar.at(k), c_Nb_bar.at(k))));
+        dmax = std::max(dmax, fp_t(std::max(c_Cr_bar.at(k), c_Nb_bar.at(k))));
+
+		c_Cr_gam.at(k) = gam_Cr[j+nm/2][i+nm/2];
+		c_Nb_gam.at(k) = gam_Nb[j+nm/2][i+nm/2];
+        dmin = std::min(dmin, fp_t(std::min(c_Cr_gam.at(k), c_Nb_gam.at(k))));
+        dmax = std::max(dmax, fp_t(std::max(c_Cr_gam.at(k), c_Nb_gam.at(k))));
+
+		p_del_bar.at(k) = phi_del[j+nm/2][i+nm/2];
+		p_lav_bar.at(k) = phi_lav[j+nm/2][i+nm/2];
+        dmin = std::min(dmin, fp_t(std::min(p_del_bar.at(k), p_lav_bar.at(k))));
+        dmax = std::max(dmax, fp_t(std::max(p_del_bar.at(k), p_lav_bar.at(k))));
+	}
+
+	const long nrows = 2;
+	const long ncols = 1;
+
+	figure(3000, 2400, 200);
+
+	char timearr[FILENAME_MAX] = {0};
+	sprintf(timearr, "$t=%.3f\\ \\mathrm{s}$\n", dt * step);
+	plt::suptitle(std::string(timearr));
+
+	plt::subplot2grid(nrows, ncols, 0, 0, 1, 1);
+	plt::xlim(0., 1e6 * deltax * nx);
+	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
+	plt::ylabel("$\\mathcal{F}(Y=0)\\ /\\ [\\mathrm{J/m^3}]$");
+
+	std::map<std::string, std::string> str_kw;
+	str_kw["label"] = "$f$";
+	plt::plot(d, f, str_kw);
+	str_kw["label"] = "$f_{\\mathrm{chem}}$";
+	plt::plot(d, fchem, str_kw);
+	str_kw["label"] = "$f_{\\mathrm{grad}}$";
+	plt::plot(d, fgrad, str_kw);
+	str_kw.clear();
+
+	plt::legend();
+
+	plt::subplot2grid(nrows, ncols, nrows-1, 0, 1, 1);
+	plt::xlim(0., 1e6 * deltax * nx);
+	plt::ylim(dmin, dmax);
+	plt::xlabel("$X\\ /\\ [\\mathrm{\\mu m}]$");
+	plt::ylabel("$x, \\phi\\ (Y=0)$");
+
+	str_kw["label"] = "$x_{\\mathrm{Nb}}$";
+	plt::plot(d, c_Nb_bar, str_kw);
+	str_kw.clear();
+	str_kw["linestyle"] = ":";
+	str_kw["label"] = "$x^{\\gamma}_{\\mathrm{Nb}}$";
+	plt::plot(d, c_Nb_gam, str_kw);
+	str_kw.clear();
+
+	str_kw["label"] = "$x_{\\mathrm{Cr}}$";
+	plt::plot(d, c_Cr_bar, str_kw);
+	str_kw.clear();
+	str_kw["linestyle"] = ":";
+	str_kw["label"] = "$x^{\\gamma}_{\\mathrm{Cr}}$";
+	plt::plot(d, c_Cr_gam, str_kw);
+	str_kw.clear();
+
+	str_kw["label"] = "$\\phi^{\\mathrm{\\delta}}$";
+	plt::plot(d, p_del_bar, str_kw);
+
 	str_kw["label"] = "$\\phi^{\\mathrm{\\lambda}}$";
 	plt::plot(d, p_lav_bar, str_kw);
 

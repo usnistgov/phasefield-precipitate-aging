@@ -84,8 +84,12 @@ void molfrac(const fp_t& wCr, const fp_t& wNb, fp_t& xCr, fp_t& xNb)
 
 	xCr = nCr / N;
 	xNb = nNb / N;
-
 }
+
+/**
+   \brief Initialize diffusivity and phase mobility arrays
+*/
+void set_diffusion_matrix(const fp_t xCr0, const fp_t xNb0, fp_t* DCr, fp_t* DNb, fp_t* Lmob, int verbose);
 
 /**
  \brief Initialize domain with flat composition field
@@ -96,6 +100,21 @@ void init_flat_composition(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t&
  \brief Initialize domain with Gaussian peaks in compositions
 */
 void init_gaussian_enrichment(GRID2D& grid, std::mt19937& mtrand, fp_t& xCr0, fp_t& xNb0);
+
+/**
+   \brief Initialize domain at equilibrium with a broad interface
+*/
+void init_tanh(GRID2D& grid, fp_t& xCr0, fp_t& xNb0, int index);
+/**
+   \brief Initialize domain with 50-50 delta and gamma at equilibrium with a broad interface
+*/
+void init_tanh_delta(GRID2D& grid, fp_t& xCr0, fp_t& xNb0);
+
+/**
+   \brief Initialize domain with 50-50 laves and gamma at equilibrium with a broad interface
+*/
+void init_tanh_laves(GRID2D& grid, fp_t& xCr0, fp_t& xNb0);
+
 
 /**
  \brief Embed particle at specified position
@@ -132,9 +151,19 @@ void seed_solitaire_laves(GRID2D& grid,
                           const fp_t dt);
 
 /**
- \brief Insert a slab of delta phase at the left border
+   \brief Insert a slab of secondary phase at the left boundary
 */
-void embed_planar_delta(GRID2D& grid, const int w_precip);
+void seed_planar(GRID2D& grid, const fp_t& w_precip, const int index);
+
+/**
+ \brief Insert a slab of delta phase at the left boundary
+*/
+void seed_planar_delta(GRID2D& grid, const fp_t& w_precip);
+
+/**
+   \brief Insert a slab of laves phase at the left boundary
+*/
+void seed_planar_laves(GRID2D& grid, const fp_t& w_precip);
 
 /**
  \brief Insert one particle of each secondary phase
@@ -183,7 +212,7 @@ MMSP::vector<double> summarize_fields(MMSP::grid<dim, MMSP::vector<T> > const& G
  Integrate free energy over the whole grid to make sure it decreases with time
 */
 template<int dim, typename T>
-double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID);
+double summarize_energy(MMSP::grid<dim, MMSP::vector<T> > const& GRID, fp_t** chem_nrg, fp_t** grad_nrg);
 
 /**
    \brief Compute interface width

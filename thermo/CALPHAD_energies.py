@@ -54,28 +54,43 @@
 #      * Constraints: $0\leq x_\mathrm{Ni}\leq\frac{2}{3}$
 #                     $0\leq x_\mathrm{Nb}\leq\frac{1}{3}$
 
-# Numerical libraries
+# Numerical and CAS libraries
 import numpy as np
-
-# Thermodynamics and computer-algebra libraries
-from pycalphad import Database, calculate, Model
-from sympy import Eq, Matrix, diff, expand, init_printing, factor, fraction, pprint, symbols
-from sympy.abc import x, r, y, z, L
+from sympy import Eq, Matrix, S
+from sympy import diff, expand, factor, fraction, symbols
+from sympy.abc import L, r, x, y, z
 from sympy.core.numbers import pi
 from sympy.functions.elementary.exponential import exp, log
 from sympy.functions.elementary.trigonometric import tanh
-from sympy.parsing.sympy_parser import parse_expr
 from sympy.solvers import solve, solve_linear_system
+
+# I/O libraries
+from sympy.parsing.sympy_parser import parse_expr
+from sympy import init_printing, pprint
 from sympy.utilities.codegen import codegen
 init_printing()
 
-# Thermodynamic information
+# Thermodynamics libraries
+from pycalphad import Database, calculate, Model
 from pycalphad import Database, Model
+
+# Global variables and shared functions
 from constants import *
 
+# Declare phase-field functions for consistent reuse
 interpolator = x ** 3 * (6.0 * x ** 2 - 15.0 * x + 10.0)
 dinterpdx = 30.0 * x ** 2 * (1.0 - x) ** 2
 interfaceProfile = (1 - tanh(z)) / 2
+
+# Declare sublattice variables used in Pycalphad expressions
+XCR, XNB = symbols("XCR XNB")
+XNI = 1 - XCR - XNB
+
+xCr0 = 0.30
+xNb0 = 0.02
+
+XEQ = {XCR: xe_gam_Cr, XNB: xe_gam_Nb}
+X0 = {XCR: xCr0, XNB: xNb0}
 
 # Read CALPHAD database from disk, specify phases and elements of interest
 tdb = Database("Du_Cr-Nb-Ni_simple.tdb")
@@ -93,48 +108,12 @@ species = list(set([i for c in tdb.phases["C14_LAVES"].constituents for i in c])
 model = Model(tdb, species, "C14_LAVES")
 g_laves = parse_expr(str(model.ast))
 
-
-# Declare sublattice variables used in Pycalphad expressions
-XCR, XNB = symbols("XCR XNB")
-
-# Define lever rule equations
-# Ref: TKR4p161, 172; TKR5p266, 272, 293
-xo, yo = symbols("xo yo")
-xb, yb = symbols("xb yb")
-xc, yc = symbols("xc yc")
-xd, yd = symbols("xd yd")
-
-levers = solve_linear_system(
-    Matrix(
-        ((yo - yb, xb - xo, xb * yo - xo * yb), (yc - yd, xd - xc, xd * yc - xc * yd))
-    ),
-    x,
-    y,
-)
-
-def draw_bisector(weightA, weightB):
-    bNb = (weightA * xe_del_Nb + weightB * xe_lav_Nb) / (weightA + weightB)
-    bCr = (weightA * xe_del_Cr + weightB * xe_lav_Cr) / (weightA + weightB)
-    xPrime = [simX(xe_gam_Nb, xe_gam_Cr), simX(bNb, bCr)]
-    yPrime = [simY(xe_gam_Cr), simY(bCr)]
-    return xPrime, yPrime
-
-
-# triangle bounding three-phase coexistence
-X0 = [
-    simX(xe_gam_Nb, xe_gam_Cr),
-    simX(xe_del_Nb, xe_del_Cr),
-    simX(xe_lav_Nb, xe_lav_Cr),
-    simX(xe_gam_Nb, xe_gam_Cr),
-]
-Y0 = [simY(xe_gam_Cr), simY(xe_del_Cr), simY(xe_lav_Cr), simY(xe_gam_Cr)]
-
 # Make sublattice -> system substitutions
 g_gamma = inVm * g_gamma.subs(
     {
         symbols("FCC_A10CR"): XCR,
         symbols("FCC_A10NB"): XNB,
-        symbols("FCC_A10NI"): 1 - XCR - XNB,
+        symbols("FCC_A10NI"): XNI,
         symbols("FCC_A11VA"): 1,
         symbols("T"): temp,
     }
@@ -152,28 +131,71 @@ g_delta = inVm * g_delta.subs(
 
 g_laves = inVm * g_laves.subs(
     {
-        symbols("C14_LAVES0CR"): 1 - fr3by2 * (1 - XCR - XNB),
-        symbols("C14_LAVES0NI"): fr3by2 * (1 - XCR - XNB),
+        symbols("C14_LAVES0CR"): 1 - fr3by2 * XNI,
+        symbols("C14_LAVES0NI"): fr3by2 * XNI,
         symbols("C14_LAVES1CR"): 1 - 3 * XNB,
         symbols("C14_LAVES1NB"): 3 * XNB,
         symbols("T"): temp,
     }
 )
 
+# Extract thermodynamic properties from CALPHAD landscape
+
+g_dGgam_dxCr = diff(g_gamma, XCR)
+g_dGgam_dxNb = diff(g_gamma, XNB)
+
+mu_Cr = Vm * (g_gamma      - XNB  * g_dGgam_dxNb + (1 - XCR) * g_dGgam_dxCr)
+mu_Nb = Vm * (g_gamma + (1 - XNB) * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr)
+mu_Ni = Vm * (g_gamma      - XNB  * g_dGgam_dxNb      - XCR  * g_dGgam_dxCr)
+
+g_dGdel_dxCr = diff(g_delta, XCR)
+g_dGdel_dxNb = diff(g_delta, XNB)
+
+g_dGlav_dxCr = diff(g_laves, XCR)
+g_dGlav_dxNb = diff(g_laves, XNB)
+
+# Curvatures of the CALPHAD Free Energy Surfaces
+
+g_d2Ggam_dxCrCr = diff(g_gamma, XCR, XCR)
+g_d2Ggam_dxCrNb = diff(g_gamma, XCR, XNB)
+g_d2Ggam_dxNbCr = diff(g_gamma, XNB, XCR)
+g_d2Ggam_dxNbNb = diff(g_gamma, XNB, XNB)
+
+g_d2Gdel_dxCrCr = diff(g_delta, XCR, XCR)
+g_d2Gdel_dxCrNb = diff(g_delta, XCR, XNB)
+g_d2Gdel_dxNbCr = diff(g_delta, XNB, XCR)
+g_d2Gdel_dxNbNb = diff(g_delta, XNB, XNB)
+
+g_d2Glav_dxCrCr = diff(g_laves, XCR, XCR)
+g_d2Glav_dxCrNb = diff(g_laves, XCR, XNB)
+g_d2Glav_dxNbCr = diff(g_laves, XNB, XCR)
+g_d2Glav_dxNbNb = diff(g_laves, XNB, XNB)
+
+# Derivatives of μ from SymPy
+## N.B.: Since Ni is dependent, duX_dxNi ≡ 0
+duCr_dxCr = diff(mu_Cr, XCR)
+duCr_dxNb = diff(mu_Cr, XNB)
+
+duNb_dxCr = diff(mu_Nb, XCR)
+duNb_dxNb = diff(mu_Nb, XNB)
+
+duNi_dxCr = diff(mu_Ni, XCR)
+duNi_dxNb = diff(mu_Ni, XNB)
+
 # Generate paraboloid expressions (2nd-order Taylor series approximations)
 
 # Curvatures
-PC_gam_CrCr = diff(g_gamma, XCR, XCR).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_CrNb = diff(g_gamma, XCR, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
-PC_gam_NbNb = diff(g_gamma, XNB, XNB).subs({XCR: xe_gam_Cr, XNB: xe_gam_Nb})
+PC_gam_CrCr = g_d2Ggam_dxCrCr.subs(XEQ)
+PC_gam_CrNb = g_d2Ggam_dxCrNb.subs(XEQ)
+PC_gam_NbNb = g_d2Ggam_dxNbNb.subs(XEQ)
 
-PC_del_CrCr = diff(g_delta, XCR, XCR).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
-PC_del_CrNb = diff(g_delta, XCR, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
-PC_del_NbNb = diff(g_delta, XNB, XNB).subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PC_del_CrCr = g_d2Gdel_dxCrCr.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PC_del_CrNb = g_d2Gdel_dxCrNb.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
+PC_del_NbNb = g_d2Gdel_dxNbNb.subs({XCR: xe_del_Cr, XNB: xe_del_Nb})
 
-PC_lav_CrCr = diff(g_laves, XCR, XCR).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
-PC_lav_CrNb = diff(g_laves, XCR, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
-PC_lav_NbNb = diff(g_laves, XNB, XNB).subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
+PC_lav_CrCr = g_d2Glav_dxCrCr.subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
+PC_lav_CrNb = g_d2Glav_dxCrNb.subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
+PC_lav_NbNb = g_d2Glav_dxNbNb.subs({XCR: xe_lav_Cr, XNB: xe_lav_Nb})
 
 # Expressions
 p_gamma = (
@@ -220,14 +242,118 @@ p_d2Glav_dxCrNb = diff(p_laves, XCR, XNB)
 p_d2Glav_dxNbCr = diff(p_laves, XNB, XCR)
 p_d2Glav_dxNbNb = diff(p_laves, XNB, XNB)
 
+# Chemical potentials of paraboloid landscape
+p_mu_Cr = Vm * (p_gamma      - XNB  * p_dGgam_dxNb + (1 - XCR) * p_dGgam_dxCr)
+p_mu_Nb = Vm * (p_gamma + (1 - XNB) * p_dGgam_dxNb      - XCR  * p_dGgam_dxCr)
+p_mu_Ni = Vm * (p_gamma      - XNB  * p_dGgam_dxNb      - XCR  * p_dGgam_dxCr)
+
+# Derivatives of μ from SymPy
+## N.B.: Since Ni is dependent, duX_dxNi ≡ 0
+p_duCr_dxCr = diff(p_mu_Cr, XCR)
+p_duCr_dxNb = diff(p_mu_Cr, XNB)
+
+p_duNb_dxCr = diff(p_mu_Nb, XCR)
+p_duNb_dxNb = diff(p_mu_Nb, XNB)
+
+p_duNi_dxCr = diff(p_mu_Ni, XCR)
+p_duNi_dxNb = diff(p_mu_Ni, XNB)
+
+# === Diffusivity ===
+
+# *** Activation Energies in FCC Ni [J/mol] ***
+# Motion of species (1) in pure (2), transcribed from `Ni-Nb-Cr_fcc_mob.tdb`
+## Ref: TKR5p286, TKR5p316
+
+Q_Cr_Cr   = -235000 - 82.0 * temp
+Q_Cr_Nb   = -287000 - 64.4 * temp
+Q_Cr_Ni   = -287000 - 64.4 * temp
+Q_Cr_CrNi = -68000
+
+Q_Nb_Cr   = -260955 + RT * log(1.1300e-4)
+Q_Nb_Nb   = -102570 + RT * log(1.2200e-5)
+Q_Nb_Ni   = -260955 + RT * log(1.1300e-4)
+Q_Nb_NbNi = -332498
+
+Q_Ni_Cr   = -235000 - 82.0 * temp
+Q_Ni_Nb   = -287060 + RT * log(1.0e-4)
+Q_Ni_Ni   = -287000 - 69.8 * temp
+Q_Ni_CrNi = -81000
+Q_Ni_NbNi = -4207044
+
+Q_Cr = XCR * Q_Cr_Cr + XNB * Q_Cr_Nb + XNI * Q_Cr_Ni + XCR * XNI * Q_Cr_CrNi
+Q_Nb = XCR * Q_Nb_Cr + XNB * Q_Nb_Nb + XNI * Q_Nb_Ni + XNB * XNI * Q_Nb_NbNi
+Q_Ni = XCR * Q_Ni_Cr + XNB * Q_Ni_Nb + XNI * Q_Ni_Ni + XCR * XNI * Q_Ni_CrNi + XNB * XNI * Q_Ni_NbNi
+
+# *** Atomic Mobilities in FCC Ni [m²mol/Js due to unit prefactor (m²/s)] ***
+## Ref: TKR5p286, TKR5p316
+
+M_Cr = exp(Q_Cr / RT) / RT
+M_Nb = exp(Q_Nb / RT) / RT
+M_Ni = exp(Q_Ni / RT) / RT
+
+# For DICTRA comparisons ("L0kj") -- Lattice Frame
+
+L0_Cr = XCR * M_Cr
+L0_Nb = XNB * M_Nb
+L0_Ni = XNI * M_Ni
+
+L1_CrCr = (1 - XCR) * L0_Cr
+L1_CrNb =    - XCR  * L0_Nb
+L1_CrNi =    - XCR  * L0_Ni
+
+L1_NbCr =    - XNB  * L0_Cr
+L1_NbNb = (1 - XNB) * L0_Nb
+L1_NbNi =    - XNB  * L0_Ni
+
+L1_NiCr =    - XNI  * L0_Cr
+L1_NiNb =    - XNI  * L0_Nb
+L1_NiNi = (1 - XNI) * L0_Ni
+
+## Ref: TKR5p340
+
+# D from CALPHAD landscape
+D_CrCr = L1_CrCr * duCr_dxCr + L1_CrNb * duNb_dxCr + L1_CrNi * duNi_dxCr
+D_CrNb = L1_CrCr * duCr_dxNb + L1_CrNb * duNb_dxNb + L1_CrNi * duNi_dxNb
+
+D_NbCr = L1_NbCr * duCr_dxCr + L1_NbNb * duNb_dxCr + L1_NbNi * duNi_dxCr
+D_NbNb = L1_NbCr * duCr_dxNb + L1_NbNb * duNb_dxNb + L1_NbNi * duNi_dxNb
+
+DCC = D_CrCr.subs(X0)
+DCN = D_CrNb.subs(X0)
+
+DNC = D_NbCr.subs(X0)
+DNN = D_NbNb.subs(X0)
+
+# D from paraboloid landscape
+p_D_CrCr = L1_CrCr * p_duCr_dxCr + L1_CrNb * p_duNb_dxCr + L1_CrNi * p_duNi_dxCr
+p_D_CrNb = L1_CrCr * p_duCr_dxNb + L1_CrNb * p_duNb_dxNb + L1_CrNi * p_duNi_dxNb
+
+p_D_NbCr = L1_NbCr * p_duCr_dxCr + L1_NbNb * p_duNb_dxCr + L1_NbNi * p_duNi_dxCr
+p_D_NbNb = L1_NbCr * p_duCr_dxNb + L1_NbNb * p_duNb_dxNb + L1_NbNi * p_duNi_dxNb
+
+pDCC = p_D_CrCr.subs(X0)
+pDCN = p_D_CrNb.subs(X0)
+
+pDNC = p_D_NbCr.subs(X0)
+pDNN = p_D_NbNb.subs(X0)
+
+print("Reduced Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
+print("⎡{0:13.3g} {1:13.3g}⎤ m²/s".format(DCC, DCN))
+print("⎢                           ⎥")
+print("⎣{0:13.3g} {1:13.3g}⎦".format(DNC, DNN))
+print("")
+print("Paraboloid Diffusivity at ({0}, {1}):\n".format(xCr0, xNb0))
+print("⎡{0:13.3g} {1:13.3g}⎤ m²/s".format(pDCC, pDCN))
+print("⎢                           ⎥")
+print("⎣{0:13.3g} {1:13.3g}⎦".format(pDNC, pDNN))
+print("")
+
 # ========= FICTITIOUS COMPOSITIONS ==========
 # Derivation: TKR4p181
 gamCr, gamNb = symbols("gamCr, gamNb")
 delCr, delNb = symbols("delCr, delNb")
 lavCr, lavNb = symbols("lavCr, lavNb")
 pGam, pDel, pLav = symbols("pGam, pDel, pLav")
-INV_DET = symbols("INV_DET")
-gcd = 1.0e-60
 
 ficGdCr = p_dGgam_dxCr.subs({XCR: gamCr, XNB: gamNb})
 ficGdNb = p_dGgam_dxNb.subs({XCR: gamCr, XNB: gamNb})
@@ -251,26 +377,15 @@ fictitious = solve(ficEqns, ficVars, dict=True)
 
 # Note: denominator is the determinant, identical by
 # definition. So, we separate it to save some FLOPs.
-fict_gam_Cr, determinant = fraction(fictitious[0][gamCr])
-fict_gam_Nb, determinant = fraction(fictitious[0][gamNb])
-fict_del_Cr, determinant = fraction(fictitious[0][delCr])
-fict_del_Nb, determinant = fraction(fictitious[0][delNb])
-fict_lav_Cr, determinant = fraction(fictitious[0][lavCr])
-fict_lav_Nb, determinant = fraction(fictitious[0][lavNb])
-
-inv_fict_det = 1.0 / (factor(expand(gcd * determinant)))
-
-fict_gam_Cr = factor(expand(gcd * fict_gam_Cr)) * INV_DET
-fict_gam_Nb = factor(expand(gcd * fict_gam_Nb)) * INV_DET
-
-fict_del_Cr = factor(expand(gcd * fict_del_Cr)) * INV_DET
-fict_del_Nb = factor(expand(gcd * fict_del_Nb)) * INV_DET
-
-fict_lav_Cr = factor(expand(gcd * fict_lav_Cr)) * INV_DET
-fict_lav_Nb = factor(expand(gcd * fict_lav_Nb)) * INV_DET
+fict_gam_Cr = factor(expand(fictitious[0][gamCr]))
+fict_gam_Nb = factor(expand(fictitious[0][gamNb]))
+fict_del_Cr = factor(expand(fictitious[0][delCr]))
+fict_del_Nb = factor(expand(fictitious[0][delNb]))
+fict_lav_Cr = factor(expand(fictitious[0][lavCr]))
+fict_lav_Nb = factor(expand(fictitious[0][lavNb]))
 
 # ============ COMPOSITION SHIFTS ============
-# Ref: TKR5p219
+## Ref: TKR5p219
 
 r_del, r_lav = symbols("r_del, r_lav")
 
@@ -325,39 +440,29 @@ dx_r_del_Nb = xr[3]
 dx_r_lav_Cr = xr[4]
 dx_r_lav_Nb = xr[5]
 
-# === Atomic Mobilities in FCC Ni ===
-# Mobility of (1) in pure (2), from `NIST-nifcc-mob.TDB`
-## TKR5p286
+# Define lever rule equations
+## Ref: TKR4p161, 172; TKR5p266, 272, 293
+xo, yo = symbols("xo yo")
+xb, yb = symbols("xb yb")
+xc, yc = symbols("xc yc")
+xd, yd = symbols("xd yd")
 
-M_Cr_Cr   = exp((-235000 - 82.0 * temp) / RT) / RT
-M_Cr_Nb   = exp((-287000 - 64.4 * temp) / RT) / RT
-M_Cr_Ni   = exp((-287000 - 64.4 * temp) / RT) / RT
-M_Cr_CrNi = exp((-68000)                / RT) / RT
+levers = solve_linear_system(
+    Matrix(
+        ((yo - yb, xb - xo, xb * yo - xo * yb), (yc - yd, xd - xc, xd * yc - xc * yd))
+    ),
+    x,
+    y,
+)
 
-M_Nb_Cr   = exp((-255333 + RT * log(7.6071E-5)) / RT) / RT
-M_Nb_Nb   = exp((-274328 + RT * log(8.6440E-5)) / RT) / RT
-M_Nb_Ni   = exp((-255333 + RT * log(7.6071e-5)) / RT) / RT
+def draw_bisector(weightA, weightB):
+    bNb = (weightA * xe_del_Nb + weightB * xe_lav_Nb) / (weightA + weightB)
+    bCr = (weightA * xe_del_Cr + weightB * xe_lav_Cr) / (weightA + weightB)
+    xPrime = [simX(xe_gam_Nb, xe_gam_Cr), simX(bNb, bCr)]
+    yPrime = [simY(xe_gam_Cr), simY(bCr)]
+    return xPrime, yPrime
 
-M_Ni_Cr   = exp((-235000 - 82.0 * temp)      / RT) / RT
-M_Ni_Nb   = exp((-287000 + RT * log(1.0E-4)) / RT) / RT
-M_Ni_Ni   = exp((-287000 - 69.8 * temp)      / RT) / RT
-M_Ni_CrNi = exp((-81000)                     / RT) / RT
-
-M_Cr = XCR * M_Cr_Cr + XNB * M_Cr_Nb + (1 - XCR - XNB) * M_Cr_Ni + XCR * (1 - XCR - XNB) * M_Cr_CrNi
-M_Nb = XCR * M_Nb_Cr + XNB * M_Nb_Nb + (1 - XCR - XNB) * M_Nb_Ni
-M_Ni = XCR * M_Ni_Cr + XNB * M_Ni_Nb + (1 - XCR - XNB) * M_Ni_Ni + XCR * (1 - XCR - XNB) * M_Ni_CrNi
-
-# === Chemical Mobilities in FCC Ni ===
-## TKR5p292 and 311-312
-
-phi_del, phi_lav = symbols("phi_del, phi_lav")
-
-M_CrCr = Vm**3 * ( M_Cr * (1 - XCR)**2    + M_Nb * XCR**2          + M_Ni * XCR**2)
-M_CrNb = Vm**3 * (-M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB)
-M_NbCr = Vm**3 * (-M_Cr * (1 - XCR) * XNB - M_Nb * XCR * (1 - XNB) + M_Ni * XCR * XNB)
-M_NbNb = Vm**3 * ( M_Cr * XNB**2          + M_Nb * (1 - XNB)**2    + M_Ni * XNB**2)
-
-# Generate numerically efficient C-code
+# === Export C source code ===
 
 codegen(
     [  # Interpolator
@@ -393,7 +498,6 @@ codegen(
         ("xr_lav_Cr", xe_lav_Cr + dx_r_lav_Cr),
         ("xr_lav_Nb", xe_lav_Nb + dx_r_lav_Nb),
         # Fictitious compositions
-        ("inv_fict_det", inv_fict_det),
         ("fict_gam_Cr", fict_gam_Cr),
         ("fict_gam_Nb", fict_gam_Nb),
         ("fict_del_Cr", fict_del_Cr),
@@ -404,13 +508,20 @@ codegen(
         ("s_delta", s_delta),
         ("s_laves", s_laves),
         # Gibbs energies
-        ("CALPHAD_gam", g_gamma),
-        ("CALPHAD_del", g_delta),
-        ("CALPHAD_lav", g_laves),
+        ("GCAL_gam", g_gamma),
+        ("GCAL_del", g_delta),
+        ("GCAL_lav", g_laves),
         ("g_gam", p_gamma),
         ("g_del", p_delta),
         ("g_lav", p_laves),
         # First derivatives
+        ("dGCAL_gam_dxCr", g_dGgam_dxCr),
+        ("dGCAL_gam_dxNb", g_dGgam_dxNb),
+        ("dGCAL_del_dxCr", g_dGdel_dxCr),
+        ("dGCAL_del_dxNb", g_dGdel_dxNb),
+        ("dGCAL_lav_dxCr", g_dGlav_dxCr),
+        ("dGCAL_lav_dxNb", g_dGlav_dxNb),
+        #
         ("dg_gam_dxCr", p_dGgam_dxCr),
         ("dg_gam_dxNb", p_dGgam_dxNb),
         ("dg_del_dxCr", p_dGdel_dxCr),
@@ -418,6 +529,19 @@ codegen(
         ("dg_lav_dxCr", p_dGlav_dxCr),
         ("dg_lav_dxNb", p_dGlav_dxNb),
         # Second derivatives
+        ("d2GCAL_gam_dxCrCr", g_d2Ggam_dxCrCr),
+        ("d2GCAL_gam_dxCrNb", g_d2Ggam_dxCrNb),
+        ("d2GCAL_gam_dxNbCr", g_d2Ggam_dxNbCr),
+        ("d2GCAL_gam_dxNbNb", g_d2Ggam_dxNbNb),
+        ("d2GCAL_del_dxCrCr", g_d2Gdel_dxCrCr),
+        ("d2GCAL_del_dxCrNb", g_d2Gdel_dxCrNb),
+        ("d2GCAL_del_dxNbCr", g_d2Gdel_dxNbCr),
+        ("d2GCAL_del_dxNbNb", g_d2Gdel_dxNbNb),
+        ("d2GCAL_lav_dxCrCr", g_d2Glav_dxCrCr),
+        ("d2GCAL_lav_dxCrNb", g_d2Glav_dxCrNb),
+        ("d2GCAL_lav_dxNbCr", g_d2Glav_dxNbCr),
+        ("d2GCAL_lav_dxNbNb", g_d2Glav_dxNbNb),
+        #
         ("d2g_gam_dxCrCr", p_d2Ggam_dxCrCr),
         ("d2g_gam_dxCrNb", p_d2Ggam_dxCrNb),
         ("d2g_gam_dxNbCr", p_d2Ggam_dxNbCr),
@@ -430,9 +554,13 @@ codegen(
         ("d2g_lav_dxCrNb", p_d2Glav_dxCrNb),
         ("d2g_lav_dxNbCr", p_d2Glav_dxNbCr),
         ("d2g_lav_dxNbNb", p_d2Glav_dxNbNb),
-        # Mobilities
-        ("M_CrCr", M_CrCr), ("M_CrNb", M_CrNb),
-        ("M_NbCr", M_NbCr), ("M_NbNb", M_NbNb)
+        # Chemical Potentials
+        ("mu_Cr", mu_Cr),
+        ("mu_Nb", mu_Nb),
+        ("mu_Ni", mu_Ni),
+        # Diffusivities
+        ("D_CrCr", p_D_CrCr), ("D_CrNb", p_D_CrNb),
+        ("D_NbCr", p_D_NbCr), ("D_NbNb", p_D_NbNb)
     ],
     language="C",
     prefix="parabola625",

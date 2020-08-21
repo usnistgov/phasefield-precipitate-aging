@@ -1,5 +1,5 @@
 /******************************************************************************
- *                       Code generated with sympy 1.4                        *
+ *                      Code generated with sympy 1.5.1                       *
  *                                                                            *
  *              See http://www.sympy.org/ for more information.               *
  *                                                                            *
@@ -36,27 +36,44 @@ __device__ double d_xr_del_Cr(double r_del, double r_lav);
 __device__ double d_xr_del_Nb(double r_del, double r_lav);
 __device__ double d_xr_lav_Cr(double r_del, double r_lav);
 __device__ double d_xr_lav_Nb(double r_del, double r_lav);
-__device__ double d_inv_fict_det(double pDel, double pGam, double pLav);
-__device__ double d_fict_gam_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-__device__ double d_fict_gam_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-__device__ double d_fict_del_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-__device__ double d_fict_del_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-__device__ double d_fict_lav_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-__device__ double d_fict_lav_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
+__device__ double d_fict_gam_Cr(double XCR, double XNB, double pDel, double pGam, double pLav);
+__device__ double d_fict_gam_Nb(double XCR, double XNB, double pDel, double pGam, double pLav);
+__device__ double d_fict_del_Cr(double XCR, double XNB, double pDel, double pGam, double pLav);
+__device__ double d_fict_del_Nb(double XCR, double XNB, double pDel, double pGam, double pLav);
+__device__ double d_fict_lav_Cr(double XCR, double XNB, double pDel, double pGam, double pLav);
+__device__ double d_fict_lav_Nb(double XCR, double XNB, double pDel, double pGam, double pLav);
 __device__ double d_s_delta();
 __device__ double d_s_laves();
-__device__ double d_CALPHAD_gam(double XCR, double XNB);
-__device__ double d_CALPHAD_del(double XCR, double XNB);
-__device__ double d_CALPHAD_lav(double XCR, double XNB);
+__device__ double d_GCAL_gam(double XCR, double XNB);
+__device__ double d_GCAL_del(double XCR, double XNB);
+__device__ double d_GCAL_lav(double XCR, double XNB);
 __device__ double d_g_gam(double XCR, double XNB);
 __device__ double d_g_del(double XCR, double XNB);
 __device__ double d_g_lav(double XCR, double XNB);
+__device__ double d_dGCAL_gam_dxCr(double XCR, double XNB);
+__device__ double d_dGCAL_gam_dxNb(double XCR, double XNB);
+__device__ double d_dGCAL_del_dxCr(double XCR, double XNB);
+__device__ double d_dGCAL_del_dxNb(double XCR, double XNB);
+__device__ double d_dGCAL_lav_dxCr(double XCR, double XNB);
+__device__ double d_dGCAL_lav_dxNb(double XCR, double XNB);
 __device__ double d_dg_gam_dxCr(double XCR, double XNB);
 __device__ double d_dg_gam_dxNb(double XCR, double XNB);
 __device__ double d_dg_del_dxCr(double XCR, double XNB);
 __device__ double d_dg_del_dxNb(double XCR, double XNB);
 __device__ double d_dg_lav_dxCr(double XCR, double XNB);
 __device__ double d_dg_lav_dxNb(double XCR, double XNB);
+__device__ double d_d2GCAL_gam_dxCrCr(double XCR, double XNB);
+__device__ double d_d2GCAL_gam_dxCrNb(double XCR, double XNB);
+__device__ double d_d2GCAL_gam_dxNbCr(double XCR, double XNB);
+__device__ double d_d2GCAL_gam_dxNbNb(double XCR, double XNB);
+__device__ double d_d2GCAL_del_dxCrCr(double XCR);
+__device__ double d_d2GCAL_del_dxCrNb(double XNB);
+__device__ double d_d2GCAL_del_dxNbCr(double XNB);
+__device__ double d_d2GCAL_del_dxNbNb(double XCR, double XNB);
+__device__ double d_d2GCAL_lav_dxCrCr(double XCR, double XNB);
+__device__ double d_d2GCAL_lav_dxCrNb(double XCR, double XNB);
+__device__ double d_d2GCAL_lav_dxNbCr(double XCR, double XNB);
+__device__ double d_d2GCAL_lav_dxNbNb(double XCR, double XNB);
 __device__ double d_d2g_gam_dxCrCr();
 __device__ double d_d2g_gam_dxCrNb();
 __device__ double d_d2g_gam_dxNbCr();
@@ -69,10 +86,13 @@ __device__ double d_d2g_lav_dxCrCr();
 __device__ double d_d2g_lav_dxCrNb();
 __device__ double d_d2g_lav_dxNbCr();
 __device__ double d_d2g_lav_dxNbNb();
-__device__ double d_M_CrCr(double XCR, double XNB);
-__device__ double d_M_CrNb(double XCR, double XNB);
-__device__ double d_M_NbCr(double XCR, double XNB);
-__device__ double d_M_NbNb(double XCR, double XNB);
+__device__ double d_mu_Cr(double XCR, double XNB);
+__device__ double d_mu_Nb(double XCR, double XNB);
+__device__ double d_mu_Ni(double XCR, double XNB);
+__device__ double d_D_CrCr(double XCR, double XNB);
+__device__ double d_D_CrNb(double XCR, double XNB);
+__device__ double d_D_NbCr(double XCR, double XNB);
+__device__ double d_D_NbNb(double XCR, double XNB);
 
 #endif
 

@@ -1,5 +1,5 @@
 /******************************************************************************
- *                       Code generated with sympy 1.4                        *
+ *                      Code generated with sympy 1.5.1                       *
  *                                                                            *
  *              See http://www.sympy.org/ for more information.               *
  *                                                                            *
@@ -36,27 +36,44 @@ double xr_del_Cr(double r_del, double r_lav);
 double xr_del_Nb(double r_del, double r_lav);
 double xr_lav_Cr(double r_del, double r_lav);
 double xr_lav_Nb(double r_del, double r_lav);
-double inv_fict_det(double pDel, double pGam, double pLav);
-double fict_gam_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_gam_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_del_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_del_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_lav_Cr(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
-double fict_lav_Nb(double INV_DET, double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_gam_Cr(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_gam_Nb(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_del_Cr(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_del_Nb(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_lav_Cr(double XCR, double XNB, double pDel, double pGam, double pLav);
+double fict_lav_Nb(double XCR, double XNB, double pDel, double pGam, double pLav);
 double s_delta();
 double s_laves();
-double CALPHAD_gam(double XCR, double XNB);
-double CALPHAD_del(double XCR, double XNB);
-double CALPHAD_lav(double XCR, double XNB);
+double GCAL_gam(double XCR, double XNB);
+double GCAL_del(double XCR, double XNB);
+double GCAL_lav(double XCR, double XNB);
 double g_gam(double XCR, double XNB);
 double g_del(double XCR, double XNB);
 double g_lav(double XCR, double XNB);
+double dGCAL_gam_dxCr(double XCR, double XNB);
+double dGCAL_gam_dxNb(double XCR, double XNB);
+double dGCAL_del_dxCr(double XCR, double XNB);
+double dGCAL_del_dxNb(double XCR, double XNB);
+double dGCAL_lav_dxCr(double XCR, double XNB);
+double dGCAL_lav_dxNb(double XCR, double XNB);
 double dg_gam_dxCr(double XCR, double XNB);
 double dg_gam_dxNb(double XCR, double XNB);
 double dg_del_dxCr(double XCR, double XNB);
 double dg_del_dxNb(double XCR, double XNB);
 double dg_lav_dxCr(double XCR, double XNB);
 double dg_lav_dxNb(double XCR, double XNB);
+double d2GCAL_gam_dxCrCr(double XCR, double XNB);
+double d2GCAL_gam_dxCrNb(double XCR, double XNB);
+double d2GCAL_gam_dxNbCr(double XCR, double XNB);
+double d2GCAL_gam_dxNbNb(double XCR, double XNB);
+double d2GCAL_del_dxCrCr(double XCR);
+double d2GCAL_del_dxCrNb(double XNB);
+double d2GCAL_del_dxNbCr(double XNB);
+double d2GCAL_del_dxNbNb(double XCR, double XNB);
+double d2GCAL_lav_dxCrCr(double XCR, double XNB);
+double d2GCAL_lav_dxCrNb(double XCR, double XNB);
+double d2GCAL_lav_dxNbCr(double XCR, double XNB);
+double d2GCAL_lav_dxNbNb(double XCR, double XNB);
 double d2g_gam_dxCrCr();
 double d2g_gam_dxCrNb();
 double d2g_gam_dxNbCr();
@@ -69,10 +86,13 @@ double d2g_lav_dxCrCr();
 double d2g_lav_dxCrNb();
 double d2g_lav_dxNbCr();
 double d2g_lav_dxNbNb();
-double M_CrCr(double XCR, double XNB);
-double M_CrNb(double XCR, double XNB);
-double M_NbCr(double XCR, double XNB);
-double M_NbNb(double XCR, double XNB);
+double mu_Cr(double XCR, double XNB);
+double mu_Nb(double XCR, double XNB);
+double mu_Ni(double XCR, double XNB);
+double D_CrCr(double XCR, double XNB);
+double D_CrNb(double XCR, double XNB);
+double D_NbCr(double XCR, double XNB);
+double D_NbNb(double XCR, double XNB);
 
 #endif
 

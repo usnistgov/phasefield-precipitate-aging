@@ -7,7 +7,7 @@
 #include <fstream>
 #include <random>
 #include <vector>
-#include <math.h>
+#include <cmath>
 
 #include "nucleation.h"
 #include "parabola625.h"
@@ -20,25 +20,11 @@ const size_t iters = 50000;
 
 fp_t timestep(const fp_t xCr, const fp_t xNb, const fp_t f_del, const fp_t f_gam, const fp_t f_lav)
 {
-	const fp_t D[12] = {
-		// D_gam
-		std::fabs(f_gam * ( M_CrCr(xCr, xNb) * d2g_gam_dxCrCr() + M_CrNb(xCr, xNb) * d2g_gam_dxCrNb())), // D11
-		std::fabs(f_gam * ( M_CrCr(xCr, xNb) * d2g_gam_dxNbCr() + M_CrNb(xCr, xNb) * d2g_gam_dxNbNb())), // D12
-		std::fabs(f_gam * ( M_NbCr(xCr, xNb) * d2g_gam_dxCrCr() + M_NbNb(xCr, xNb) * d2g_gam_dxCrNb())), // D21
-		std::fabs(f_gam * ( M_NbCr(xCr, xNb) * d2g_gam_dxNbCr() + M_NbNb(xCr, xNb) * d2g_gam_dxNbNb())), // D22
-		// D_del
-		std::fabs(f_del * ( M_CrCr(xCr, xNb) * d2g_del_dxCrCr() + M_CrNb(xCr, xNb) * d2g_del_dxCrNb())), // D11
-		std::fabs(f_del * ( M_CrCr(xCr, xNb) * d2g_del_dxNbCr() + M_CrNb(xCr, xNb) * d2g_del_dxNbNb())), // D12
-		std::fabs(f_del * ( M_NbCr(xCr, xNb) * d2g_del_dxCrCr() + M_NbNb(xCr, xNb) * d2g_del_dxCrNb())), // D21
-		std::fabs(f_del * ( M_NbCr(xCr, xNb) * d2g_del_dxNbCr() + M_NbNb(xCr, xNb) * d2g_del_dxNbNb())), // D22
-		// D_lav
-		std::fabs(f_lav * ( M_CrCr(xCr, xNb) * d2g_lav_dxCrCr() + M_CrNb(xCr, xNb) * d2g_lav_dxCrNb())), // D11
-		std::fabs(f_lav * ( M_CrCr(xCr, xNb) * d2g_lav_dxNbCr() + M_CrNb(xCr, xNb) * d2g_lav_dxNbNb())), // D12
-		std::fabs(f_lav * ( M_NbCr(xCr, xNb) * d2g_lav_dxCrCr() + M_NbNb(xCr, xNb) * d2g_lav_dxCrNb())), // D21
-		std::fabs(f_lav * ( M_NbCr(xCr, xNb) * d2g_lav_dxNbCr() + M_NbNb(xCr, xNb) * d2g_lav_dxNbNb()))  // D22
+	const fp_t D[4] = {
+      D_CrCr(xCr, xNb), D_CrNb(xCr, xNb), D_NbCr(xCr, xNb), D_NbNb(xCr, xNb)
 	};
 
-	const fp_t dtDiffusionLimited = (meshres * meshres) / (4.0 * *(std::max_element(D, D + 12)));
+	const fp_t dtDiffusionLimited = (meshres * meshres) / (4.0 * *(std::max_element(D, D + 4)));
 
 	return LinStab * dtDiffusionLimited;
 }
@@ -94,16 +80,16 @@ Properties describe(const std::vector<fp_t>& xCr, const std::vector<fp_t>& xNb)
 		nucleation_driving_force_delta(xCr[i], xNb[i], &(dGdel[i]));
 		nucleation_probability_sphere(xCr[i], xNb[i],
 		                              dGdel[i],
-									  pGam * (M_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + M_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb()),
-									  pGam * (M_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + M_NbNb(xCr[i], xNb[i]) * d2g_gam_dxNbNb()),
+									  D_CrCr(xCr[i], xNb[i]),
+									  D_NbCr(xCr[i], xNb[i]),
 		                              s_delta(),
 		                              vFccNi, n_gam, dV, Mean.dt,
 		                              &(Rdel[i]), &(Pdel[i]));
 		nucleation_driving_force_laves(xCr[i], xNb[i], &(dGlav[i]));
 		nucleation_probability_sphere(xCr[i], xNb[i],
 		                              dGlav[i],
-									  pGam * (M_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + M_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb()),
-									  pGam * (M_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + M_NbNb(xCr[i], xNb[i]) * d2g_gam_dxNbNb()),
+									  D_CrCr(xCr[i], xNb[i]),
+									  D_NbCr(xCr[i], xNb[i]),
 		                              s_laves(),
 		                              vFccNi, n_gam, dV, Mean.dt,
 		                              &(Rlav[i]), &(Plav[i]));
@@ -213,8 +199,8 @@ int main()
 		nucleation_driving_force_delta(Mean.xCr, Mean.xNb, &Mean.dGdel);
 		nucleation_probability_sphere(Mean.xCr, Mean.xNb,
 		                              Mean.dGdel,
-									  pGam * (M_CrCr(Mean.xCr, Mean.xNb) * d2g_gam_dxCrCr() + M_CrNb(Mean.xCr, Mean.xNb) * d2g_gam_dxCrNb()),
-									  pGam * (M_NbCr(Mean.xCr, Mean.xNb) * d2g_gam_dxNbCr() + M_NbNb(Mean.xCr, Mean.xNb) * d2g_gam_dxNbNb()),
+									  pGam * (D_CrCr(Mean.xCr, Mean.xNb) * d2g_gam_dxCrCr() + D_CrNb(Mean.xCr, Mean.xNb) * d2g_gam_dxCrNb()),
+									  pGam * (D_NbCr(Mean.xCr, Mean.xNb) * d2g_gam_dxNbCr() + D_NbNb(Mean.xCr, Mean.xNb) * d2g_gam_dxNbNb()),
 		                              s,
 		                              vFccNi, n_gam, dV, Mean.dt,
 		                              &Mean.Rdel, &Mean.Pdel);
@@ -223,8 +209,8 @@ int main()
 		nucleation_driving_force_laves(Mean.xCr, Mean.xNb, &Mean.dGlav);
 		nucleation_probability_sphere(Mean.xCr, Mean.xNb,
 		                              Mean.dGlav,
-									  pGam * (M_CrCr(Mean.xCr, Mean.xNb) * d2g_gam_dxCrCr() + M_CrNb(Mean.xCr, Mean.xNb) * d2g_gam_dxCrNb()),
-									  pGam * (M_NbCr(Mean.xCr, Mean.xNb) * d2g_gam_dxNbCr() + M_NbNb(Mean.xCr, Mean.xNb) * d2g_gam_dxNbNb()),
+									  pGam * (D_CrCr(Mean.xCr, Mean.xNb) * d2g_gam_dxCrCr() + D_CrNb(Mean.xCr, Mean.xNb) * d2g_gam_dxCrNb()),
+									  pGam * (D_NbCr(Mean.xCr, Mean.xNb) * d2g_gam_dxNbCr() + D_NbNb(Mean.xCr, Mean.xNb) * d2g_gam_dxNbNb()),
 		                              s,
 		                              vFccNi, n_gam, dV, Mean.dt,
 		                              &Mean.Rlav, &Mean.Plav);
@@ -244,8 +230,8 @@ int main()
 	    nucleation_probability_sphere(xCr, xNb,
 	                                  xe_del_Cr(), xe_del_Nb(),
 	                                  adGdelE,
-									  M_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + M_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb(),
-									  M_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + M_NbNb(xCr[i], xNb[i]) * d2g_gam_dxNbNb(),
+									  D_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + D_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb(),
+									  D_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + D_NbNb(xCr[i], xNb[i]) * d2g_gam_dxNbNb(),
 	                                  s_delta(),
 	                                  vFccNi, n_gam, dV, Mean.dt,
 	                                  &aRdelE, &aPdelE);
@@ -256,8 +242,9 @@ int main()
 	    nucleation_probability_sphere(xCr, xNb,
 	                                  xe_lav_Cr(), xe_lav_Nb(),
 	                                  adGlavE,
-									  M_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + M_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb(),
-									  M_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + M_NbNb(xCr[i], xNb[i]) * d2g_gam_dxNbNb(),
+									  D_CrCr(xCr[i], xNb[i]) * d2g_gam_dxCrCr() + D_CrNb(xCr[i], xNb[i]) * d2g_gam_dxCrNb(),
+									  D_NbCr(xCr[i], xNb[i]) * d2g_gam_dxNbCr() + D_NbNb(
+                                      xCr[i], xNb[i]) * d2g_gam_dxNbNb(),
 	                                  s_laves(),
 	                                  vFccNi, n_gam, dV, Mean.dt,
 	                                  &aRlavE, &aPlavE);

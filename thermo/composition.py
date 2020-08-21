@@ -2,74 +2,129 @@
 
 import numpy as np
 
-print("AM IN625, per ASTM F3056")
+wmin = {"C": 0,
+        "Mn": 0,
+        "Si": 0,
+        "P": 0,
+        "S": 0,
+        "Cr": 20,
+        "Co": 0,
+        "Mo": 8,
+        "Nb": 3.15,
+        "Ti": 0,
+        "Al": 0,
+        "Fe": 0,
+        "Ni": 68.85
+}
 
-atoms = ("C", "Mn", "Si", "P", "S", "Cr", "Co", "Mo", "Nb", "Ti", "Al", "Fe", "Ni")
-minWt = (0, 0, 0, 0, 0, 20.0, 0, 8.0, 3.15, 0, 0, 0, 68.85)
-maxWt = (0.1, 0.5, 0.5, 0.015, 0.015, 23.0, 1, 10.0, 4.15, 0.4, 0.4, 5.0, 54.92)
-frmWt = (
-    12.01,
-    54.94,
-    28.08,
-    30.97,
-    32.06,
-    52.0,
-    58.93,
-    95.94,
-    92.91,
-    47.87,
-    26.98,
-    55.84,
-    58.69,
-)
+wmax = {"C": 0.1,
+        "Mn": 0.5,
+        "Si": 0.5,
+        "P": 0.015,
+        "S": 0.015,
+        "Cr": 23,
+        "Co": 1,
+        "Mo": 10,
+        "Nb": 4.15,
+        "Ti": 0.4,
+        "Al": 0.4,
+        "Fe": 5.0,
+        "Ni": 54.92
+}
 
-minAt = np.divide(minWt, frmWt)
-maxAt = np.divide(maxWt, frmWt)
+gmol = {"C": 12.01,
+        "Mn": 54.94,
+        "Si": 28.08,
+        "P": 30.97,
+        "S": 32.06,
+        "Cr": 52.0,
+        "Co": 58.93,
+        "Mo": 95.94,
+        "Nb": 92.91,
+        "Ti": 47.87,
+        "Al": 26.98,
+        "Fe": 55.84,
+        "Ni": 58.69
+}
 
-minN = np.sum(minAt)
-maxN = np.sum(maxAt)
+def molfrac(weights):
+    keys = weights.keys()
+    moles = {}
+    N = 0.0
+    for key in keys:
+        # Assume 1 g of material
+        moles[key] = weights[key] / gmol[key]
+        N += moles[key]
+    for key in keys:
+        moles[key] /= N
+    return moles
 
-for i in range(len(atoms)):
-    print("{0:2s}: {1:.5f}, {2:.5f}".format(atoms[i], minAt[i] / minN, maxAt[i] / maxN))
+def weightfrac(moles):
+    keys = moles.keys()
+    weights = {}
+    W = 0.0
+    for key in keys:
+        # Assume 1 g of material
+        weights[key] = moles[key] * gmol[key]
+        W += weights[key]
+    for key in keys:
+        weights[key] /= W
+    return weights
 
-print("\nTernary (Cr+Mo)-Nb-Ni Analogue")
+def printdict(d):
+    for key in d.keys():
+        print("  {0:2s}: {1:6.4f}".format(key, d[key]))
+    print("")
 
-atoms = ("Cr", "Mo", "Nb", "Ni")
-minWt = (20.0, 8.0, 3.15, 68.85)
-maxWt = (23.0, 10.0, 4.15, 62.85)
-frmWt = (52.0, 95.94, 92.91, 58.69)
+astm = {}
+for key in wmin.keys():
+    astm[key] = 0.5 * (wmin[key] + wmax[key])
 
-minAt = np.divide(minWt, frmWt)
-maxAt = np.divide(maxWt, frmWt)
+"""
+print("Mean composition of ASTM AM IN625 (mol frac)")
+printdict(molfrac(astm))
+"""
 
-minN = np.sum(minAt)
-maxN = np.sum(maxAt)
+astmol = molfrac(astm)
 
-for i in range(len(atoms)):
-    print("{0:2s}: {1:.5f}, {2:.5f}".format(atoms[i], minAt[i] / minN, maxAt[i] / maxN))
+print("DICTRA Solid from paper (wt)")
+dctr = {"Cr": .15,
+        "Fe": .008,
+        "Mo": .14,
+        "Nb": .18,
+        "Ni": 1-.15-.008-.14-.18
+}
+printdict(dctr)
 
-print("\nDICTRA Solidification")
+print("DICTRA Solid from paper (mol)")
+printdict(molfrac(dctr))
 
-atoms = ("C", "Cr", "Fe", "Mo", "Nb", "Ni")
-wtPct = (0.13, 13.6, 0.35, 13.9, 23.5, 48.52)
-frmWt = (12.01, 52.0, 55.84, 95.94, 92.91, 58.69)
 
-molFr = np.divide(wtPct, frmWt)
+print("DICTRA Enriched from paper (wt)")
+enrc = {"Cr": .11,
+        "Fe": .003,
+        "Mo": .25,
+        "Nb": .21,
+        "Ni": 1-.11-.003-.25-.21
+}
+printdict(enrc)
 
-N = np.sum(molFr)
+print("DICTRA Enriched from paper (mol)")
+printdict(molfrac(enrc))
 
-for i in range(len(atoms)):
-    print("{0:2s}: {1:.5f}".format(atoms[i], molFr[i] / N))
 
-print("\nEnriched (Cr+Mo)-Nb-Ni Analogue")
+print("Ternary Nominal (mol)")
+nmnl = {"Cr": astmol["Cr"] + astmol["Mo"],
+        "Nb": astmol["Nb"],
+        "Ni": 1-astmol["Cr"]-astmol["Mo"]-astmol["Nb"]
+}
+printdict(nmnl)
 
-atoms = ("Cr", "Mo", "Nb", "Ni")
-wtPct = (13.6, 13.9, 23.5, 49.0)
-frmWt = (52.0, 95.94, 92.91, 58.69)
 
-molFr = np.divide(wtPct, frmWt)
+print("Ternary Enriched (mol)")
+enrc = {"Cr": .36,
+        "Nb": .21,
+        "Ni": 1-.36-.21
+}
+printdict(molfrac(enrc))
 
-N = np.sum(molFr)
-
-for i in range(len(atoms)):
-    print("{0:2s}: {1:.5f}".format(atoms[i], molFr[i] / N))
