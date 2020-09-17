@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
 			const double dt = round_dt;
 
 			// set intervals for checkpoint I/O and nucleation
-			const uint64_t io_interval = std::min(uint64_t(sim_step / dt), uint64_t(5.0 / dt));
+			const uint64_t io_interval = std::min(uint64_t(std::ceil(sim_step / dt)), uint64_t(std::ceil(50.0 / dt)));
 			#ifdef NUCLEATION
 			const uint64_t nuc_interval = (uint64_t)(0.0001 / dt);
 			#endif

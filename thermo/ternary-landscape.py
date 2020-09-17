@@ -105,9 +105,9 @@ for xNbTest in np.linspace(0, 1, density):
         x.append(simX(xNbTest, xCrTest))
         y.append(simY(xCrTest))
 
-        cGam = CALPHAD_gam(xCrTest, xNbTest)
-        cDel = 0 if xNbTest > 0.25 else CALPHAD_del(xCrTest, xNbTest)
-        cLav = 0 if xNbTest > 0.3333 else CALPHAD_lav(xCrTest, xNbTest)
+        cGam = GCAL_gam(xCrTest, xNbTest)
+        cDel = 0 if xNbTest > 0.25 else GCAL_del(xCrTest, xNbTest)
+        cLav = 0 if xNbTest > 0.3333 else GCAL_lav(xCrTest, xNbTest)
 
         minima = np.asarray([cGam, cDel, cLav])
         minidx = np.argmin(minima)
