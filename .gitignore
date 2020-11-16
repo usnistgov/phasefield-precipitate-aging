@@ -23,6 +23,7 @@
 *.so
 *.txt
 *.vti
+fipy/__pycache__
 src/*.?
 thermo/*.?
 thermo/__pycache__
