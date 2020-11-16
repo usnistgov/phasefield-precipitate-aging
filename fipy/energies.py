@@ -4,6 +4,7 @@
 import numpy as np
 import os
 from sympy import diff, expand, factor, symbols
+from sympy.abc import x
 from sympy.solvers import solve
 from sympy.utilities import lambdify
 import sys
@@ -17,6 +18,11 @@ from pycalphad import Database, Model, calculate
 # Global variables and shared functions
 sys.path.append(os.path.join(os.path.dirname(__file__), "../thermo"))
 from constants import *
+
+# Phase-field interpolator
+
+p = x**3 * (10. - 15. * x + 6. * x**2)
+p_prime = p.diff(x)
 
 # Declare sublattice variables used in Pycalphad expressions
 XCR, XNB = symbols("XCR XNB")
@@ -175,6 +181,9 @@ ficVars = (gamCr, gamNb, delCr, delNb, lavCr, lavNb)
 fictitious = solve(ficEqns, ficVars, dict=True)
 
 # Lambdify all the things!
+
+p = lambdify(x, p)
+p_prime = lambdify(x, p_prime)
 
 g_gamma = lambdify((XCR, XNB), g_gamma)
 g_delta = lambdify((XCR, XNB), g_delta)

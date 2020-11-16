@@ -32,11 +32,6 @@ Ldel = DCrCr * DNbNb / (w**2 * RT * Vm)
 def pf_tanh(x, h):
     return 0.5 * (1 - numerix.tanh((x - h) / (0.5 * w)))
 
-def p(x):
-    return x**3 *(10 - 15 * x + 6 * x**2)
-def p_prime(x):
-    return 30. * x**2 * (1 - x)**2
-
 mesh = Grid1D(dx=dx, nx=nx)
 x = mesh.cellCenters[0]
 
@@ -44,14 +39,14 @@ phiD = CellVariable(name="$\delta$", mesh=mesh, value=pf_tanh(x, Lx / 8))
 phiG = CellVariable(name="$\gamma$", mesh=mesh, value=1 - p(phiD))
 phiL = CellVariable(name="$\lambda$", mesh=mesh, value=0.)
 
-xCr = CellVariable(name=r"$\x_{\mathrm{Cr}}$", mesh=mesh, value=xe_gam_Cr * phiG + xe_del_Cr * phiD)
-xNb = CellVariable(name=r"$\x_{\mathrm{Nb}}$", mesh=mesh, value=xe_gam_Nb * phiG + xe_del_Nb * phiD)
-xNi = CellVariable(name=r"$\x_{\mathrm{Ni}}$", mesh=mesh, value=1 - xCr - xNb)
+xCr = CellVariable(name=r"$x_{\mathrm{Cr}}$", mesh=mesh, value=xe_gam_Cr * phiG + xe_del_Cr * phiD)
+xNb = CellVariable(name=r"$x_{\mathrm{Nb}}$", mesh=mesh, value=xe_gam_Nb * phiG + xe_del_Nb * phiD)
+xNi = CellVariable(name=r"$x_{\mathrm{Ni}}$", mesh=mesh, value=1 - xCr - xNb)
 
-xCrGam = CellVariable(name=r"$\x^{\gamma}_{\mathrm{Cr}}$", mesh=mesh, value=x_gam_Cr(xCr, xNb, phiD, phiG, phiL))
-xNbGam = CellVariable(name=r"$\x^{\gamma}_{\mathrm{Nb}}$", mesh=mesh, value=x_gam_Nb(xCr, xNb, phiD, phiG, phiL))
-xCrDel = CellVariable(name=r"$\x^{\delta}_{\mathrm{Cr}}$", mesh=mesh, value=x_del_Cr(xCr, xNb, phiD, phiG, phiL))
-xNbDel = CellVariable(name=r"$\x^{\delta}_{\mathrm{Nb}}$", mesh=mesh, value=x_del_Nb(xCr, xNb, phiD, phiG, phiL))
+xCrGam = CellVariable(name=r"$x^{\gamma}_{\mathrm{Cr}}$", mesh=mesh, value=x_gam_Cr(xCr, xNb, phiD, phiG, phiL))
+xNbGam = CellVariable(name=r"$x^{\gamma}_{\mathrm{Nb}}$", mesh=mesh, value=x_gam_Nb(xCr, xNb, phiD, phiG, phiL))
+xCrDel = CellVariable(name=r"$x^{\delta}_{\mathrm{Cr}}$", mesh=mesh, value=x_del_Cr(xCr, xNb, phiD, phiG, phiL))
+xNbDel = CellVariable(name=r"$x^{\delta}_{\mathrm{Nb}}$", mesh=mesh, value=x_del_Nb(xCr, xNb, phiD, phiG, phiL))
 
 # Equation numbers refer to the draft manuscript.
 
@@ -67,11 +62,14 @@ eq12d = ImplicitSourceTerm(coeff=d2g_gam_dxCrNb(), var=xCrGam) + ImplicitSourceT
       == xe_gam_Cr * d2g_gam_dxCrNb() + 0.5 * xe_gam_Nb * d2g_gam_dxNbNb() \
        - xe_del_Cr * d2g_del_dxCrNb() - 0.5 * xe_del_Nb * d2g_del_dxNbNb()
 
-pressure = g_gamma(xCrGam, xNbGam) - g_delta(xCrGam, xNbGam) - ImplicitSourceTerm(var=xCrGam, coeff=dg_gam_dxCr(xCr, xNb)) \
-                                                             + ImplicitSourceTerm(var=xCrDel, coeff=dg_del_dxCr(xCr, xNb)) \
-                                                             - ImplicitSourceTerm(var=xNbGam, coeff=dg_gam_dxNb(xCr, xNb)) \
-                                                             + ImplicitSourceTerm(var=xNbDel, coeff=dg_del_dxNb(xCr, xNb))
-eq24 = TransientTerm(coeff=1.0/Ldel, var=phiD) == p_prime(phiD) * pressure \
+pressure = p_prime(phiD) * g_gamma(xCrGam, xNbGam) \
+         - p_prime(phiD) * g_delta(xCrGam, xNbGam) \
+         - ImplicitSourceTerm(var=xCrGam, coeff=p_prime(phiD) * dg_gam_dxCr(xCr, xNb)) \
+         + ImplicitSourceTerm(var=xCrDel, coeff=p_prime(phiD) * dg_del_dxCr(xCr, xNb)) \
+         - ImplicitSourceTerm(var=xNbGam, coeff=p_prime(phiD) * dg_gam_dxNb(xCr, xNb)) \
+         + ImplicitSourceTerm(var=xNbDel, coeff=p_prime(phiD) * dg_del_dxNb(xCr, xNb))
+
+eq24 = TransientTerm(coeff=1.0/Ldel, var=phiD) == pressure \
                                                 - 2 * omega * phiD * (1 - phiD) * (1 - 2 * phiD) \
                                                 + DiffusionTerm(coeff=kappa, var=phiD)
 
@@ -92,7 +90,7 @@ t = 0
 i = 0
 
 while (t < 1):
-    eq.solve()
+    eq.solve(dt=dt)
     eq.sweep()
     t += dt
     i += 1
