@@ -21,7 +21,7 @@ from constants import *
 
 # Phase-field interpolator
 
-p = x**3 * (10. - 15. * x + 6. * x**2)
+p = x**3 * (6. * x**2 - 15. * x + 10.)
 p_prime = p.diff(x)
 
 # Declare sublattice variables used in Pycalphad expressions
@@ -60,16 +60,16 @@ g_delta = inVm * g_delta.subs(
     {
         symbols("D0A_NBNI30NB"): 4 * XNB,
         symbols("D0A_NBNI30NI"): 1 - 4 * XNB,
-        symbols("D0A_NBNI31CR"): fr4by3 * XCR,
-        symbols("D0A_NBNI31NI"): 1 - fr4by3 * XCR,
+        symbols("D0A_NBNI31CR"): XCR / 0.75,
+        symbols("D0A_NBNI31NI"): 1 - XCR / 0.75,
         symbols("T"): temp,
     }
 )
 
 g_laves = inVm * g_laves.subs(
     {
-        symbols("C14_LAVES0CR"): 1 - fr3by2 * XNI,
-        symbols("C14_LAVES0NI"): fr3by2 * XNI,
+        symbols("C14_LAVES0CR"): 1 - 1.5 * XNI,
+        symbols("C14_LAVES0NI"): 1.5 * XNI,
         symbols("C14_LAVES1CR"): 1 - 3 * XNB,
         symbols("C14_LAVES1NB"): 3 * XNB,
         symbols("T"): temp,
@@ -94,21 +94,21 @@ PC_lav_NbNb = g_laves.diff(XNB, XNB).subs(XEQ)
 # Expressions
 ### Warning: CALPHAD expressions will be lost! ###
 g_gamma = (
-    fr1by2 * PC_gam_CrCr * (XCR - xe_gam_Cr) ** 2
+    0.5 * PC_gam_CrCr * (XCR - xe_gam_Cr) ** 2
     + PC_gam_CrNb * (XCR - xe_gam_Cr) * (XNB - xe_gam_Nb)
-    + fr1by2 * PC_gam_NbNb * (XNB - xe_gam_Nb) ** 2
+    + 0.5 * PC_gam_NbNb * (XNB - xe_gam_Nb) ** 2
 )
 
 g_delta = (
-    fr1by2 * PC_del_CrCr * (XCR - xe_del_Cr) ** 2
+    0.5 * PC_del_CrCr * (XCR - xe_del_Cr) ** 2
     + PC_del_CrNb * (XCR - xe_del_Cr) * (XNB - xe_del_Nb)
-    + fr1by2 * PC_del_NbNb * (XNB - xe_del_Nb) ** 2
+    + 0.5 * PC_del_NbNb * (XNB - xe_del_Nb) ** 2
 )
 
 g_laves = (
-    fr1by2 * PC_lav_CrCr * (XCR - xe_lav_Cr) ** 2
+    0.5 * PC_lav_CrCr * (XCR - xe_lav_Cr) ** 2
     + PC_lav_CrNb * (XCR - xe_lav_Cr) * (XNB - xe_lav_Nb)
-    + fr1by2 * PC_lav_NbNb * (XNB - xe_lav_Nb) ** 2
+    + 0.5 * PC_lav_NbNb * (XNB - xe_lav_Nb) ** 2
 )
 
 # Generate first derivatives of paraboloid landscape
@@ -181,31 +181,37 @@ ficVars = (gamCr, gamNb, delCr, delNb, lavCr, lavNb)
 fictitious = solve(ficEqns, ficVars, dict=True)
 
 # Lambdify all the things!
+module="numpy"
 
-p = lambdify(x, p)
-p_prime = lambdify(x, p_prime)
+p = lambdify(x, p, modules=module)
+p_prime = lambdify(x, p_prime, modules=module)
 
-g_gamma = lambdify((XCR, XNB), g_gamma)
-g_delta = lambdify((XCR, XNB), g_delta)
+g_gamma = lambdify((XCR, XNB), g_gamma, modules=module)
+g_delta = lambdify((XCR, XNB), g_delta, modules=module)
 
-dg_gam_dxCr = lambdify((XCR, XNB), dGgam_dxCr)
-dg_gam_dxNb = lambdify((XCR, XNB), dGgam_dxNb)
-dg_del_dxCr = lambdify((XCR, XNB), dGdel_dxCr)
-dg_del_dxNb = lambdify((XCR, XNB), dGdel_dxNb)
+dg_gam_dxCr = lambdify((XCR, XNB), dGgam_dxCr, modules=module)
+dg_gam_dxNb = lambdify((XCR, XNB), dGgam_dxNb, modules=module)
+dg_del_dxCr = lambdify((XCR, XNB), dGdel_dxCr, modules=module)
+dg_del_dxNb = lambdify((XCR, XNB), dGdel_dxNb, modules=module)
 
-d2g_gam_dxCrCr = lambdify((), d2Ggam_dxCrCr)
-d2g_gam_dxCrNb = lambdify((), d2Ggam_dxCrNb)
-d2g_gam_dxNbCr = lambdify((), d2Ggam_dxNbCr)
-d2g_gam_dxNbNb = lambdify((), d2Ggam_dxNbNb)
-d2g_del_dxCrCr = lambdify((), d2Gdel_dxCrCr)
-d2g_del_dxCrNb = lambdify((), d2Gdel_dxCrNb)
-d2g_del_dxNbCr = lambdify((), d2Gdel_dxNbCr)
-d2g_del_dxNbNb = lambdify((), d2Gdel_dxNbNb)
+d2g_gam_dxCrCr = lambdify((), d2Ggam_dxCrCr, modules=module)
+d2g_gam_dxCrNb = lambdify((), d2Ggam_dxCrNb, modules=module)
+d2g_gam_dxNbCr = lambdify((), d2Ggam_dxNbCr, modules=module)
+d2g_gam_dxNbNb = lambdify((), d2Ggam_dxNbNb, modules=module)
+d2g_del_dxCrCr = lambdify((), d2Gdel_dxCrCr, modules=module)
+d2g_del_dxCrNb = lambdify((), d2Gdel_dxCrNb, modules=module)
+d2g_del_dxNbCr = lambdify((), d2Gdel_dxNbCr, modules=module)
+d2g_del_dxNbNb = lambdify((), d2Gdel_dxNbNb, modules=module)
 
 ficVars = (XCR, XNB, pDel, pGam, pLav)
 
-x_gam_Cr = lambdify(ficVars, factor(expand(fictitious[0][gamCr])))
-x_gam_Nb = lambdify(ficVars, factor(expand(fictitious[0][gamNb])))
-x_del_Cr = lambdify(ficVars, factor(expand(fictitious[0][delCr])))
-x_del_Nb = lambdify(ficVars, factor(expand(fictitious[0][delNb])))
+x_gam_Cr = lambdify(ficVars, factor(expand(fictitious[0][gamCr])), modules=module)
+x_gam_Nb = lambdify(ficVars, factor(expand(fictitious[0][gamNb])), modules=module)
+x_del_Cr = lambdify(ficVars, factor(expand(fictitious[0][delCr])), modules=module)
+x_del_Nb = lambdify(ficVars, factor(expand(fictitious[0][delNb])), modules=module)
 
+if __name__ == "__main__":
+    from sympy import init_printing, pprint
+    init_printing()
+    pprint(factor(expand(fictitious[0][gamCr])))
+    pprint(factor(expand(fictitious[0][gamNb])))

@@ -6,6 +6,9 @@ Implementation of the ternary solid-state phase-field model in FiPy
 
 import fipy as fp
 import fipy.tools.numerix as nx
+import time
+
+# === Define Model Parameters ===
 
 from energies import *
 
@@ -29,59 +32,84 @@ RT = 9504.68
 Vm = 1.0e-5
 Ldel = DCrCr * DNbNb / (w**2 * RT * Vm)
 
+def pf_tanh(x, h):
+    return 0.5 * (1 - nx.tanh((x - h) / (2 * w)))
+
+# === Setup Computational Domain ===
+
 # Computational domain size
 Lx = 1e-6
 dx = 5e-9
 Nx = Lx / dx
 
-if os.environ["FIPY_DISPLAY_MATRIX"] == "print":
+if os.environ.get("FIPY_DISPLAY_MATRIX") == "print":
     Nx = 2
 
 dt = dx**2 / (2.0 * DNbNb)
-
-def pf_tanh(x, h):
-    return 0.5 * (1 - nx.tanh((x - h) / (0.5 * w)))
+t = fp.Variable(name="$t$", value=0.)
 
 mesh = fp.Grid1D(dx=dx, nx=Nx)
 x = mesh.cellCenters[0]
 
-phiD = fp.CellVariable(name="$\phi^{\delta}$", mesh=mesh, value=pf_tanh(x, Lx / 8))
-phiL = fp.CellVariable(name="$\phi^{\lambda}$", mesh=mesh, value=0.)
-pD = p(phiD)
-pL = p(phiD)
-pG = fp.CellVariable(name="$p^{\gamma}$", mesh=mesh, value=1 - pD - pL)
+# === Configure Field Variables ===
 
-xCr = fp.CellVariable(name=r"$x_{\mathrm{Cr}}$", mesh=mesh, value=xCrGam0 * pG + xe_del_Cr * pD + xe_lav_Cr * pL)
-xNb = fp.CellVariable(name=r"$x_{\mathrm{Nb}}$", mesh=mesh, value=xNbGam0 * pG + xe_del_Nb * pD + xe_lav_Nb * pL)
+phiD = fp.CellVariable(name="$\phi^{\delta}$", mesh=mesh,
+                       value=pf_tanh(x, Lx / 8))
+phiL = fp.CellVariable(name="$\phi^{\lambda}$", mesh=mesh,
+                       value=0.)
+pD = fp.CellVariable(name="$p^{\delta}$",  mesh=mesh, value=p(phiD))
+pL = fp.CellVariable(name="$p^{\lambda}$", mesh=mesh, value=p(phiL))
+pG = fp.CellVariable(name="$p^{\gamma}$",  mesh=mesh, value=1 - pD - pL)
 
-xCrGam = fp.CellVariable(name=r"$x^{\gamma}_{\mathrm{Cr}}$", mesh=mesh, value=x_gam_Cr(xCr, xNb, pD, pG, pL))
-xNbGam = fp.CellVariable(name=r"$x^{\gamma}_{\mathrm{Nb}}$", mesh=mesh, value=x_gam_Nb(xCr, xNb, pD, pG, pL))
-xCrDel = fp.CellVariable(name=r"$x^{\delta}_{\mathrm{Cr}}$", mesh=mesh, value=x_del_Cr(xCr, xNb, pD, pG, pL))
-xNbDel = fp.CellVariable(name=r"$x^{\delta}_{\mathrm{Nb}}$", mesh=mesh, value=x_del_Nb(xCr, xNb, pD, pG, pL))
+xCr = fp.CellVariable(name=r"$x_{\mathrm{Cr}}$", mesh=mesh,
+                      value=xCrGam0 * pG + xe_del_Cr * pD + xe_lav_Cr * pL)
+xNb = fp.CellVariable(name=r"$x_{\mathrm{Nb}}$", mesh=mesh,
+                      value=xNbGam0 * pG + xe_del_Nb * pD + xe_lav_Nb * pL)
 
-# Equation numbers refer to the draft manuscript.
+xCrGam = fp.CellVariable(name=r"$x^{\gamma}_{\mathrm{Cr}}$", mesh=mesh,
+                         value=x_gam_Cr(xCr, xNb, pD, pG, pL))
+xNbGam = fp.CellVariable(name=r"$x^{\gamma}_{\mathrm{Nb}}$", mesh=mesh,
+                         value=x_gam_Nb(xCr, xNb, pD, pG, pL))
+xCrDel = fp.CellVariable(name=r"$x^{\delta}_{\mathrm{Cr}}$", mesh=mesh,
+                         value=x_del_Cr(xCr, xNb, pD, pG, pL))
+xNbDel = fp.CellVariable(name=r"$x^{\delta}_{\mathrm{Nb}}$", mesh=mesh,
+                         value=x_del_Nb(xCr, xNb, pD, pG, pL))
+
+# === Implement Equations (numbers refer to the manuscript) ===
+
+Agam = 0.5 * d2g_gam_dxCrCr()
+Bgam =       d2g_gam_dxCrNb()
+Cgam = 0.5 * d2g_gam_dxNbNb()
+
+Adel = 0.5 * d2g_del_dxCrCr()
+Bdel =       d2g_del_dxCrNb()
+Cdel = 0.5 * d2g_del_dxNbNb()
 
 eq12a = fp.ImplicitSourceTerm(coeff=pG, var=xCrGam) \
       + fp.ImplicitSourceTerm(coeff=pD, var=xCrDel) \
-     == fp.ImplicitSourceTerm(coeff=1, var=xCr)
+     == fp.ImplicitSourceTerm(coeff=1., var=xCr)
 
 eq12b = fp.ImplicitSourceTerm(coeff=pG, var=xNbGam) \
       + fp.ImplicitSourceTerm(coeff=pD, var=xNbDel) \
-     == fp.ImplicitSourceTerm(coeff=1, var=xNb)
+     == fp.ImplicitSourceTerm(coeff=1., var=xNb)
 
-eq12c = fp.ImplicitSourceTerm(coeff=0.5*d2g_gam_dxCrCr(), var=xCrGam) \
-      + fp.ImplicitSourceTerm(coeff=d2g_gam_dxCrNb(), var=xNbGam) \
-      - fp.ImplicitSourceTerm(coeff=0.5*d2g_del_dxCrCr(), var=xCrDel) \
-      - fp.ImplicitSourceTerm(coeff=d2g_del_dxCrNb(), var=xNbDel) \
-     == 0.5 * xe_gam_Cr * d2g_gam_dxCrCr() + xe_gam_Nb * d2g_gam_dxCrNb() \
-      - 0.5 * xe_del_Cr * d2g_del_dxCrCr() - xe_del_Nb * d2g_del_dxCrNb()
+eq12c = fp.ImplicitSourceTerm(coeff=Agam, var=xCrGam) \
+      + fp.ImplicitSourceTerm(coeff=Bgam, var=xNbGam) \
+      - fp.ImplicitSourceTerm(coeff=Adel, var=xCrDel) \
+      - fp.ImplicitSourceTerm(coeff=Bdel, var=xNbDel) \
+     == xe_gam_Cr * Agam \
+      + xe_gam_Nb * Bgam \
+      - xe_del_Cr * Adel \
+      - xe_del_Nb * Bdel
 
-eq12d = fp.ImplicitSourceTerm(coeff=d2g_gam_dxCrNb(), var=xCrGam) \
-      + fp.ImplicitSourceTerm(coeff=0.5*d2g_gam_dxNbNb(), var=xNbGam) \
-      - fp.ImplicitSourceTerm(coeff=d2g_del_dxCrNb(), var=xCrDel) \
-      - fp.ImplicitSourceTerm(coeff=0.5*d2g_del_dxNbNb(), var=xNbDel) \
-     == xe_gam_Cr * d2g_gam_dxCrNb() + 0.5 * xe_gam_Nb * d2g_gam_dxNbNb() \
-      - xe_del_Cr * d2g_del_dxCrNb() - 0.5 * xe_del_Nb * d2g_del_dxNbNb()
+eq12d = fp.ImplicitSourceTerm(coeff=Bgam, var=xCrGam) \
+      + fp.ImplicitSourceTerm(coeff=Cgam, var=xNbGam) \
+      - fp.ImplicitSourceTerm(coeff=Bdel, var=xCrDel) \
+      - fp.ImplicitSourceTerm(coeff=Cdel, var=xNbDel) \
+     == xe_gam_Cr * Bgam \
+      + xe_gam_Nb * Cgam \
+      - xe_del_Cr * Bdel \
+      - xe_del_Nb * Cdel
 
 pressure = p_prime(phiD) * (g_gamma(xCrGam, xNbGam) - g_delta(xCrDel, xNbDel)) \
          - fp.ImplicitSourceTerm(var=xCrGam, coeff=p_prime(phiD) * dg_gam_dxCr(xCrGam, xNbGam)) \
@@ -91,7 +119,7 @@ pressure = p_prime(phiD) * (g_gamma(xCrGam, xNbGam) - g_delta(xCrDel, xNbDel)) \
 
 eq24 = fp.TransientTerm(coeff=1.0/Ldel, var=phiD) \
     == pressure \
-     - 2 * omega * phiD * (1 - phiD) * (1 - 2 * phiD) \
+     - 2. * omega * phiD * (1. - phiD) * (1. - 2. * phiD) \
      + fp.DiffusionTerm(coeff=kappa, var=phiD)
 
 eq27a = fp.TransientTerm(var=xCr) == fp.DiffusionTerm(coeff=DCrCr, var=xCrGam) \
@@ -106,19 +134,19 @@ eq27b = fp.TransientTerm(var=xNb) == fp.DiffusionTerm(coeff=DNbCr, var=xCrGam) \
 
 coupled = eq12a & eq12b & eq12c & eq12d & eq24 & eq27a & eq27b
 
-# Turn the crank
+# === Turn the Crank ===
 
-viewer = fp.Viewer(vars=(phiD, xCr, xNb), datamin=0., datamax=1.)
+viewer = fp.Viewer(vars=(phiD, xCr, xNb, xCrGam, xNbGam), datamin=0., datamax=1.)
 viewer.plot()
 
-fp.input("Initial condition. Press <return> to proceed...")
-
-dt = 1.0e-8
-t = fp.Variable(name="$t$", value=0.)
+fp.input("Initial condition. Press <return> to continue...")
+#print("Initial condition. Sleeping 5 sec...")
+#time.sleep(5)
 
 for i in range(10):
     print("t =", t.value, "sec")
-    # eq.solve(dt=dt)
+    #res = coupled.solve(dt=dt)
+    #print("    ", res)
     for sweep in range(5):
         res = coupled.sweep(dt=dt)
         print("    ", res)
