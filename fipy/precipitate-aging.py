@@ -9,15 +9,10 @@ import fipy.tools.numerix as nx
 
 from energies import *
 
-Lx = 1e-6
-dx = 5e-9
-Nx = Lx / dx
-# Nx = 3
-
 # System composition
-f0 = 0.125
 xCr0 = 0.3125
 xNb0 = 0.1575
+f0 = 0.125 # initial secondary phase fraction
 xCrGam0 = (1 - f0) * xCr0 - f0 / (1 - f0) * xe_del_Cr
 xNbGam0 = (1 - f0) * xNb0 - f0 / (1 - f0) * xe_del_Nb
 
@@ -33,6 +28,16 @@ omega = 18 * sigma**2 / kappa
 RT = 9504.68
 Vm = 1.0e-5
 Ldel = DCrCr * DNbNb / (w**2 * RT * Vm)
+
+# Computational domain size
+Lx = 1e-6
+dx = 5e-9
+Nx = Lx / dx
+
+if os.environ["FIPY_DISPLAY_MATRIX"] == "print":
+    Nx = 2
+
+dt = dx**2 / (2.0 * DNbNb)
 
 def pf_tanh(x, h):
     return 0.5 * (1 - nx.tanh((x - h) / (0.5 * w)))
@@ -103,7 +108,7 @@ coupled = eq12a & eq12b & eq12c & eq12d & eq24 & eq27a & eq27b
 
 # Turn the crank
 
-viewer = fp.Viewer(vars=(phiD, xCr, xNb))
+viewer = fp.Viewer(vars=(phiD, xCr, xNb), datamin=0., datamax=1.)
 viewer.plot()
 
 fp.input("Initial condition. Press <return> to proceed...")
