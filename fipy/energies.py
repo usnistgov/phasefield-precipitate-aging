@@ -3,8 +3,8 @@
 # Numerical and CAS libraries
 import numpy as np
 import os
-from sympy import diff, expand, factor, symbols
-from sympy.abc import x
+from sympy import diff, expand, factor, symbols, tanh
+from sympy.abc import h, w, x
 from sympy.solvers import solve
 from sympy.utilities import lambdify
 import sys
@@ -20,9 +20,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../thermo"))
 from constants import *
 
 # Phase-field interpolator
-
 p = x**3 * (6. * x**2 - 15. * x + 10.)
 p_prime = p.diff(x)
+
+# Interface interpolator
+smooth_interface = 0.5 * (1 - tanh((x - h) / (2 * w)))
 
 # Declare sublattice variables used in Pycalphad expressions
 XCR, XNB = symbols("XCR XNB")
@@ -185,6 +187,7 @@ module="numpy"
 
 p = lambdify(x, p, modules=module)
 p_prime = lambdify(x, p_prime, modules=module)
+smooth_interface = lambdify((h, w, x), smooth_interface, modules=module)
 
 g_gamma = lambdify((XCR, XNB), g_gamma, modules=module)
 g_delta = lambdify((XCR, XNB), g_delta, modules=module)

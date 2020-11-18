@@ -32,9 +32,6 @@ RT = 9504.68
 Vm = 1.0e-5
 Ldel = DCrCr * DNbNb / (w**2 * RT * Vm)
 
-def pf_tanh(x, h):
-    return 0.5 * (1 - nx.tanh((x - h) / (2 * w)))
-
 # === Setup Computational Domain ===
 
 # Computational domain size
@@ -54,7 +51,7 @@ x = mesh.cellCenters[0]
 # === Configure Field Variables ===
 
 phiD = fp.CellVariable(name="$\phi^{\delta}$", mesh=mesh,
-                       value=pf_tanh(x, Lx / 8))
+                       value=smooth_interface(Lx / 8, 2 * w, x))
 phiL = fp.CellVariable(name="$\phi^{\lambda}$", mesh=mesh,
                        value=0.)
 pD = fp.CellVariable(name="$p^{\delta}$",  mesh=mesh, value=p(phiD))
