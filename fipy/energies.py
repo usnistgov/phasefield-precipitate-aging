@@ -187,26 +187,27 @@ module="numpy"
 
 p = lambdify(x, p, modules=module)
 p_prime = lambdify(x, p_prime, modules=module)
-smooth_interface = lambdify((h, w, x), smooth_interface, modules=module)
+smooth_interface = lambdify([h, w, x], smooth_interface, modules=module)
 
-g_gamma = lambdify((XCR, XNB), g_gamma, modules=module)
-g_delta = lambdify((XCR, XNB), g_delta, modules=module)
+comp = [XCR, XNB]
+g_gamma = lambdify(comp, g_gamma, modules=module)
+g_delta = lambdify(comp, g_delta, modules=module)
 
-dg_gam_dxCr = lambdify((XCR, XNB), dGgam_dxCr, modules=module)
-dg_gam_dxNb = lambdify((XCR, XNB), dGgam_dxNb, modules=module)
-dg_del_dxCr = lambdify((XCR, XNB), dGdel_dxCr, modules=module)
-dg_del_dxNb = lambdify((XCR, XNB), dGdel_dxNb, modules=module)
+dg_gam_dxCr = lambdify(comp, dGgam_dxCr, modules=module)
+dg_gam_dxNb = lambdify(comp, dGgam_dxNb, modules=module)
+dg_del_dxCr = lambdify(comp, dGdel_dxCr, modules=module)
+dg_del_dxNb = lambdify(comp, dGdel_dxNb, modules=module)
 
-d2g_gam_dxCrCr = lambdify((), d2Ggam_dxCrCr, modules=module)
-d2g_gam_dxCrNb = lambdify((), d2Ggam_dxCrNb, modules=module)
-d2g_gam_dxNbCr = lambdify((), d2Ggam_dxNbCr, modules=module)
-d2g_gam_dxNbNb = lambdify((), d2Ggam_dxNbNb, modules=module)
-d2g_del_dxCrCr = lambdify((), d2Gdel_dxCrCr, modules=module)
-d2g_del_dxCrNb = lambdify((), d2Gdel_dxCrNb, modules=module)
-d2g_del_dxNbCr = lambdify((), d2Gdel_dxNbCr, modules=module)
-d2g_del_dxNbNb = lambdify((), d2Gdel_dxNbNb, modules=module)
+d2g_gam_dxCrCr = lambdify([], d2Ggam_dxCrCr, modules=module)
+d2g_gam_dxCrNb = lambdify([], d2Ggam_dxCrNb, modules=module)
+d2g_gam_dxNbCr = lambdify([], d2Ggam_dxNbCr, modules=module)
+d2g_gam_dxNbNb = lambdify([], d2Ggam_dxNbNb, modules=module)
+d2g_del_dxCrCr = lambdify([], d2Gdel_dxCrCr, modules=module)
+d2g_del_dxCrNb = lambdify([], d2Gdel_dxCrNb, modules=module)
+d2g_del_dxNbCr = lambdify([], d2Gdel_dxNbCr, modules=module)
+d2g_del_dxNbNb = lambdify([], d2Gdel_dxNbNb, modules=module)
 
-ficVars = (XCR, XNB, pDel, pGam, pLav)
+ficVars = [XCR, XNB, pDel, pGam, pLav]
 
 x_gam_Cr = lambdify(ficVars, factor(expand(fictitious[0][gamCr])), modules=module)
 x_gam_Nb = lambdify(ficVars, factor(expand(fictitious[0][gamNb])), modules=module)

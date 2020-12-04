@@ -52,16 +52,16 @@ x = mesh.cellCenters[0]
 
 phiD = fp.CellVariable(name="$\phi^{\delta}$", mesh=mesh,
                        value=smooth_interface(Lx / 8, 2 * w, x))
-phiL = fp.CellVariable(name="$\phi^{\lambda}$", mesh=mesh,
-                       value=0.)
-pD = fp.CellVariable(name="$p^{\delta}$",  mesh=mesh, value=p(phiD))
-pL = fp.CellVariable(name="$p^{\lambda}$", mesh=mesh, value=p(phiL))
-pG = fp.CellVariable(name="$p^{\gamma}$",  mesh=mesh, value=1 - pD - pL)
+phiL = fp.CellVariable(name="$\phi^{\lambda}$", mesh=mesh, value=0.)
+
+pD = fp.CellVariable(name="$p^{\delta}$",  mesh=mesh, value=p(phiD)) # interpolated phi_del
+pL = fp.CellVariable(name="$p^{\lambda}$", mesh=mesh, value=p(phiL)) # interpolated phi_lam
+pG = fp.CellVariable(name="$p^{\gamma}$",  mesh=mesh, value=1 - pD)  # interpolated phi_gam
 
 xCr = fp.CellVariable(name=r"$x_{\mathrm{Cr}}$", mesh=mesh,
-                      value=xCrGam0 * pG + xe_del_Cr * pD + xe_lav_Cr * pL)
+                      value=xCrGam0 * pG + xe_del_Cr * pD)
 xNb = fp.CellVariable(name=r"$x_{\mathrm{Nb}}$", mesh=mesh,
-                      value=xNbGam0 * pG + xe_del_Nb * pD + xe_lav_Nb * pL)
+                      value=xNbGam0 * pG + xe_del_Nb * pD)
 
 xCrGam = fp.CellVariable(name=r"$x^{\gamma}_{\mathrm{Cr}}$", mesh=mesh,
                          value=x_gam_Cr(xCr, xNb, pD, pG, pL))
@@ -114,26 +114,26 @@ pressure = p_prime(phiD) * (g_gamma(xCrGam, xNbGam) - g_delta(xCrDel, xNbDel)) \
          - fp.ImplicitSourceTerm(var=xNbGam, coeff=p_prime(phiD) * dg_gam_dxNb(xCrGam, xNbGam)) \
          + fp.ImplicitSourceTerm(var=xNbDel, coeff=p_prime(phiD) * dg_gam_dxNb(xCrGam, xNbGam))
 
-eq24 = fp.TransientTerm(coeff=1.0/Ldel, var=phiD) \
+eq25 = fp.TransientTerm(coeff=1.0/Ldel, var=phiD) \
     == pressure \
      - 2. * omega * phiD * (1. - phiD) * (1. - 2. * phiD) \
      + fp.DiffusionTerm(coeff=kappa, var=phiD)
 
-eq27a = fp.TransientTerm(var=xCr) == fp.DiffusionTerm(coeff=DCrCr, var=xCrGam) \
-                                   + fp.DiffusionTerm(coeff=DCrNb, var=xNbGam) \
-                                   + fp.DiffusionTerm(coeff=DCrCr, var=xCrDel) \
-                                   + fp.DiffusionTerm(coeff=DCrNb, var=xNbDel)
+eq28a = fp.TransientTerm(var=xCr) == fp.DiffusionTerm(coeff=DCrCr * pG, var=xCrGam) \
+                                   + fp.DiffusionTerm(coeff=DCrNb * pG, var=xNbGam) \
+                                   + fp.DiffusionTerm(coeff=DCrCr * pD, var=xCrDel) \
+                                   + fp.DiffusionTerm(coeff=DCrNb * pD, var=xNbDel)
 
-eq27b = fp.TransientTerm(var=xNb) == fp.DiffusionTerm(coeff=DNbCr, var=xCrGam) \
-                                   + fp.DiffusionTerm(coeff=DNbNb, var=xNbGam) \
-                                   + fp.DiffusionTerm(coeff=DNbCr, var=xCrDel) \
-                                   + fp.DiffusionTerm(coeff=DNbNb, var=xNbDel)
+eq28b = fp.TransientTerm(var=xNb) == fp.DiffusionTerm(coeff=DNbCr * pG, var=xCrGam) \
+                                   + fp.DiffusionTerm(coeff=DNbNb * pG, var=xNbGam) \
+                                   + fp.DiffusionTerm(coeff=DNbCr * pD, var=xCrDel) \
+                                   + fp.DiffusionTerm(coeff=DNbNb * pD, var=xNbDel)
 
-coupled = eq12a & eq12b & eq12c & eq12d & eq24 & eq27a & eq27b
+coupled = eq12a & eq12b & eq12c & eq12d & eq25 & eq28a & eq28b
 
 # === Turn the Crank ===
 
-viewer = fp.Viewer(vars=(phiD, xCr, xNb, xCrGam, xNbGam), datamin=0., datamax=1.)
+viewer = fp.Viewer(vars=(phiD, xCr, xNb, xCrGam, xNbGam), datamin=-0.05, datamax=1.05)
 viewer.plot()
 
 fp.input("Initial condition. Press <return> to continue...")
