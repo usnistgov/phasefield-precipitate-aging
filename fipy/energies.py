@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Numerical and CAS libraries
+from fipy import numerix
 import numpy as np
 import os
 from sympy import diff, expand, factor, symbols, tanh
@@ -183,7 +184,7 @@ ficVars = (gamCr, gamNb, delCr, delNb, lavCr, lavNb)
 fictitious = solve(ficEqns, ficVars, dict=True)
 
 # Lambdify all the things!
-module="numpy"
+module=numerix
 
 p = lambdify(x, p, modules=module)
 p_prime = lambdify(x, p_prime, modules=module)

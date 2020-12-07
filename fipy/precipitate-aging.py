@@ -39,8 +39,8 @@ Lx = 1e-6
 dx = 5e-9
 Nx = Lx / dx
 
-if os.environ.get("FIPY_DISPLAY_MATRIX") == "print":
-    Nx = 2
+if "print" in os.environ.get("FIPY_DISPLAY_MATRIX", "").split():
+    Nx = 1
 
 dt = dx**2 / (2.0 * DNbNb)
 t = fp.Variable(name="$t$", value=0.)
@@ -51,7 +51,8 @@ x = mesh.cellCenters[0]
 # === Configure Field Variables ===
 
 phiD = fp.CellVariable(name="$\phi^{\delta}$", mesh=mesh,
-                       value=smooth_interface(Lx / 8, 2 * w, x))
+                       value=smooth_interface(Lx / 8, 2 * w, x),
+                       hasOld=True)
 phiL = fp.CellVariable(name="$\phi^{\lambda}$", mesh=mesh, value=0.)
 
 pD = fp.CellVariable(name="$p^{\delta}$",  mesh=mesh, value=p(phiD)) # interpolated phi_del
@@ -59,9 +60,11 @@ pL = fp.CellVariable(name="$p^{\lambda}$", mesh=mesh, value=p(phiL)) # interpola
 pG = fp.CellVariable(name="$p^{\gamma}$",  mesh=mesh, value=1 - pD)  # interpolated phi_gam
 
 xCr = fp.CellVariable(name=r"$x_{\mathrm{Cr}}$", mesh=mesh,
-                      value=xCrGam0 * pG + xe_del_Cr * pD)
+                      value=xCrGam0 * pG + xe_del_Cr * pD,
+                      hasOld=True)
 xNb = fp.CellVariable(name=r"$x_{\mathrm{Nb}}$", mesh=mesh,
-                      value=xNbGam0 * pG + xe_del_Nb * pD)
+                      value=xNbGam0 * pG + xe_del_Nb * pD,
+                      hasOld=True)
 
 xCrGam = fp.CellVariable(name=r"$x^{\gamma}_{\mathrm{Cr}}$", mesh=mesh,
                          value=x_gam_Cr(xCr, xNb, pD, pG, pL))
@@ -131,25 +134,26 @@ eq28b = fp.TransientTerm(var=xNb) == fp.DiffusionTerm(coeff=DNbCr * pG, var=xCrG
 
 coupled = eq12a & eq12b & eq12c & eq12d & eq25 & eq28a & eq28b
 
+# print(coupled.getDefaultSolver(var=None, solver=None))
+
+
 # === Turn the Crank ===
 
-viewer = fp.Viewer(vars=(phiD, xCr, xNb, xCrGam, xNbGam), datamin=-0.05, datamax=1.05)
+viewer = fp.Viewer(vars=(pD, xCr, xNb, xCrGam, xNbGam), datamin=-0.05, datamax=1.05)
 viewer.plot()
 
-fp.input("Initial condition. Press <return> to continue...")
-#print("Initial condition. Sleeping 5 sec...")
-#time.sleep(5)
+if "print" in os.environ.get("FIPY_DISPLAY_MATRIX", "").split():
+   fp.input("Initial condition. Press <return> to continue...")
 
 for i in range(10):
     print("t =", t.value, "sec")
-    #res = coupled.solve(dt=dt)
-    #print("    ", res)
+    for var in (phiD, xCr, xNb):
+        var.updateOld()
+
     for sweep in range(5):
-        res = coupled.sweep(dt=dt)
-        print("    ", res)
+        print("  s=", sweep)
+        coupled.sweep(dt=dt)
+
     t.value = t() + dt
-    # i = i + 1
-    # if (i % 1000):
-    #     viewer.plot()
 
 viewer.plot()
