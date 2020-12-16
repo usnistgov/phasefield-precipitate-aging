@@ -42,7 +42,7 @@ Nx = Lx / dx
 if "print" in os.environ.get("FIPY_DISPLAY_MATRIX", "").split():
     Nx = 1
 
-dt = dx**2 / (2.0 * DNbNb)
+dt = 1e4 * dx**2 / (2.0 * DNbNb)
 t = fp.Variable(name="$t$", value=0.)
 
 mesh = fp.Grid1D(dx=dx, nx=Nx)
@@ -142,8 +142,8 @@ coupled = eq12a & eq12b & eq12c & eq12d & eq25 & eq28a & eq28b
 viewer = fp.Viewer(vars=(pD, xCr, xNb, xCrGam, xNbGam), datamin=-0.05, datamax=1.05)
 viewer.plot()
 
-if "print" in os.environ.get("FIPY_DISPLAY_MATRIX", "").split():
-   fp.input("Initial condition. Press <return> to continue...")
+# if "print" in os.environ.get("FIPY_DISPLAY_MATRIX", "").split():
+#    fp.input("Initial condition. Press <return> to continue...")
 
 for i in range(10):
     print("t =", t.value, "sec")
